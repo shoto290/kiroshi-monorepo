@@ -5,7 +5,10 @@ import { useTranslation } from "react-i18next"
 
 import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/bot-badge"
 import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
-import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
+import {
+	COMPANION_SILHOUETTE,
+	SILHOUETTE_FOCUS_RING,
+} from "@workspace/ui/components/companion-picture"
 import type { BotAvatarState } from "@workspace/ui/components/companion-state"
 import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
 import { Icons } from "@workspace/ui/components/icons"
@@ -18,10 +21,6 @@ type ActivityIndicatorKind = Extract<
 >
 
 const DEFAULT_SIZE = 40
-
-const pictureShapeStyle = (size: number) => ({
-	borderRadius: companionPictureRadius(size),
-})
 
 type BotIdentityAvatarProps = {
 	name?: string
@@ -50,7 +49,6 @@ function BotIdentityAvatar({
 		<AvatarFrame
 			className={className}
 			image={image}
-			imageRadius={companionPictureRadius(size)}
 			overlay={
 				badge ? (
 					<BotBadgeDot
@@ -88,12 +86,7 @@ type BotStopButtonProps = {
 	children: ReactNode
 }
 
-const BotStopButton = ({
-	name,
-	size = DEFAULT_SIZE,
-	onStop,
-	children,
-}: BotStopButtonProps) => {
+const BotStopButton = ({ name, onStop, children }: BotStopButtonProps) => {
 	const { t } = useTranslation("chat")
 	const [armed, setArmed] = useState(false)
 
@@ -107,15 +100,14 @@ const BotStopButton = ({
 			onPointerLeave={() => setArmed(false)}
 			onFocus={() => setArmed(true)}
 			onBlur={() => setArmed(false)}
-			className="relative block w-fit rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-			style={pictureShapeStyle(size)}
+			className={cn("relative block w-fit", SILHOUETTE_FOCUS_RING)}
 		>
 			{children}
 			<span
 				aria-hidden="true"
 				data-slot="bot-working-stop-glyph"
 				className={cn(STOP_OVERLAY, armed ? "opacity-100" : "opacity-0")}
-				style={pictureShapeStyle(size)}
+				style={COMPANION_SILHOUETTE}
 			>
 				<Icons.Stop className="size-1/2" />
 			</span>
@@ -133,7 +125,6 @@ type BotSelectButtonProps = {
 
 const BotSelectButton = ({
 	name,
-	size = DEFAULT_SIZE,
 	onSelect,
 	children,
 }: BotSelectButtonProps) => (
@@ -142,8 +133,10 @@ const BotSelectButton = ({
 		data-slot="bot-select"
 		aria-label={name}
 		onClick={onSelect}
-		className="block w-fit cursor-pointer rounded-full outline-none transition-opacity duration-150 ease-out hover:not-focus-visible:opacity-70 hover:transition-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-		style={pictureShapeStyle(size)}
+		className={cn(
+			"block w-fit cursor-pointer transition-opacity duration-150 ease-out hover:not-focus-visible:opacity-70 hover:transition-none motion-reduce:transition-none",
+			SILHOUETTE_FOCUS_RING,
+		)}
 	>
 		{children}
 	</button>

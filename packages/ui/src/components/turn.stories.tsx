@@ -4,7 +4,8 @@ import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
-	expectCompanionPictureSquare,
+	expectCompanionPictureShape,
+	expectCompanionSilhouette,
 	shown,
 	slotIn,
 	slotsIn,
@@ -1246,8 +1247,8 @@ export const StoppablePicture = meta.story({
 		await expect(
 			canvas.getByRole("button", { name: "Stop Atlas" }),
 		).toBeVisible()
-		await expectCompanionPictureSquare(picture)
-		await expect(getComputedStyle(glyph).borderRadius).toBe("10px")
+		await expectCompanionPictureShape(picture)
+		await expectCompanionSilhouette(glyph)
 	},
 })
 
@@ -1278,8 +1279,7 @@ export const PictureBesideBlot = meta.story({
 	play: async ({ canvasElement }) => {
 		const [picture, drawn] = botIdentityAvatars(canvasElement)
 
-		await expectCompanionPictureSquare(picture)
-		await expect(getComputedStyle(picture).borderRadius).toBe("10px")
+		await expectCompanionPictureShape(picture)
 		await expect(drawn.querySelector("img")).toBeNull()
 		await expect(slotsIn(drawn, "avatar-exploration")).toHaveLength(1)
 	},
@@ -1761,7 +1761,7 @@ export const CompanionSelectOnGutterFocused = meta.story({
 		await userEvent.tab()
 
 		await expect(blot).toHaveFocus()
-		await expect(getComputedStyle(blot).boxShadow).not.toBe("none")
+		await expect(getComputedStyle(blot).filter).toContain("drop-shadow")
 	},
 })
 

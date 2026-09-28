@@ -10,7 +10,8 @@ import {
 	companionGlyphs,
 	companionGlyphsIn,
 	companionTintOf,
-	expectCompanionPictureSquare,
+	expectCompanionPictureShape,
+	expectHexagonFrame,
 	FRAME_POLL,
 	hasOverlayScrollbars,
 	mergeA11y,
@@ -1012,8 +1013,7 @@ export const UploadedPictures = meta.story({
 		await expect(wearing.querySelector("svg")).toBeNull()
 		for (const row of [wearing, running]) {
 			const [picture] = slotsIn(row, "bot-identity-avatar")
-			await expectCompanionPictureSquare(picture)
-			await expect(getComputedStyle(picture).borderRadius).toBe("10px")
+			await expectCompanionPictureShape(picture)
 		}
 		await expect(drawn.querySelector("img")).toBeNull()
 		await expect(within(drawn).getByRole("img")).toBeVisible()
@@ -5223,9 +5223,7 @@ export const ConversationOfOneBot = meta.story({
 		await expect(Math.round(frame.getBoundingClientRect().width)).toBe(
 			Math.round(loose.getBoundingClientRect().width),
 		)
-		await expect(
-			Number.parseFloat(getComputedStyle(frame).borderTopWidth),
-		).toBeGreaterThan(0)
+		await expectHexagonFrame(frame)
 
 		const [held] = stackIn(room)
 		await expect(held.getBoundingClientRect().width).toBeLessThan(

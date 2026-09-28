@@ -9,10 +9,7 @@ import {
 	stillTime,
 } from "@workspace/ui/components/avatar-exploration"
 import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
-import {
-	COMPANION_SILHOUETTE,
-	companionPictureRadius,
-} from "@workspace/ui/components/companion-picture"
+import { COMPANION_SILHOUETTE } from "@workspace/ui/components/companion-picture"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -69,7 +66,6 @@ const ExplorationFrame = ({
 				width: size,
 				height: size,
 				...(surface && COMPANION_SILHOUETTE),
-				borderRadius: surface ? companionPictureRadius(size) : undefined,
 				backgroundColor: surface,
 			}}
 		>

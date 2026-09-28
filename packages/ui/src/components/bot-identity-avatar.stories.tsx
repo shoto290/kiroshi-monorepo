@@ -8,7 +8,7 @@ import {
 	companionTintOf,
 	drawingOf,
 	expectCellsIn,
-	expectCompanionPictureSquare,
+	expectCompanionPictureShape,
 	expectCompanionSilhouette,
 	pictureOf,
 	Row,
@@ -22,7 +22,6 @@ import {
 	type BotIdentityAvatarProps,
 } from "@workspace/ui/components/bot-identity-avatar"
 import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
-import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
 import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import { Button } from "@workspace/ui/components/ui/button"
 
@@ -49,10 +48,7 @@ const expectOneHoneycomb = async (canvasElement: HTMLElement) => {
 	await expect(new Set(drawings).size).toBe(1)
 }
 
-const DRAWN_PICTURE_SLOTS = [
-	{ size: 40, radius: "10px" },
-	{ size: 20, radius: "6px" },
-]
+const DRAWN_PICTURE_SLOTS = [{ size: 40 }, { size: 20 }]
 
 const DrawnPictureSlots = (props: BotIdentityAvatarProps) => (
 	<Row>
@@ -145,9 +141,10 @@ export const Rest = meta.story({
 		await expectGlyph(avatar, "idle")
 		await expect(companionTintOf(glyph)).toBe("var(--bot-blot-blue)")
 		await expectCompanionSilhouette(glyph)
-		await expect(getComputedStyle(avatar).borderRadius).toBe(
-			`${companionPictureRadius(96)}px`,
-		)
+		for (const layer of [avatar, glyph]) {
+			await expect(getComputedStyle(layer).borderRadius).toBe("0px")
+			await expect(getComputedStyle(layer).outlineStyle).toBe("none")
+		}
 		await expect(activityDotOf(avatar)).toBeUndefined()
 	},
 })
@@ -338,6 +335,7 @@ export const Waiting = meta.story({
 })
 
 export const WithImage = meta.story({
+	globals: { theme_layout: "side-by-side" },
 	args: { image: UPLOADED_AVATAR_IMAGE },
 	render: (args) => <EveryPlace {...args} />,
 	parameters: {
@@ -357,7 +355,7 @@ export const WithImage = meta.story({
 			await expect(
 				avatar.querySelector('[data-slot="avatar-exploration"]'),
 			).toBeNull()
-			await expectCompanionPictureSquare(avatar)
+			await expectCompanionPictureShape(avatar)
 		}
 	},
 })
@@ -383,7 +381,7 @@ export const UploadedWorking = meta.story({
 			await expect(
 				avatar.querySelector('[data-slot="bot-activity-dot"]'),
 			).toBeNull()
-			await expectCompanionPictureSquare(avatar)
+			await expectCompanionPictureShape(avatar)
 		}
 	},
 })
@@ -412,13 +410,12 @@ export const UploadedAtDrawnSizes = meta.story({
 	play: async ({ canvasElement }) => {
 		const avatars = botIdentityAvatars(canvasElement)
 
-		for (const [index, { radius }] of DRAWN_PICTURE_SLOTS.entries()) {
-			await expectCompanionPictureSquare(avatars[index])
-			await expect(getComputedStyle(avatars[index]).borderRadius).toBe(radius)
+		for (const index of DRAWN_PICTURE_SLOTS.keys()) {
+			await expectCompanionPictureShape(avatars[index])
 		}
 
 		const [reader] = slotsIn(canvasElement, "user-avatar")
-		await expect(await pictureOf(reader)).toHaveClass("rounded-full")
+		await expectCompanionSilhouette(await pictureOf(reader))
 	},
 })
 
@@ -439,7 +436,7 @@ export const UploadedBadged = meta.story({
 			const slot = avatar.getBoundingClientRect()
 			const dot = activityDotOf(avatar).getBoundingClientRect()
 
-			await expectCompanionPictureSquare(avatar)
+			await expectCompanionPictureShape(avatar)
 			await expect(dot.left).toBeGreaterThanOrEqual(slot.left)
 			await expect(dot.top).toBeGreaterThanOrEqual(slot.top)
 			await expect(dot.right).toBeLessThanOrEqual(slot.right)

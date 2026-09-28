@@ -3,7 +3,7 @@ import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
-	expectCompanionPictureSquare,
+	expectCompanionPictureShape,
 	FRAME_POLL,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -321,8 +321,7 @@ export const Pictured = meta.story({
 		const [pictured, drawn] = canvas.getAllByRole("option")
 		const [picture] = slotsIn(pictured, "bot-identity-avatar")
 
-		await expectCompanionPictureSquare(picture)
-		await expect(getComputedStyle(picture).borderRadius).toBe("6px")
+		await expectCompanionPictureShape(picture)
 		await expect(drawn.querySelector("img")).toBeNull()
 		await expect(slotsIn(drawn, "avatar-exploration")).toHaveLength(1)
 	},

@@ -5,13 +5,6 @@ import {
 	roundedHexagonPath,
 } from "@workspace/ui/components/kiroshi-hexagon"
 
-const PICTURE_RADIUS_RATIO = 0.25
-
-const MIN_PICTURE_RADIUS = 6
-
-const companionPictureRadius = (size: number) =>
-	Math.max(MIN_PICTURE_RADIUS, size * PICTURE_RADIUS_RATIO)
-
 const SILHOUETTE_SIDE = OUTER.halfWidth * 2
 
 const SILHOUETTE_MASK = `url("data:image/svg+xml,${encodeURIComponent(
@@ -24,4 +17,7 @@ const COMPANION_SILHOUETTE: CSSProperties = {
 	maskRepeat: "no-repeat",
 }
 
-export { COMPANION_SILHOUETTE, companionPictureRadius }
+const SILHOUETTE_FOCUS_RING =
+	"outline-none focus-visible:[filter:drop-shadow(0_0_1px_var(--ring))_drop-shadow(0_0_1px_var(--ring))_drop-shadow(0_0_1px_var(--ring))]"
+
+export { COMPANION_SILHOUETTE, SILHOUETTE_FOCUS_RING }

@@ -6,6 +6,7 @@ import {
 	companionGlyphOf,
 	companionGlyphs,
 	expectCompanionSilhouette,
+	expectHexagonFrame,
 	pictureOf,
 	Row,
 	slotsIn,
@@ -128,7 +129,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room of two. Both companions sit inside the frame, each keeping the dithered field it wears everywhere else, and the frame is what says these two are somewhere together rather than side by side in a list. Check in both themes that each companion sits in the rounded hexagon of the Kiroshi mark, that the companions stay inside the frame and that the frame draws a border of its own — that border is the whole signal. Pick `OneBot` for the case this component was built for, `Crowded` for what happens past three.",
+					"A room of two. Both companions sit inside the frame, each keeping the dithered field it wears everywhere else, and the frame is what says these two are somewhere together rather than side by side in a list. Check in both themes that each companion sits in the rounded hexagon of the Kiroshi mark, that the companions stay inside the frame and that the frame draws its own border along the same rounded hexagon — that border is the whole signal. Pick `OneBot` for the case this component was built for, `Crowded` for what happens past three.",
 			},
 		},
 	},
@@ -138,9 +139,7 @@ export const Default = meta.story({
 
 		await expect(held).toHaveLength(2)
 		await expect(frame).toHaveAttribute("aria-hidden", "true")
-		await expect(
-			Number.parseFloat(getComputedStyle(frame).borderTopWidth),
-		).toBeGreaterThan(0)
+		await expectHexagonFrame(frame)
 
 		await expectCentred(frame, held)
 		for (const glyph of companionGlyphs(frame))

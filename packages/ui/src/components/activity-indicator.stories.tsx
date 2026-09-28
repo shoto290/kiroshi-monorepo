@@ -7,7 +7,7 @@ import {
 	companionGlyphOf,
 	companionGlyphs,
 	companionTintOf,
-	expectCompanionPictureSquare,
+	expectCompanionPictureShape,
 	slotIn,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -643,7 +643,7 @@ export const Stop = meta.story({
 		await expect(getComputedStyle(glyph).borderRadius).toBe(
 			getComputedStyle(drawn).borderRadius,
 		)
-		await expectCompanionPictureSquare(picture)
+		await expectCompanionPictureShape(picture)
 		await expect(getComputedStyle(uploadedGlyph).borderRadius).toBe(
 			getComputedStyle(picture).borderRadius,
 		)

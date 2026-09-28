@@ -945,8 +945,8 @@ primitives-iconswap--resting
 primitives-iconswap--swapped
 primitives-initialsavatar--default
 primitives-initialsavatar--empty
-primitives-initialsavatar--picture-outline-dark
-primitives-initialsavatar--picture-outline-light
+primitives-initialsavatar--picture-dark
+primitives-initialsavatar--picture-light
 primitives-initialsavatar--sizes
 primitives-initialsavatar--with-picture
 primitives-item--default

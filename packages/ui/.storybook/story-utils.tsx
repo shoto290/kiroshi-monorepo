@@ -3,7 +3,6 @@ import type { ComponentType, ReactNode } from "react"
 import type { ExtraProps } from "react-markdown"
 import { expect, waitFor } from "storybook/test"
 
-import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
 import {
 	MARKDOWN_CODE_SURFACE_CLASS,
 	MARKDOWN_TYPESET_CLASS,
@@ -150,14 +149,14 @@ export const pictureOf = async (avatar: HTMLElement) => {
 export const expectCompanionSilhouette = (layer: Element) =>
 	expect(getComputedStyle(layer).maskImage).toContain("data:image/svg+xml")
 
-export const expectCompanionPictureSquare = async (avatar: HTMLElement) => {
+export const expectCompanionPictureShape = async (avatar: HTMLElement) => {
 	const picture = await pictureOf(avatar)
 	const { width } = avatar.getBoundingClientRect()
-	const radius = `${companionPictureRadius(width)}px`
 
 	for (const layer of [avatar, picture]) {
 		const style = getComputedStyle(layer)
-		await expect(style.borderRadius).toBe(radius)
+		await expect(style.borderRadius).toBe("0px")
+		await expect(style.outlineStyle).toBe("none")
 		await expect(style.borderTopWidth).toBe("0px")
 		await expect(style.boxShadow).toBe("none")
 	}
@@ -313,4 +312,12 @@ export const expectCellsIn = async (
 		await expect(Math.abs(channel - expected[index])).toBeLessThanOrEqual(
 			UNPREMULTIPLY_ROUNDING,
 		)
+}
+
+export const expectHexagonFrame = async (frame: HTMLElement) => {
+	const style = getComputedStyle(frame)
+	await expect(style.borderTopWidth).toBe("0px")
+	await expect(style.borderRadius).toBe("0px")
+	await expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)")
+	await expectCompanionSilhouette(slotIn(frame, "conversation-avatar-edge"))
 }

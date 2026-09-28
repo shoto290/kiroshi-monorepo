@@ -14,12 +14,12 @@ const DEFAULT_SIZE = 28
 
 const INITIALS_RATIO = 0.4
 
-const FRAME_CLASS = "block overflow-hidden after:hidden"
+const FRAME_CLASS = "block rounded-none after:hidden"
 
-const UPLOADED_IMAGE_SHAPE = "rounded-full"
+const PICTURE_LAYER = "rounded-none"
 
 const INITIALS_CLASS =
-	"grid size-full place-items-center rounded-full bg-sidebar-accent font-medium text-sidebar-accent-foreground uppercase leading-none"
+	"grid size-full place-items-center bg-sidebar-accent font-medium text-sidebar-accent-foreground uppercase leading-none"
 
 const displayNameOf = (name?: string) => name?.trim() || FALLBACK_NAME
 
@@ -33,7 +33,6 @@ type AvatarFrameProps = {
 	slot: string
 	size: number
 	image?: string
-	imageRadius?: number
 	overlay?: ReactNode
 	className?: string
 	children: ReactNode
@@ -43,7 +42,6 @@ const AvatarFrame = ({
 	slot,
 	size,
 	image,
-	imageRadius,
 	overlay,
 	className,
 	children,
@@ -51,26 +49,19 @@ const AvatarFrame = ({
 	<Avatar
 		className={cn(FRAME_CLASS, className)}
 		data-slot={slot}
-		style={{
-			width: size,
-			height: size,
-			borderRadius: imageRadius,
-		}}
+		style={{ width: size, height: size }}
 	>
 		{image ? (
 			<AvatarImage
 				alt=""
 				aria-hidden="true"
-				className={cn(
-					"image-outline",
-					imageRadius === undefined && UPLOADED_IMAGE_SHAPE,
-				)}
+				className={PICTURE_LAYER}
 				src={image}
-				style={{ ...COMPANION_SILHOUETTE, borderRadius: imageRadius }}
+				style={COMPANION_SILHOUETTE}
 			/>
 		) : (
 			<AvatarFallback
-				className="bg-transparent text-inherit"
+				className={cn(PICTURE_LAYER, "bg-transparent text-inherit")}
 				style={COMPANION_SILHOUETTE}
 			>
 				{children}

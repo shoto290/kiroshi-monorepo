@@ -64,48 +64,45 @@ export const WithPicture = meta.story({
 	},
 })
 
-const expectImageOutline = async (
-	canvasElement: HTMLElement,
-	alpha: string,
-) => {
+const expectBarePicture = async (canvasElement: HTMLElement) => {
 	const [avatar] = slotsIn(canvasElement, "user-avatar")
-	const style = getComputedStyle(await pictureOf(avatar))
+	const picture = await pictureOf(avatar)
 
-	await expect(style.outlineStyle).toBe("solid")
-	await expect(style.outlineWidth).toBe("1px")
-	await expect(style.outlineOffset).toBe("-1px")
-	await expect(style.outlineColor).toBe(alpha)
-	await expectCompanionSilhouette(await pictureOf(avatar))
+	for (const layer of [avatar, picture]) {
+		const style = getComputedStyle(layer)
+		await expect(style.outlineStyle).toBe("none")
+		await expect(style.borderRadius).toBe("0px")
+		await expect(style.borderTopWidth).toBe("0px")
+	}
+	await expectCompanionSilhouette(picture)
 }
 
-export const PictureOutlineLight = meta.story({
+export const PictureLight = meta.story({
 	args: { image: UPLOADED_AVATAR_IMAGE },
 	globals: { theme: "light" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The hairline every picture wears in the light theme: a 1px outline drawn 1px inside the edge, black at 8 percent, so a white-edged photo still reads as a shape against a white surface. Pick `PictureOutlineDark` for the dark theme.",
+					"An uploaded picture in the light theme, cut to the rounded hexagon of the Kiroshi mark with nothing drawn around it: no hairline, no rounded corner, no border. Pick `PictureDark` for the dark theme.",
 			},
 		},
 	},
-	play: ({ canvasElement }) =>
-		expectImageOutline(canvasElement, "oklch(0 0 0 / 0.08)"),
+	play: ({ canvasElement }) => expectBarePicture(canvasElement),
 })
 
-export const PictureOutlineDark = meta.story({
+export const PictureDark = meta.story({
 	args: { image: UPLOADED_AVATAR_IMAGE },
 	globals: { theme: "dark" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same hairline in the dark theme, turned white at 8 percent so a dark photo keeps its edge against a dark surface. Pick `PictureOutlineLight` for the light theme.",
+					"The same picture in the dark theme: the rounded hexagon alone, with no edge left around it on the dark surface. Pick `PictureLight` for the light theme.",
 			},
 		},
 	},
-	play: ({ canvasElement }) =>
-		expectImageOutline(canvasElement, "oklch(1 0 0 / 0.08)"),
+	play: ({ canvasElement }) => expectBarePicture(canvasElement),
 })
 
 export const Empty = meta.story({
