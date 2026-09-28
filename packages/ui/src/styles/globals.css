@@ -156,6 +156,8 @@
 	--radius-control: calc(var(--radius-root) * 1.2);
 	--radius-control-lg: calc(var(--radius-root) * 1.4);
 	--text-compact: 0.8125rem;
+	--text-reading: 0.9375rem;
+	--text-reading--line-height: 1.375rem;
 	--color-sidebar: var(--sidebar);
 	--color-sidebar-foreground: var(--sidebar-foreground);
 	--color-sidebar-primary: var(--sidebar-primary);
