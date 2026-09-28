@@ -1,4 +1,4 @@
-import { invoke, isDesktopHost } from "../host"
+import { drivesRealHost, invoke } from "../host"
 
 export const readModelCatalogue = (): Promise<string[]> =>
-	isDesktopHost() ? invoke<string[]>("agent_models") : Promise.resolve([])
+	drivesRealHost() ? invoke<string[]>("agent_models") : Promise.resolve([])

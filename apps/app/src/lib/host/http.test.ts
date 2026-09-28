@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { createHttpHost, type HostSocket } from "./http"
+import {
+	bridgeGeneratedBindings,
+	createHttpHost,
+	type HostSocket,
+} from "./http"
+
+import { commands } from "../bindings"
 
 const HOST = "http://127.0.0.1:45367"
 
@@ -33,19 +39,31 @@ const socketStub = () => {
 				socket as WebSocket,
 				new MessageEvent("message", { data: JSON.stringify(frame) }),
 			),
+		sendRaw: (data: string) =>
+			socket.onmessage?.call(
+				socket as WebSocket,
+				new MessageEvent("message", { data }),
+			),
 	}
 }
 
 type HostSeed = {
 	answer?: Answer
+	unreachable?: boolean
 }
 
-const hostOf = ({ answer = {} }: HostSeed = {}) => {
-	const fetch = vi.fn(async () => answerWith(answer))
+const hostOf = ({ answer = {}, unreachable = false }: HostSeed = {}) => {
+	const fetch = vi.fn(async () => {
+		if (unreachable) {
+			throw new TypeError("Failed to fetch")
+		}
+		return answerWith(answer)
+	})
 	const sockets: ReturnType<typeof socketStub>[] = []
 	const socketUrls: string[] = []
 	const onDown = vi.fn()
 	const onUp = vi.fn()
+	const onRefused = vi.fn()
 	const host = createHttpHost({
 		host: HOST,
 		token: "abc",
@@ -58,8 +76,9 @@ const hostOf = ({ answer = {} }: HostSeed = {}) => {
 		},
 		onDown,
 		onUp,
+		onRefused,
 	})
-	return { host, fetch, sockets, socketUrls, onDown, onUp }
+	return { host, fetch, sockets, socketUrls, onDown, onUp, onRefused }
 }
 
 describe("invoke over http", () => {
@@ -103,13 +122,16 @@ describe("invoke over http", () => {
 	it("rejects with the host message when the command needs the window", async () => {
 		const message =
 			"desktop-only: the command runs through the desktop window, which is not open"
-		const { host } = hostOf({ answer: { status: 503, body: message } })
+		const { host, onRefused } = hostOf({
+			answer: { status: 503, body: message },
+		})
 
 		await expect(host.invoke("agent_models")).rejects.toBe(message)
+		expect(onRefused).toHaveBeenCalledExactlyOnceWith(message)
 	})
 
 	it("rejects with the command error the host relayed", async () => {
-		const { host } = hostOf({
+		const { host, onRefused } = hostOf({
 			answer: {
 				status: 500,
 				body: '{"kind":"notFound"}',
@@ -120,16 +142,42 @@ describe("invoke over http", () => {
 		await expect(host.invoke("conversation_delete_bot")).rejects.toEqual({
 			kind: "notFound",
 		})
+		expect(onRefused).not.toHaveBeenCalled()
 	})
 
 	it("rejects a call carrying a bad token", async () => {
-		const { host } = hostOf({
+		const { host, onRefused } = hostOf({
 			answer: { status: 401, body: "the call carried no valid bearer token" },
 		})
 
 		await expect(host.invoke("agent_models")).rejects.toBe(
 			"the call carried no valid bearer token",
 		)
+		expect(onRefused).toHaveBeenCalledExactlyOnceWith(
+			"the call carried no valid bearer token",
+		)
+	})
+
+	it("rejects and raises one notice when the host cannot be reached", async () => {
+		const { host, onRefused } = hostOf({ unreachable: true })
+
+		await expect(host.invoke("agent_models")).rejects.toThrow("Failed to fetch")
+		expect(onRefused).toHaveBeenCalledExactlyOnceWith("Failed to fetch")
+	})
+
+	it("sends a generated binding over http", async () => {
+		const { host, fetch } = hostOf({
+			answer: { body: '["opus"]', type: "application/json" },
+		})
+		vi.stubGlobal("window", {})
+		bridgeGeneratedBindings(host, window)
+
+		await expect(commands.agentModels()).resolves.toEqual(["opus"])
+		expect(fetch).toHaveBeenCalledWith(
+			new URL(`${HOST}/api/invoke/agent_models`),
+			expect.objectContaining({ method: "POST" }),
+		)
+		vi.unstubAllGlobals()
 	})
 })
 
@@ -170,6 +218,39 @@ describe("listen over the event socket", () => {
 		sockets[0]?.send({ event: "mission://changed", payload: {} })
 
 		expect(missions).not.toHaveBeenCalled()
+	})
+
+	it("drops a frame that is not json and keeps delivering", async () => {
+		const { host, sockets } = hostOf()
+		const missions = vi.fn()
+		const logged = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => undefined)
+		await host.listen("mission://changed", missions)
+
+		expect(() => sockets[0]?.sendRaw("not json")).not.toThrow()
+		sockets[0]?.send({ event: "mission://changed", payload: {} })
+
+		expect(logged).toHaveBeenCalled()
+		expect(missions).toHaveBeenCalledOnce()
+		logged.mockRestore()
+	})
+
+	it("delivers to every listener when one of them throws", async () => {
+		const { host, sockets } = hostOf()
+		const logged = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => undefined)
+		const later = vi.fn()
+		await host.listen("mission://changed", () => {
+			throw new Error("broken listener")
+		})
+		await host.listen("mission://changed", later)
+
+		sockets[0]?.send({ event: "mission://changed", payload: {} })
+
+		expect(later).toHaveBeenCalledOnce()
+		logged.mockRestore()
 	})
 
 	it("keeps a later listener when an earlier one unsubscribes twice", async () => {

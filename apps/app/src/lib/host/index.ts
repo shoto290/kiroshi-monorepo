@@ -8,7 +8,7 @@ import {
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import { adoptHostConnection } from "./connection"
-import { createHttpHost, type HttpHost } from "./http"
+import { bridgeGeneratedBindings, createHttpHost, type HttpHost } from "./http"
 import {
 	convertFileSrc,
 	invoke as tauriInvoke,
@@ -20,6 +20,13 @@ const IS_DESKTOP_HOST =
 
 const raiseHostDownNotice = () =>
 	raiseFailureNotice({ title: i18n.t("chat:screen.notice.unavailable") })
+
+const raiseRefusalNotice = (message: string) => {
+	raiseFailureNotice({
+		title: i18n.t("chat:screen.notice.failed"),
+		description: message,
+	})
+}
 
 const connectHttpHost = (): HttpHost | null => {
 	const connection = adoptHostConnection(window)
@@ -38,18 +45,15 @@ const connectHttpHost = (): HttpHost | null => {
 			if (downNoticeId) endNotice(downNoticeId)
 			downNoticeId = null
 		},
+		onRefused: raiseRefusalNotice,
 	})
-}
-
-const bridgeGeneratedBindings = (host: HttpHost) => {
-	Object.assign(window, { __TAURI_INTERNALS__: { invoke: host.invoke } })
 }
 
 const httpHost =
 	IS_DESKTOP_HOST || typeof window === "undefined" ? null : connectHttpHost()
 
 if (httpHost) {
-	bridgeGeneratedBindings(httpHost)
+	bridgeGeneratedBindings(httpHost, window)
 }
 
 export const invoke: typeof tauriInvoke = httpHost?.invoke ?? tauriInvoke

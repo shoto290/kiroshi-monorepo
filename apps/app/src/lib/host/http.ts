@@ -13,12 +13,18 @@ export type HttpHostOptions = HostConnection & {
 	openSocket: (url: string) => HostSocket
 	onDown: () => void
 	onUp: () => void
+	onRefused: (message: string) => void
 }
 
 export type HttpHost = {
 	invoke: <T>(command: string, args?: InvokeArgs) => Promise<T>
 	listen: <T>(event: string, handler: EventCallback<T>) => Promise<UnlistenFn>
 	fileSrc: (path: string) => string
+}
+
+type Refusal = {
+	reason: unknown
+	isCommandError: boolean
 }
 
 type Frame = {
@@ -55,15 +61,37 @@ const answerOf = (response: Response): Promise<unknown> =>
 		? response.arrayBuffer()
 		: response.text().then(parsedJson)
 
-const refusalOf = async (response: Response): Promise<unknown> => {
+const refusalOf = async (response: Response): Promise<Refusal> => {
 	const text = await response.text()
-	return carries(response, JSON_TYPE) ? parsedJson(text) : text
+	return carries(response, JSON_TYPE)
+		? { reason: parsedJson(text), isCommandError: true }
+		: { reason: text, isCommandError: false }
+}
+
+const messageOf = (reason: unknown): string =>
+	reason instanceof Error ? reason.message : String(reason)
+
+const frameOf = (data: unknown): unknown => {
+	try {
+		return JSON.parse(String(data))
+	} catch (failure) {
+		console.error("the host sent an event frame that is not json", failure)
+		return null
+	}
 }
 
 const isFrame = (value: unknown): value is Frame =>
 	typeof value === "object" &&
 	value !== null &&
 	typeof (value as Frame).event === "string"
+
+const handOver = (handler: EventCallback<unknown>, frame: Frame) => {
+	try {
+		handler({ event: frame.event, id: 0, payload: frame.payload })
+	} catch (failure) {
+		console.error(`a listener of ${frame.event} failed`, failure)
+	}
+}
 
 const segmentsOf = (path: string): string[] => path.split(/[\\/]/)
 
@@ -94,38 +122,48 @@ export const createHttpHost = ({
 	openSocket,
 	onDown,
 	onUp,
+	onRefused,
 }: HttpHostOptions): HttpHost => {
 	const listeners = new Map<string, Set<EventCallback<unknown>>>()
 	let socket: HostSocket | null = null
 	let failedAttempts = 0
 	let isDown = false
 
-	const invoke = async <T>(command: string, args: InvokeArgs = {}) => {
-		const response = await fetch(
-			new URL(`/api/invoke/${encodeURIComponent(command)}`, host),
-			{
-				method: "POST",
-				headers: {
-					authorization: `Bearer ${token}`,
-					"content-type": JSON_TYPE,
-				},
-				body: JSON.stringify(args, encodeArgument),
+	const refuse = (reason: unknown): never => {
+		onRefused(messageOf(reason))
+		throw reason
+	}
+
+	const post = (command: string, args: InvokeArgs) =>
+		fetch(new URL(`/api/invoke/${encodeURIComponent(command)}`, host), {
+			method: "POST",
+			headers: {
+				authorization: `Bearer ${token}`,
+				"content-type": JSON_TYPE,
 			},
-		)
+			body: JSON.stringify(args, encodeArgument),
+		}).catch(refuse)
+
+	const invoke = async <T>(command: string, args: InvokeArgs = {}) => {
+		const response = await post(command, args)
 		if (!response.ok) {
-			throw await refusalOf(response)
+			const { reason, isCommandError } = await refusalOf(response)
+			if (isCommandError) {
+				throw reason
+			}
+			return refuse(reason)
 		}
 		return (await answerOf(response)) as T
 	}
 
 	const deliver = (data: unknown) => {
-		const frame: unknown = JSON.parse(String(data))
+		const frame = frameOf(data)
 		if (!isFrame(frame)) {
 			console.error("the host sent an event frame with no event name", frame)
 			return
 		}
 		for (const handler of [...(listeners.get(frame.event) ?? [])]) {
-			handler({ event: frame.event, id: 0, payload: frame.payload })
+			handOver(handler, frame)
 		}
 	}
 
@@ -187,4 +225,8 @@ export const createHttpHost = ({
 	}
 
 	return { invoke, listen, fileSrc }
+}
+
+export const bridgeGeneratedBindings = (host: HttpHost, target: object) => {
+	Object.assign(target, { __TAURI_INTERNALS__: { invoke: host.invoke } })
 }

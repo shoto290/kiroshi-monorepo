@@ -1,9 +1,9 @@
 import type { CompanionArrivalListener } from "./conversation-controller"
 import { arrivalsTransport } from "./store-transport"
 
-import { isDesktopHost } from "../host"
+import { drivesRealHost } from "../host"
 
 export const createArrivalsListener = (): CompanionArrivalListener =>
-	isDesktopHost()
+	drivesRealHost()
 		? arrivalsTransport.onCompanionArrived
 		: async () => () => undefined
