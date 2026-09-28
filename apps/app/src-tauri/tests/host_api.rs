@@ -68,6 +68,10 @@ impl Host {
 		self.dir.join("host").join("token")
 	}
 
+	fn web_link_path(&self) -> PathBuf {
+		self.dir.join("host").join("web-link.txt")
+	}
+
 	fn token(&self) -> String {
 		std::fs::read_to_string(self.token_path()).expect("the token is on disk")
 	}
@@ -768,7 +772,7 @@ async fn no_cors_header_is_given_outside_the_api() {
 #[tokio::test(flavor = "multi_thread")]
 async fn the_web_link_is_private_replaced_and_names_the_bound_port_and_the_token() {
 	let host = Host::new();
-	let path = host.dir.join("host").join("web-link.txt");
+	let path = host.web_link_path();
 	stored(&path, "stale");
 	let server = host.started();
 	let token = host.token();
@@ -805,7 +809,7 @@ async fn only_an_svg_is_served_inert_and_every_file_unsniffed() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_stale_web_link_is_removed_when_no_token_is_held() {
 	let host = Host::new();
-	let link = host.dir.join("host").join("web-link.txt");
+	let link = host.web_link_path();
 	stored(&host.token_path(), " \n");
 	stored(&link, "stale");
 
