@@ -22,6 +22,8 @@ use super::runner::Runner;
 use super::silence::Silence;
 use crate::conversations::commands::ready;
 use crate::db;
+use crate::host_api::invoke;
+use crate::host_api::token::{self, HostToken};
 use crate::missions;
 
 pub const SOURCE_ID: &str = "local-webhook";
@@ -90,12 +92,14 @@ pub(crate) fn started<R: Runtime>(
 	runs: Arc<dyn RunSink + Send + Sync>,
 ) -> Webhook {
 	let (stop, halted) = signal::channel(false);
+	let token = host_token(&app);
 	let calls = Calls {
 		app,
 		clock,
 		runs,
 		limit: Arc::new(RateLimit::default()),
 		silence: Arc::new(Silence::default()),
+		token,
 	};
 	let address = match listening() {
 		Ok((listener, address)) => {
@@ -108,6 +112,16 @@ pub(crate) fn started<R: Runtime>(
 		}
 	};
 	Webhook { address, stop }
+}
+
+fn host_token<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<HostToken>> {
+	match token::loaded(app) {
+		Ok(token) => Some(Arc::new(token)),
+		Err(failure) => {
+			eprintln!("no host api call is answered: the token was not loaded: {failure:?}");
+			None
+		}
+	}
 }
 
 fn listening() -> Result<(StandardListener, SocketAddr), std::io::Error> {
@@ -153,6 +167,7 @@ pub(crate) struct Calls<R: Runtime> {
 	runs: Arc<dyn RunSink + Send + Sync>,
 	pub(crate) limit: Arc<RateLimit>,
 	silence: Arc<Silence>,
+	pub(crate) token: Option<Arc<HostToken>>,
 }
 
 impl<R: Runtime> Clone for Calls<R> {
@@ -163,6 +178,7 @@ impl<R: Runtime> Clone for Calls<R> {
 			runs: self.runs.clone(),
 			limit: self.limit.clone(),
 			silence: self.silence.clone(),
+			token: self.token.clone(),
 		}
 	}
 }
@@ -178,6 +194,7 @@ fn route<R: Runtime>(calls: Calls<R>) -> Router {
 		.route(PATH, post(called::<R>))
 		.route(missions::call::PATH, post(missions::call::called::<R>))
 		.layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
+		.merge(invoke::route(calls.clone()))
 		.with_state(calls)
 }
 

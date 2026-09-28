@@ -9,6 +9,7 @@ pub mod conversations;
 pub mod db;
 pub mod environment;
 pub mod file_store;
+pub mod host_api;
 pub mod json;
 pub mod mcp_oauth;
 pub mod missions;
