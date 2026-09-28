@@ -18,6 +18,12 @@ import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
 
 import {
+	AppRail,
+	type AppRailCounts,
+	type AppRailDots,
+	type AppRailPanel,
+} from "@workspace/ui/components/app-rail"
+import {
 	AvatarGroup,
 	type ConversationParticipant,
 } from "@workspace/ui/components/avatar-group"
@@ -70,10 +76,7 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@workspace/ui/components/ui/sidebar"
-import {
-	UserChip,
-	type UserChipIdentity,
-} from "@workspace/ui/components/user-chip"
+import type { UserChipIdentity } from "@workspace/ui/components/user-chip"
 import { useOverlayScrollbars } from "@workspace/ui/hooks/use-overlay-scrollbars"
 import {
 	dropArea,
@@ -87,16 +90,26 @@ import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 import { probeRender } from "@workspace/ui/lib/render-probe"
 import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
-const PANEL = "on-shell border-e-0! **:data-[slot=sidebar-inner]:bg-transparent"
+const PANEL =
+	"on-shell data-[side=left]:left-13 rounded-s-control border-y border-s border-e border-shell-border border-e-shell-divider bg-card **:data-[slot=sidebar-inner]:gap-2 **:data-[slot=sidebar-inner]:bg-transparent **:data-[slot=sidebar-inner]:pt-2 **:data-[slot=sidebar-inner]:pb-3"
 
-const HEADER =
-	"h-12 flex-row items-center justify-end py-0 pr-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+const TITLE_BAR = "absolute inset-x-0 top-0 flex h-8.5 items-center gap-2"
 
-const WINDOW_CONTROLS_INSET = "pl-[78px] group-data-[collapsible=icon]:*:hidden"
+const WINDOW_CONTROLS_INSET = "pl-[78px]"
 
 const NO_WINDOW_CONTROLS_INSET = "pl-2.5"
 
+const HEADER = "px-2 py-0 group-data-[collapsible=icon]:px-0"
+
+const HEADER_ROW =
+	"flex h-8 items-center justify-between ps-2 pe-0.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+
+const HEADER_TITLE =
+	"min-w-0 truncate font-semibold text-foreground text-reading leading-4.5 tracking-[-0.01em] group-data-[collapsible=icon]:hidden"
+
 const HEADER_ACTIONS = "flex items-center gap-0.5"
+
+const HEADER_ACTION = "rounded-md text-muted-foreground [&_svg]:stroke-2!"
 
 const ROW_AVATAR_SIZE = 40
 
@@ -113,10 +126,8 @@ const sidebarRegionOf = (row: HTMLElement | null) => {
 	return region
 }
 
-const FOOTER_INSET = "group-data-[collapsible=icon]:px-0"
-
-const FOOTER_ROW =
-	"flex flex-row items-center gap-2 group-data-[collapsible=icon]:flex-col-reverse group-data-[collapsible=icon]:items-center"
+const FOOTER_INSET =
+	"px-2 py-0 not-has-[*:not(:empty)]:hidden group-data-[collapsible=icon]:px-0"
 
 const FOOTER_SLOT = "flex shrink-0 items-center empty:hidden"
 
@@ -190,7 +201,7 @@ const LIFTED_BOT =
 
 const DROP_AVATAR_SIZE = 28
 
-const CONTENT_INSET = "p-2 group-data-[collapsible=icon]:px-0"
+const CONTENT_INSET = "px-2 py-0 group-data-[collapsible=icon]:px-0"
 
 type SidebarSearchButtonProps = { onOpenSearch: () => void }
 
@@ -201,7 +212,7 @@ const SidebarSearchButton = ({ onOpenSearch }: SidebarSearchButtonProps) => {
 	return (
 		<TooltipButton
 			aria-label={label}
-			className="group-data-[collapsible=icon]:hidden"
+			className={cn(HEADER_ACTION, "group-data-[collapsible=icon]:hidden")}
 			onClick={onOpenSearch}
 			size="icon-sm"
 			tooltip={
@@ -230,7 +241,7 @@ const CAROUSEL_SWIPEABLE = "overflow-x-auto"
 const CAROUSEL_HELD = "overflow-x-hidden"
 
 const CAROUSEL_PANEL =
-	"flex w-full flex-none snap-start snap-always flex-col gap-1.5 overflow-y-auto overscroll-y-contain px-[9px] pt-0 pb-1.5 group-data-[collapsible=icon]:px-0"
+	"flex w-full flex-none snap-start snap-always flex-col gap-1 overflow-y-auto overscroll-y-contain px-2 py-0 group-data-[collapsible=icon]:px-0"
 
 type AppSidebarStatus = "idle" | "working"
 
@@ -1762,6 +1773,7 @@ const CreateMenu = (items: CreateItemsProps) => {
 				render={
 					<TooltipButton
 						aria-label={label}
+						className={HEADER_ACTION}
 						size="icon-sm"
 						tooltip={label}
 						tooltipSide="bottom"
@@ -1816,6 +1828,9 @@ interface AppSidebarProps
 	onOpenUserSettings?: () => void
 	onOpenSearch?: () => void
 	insetWindowControls?: boolean
+	railCounts?: AppRailCounts
+	railDots?: AppRailDots
+	"data-tauri-drag-region"?: string
 }
 
 const AppSidebarBase = ({
@@ -1858,11 +1873,16 @@ const AppSidebarBase = ({
 	onOpenUserSettings,
 	onOpenSearch,
 	insetWindowControls = false,
+	railCounts,
+	railDots,
+	"data-tauri-drag-region": dragRegion,
 	...panel
 }: AppSidebarProps) => {
 	probeRender("AppSidebar")
 	const { t } = useTranslation("bots")
 	const createLabel = t("roster.create")
+	const [openPanel, setOpenPanel] = useState<AppRailPanel>("conversations")
+	const isRosterOpen = openPanel === "conversations"
 	const [naming, setNaming] = useState<SectionNaming | null>(null)
 	const nameLooseSection = () => setNaming({ rowId: null })
 	const actions: BotRosterActions &
@@ -1923,103 +1943,135 @@ const AppSidebarBase = ({
 		onRank: selectRank,
 	})
 
+	const rosterContent = (
+		<SidebarContent
+			className={hasRosterPerSpace ? CAROUSEL_CONTENT : CONTENT_INSET}
+		>
+			{hasRosterPerSpace ? (
+				<SpaceCarousel
+					isSwipeEnabled={isSpaceSwitchingEnabled && spaces.length > 1}
+					onSelectSpace={onSelectSpace}
+					renderSpace={(space) => (
+						<BotRoster
+							{...actions}
+							bots={rosterOf(space.id)}
+							collapsedSectionIds={collapsedSectionIds}
+							haveBotsFailedToLoad={haveBotsFailedToLoad}
+							conversations={roomsOf(space.id)}
+							membershipsOf={membershipsOf}
+							naming={space.id === selectedSpaceId ? naming : null}
+							onNaming={setNaming}
+							sections={sectionsOf(space.id)}
+							selectedBotId={selectedId}
+							selectedConversationId={selectedConversationId}
+							spaceId={space.id}
+							spaces={spaces}
+						/>
+					)}
+					selectedSpaceId={selectedSpaceId}
+					spaces={spaces}
+				/>
+			) : (
+				<BotRoster
+					{...actions}
+					bots={roster}
+					collapsedSectionIds={collapsedSectionIds}
+					haveBotsFailedToLoad={haveBotsFailedToLoad}
+					conversations={rooms}
+					membershipsOf={membershipsOf}
+					naming={naming}
+					onNaming={setNaming}
+					sections={sections}
+					selectedBotId={selectedId}
+					selectedConversationId={selectedConversationId}
+					spaceId={selectedSpaceId}
+					spaces={spaces}
+				/>
+			)}
+		</SidebarContent>
+	)
+
+	const rosterActions = (
+		<div className={HEADER_ACTIONS}>
+			{onOpenSearch ? (
+				<SidebarSearchButton onOpenSearch={onOpenSearch} />
+			) : null}
+			{onCreateConversation ? (
+				<CreateMenu
+					onCreateBot={onCreateBot}
+					onCreateConversation={onCreateConversation}
+					onCreateSection={onCreateSection ? nameLooseSection : undefined}
+				/>
+			) : (
+				<TooltipButton
+					aria-label={createLabel}
+					className={HEADER_ACTION}
+					onClick={onCreateBot}
+					size="icon-sm"
+					tooltip={createLabel}
+					tooltipSide="bottom"
+					variant="ghost"
+				>
+					<Icons.Add aria-hidden="true" />
+				</TooltipButton>
+			)}
+		</div>
+	)
+
+	const panelName = t(`rail.${openPanel}`)
+
 	return (
 		<>
+			<div
+				className={cn(
+					TITLE_BAR,
+					insetWindowControls
+						? WINDOW_CONTROLS_INSET
+						: NO_WINDOW_CONTROLS_INSET,
+				)}
+				data-slot="app-title-bar"
+				data-tauri-drag-region={dragRegion}
+			>
+				<SpaceSwitcher
+					badgesBySpaceId={badgesBySpaceId}
+					onCreateSpace={onCreateSpace}
+					onOpenSpaceSettings={onOpenSpaceSettings}
+					onReorderSpaces={onReorderSpaces}
+					onSelectSpace={onSelectSpace}
+					selectedSpaceId={selectedSpaceId}
+					spaces={spaces}
+				/>
+			</div>
+			<AppRail
+				counts={railCounts}
+				data-tauri-drag-region={dragRegion}
+				dots={railDots}
+				onOpenSettings={onOpenUserSettings}
+				onOpenYou={onOpenUserSettings}
+				onSelectApplications={() => setOpenPanel("applications")}
+				onSelectCompanions={() => setOpenPanel("companions")}
+				onSelectConversations={() => setOpenPanel("conversations")}
+				onSelectMissions={() => setOpenPanel("missions")}
+				selected={openPanel}
+				user={user}
+			/>
 			<Sidebar
 				{...panel}
 				aria-busy={shown.some(isBusy) || shownRooms.some(isBusy)}
-				aria-label={t("roster.label")}
+				aria-label={panelName}
 				className={PANEL}
 				collapsible="icon"
+				data-tauri-drag-region={dragRegion}
 				role="complementary"
 			>
-				<SidebarHeader
-					className={cn(
-						HEADER,
-						insetWindowControls
-							? WINDOW_CONTROLS_INSET
-							: NO_WINDOW_CONTROLS_INSET,
-					)}
-				>
-					<SpaceSwitcher
-						badgesBySpaceId={badgesBySpaceId}
-						onCreateSpace={onCreateSpace}
-						onOpenSpaceSettings={onOpenSpaceSettings}
-						onReorderSpaces={onReorderSpaces}
-						onSelectSpace={onSelectSpace}
-						selectedSpaceId={selectedSpaceId}
-						spaces={spaces}
-					/>
-					<div className={HEADER_ACTIONS}>
-						{onOpenSearch ? (
-							<SidebarSearchButton onOpenSearch={onOpenSearch} />
-						) : null}
-						{onCreateConversation ? (
-							<CreateMenu
-								onCreateBot={onCreateBot}
-								onCreateConversation={onCreateConversation}
-								onCreateSection={onCreateSection ? nameLooseSection : undefined}
-							/>
-						) : (
-							<TooltipButton
-								aria-label={createLabel}
-								onClick={onCreateBot}
-								size="icon-sm"
-								tooltip={createLabel}
-								tooltipSide="bottom"
-								variant="ghost"
-							>
-								<Icons.Add aria-hidden="true" />
-							</TooltipButton>
-						)}
+				<SidebarHeader className={HEADER}>
+					<div className={HEADER_ROW}>
+						<h2 className={HEADER_TITLE}>{panelName}</h2>
+						{isRosterOpen ? rosterActions : null}
 					</div>
 				</SidebarHeader>
-				<SidebarContent
-					className={hasRosterPerSpace ? CAROUSEL_CONTENT : CONTENT_INSET}
-				>
-					{hasRosterPerSpace ? (
-						<SpaceCarousel
-							isSwipeEnabled={isSpaceSwitchingEnabled && spaces.length > 1}
-							onSelectSpace={onSelectSpace}
-							renderSpace={(space) => (
-								<BotRoster
-									{...actions}
-									bots={rosterOf(space.id)}
-									collapsedSectionIds={collapsedSectionIds}
-									haveBotsFailedToLoad={haveBotsFailedToLoad}
-									conversations={roomsOf(space.id)}
-									membershipsOf={membershipsOf}
-									naming={space.id === selectedSpaceId ? naming : null}
-									onNaming={setNaming}
-									sections={sectionsOf(space.id)}
-									selectedBotId={selectedId}
-									selectedConversationId={selectedConversationId}
-									spaceId={space.id}
-									spaces={spaces}
-								/>
-							)}
-							selectedSpaceId={selectedSpaceId}
-							spaces={spaces}
-						/>
-					) : (
-						<BotRoster
-							{...actions}
-							bots={roster}
-							collapsedSectionIds={collapsedSectionIds}
-							haveBotsFailedToLoad={haveBotsFailedToLoad}
-							conversations={rooms}
-							membershipsOf={membershipsOf}
-							naming={naming}
-							onNaming={setNaming}
-							sections={sections}
-							selectedBotId={selectedId}
-							selectedConversationId={selectedConversationId}
-							spaceId={selectedSpaceId}
-							spaces={spaces}
-						/>
-					)}
-				</SidebarContent>
-				{user || footer || spaces.length > 1 ? (
+				{isRosterOpen ? rosterContent : <SidebarContent />}
+				{footer || spaces.length > 1 ? (
 					<SidebarFooter className={FOOTER_INSET}>
 						<SpaceDots
 							badgesBySpaceId={badgesBySpaceId}
@@ -2028,18 +2080,7 @@ const AppSidebarBase = ({
 							selectedSpaceId={selectedSpaceId}
 							spaces={spaces}
 						/>
-						{user || footer ? (
-							<span className={FOOTER_ROW}>
-								{user ? (
-									<UserChip
-										image={user.image}
-										name={user.name}
-										onOpen={onOpenUserSettings}
-									/>
-								) : null}
-								<span className={FOOTER_SLOT}>{footer}</span>
-							</span>
-						) : null}
+						{footer ? <span className={FOOTER_SLOT}>{footer}</span> : null}
 					</SidebarFooter>
 				) : null}
 				<SidebarResizeHandle side="left" />

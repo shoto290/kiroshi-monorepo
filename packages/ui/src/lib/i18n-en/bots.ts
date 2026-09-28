@@ -72,6 +72,17 @@ const bots = {
 		},
 		seedRefused: "Your first companion couldn’t be set up",
 	},
+	rail: {
+		label: "Navigation",
+		conversations: "Conversations",
+		missions: "Missions",
+		companions: "Companions",
+		applications: "Applications",
+		settings: "Settings",
+		dot: "{{name}}, new activity",
+		count_one: "{{name}}, {{count}} new",
+		count_other: "{{name}}, {{count}} new",
+	},
 	spaces: {
 		label: "Spaces",
 		switch: "Change space, {{name}} open",

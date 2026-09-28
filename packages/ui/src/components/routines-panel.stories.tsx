@@ -10,7 +10,6 @@ import {
 	slotsIn,
 } from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
-import { CONTENT_CARD_GUTTER } from "@workspace/ui/components/content-card"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	CLOSED_MISSION,
@@ -61,7 +60,11 @@ import {
 	SidebarMenuItem,
 	SidebarTrigger,
 } from "@workspace/ui/components/ui/sidebar"
-import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
+import {
+	SHELL_GUTTER,
+	SHELL_TITLE_BAR_HEIGHT,
+	WorkspaceShell,
+} from "@workspace/ui/components/workspace-shell"
 
 const ANSWER =
 	"Three routines watch this conversation: a digest, a changelog watch and a nightly cleanup."
@@ -488,13 +491,13 @@ export const Closed = meta.story({
 			canvas.queryByRole("complementary", { name: "Activity" }),
 		).toBeNull()
 		await expect(thread.getBoundingClientRect().width).toBe(
-			(thread.parentElement?.getBoundingClientRect().width ?? 0) -
-				CONTENT_CARD_GUTTER,
+			thread.parentElement?.getBoundingClientRect().width ?? 0,
 		)
 	},
 })
 
 export const Toggling = meta.story({
+	render: renderInShell,
 	args: { isOpen: false },
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
@@ -509,9 +512,8 @@ export const Toggling = meta.story({
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		const opener = canvas.getByRole("button", { name: "Toggle activity" })
 		const openerCentre = verticalCentreOf(opener)
-		const openerGlyphInset =
-			glyphInsetOf(opener, slotIn(canvasElement, "sidebar-inset")) +
-			CONTENT_CARD_GUTTER
+		const [, threadCard] = cardsIn(canvasElement)
+		const openerGlyphInset = glyphInsetOf(opener, threadCard)
 
 		await userEvent.click(opener)
 		await expect(args.onOpenChange).toHaveBeenCalledWith(true)
@@ -1158,12 +1160,10 @@ const shellPaint = () => {
 	return painted
 }
 
-const cardIn = (canvasElement: HTMLElement) => {
-	const cards = canvasElement.querySelectorAll<HTMLElement>(
-		"[data-content-card]",
-	)
-	return cards[cards.length - 1] as HTMLElement
-}
+const cardsIn = (canvasElement: HTMLElement) =>
+	Array.from(
+		canvasElement.querySelectorAll<HTMLElement>("[data-content-card]"),
+	) as [HTMLElement, HTMLElement]
 
 const panelSurfaceIn = (panel: HTMLElement) =>
 	panel.querySelector<HTMLElement>('[data-slot="sidebar-inner"]') ?? panel
@@ -1177,18 +1177,21 @@ const expectPanelOnShellSurface = async (panel: HTMLElement) => {
 	await expect(paintOf(panel.parentElement as HTMLElement)).toBe(shellPaint())
 }
 
-const expectCardFramed = async (card: HTMLElement) => {
-	const painted = getComputedStyle(card)
+const SHELL_CARD_BORDER = 1
 
-	await expect(painted.borderInlineEndWidth).toBe(
-		painted.borderInlineStartWidth,
-	)
-	await expect(painted.borderStartEndRadius).toBe(
-		painted.borderStartStartRadius,
-	)
-	await expect(painted.borderStartStartRadius).not.toBe("0px")
-	await expect(painted.overflow).toBe("hidden")
-	await expect(paintOf(card)).not.toBe(TRANSPARENT)
+const expectThreadInsideShellCard = async (canvasElement: HTMLElement) => {
+	const [shellCard, threadCard] = cardsIn(canvasElement)
+	const frame = getComputedStyle(shellCard)
+	await expect(frame.borderInlineEndWidth).toBe("1px")
+	await expect(frame.borderStartEndRadius).not.toBe("0px")
+	await expect(frame.overflow).toBe("hidden")
+	await expect(paintOf(shellCard)).not.toBe(TRANSPARENT)
+
+	const yielded = getComputedStyle(threadCard)
+	await expect(yielded.borderInlineEndWidth).toBe("0px")
+	await expect(yielded.borderStartEndRadius).toBe("0px")
+	await expect(paintOf(threadCard)).toBe(TRANSPARENT)
+	return shellCard
 }
 
 const activityPanelIn = (canvasElement: HTMLElement) =>
@@ -1218,27 +1221,29 @@ const tokenPaintsIn = (host: HTMLElement, className = "") =>
 
 const expectShellSurfaceAround = async (canvasElement: HTMLElement) => {
 	const panel = activityPanelIn(canvasElement)
-	const card = cardIn(canvasElement)
+	const [, threadCard] = cardsIn(canvasElement)
 
 	await expectPanelOnShellSurface(panel)
-	await expectCardFramed(card)
+	const shellCard = await expectThreadInsideShellCard(canvasElement)
 	await expect(tokenPaintsIn(panel)).toEqual(
 		tokenPaintsIn(document.body, "on-shell"),
 	)
 
 	await waitFor(async () => {
-		const edges = card.getBoundingClientRect()
+		const threadEdges = threadCard.getBoundingClientRect()
 		const panelEdges = panel.getBoundingClientRect()
-		await expect(panelEdges.left - edges.right).toBe(0)
-		await expect(window.innerWidth - panelEdges.right).toBe(0)
+		await expect(panelEdges.left - threadEdges.right).toBe(0)
+		await expect(
+			shellCard.getBoundingClientRect().right - panelEdges.right,
+		).toBe(SHELL_CARD_BORDER)
 	}, FRAME_POLL)
 }
 
 const OPEN_ON_SHELL_SURFACE =
-	"The panel open on the shell surface: the surface reaches the trailing window edge and the thread floats on it as a single card, framed on the edge it shares with the panel exactly as on the edge it shares with the sidebar. Check that the panel paints no background and no border of its own, that the missions and the routines read against the shell surface as the sidebar rows do on the other side, and that the card keeps its gutter against the panel. Pick `OnShellSurfaceClosed` for the panel gone from the document. `apps/app/src/App.tsx:935` is the shell, and `apps/app/src/components/thread-routines.tsx:107` the panel inside it."
+	"The panel open inside the shell card: the shell card is the only frame, the thread yields its own, and the panel sits beside the thread on the shell surface up to the card's trailing border. Check that the panel paints no background and no border of its own, that the missions and the routines read against the shell surface, and that the thread and the panel meet with no gap. Pick `OnShellSurfaceClosed` for the panel gone from the document. `apps/app/src/App.tsx:935` is the shell, and `apps/app/src/components/thread-routines.tsx:107` the panel inside it."
 
 const CLOSED_ON_SHELL_SURFACE =
-	"The panel closed, which is what most of a session looks like: the thread card keeps the same gutter, radius, border and background it had before the panel existed, and the shell surface is all that shows around it. Check that the trailing gutter matches the leading one now that the panel is gone from the document. Pick `OnShellSurfaceOpen` for the panel holding room beside the card. `apps/app/src/App.tsx:935` is the shell, and `apps/app/src/components/thread-routines.tsx:107` the panel inside it."
+	"The panel closed, which is what most of a session looks like: the thread fills the shell card, which keeps its radius, border and background, 34px under the top of the window for the title bar and 4px off the trailing and bottom edges. Check the thread draws no frame of its own inside it. Pick `OnShellSurfaceOpen` for the panel holding room beside the card. `apps/app/src/App.tsx:935` is the shell, and `apps/app/src/components/thread-routines.tsx:107` the panel inside it."
 
 export const OnShellSurfaceOpen = meta.story({
 	args: { isOpen: true },
@@ -1266,17 +1271,15 @@ export const OnShellSurfaceOpenDark = meta.story({
 })
 
 const expectShellSurfaceWithoutPanel = async (canvasElement: HTMLElement) => {
-	const card = cardIn(canvasElement)
-
 	await expect(
 		within(canvasElement).queryByRole("complementary", { name: "Activity" }),
 	).toBeNull()
-	await expectCardFramed(card)
+	const shellCard = await expectThreadInsideShellCard(canvasElement)
 
-	const edges = card.getBoundingClientRect()
-	await expect(window.innerWidth - edges.right).toBe(CONTENT_CARD_GUTTER)
-	await expect(edges.top).toBe(CONTENT_CARD_GUTTER)
-	await expect(window.innerHeight - edges.bottom).toBe(CONTENT_CARD_GUTTER)
+	const edges = shellCard.getBoundingClientRect()
+	await expect(window.innerWidth - edges.right).toBe(SHELL_GUTTER)
+	await expect(edges.top).toBe(SHELL_TITLE_BAR_HEIGHT)
+	await expect(window.innerHeight - edges.bottom).toBe(SHELL_GUTTER)
 }
 
 export const OnShellSurfaceClosed = meta.story({

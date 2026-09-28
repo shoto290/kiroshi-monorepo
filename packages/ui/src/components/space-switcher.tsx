@@ -34,11 +34,13 @@ import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
 const SWITCHER =
-	"relative mr-auto min-w-0 max-w-[62%] px-2 group-data-[collapsible=icon]:mr-0 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:px-0"
+	"relative h-8 min-w-0 max-w-64 shrink gap-2 rounded-md px-2 font-normal text-compact text-muted-foreground leading-4"
 
-const SWITCHER_NAME = "min-w-0 truncate group-data-[collapsible=icon]:hidden"
+const SWITCHER_NAME = "min-w-0 truncate"
 
-const SWITCHER_DOT = "hidden group-data-[collapsible=icon]:block"
+const SWITCHER_SWATCH = "rounded-[3px]"
+
+const SWITCHER_CHEVRON = "size-3 shrink-0 stroke-2!"
 
 const DOT = "h-2.5 w-2.5 shrink-0 rounded-full"
 
@@ -164,10 +166,11 @@ const SpaceSwitcher = ({
 						size="sm"
 						variant="ghost"
 					>
-						<SpaceDot className={SWITCHER_DOT} colour={selected.colour} />
+						<SpaceDot className={SWITCHER_SWATCH} colour={selected.colour} />
 						<span className={SWITCHER_NAME} data-slot="space-switcher-name">
 							{selected.name}
 						</span>
+						<Icons.Expand aria-hidden="true" className={SWITCHER_CHEVRON} />
 						{elsewhere ? (
 							<BotBadgeDot
 								badge={elsewhere}

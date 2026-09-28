@@ -25,9 +25,12 @@ import {
 	EyeOffIcon,
 	FileCodeIcon,
 	FileTextIcon,
+	FlagIcon,
 	FolderIcon,
 	FolderOpenIcon,
 	Globe2Icon,
+	Grid2x2PlusIcon,
+	HexagonIcon,
 	HistoryIcon,
 	HouseIcon,
 	ImageIcon,
@@ -38,6 +41,7 @@ import {
 	LoaderCircleIcon,
 	type LucideIcon,
 	type LucideProps,
+	MessageCircleIcon,
 	MessageSquareIcon,
 	MonitorIcon,
 	MoonIcon,
@@ -237,6 +241,10 @@ const Icons = {
 	Web: Globe2Icon,
 	Write: PencilLineIcon,
 	X,
+	Applications: Grid2x2PlusIcon,
+	Companions: HexagonIcon,
+	Conversations: MessageCircleIcon,
+	Missions: FlagIcon,
 }
 
 export { type Icon, type IconProps, Icons }

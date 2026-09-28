@@ -65,6 +65,18 @@ const bots = {
 		},
 		seedRefused: "Votre premier compagnon n’a pas pu être créé",
 	},
+	rail: {
+		label: "Navigation",
+		conversations: "Conversations",
+		missions: "Missions",
+		companions: "Compagnons",
+		applications: "Applications",
+		settings: "Réglages",
+		dot: "{{name}}, nouvelle activité",
+		count_one: "{{name}}, {{count}} nouveau",
+		count_many: "{{name}}, {{count}} nouveaux",
+		count_other: "{{name}}, {{count}} nouveaux",
+	},
 	spaces: {
 		label: "Espaces",
 		switch: "Changer d’espace, {{name}} ouvert",

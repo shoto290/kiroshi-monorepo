@@ -3,17 +3,16 @@ import type { ReactNode } from "react"
 import { SidebarInset } from "@workspace/ui/components/ui/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 
-const YIELDS_TO_NESTED_CARD = [
-	"has-[[data-content-card]]:m-0",
-	"has-[[data-content-card]]:rounded-none",
-	"has-[[data-content-card]]:bg-transparent",
+const YIELDS_INSIDE_A_CARD = [
+	"in-data-content-card:rounded-none",
+	"in-data-content-card:border-0",
+	"in-data-content-card:bg-transparent",
 ].join(" ")
 
-const YIELDS_TO_TRAILING_PANEL = "not-last:me-0"
+const JOINS_THE_PANEL_BESIDE_IT =
+	"peer-data-[slot=sidebar]:rounded-s-none peer-data-[slot=sidebar]:border-s-0"
 
-const CONTENT_CARD_GUTTER = 8
-
-const SURFACE = `relative my-2 me-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-background ${YIELDS_TO_TRAILING_PANEL} ${YIELDS_TO_NESTED_CARD}`
+const SURFACE = `relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-control border border-shell-border bg-card ${JOINS_THE_PANEL_BESIDE_IT} ${YIELDS_INSIDE_A_CARD}`
 
 interface ContentCardProps {
 	isLandmark?: boolean
@@ -37,4 +36,4 @@ const ContentCard = ({ isLandmark = true, id, children }: ContentCardProps) =>
 		</div>
 	)
 
-export { CONTENT_CARD_GUTTER, ContentCard, type ContentCardProps }
+export { ContentCard, type ContentCardProps }
