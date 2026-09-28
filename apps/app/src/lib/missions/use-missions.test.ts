@@ -43,6 +43,8 @@ const MISSION: Mission = {
 	commitsAhead: null,
 	dirtyFiles: null,
 	pullRequestUrl: null,
+	branch: null,
+	workspacePath: null,
 }
 
 const A_MINUTE_MS = 60_000

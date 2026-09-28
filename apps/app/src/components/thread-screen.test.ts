@@ -809,6 +809,8 @@ const SOLO_MISSION: Mission = {
 	commitsAhead: null,
 	dirtyFiles: null,
 	pullRequestUrl: null,
+	branch: null,
+	workspacePath: null,
 }
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000

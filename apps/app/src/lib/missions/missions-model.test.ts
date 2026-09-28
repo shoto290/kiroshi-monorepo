@@ -56,6 +56,8 @@ const missionIn = (state: MissionState): Mission => ({
 	commitsAhead: null,
 	dirtyFiles: null,
 	pullRequestUrl: null,
+	branch: null,
+	workspacePath: null,
 })
 
 const READ_AT = Date.parse("2026-03-04T14:20:00")
@@ -587,6 +589,8 @@ const mission = (over: Partial<Mission>): Mission => ({
 	commitsAhead: null,
 	dirtyFiles: null,
 	pullRequestUrl: null,
+	branch: null,
+	workspacePath: null,
 	...over,
 })
 
