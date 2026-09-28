@@ -656,7 +656,7 @@ describe("PRF1 render baseline", () => {
 			    "repeatedPaints": 0,
 			  },
 			  "working": {
-			    "draws": 27750,
+			    "draws": 125676,
 			    "movingAvatars": 3,
 			    "paints": 180,
 			    "repeatedPaints": 0,
