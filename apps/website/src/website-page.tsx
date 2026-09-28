@@ -9,7 +9,7 @@ import { type DownloadPlatform, useDownloadTarget } from "./use-download-target"
 
 const HEXAGON_SRC = "/hexagon.svg"
 
-const PAGE_COLUMN = "w-full max-w-[970px] shrink-0"
+const PAGE_COLUMN = "w-full max-w-[1200px] shrink-0"
 
 const MAIN_CONTENT_ID = "main-content"
 
