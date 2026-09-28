@@ -93,21 +93,19 @@ mod tests {
 			.collect()
 	}
 
-	fn imports_the_emitter(source: &str) -> bool {
-		source.match_indices("use tauri::").any(|(start, _)| {
-			let statement = source[start..].split(';').next().unwrap_or_default();
-			statement
-				.split(|c: char| !c.is_alphanumeric() && c != '_')
-				.any(|word| word == "Emitter")
-		})
+	fn reaches_the_emitter(source: &str) -> bool {
+		let names_it =
+			source.split(|c: char| !c.is_alphanumeric() && c != '_').any(|word| word == "Emitter");
+		let compact: String = source.split_whitespace().collect();
+		names_it || compact.contains("usetauri::*")
 	}
 
 	#[test]
-	fn only_the_fan_out_imports_the_emitter() {
+	fn only_the_fan_out_reaches_the_emitter() {
 		let root = Path::new(env!("CARGO_MANIFEST_DIR"));
 		let importers: Vec<PathBuf> = rust_files(&root.join("src"))
 			.into_iter()
-			.filter(|path| imports_the_emitter(&fs::read_to_string(path).expect("the file reads")))
+			.filter(|path| reaches_the_emitter(&fs::read_to_string(path).expect("the file reads")))
 			.map(|path| path.strip_prefix(root).expect("under the root").to_owned())
 			.collect();
 
@@ -116,8 +114,16 @@ mod tests {
 
 	#[test]
 	fn a_multi_line_import_is_seen() {
-		assert!(imports_the_emitter("use tauri::{\n\tAppHandle,\n\tEmitter,\n};"));
-		assert!(!imports_the_emitter("use tauri::{AppHandle, EventEmitter};"));
+		assert!(reaches_the_emitter("use tauri::{\n\tAppHandle,\n\tEmitter,\n};"));
+		assert!(!reaches_the_emitter("use tauri::{AppHandle, EventEmitter};"));
+	}
+
+	#[test]
+	fn a_path_call_or_a_glob_is_seen() {
+		assert!(reaches_the_emitter("tauri::Emitter::emit(&app, \"x\", 1);"));
+		assert!(reaches_the_emitter("use tauri::*;"));
+		assert!(reaches_the_emitter("pub use tauri :: * ;"));
+		assert!(!reaches_the_emitter("use tauri::{AppHandle, Manager};"));
 	}
 
 	#[test]

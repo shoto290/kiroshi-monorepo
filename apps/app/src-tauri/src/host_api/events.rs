@@ -5,9 +5,12 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
+use std::time::Duration;
+
 use tauri::Runtime;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
+use tokio::time::{error::Elapsed, timeout};
 
 use super::invoke::{self, REFUSED, UNAUTHORIZED};
 use crate::events::{self, Frame};
@@ -18,6 +21,8 @@ pub const PATH: &str = "/api/events";
 const TOKEN_PARAMETER: &str = "token=";
 
 const FELL_BEHIND: &str = "the client fell behind the event buffer";
+
+pub const SEND_PATIENCE: Duration = Duration::from_secs(5);
 
 pub(crate) fn route<R: Runtime>(calls: Calls<R>) -> Router<Calls<R>> {
 	Router::new()
@@ -63,11 +68,17 @@ async fn relayed(mut socket: WebSocket, mut heard: Receiver<Frame>) {
 	loop {
 		tokio::select! {
 			frame = heard.recv() => match frame {
-				Ok(frame) => {
-					if let Err(failure) = socket.send(Message::Text(frame.as_ref().into())).await {
+				Ok(frame) => match sent_in_time(&mut socket, Message::Text(frame.as_ref().into())).await {
+					Ok(Ok(())) => {}
+					Ok(Err(failure)) => {
 						return eprintln!("a host api event client left mid frame: {failure}");
 					}
-				}
+					Err(_) => {
+						return eprintln!(
+							"a host api event client was dropped: it stalled on a frame for {SEND_PATIENCE:?}"
+						);
+					}
+				},
 				Err(RecvError::Lagged(missed)) => return fell_behind(socket, missed).await,
 				Err(RecvError::Closed) => return,
 			},
@@ -93,10 +104,20 @@ fn keeps_listening(sent: Option<Result<Message, axum::Error>>) -> bool {
 
 async fn fell_behind(mut socket: WebSocket, missed: u64) {
 	let close = CloseFrame { code: close_code::AGAIN, reason: FELL_BEHIND.into() };
-	match socket.send(Message::Close(Some(close))).await {
-		Ok(()) => eprintln!("a host api event client was dropped: it fell {missed} events behind"),
-		Err(failure) => eprintln!(
+	match sent_in_time(&mut socket, Message::Close(Some(close))).await {
+		Ok(Ok(())) => eprintln!("a host api event client was dropped: it fell {missed} events behind"),
+		Ok(Err(failure)) => eprintln!(
 			"a host api event client was dropped: it fell {missed} events behind, and took no close frame: {failure}"
 		),
+		Err(_) => eprintln!(
+			"a host api event client was dropped: it fell {missed} events behind, and stalled on the close frame"
+		),
 	}
+}
+
+async fn sent_in_time(
+	socket: &mut WebSocket,
+	message: Message,
+) -> Result<Result<(), axum::Error>, Elapsed> {
+	timeout(SEND_PATIENCE, socket.send(message)).await
 }

@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -7,6 +8,7 @@ use std::time::Duration;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::events::{self, BUFFERED_FRAMES};
+use kiroshi_app::host_api::events::SEND_PATIENCE;
 use kiroshi_app::host_api::invoke::MAX_BODY_BYTES;
 use kiroshi_app::routines::webhook::{self, Webhook};
 use serde_json::{json, Value};
@@ -72,6 +74,18 @@ impl Host {
 
 	fn emit(&self, event: &str, payload: Value) {
 		events::emit(self.app.handle(), event, payload).expect("the window took the event");
+	}
+
+	async fn emit_bulk(&self, count: usize) {
+		let handle = self.app.handle().clone();
+		let bulk = "x".repeat(8 * 1024);
+		let emitting = tokio::task::spawn_blocking(move || {
+			for order in 0..count {
+				events::emit(&handle, CHANGED, json!({ "order": order, "bulk": bulk }))
+					.expect("the window took the event");
+			}
+		});
+		timeout(PATIENCE, emitting).await.expect("the emitter never blocked").expect("emitted");
 	}
 
 	fn heard_by_the_window(&self, event: &str) -> mpsc::Receiver<String> {
@@ -142,6 +156,17 @@ impl Server {
 		(status.parse().expect("the status is a number"), Client(stream))
 	}
 
+	async fn slow_listening(&self, token: &str) -> Client {
+		let socket = TcpSocket::new_v4().expect("a socket");
+		socket.set_recv_buffer_size(4096).expect("a small buffer");
+		let stream =
+			socket.connect(self.address().parse().expect("an address")).await.expect("connects");
+		let (status, client) =
+			self.upgraded_over(stream, &format!("/api/events?token={token}"), "").await;
+		assert_eq!(status, 101);
+		client
+	}
+
 	async fn listening(&self, token: &str) -> Client {
 		let (status, client) = self.upgraded(&format!("/api/events?token={token}"), "").await;
 		assert_eq!(status, 101);
@@ -197,6 +222,20 @@ impl Client {
 			.await
 			.expect("the host closes the connection in time")
 			.expect("the connection ends cleanly");
+	}
+
+	async fn closed_by_the_host(&mut self) {
+		let mut rest = Vec::new();
+		let ending = timeout(PATIENCE, self.0.read_to_end(&mut rest))
+			.await
+			.expect("the host closes the connection in time");
+		if let Err(failure) = ending {
+			assert_eq!(failure.kind(), ErrorKind::ConnectionReset);
+		}
+	}
+
+	async fn heard_until(mut self, last: String) {
+		while self.text().await != last {}
 	}
 
 	async fn send(&mut self, opcode: u8, data: &[u8]) {
@@ -503,23 +542,9 @@ async fn every_frame_a_client_sends_but_close_is_ignored() {
 async fn a_client_that_falls_behind_is_closed_without_blocking_the_emitter() {
 	let host = Host::new();
 	let server = host.started();
-	let socket = TcpSocket::new_v4().expect("a socket");
-	socket.set_recv_buffer_size(4096).expect("a small buffer");
-	let stream =
-		socket.connect(server.address().parse().expect("an address")).await.expect("connects");
-	let (status, mut client) =
-		server.upgraded_over(stream, &format!("/api/events?token={}", host.token()), "").await;
-	assert_eq!(status, 101);
-	let bulk = "x".repeat(8 * 1024);
+	let mut client = server.slow_listening(&host.token()).await;
 
-	let handle = host.app.handle().clone();
-	let emitting = tokio::task::spawn_blocking(move || {
-		for order in 0..BUFFERED_FRAMES * 4 {
-			events::emit(&handle, CHANGED, json!({ "order": order, "bulk": bulk }))
-				.expect("the window took the event");
-		}
-	});
-	timeout(PATIENCE, emitting).await.expect("the emitter never blocked").expect("emitted");
+	host.emit_bulk(BUFFERED_FRAMES + 512).await;
 
 	let closing = loop {
 		let (opcode, data) = client.frame().await;
@@ -528,4 +553,22 @@ async fn a_client_that_falls_behind_is_closed_without_blocking_the_emitter() {
 		}
 	};
 	assert_eq!(u16::from_be_bytes([closing[0], closing[1]]), TRY_AGAIN_LATER);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_client_that_stops_reading_is_dropped_while_the_others_keep_hearing() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	let mut stalled = server.slow_listening(&token).await;
+	let reading = server.listening(&token).await;
+	let later = relayed(CHANGED, r#""later""#);
+	let hearing = tokio::spawn(reading.heard_until(later));
+
+	host.emit_bulk(BUFFERED_FRAMES - 24).await;
+	tokio::time::sleep(SEND_PATIENCE + Duration::from_secs(1)).await;
+	host.emit(CHANGED, json!("later"));
+
+	timeout(PATIENCE, hearing).await.expect("the reading client heard in time").expect("heard");
+	stalled.closed_by_the_host().await;
 }
