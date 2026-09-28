@@ -13,6 +13,7 @@ type MissionEventKind =
 	| "checks_failed"
 	| "failed"
 	| "closed"
+	| "reopened"
 
 type MissionState =
 	| "working"

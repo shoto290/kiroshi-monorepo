@@ -36,6 +36,7 @@ const MISSION_EVENT_KINDS = listExhaustively<MissionEventKind>({
 	checks_failed: true,
 	failed: true,
 	closed: true,
+	reopened: true,
 })
 
 const AGENT_QUESTION: MissionEventModel = {
@@ -280,7 +281,7 @@ export const EventKinds = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight kinds an event can carry, exhaustively, each once as a machine line and once as a bubble. Check that every machine line draws its dot, its wording and its time, that it names the resolved actor except the answer, whose sentence names none, that every bubble carries its kind as a badge, and that only the agent asked badge is tinted. " +
+					"The ten kinds an event can carry, exhaustively, each once as a machine line and once as a bubble. Check that every machine line draws its dot, its wording and its time, that it names the resolved actor except the answer, whose sentence names none, that every bubble carries its kind as a badge, and that only the agent asked badge is tinted. " +
 					PLACED_BY_THE_FEED,
 			},
 		},

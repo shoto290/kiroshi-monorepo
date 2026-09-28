@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import type { HTMLAttributes, ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
 import type { BotBadge } from "@workspace/ui/components/bot-badge"
@@ -41,10 +41,15 @@ import { cn } from "@workspace/ui/lib/utils"
 
 type MissionCardDensity = "row" | "card"
 
+type MissionCardSurface = HTMLAttributes<HTMLElement> & {
+	ref?: (element: HTMLElement | null) => void
+}
+
 type MissionCardProps = Omit<MissionCardModel, "author"> & {
 	density: MissionCardDensity
 	onOpen: (missionId: string) => void
 	menu?: ReactNode
+	surface?: MissionCardSurface
 	className?: string
 }
 
@@ -146,6 +151,7 @@ const CardDensity = ({
 	pullRequest,
 	lastActivity,
 	menu,
+	surface,
 	onOpen,
 	className,
 }: MissionDensityProps) => {
@@ -156,6 +162,7 @@ const CardDensity = ({
 	return (
 		<MessageBubble className={className} variant="soft">
 			<MessageBubbleContent
+				{...surface}
 				className={cn("group/mission", MESSAGE_BUBBLE_INTERACTIVE)}
 			>
 				<button
@@ -232,6 +239,7 @@ const RowDensity = ({
 	pullRequest,
 	lastActivity,
 	menu,
+	surface,
 	onOpen,
 	className,
 }: MissionDensityProps) => {
@@ -253,6 +261,7 @@ const RowDensity = ({
 
 	return (
 		<li
+			{...surface}
 			className={cn(
 				"group/mission relative",
 				Boolean(menu) && ROW_TIMESTAMP_YIELD,
