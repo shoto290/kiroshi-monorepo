@@ -52,7 +52,9 @@ const renderTurn = (role: TranscriptRole, text: string) => {
 }
 
 const attachmentButtons = () =>
-	screen.getByRole("list", { name: "Attachments" }).querySelectorAll("button")
+	within(screen.getByRole("list", { name: "Attachments" })).getAllByRole(
+		"button",
+	)
 
 const previewOf = (name: string) =>
 	within(screen.getByRole("button", { name: `Open ${name}` }))
