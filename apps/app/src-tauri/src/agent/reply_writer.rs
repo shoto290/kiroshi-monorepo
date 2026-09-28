@@ -371,7 +371,7 @@ impl<R: Runtime> Desk<R> {
 			return;
 		}
 		if let Err(error) =
-			self.store.write_question(turn, &id, &question_message_text(request)).await
+			self.store.write_settled(turn, &id, &question_message_text(request)).await
 		{
 			self.store.report(&id, &error);
 		}
@@ -382,7 +382,7 @@ impl<R: Runtime> Desk<R> {
 		let Some(turn) = self.turn.take() else {
 			return;
 		};
-		self.show_attachments(&turn, completion).await;
+		self.show_attachments(&turn).await;
 		if let Err(error) = self.store.complete_turn(&turn.id).await {
 			self.store.report(&turn.id, &error);
 		}
@@ -390,19 +390,24 @@ impl<R: Runtime> Desk<R> {
 }
 
 impl<R: Runtime> Desk<R> {
-	async fn show_attachments(&self, turn: &OpenTurn, completion: TerminalState) {
+	async fn show_attachments(&self, turn: &OpenTurn) {
 		let attached = self.attachments.take();
 		if attached.is_empty() {
 			return;
 		}
-		let (id, written) = match &turn.last_reply {
-			Some(id) => (id.clone(), turn.written.get(id).map(String::as_str).unwrap_or_default()),
-			None => (Uuid::new_v4().to_string(), ""),
-		};
-		let shown = shown_with_attachments(written, &attached, Utc::now());
-		let stored = match turn.last_reply {
-			Some(_) => self.store.replace_content(&id, shown).await,
-			None => self.store.write_reply_of(turn, &id, completion, shown).await,
+		let sent_at = Utc::now();
+		let (id, stored) = match &turn.last_reply {
+			Some(id) => {
+				let written = turn.written.get(id).map(String::as_str).unwrap_or_default();
+				let shown = shown_with_attachments(written, &attached, sent_at);
+				(id.clone(), self.store.replace_content(id, shown).await)
+			}
+			None => {
+				let id = Uuid::new_v4().to_string();
+				let shown = shown_with_attachments("", &attached, sent_at);
+				let stored = self.store.write_settled(turn, &id, &shown).await;
+				(id, stored)
+			}
 		};
 		if let Err(error) = stored {
 			self.store.report(&id, &error);
@@ -453,7 +458,7 @@ impl<R: Runtime> Store<R> {
 		self.open_assistant(turn, &message.id, message.timestamp).await
 	}
 
-	async fn write_question(
+	async fn write_settled(
 		&self,
 		turn: &OpenTurn,
 		id: &str,
@@ -461,17 +466,6 @@ impl<R: Runtime> Store<R> {
 	) -> Result<(), TranscriptStoreError> {
 		self.open_assistant(turn, id, now_ms()).await?;
 		self.finalize(id, TerminalState::Complete, Some(text.to_owned())).await
-	}
-
-	async fn write_reply_of(
-		&self,
-		turn: &OpenTurn,
-		id: &str,
-		completion: TerminalState,
-		text: String,
-	) -> Result<(), TranscriptStoreError> {
-		self.open_assistant(turn, id, now_ms()).await?;
-		self.finalize(id, completion, Some(text)).await
 	}
 
 	async fn replace_content(&self, id: &str, text: String) -> Result<(), TranscriptStoreError> {
