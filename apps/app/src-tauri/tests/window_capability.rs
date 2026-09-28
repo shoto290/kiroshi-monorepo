@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use serde_json::Value;
 
-const HOST: &str = include_str!("../../src/lib/host.ts");
+const HOST: &str = include_str!("../../src/lib/host/index.ts");
 const CAPABILITY: &str = include_str!("../capabilities/default.json");
 const DEV_CONFIG: &str = include_str!("../tauri.dev.conf.json");
 
@@ -16,7 +16,7 @@ const DIALOG_PERMISSIONS_OF_THE_ARCHIVE_PICKERS: &[&str] = &["dialog:allow-save"
 const WINDOW_COMMANDS_OF_CORE_DEFAULT: &[&str] = &["is-focused"];
 
 // The drag region handler the webview injects invokes `start_dragging` on the press
-// itself, so no line of host.ts names it.
+// itself, so no line of lib/host/index.ts names it.
 const WINDOW_COMMANDS_OF_THE_DRAG_REGION: &[&str] = &["start-dragging"];
 
 fn kebab(method: &str) -> String {
@@ -150,7 +150,7 @@ fn the_capability_grants_only_the_archive_pickers_of_the_dialog_plugin() {
 fn the_front_calls_set_focus_on_the_reveal_path() {
 	assert!(
 		commands_called_by_the_front(HOST).contains("set-focus"),
-		"host.ts no longer brings the window to the front"
+		"lib/host/index.ts no longer brings the window to the front"
 	);
 }
 
