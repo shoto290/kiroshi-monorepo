@@ -8,7 +8,12 @@ import {
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import { adoptHostConnection } from "./connection"
-import { bridgeGeneratedBindings, createHttpHost, type HttpHost } from "./http"
+import {
+	bridgeGeneratedBindings,
+	createHttpHost,
+	type HttpHost,
+	raiseRefusalNotice,
+} from "./http"
 import {
 	convertFileSrc,
 	invoke as tauriInvoke,
@@ -20,13 +25,6 @@ const hasTauriInternals = (): boolean =>
 
 const raiseHostDownNotice = () =>
 	raiseFailureNotice({ title: i18n.t("chat:screen.notice.unavailable") })
-
-const raiseRefusalNotice = (message: string) => {
-	raiseFailureNotice({
-		title: i18n.t("chat:screen.notice.failed"),
-		description: message,
-	})
-}
 
 const connectHttpHost = (): HttpHost | null => {
 	const connection = adoptHostConnection(window)

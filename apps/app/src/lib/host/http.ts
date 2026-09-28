@@ -1,6 +1,9 @@
 import type { InvokeArgs } from "@tauri-apps/api/core"
 import type { EventCallback, UnlistenFn } from "@tauri-apps/api/event"
 
+import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
+import { i18n } from "@workspace/ui/lib/i18n"
+
 import type { HostConnection } from "./connection"
 
 export type HostSocket = Pick<
@@ -13,7 +16,7 @@ export type HttpHostOptions = HostConnection & {
 	openSocket: (url: string) => HostSocket
 	onDown: () => void
 	onUp: () => void
-	onRefused: (message: string) => void
+	onRefused: (message: string, status?: number) => void
 }
 
 export type HttpHost = {
@@ -70,6 +73,33 @@ const refusalOf = async (response: Response): Promise<Refusal> => {
 
 const messageOf = (reason: unknown): string =>
 	reason instanceof Error ? reason.message : String(reason)
+
+const DEDICATED_REFUSAL_NOTICES: Record<number, () => void> = {
+	401: () =>
+		raiseFailureNotice({
+			title: i18n.t("chat:screen.notice.unauthorized.title"),
+			description: i18n.t("chat:screen.notice.unauthorized.description"),
+		}),
+	503: () =>
+		raiseFailureNotice({
+			title: i18n.t("chat:screen.notice.desktopOnly.title"),
+			description: i18n.t("chat:screen.notice.desktopOnly.description"),
+		}),
+}
+
+export const raiseRefusalNotice = (message: string, status?: number) => {
+	const raiseDedicatedNotice = status
+		? DEDICATED_REFUSAL_NOTICES[status]
+		: undefined
+	if (raiseDedicatedNotice) {
+		raiseDedicatedNotice()
+		return
+	}
+	raiseFailureNotice({
+		title: i18n.t("chat:screen.notice.failed"),
+		description: message,
+	})
+}
 
 const isFrame = (value: unknown): value is Frame =>
 	typeof value === "object" &&
@@ -133,8 +163,8 @@ export const createHttpHost = ({
 	let failedAttempts = 0
 	let isDown = false
 
-	const refuse = (reason: unknown): never => {
-		onRefused(messageOf(reason))
+	const refuse = (reason: unknown, status?: number): never => {
+		onRefused(messageOf(reason), status)
 		throw reason
 	}
 
@@ -155,7 +185,7 @@ export const createHttpHost = ({
 			if (isCommandError) {
 				throw reason
 			}
-			return refuse(reason)
+			return refuse(reason, response.status)
 		}
 		return (await answerOf(response)) as T
 	}
