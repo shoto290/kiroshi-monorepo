@@ -747,11 +747,6 @@ const bots = {
 				},
 			},
 		},
-		directory: {
-			label: "Dossier",
-			placeholder: "Choisissez un dossier",
-			browse: "Changer",
-		},
 	},
 	approvals: {
 		mode: {

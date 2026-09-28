@@ -13,8 +13,6 @@ import type { RosterView } from "@/lib/workspace/use-roster-view"
 import type { SettingsPanels } from "@/lib/workspace/use-settings-panels"
 import type { WorkspaceCore } from "@/lib/workspace/use-workspace-core"
 
-const browseWorkingDirectory = () => undefined
-
 type BotSettingsHostProps = {
 	core: WorkspaceCore
 	panels: SettingsPanels
@@ -84,7 +82,6 @@ export const BotSettingsHost = ({
 			onAvatarUpload={(file) => {
 				void roster.controller.uploadAvatar(settingsBot.id, file)
 			}}
-			onBrowseWorkingDirectory={browseWorkingDirectory}
 			onClose={() => {
 				closeSettingsTab()
 				roster.controller.setEditing(false)

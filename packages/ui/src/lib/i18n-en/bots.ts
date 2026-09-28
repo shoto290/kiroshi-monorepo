@@ -737,11 +737,6 @@ const bots = {
 				{ label: string; hint: string }
 			>,
 		},
-		directory: {
-			label: "Folder",
-			placeholder: "Choose a folder",
-			browse: "Change",
-		},
 	},
 	approvals: {
 		mode: {
