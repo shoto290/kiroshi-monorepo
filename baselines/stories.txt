@@ -369,6 +369,10 @@ conversation-prompt-promptinput--long-content
 conversation-prompt-promptinput--marked-from-outside
 conversation-prompt-promptinput--overflow
 conversation-prompt-promptinput--playground
+conversation-prompt-promptinput--send-disabled
+conversation-prompt-promptinput--send-focus-visible
+conversation-prompt-promptinput--send-hover
+conversation-prompt-promptinput--send-idle
 conversation-prompt-promptinput--states
 conversation-prompt-promptinput--with-attachments
 conversation-prompt-promptinput--with-controls
@@ -498,6 +502,10 @@ conversation-tools-toolquestion--failure
 conversation-tools-toolquestion--failure-with-action
 conversation-tools-toolquestion--four-questions
 conversation-tools-toolquestion--free-text
+conversation-tools-toolquestion--inverse-buttons-focus-visible
+conversation-tools-toolquestion--inverse-buttons-hover
+conversation-tools-toolquestion--inverse-buttons-idle
+conversation-tools-toolquestion--inverse-buttons-pending
 conversation-tools-toolquestion--keyboard-only
 conversation-tools-toolquestion--long-header-scrolls
 conversation-tools-toolquestion--multi-select

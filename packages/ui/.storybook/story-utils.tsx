@@ -34,6 +34,12 @@ export const A11Y_SUBMENU_PORTAL_GUARD = {
 	},
 }
 
+export const A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS = {
+	config: {
+		rules: [{ id: "landmark-unique", reviewOnFail: true }],
+	},
+}
+
 type A11yRuleSet = {
 	config: { rules: { id: string; reviewOnFail: boolean }[] }
 }
@@ -133,10 +139,14 @@ type ProbedProperty =
 	| "borderTopColor"
 	| "fontFamily"
 
-export const probedStyleOf = (className: string, property: ProbedProperty) => {
+export const probedStyleOf = (
+	className: string,
+	property: ProbedProperty,
+	host: Element = document.body,
+) => {
 	const probe = document.createElement("span")
 	probe.className = className
-	document.body.append(probe)
+	host.append(probe)
 	const value = getComputedStyle(probe)[property]
 	probe.remove()
 	return value

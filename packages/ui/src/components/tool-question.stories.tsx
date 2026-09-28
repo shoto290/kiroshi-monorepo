@@ -1,7 +1,13 @@
-import { expect, fireEvent, fn, spyOn, within } from "storybook/test"
+import type { ComponentProps } from "react"
+import { expect, fireEvent, fn, spyOn, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotIn } from "@workspace/storybook/story-utils"
+import {
+	A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+	isInBrowserRunner,
+	probedStyleOf,
+	slotIn,
+} from "@workspace/storybook/story-utils"
 import { Icons } from "@workspace/ui/components/icons"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import { CATALOGUE_APPLICATIONS } from "@workspace/ui/components/plugin-settings/applications.fixtures"
@@ -1321,5 +1327,151 @@ export const NoticeInQueue = meta.story({
 		await expect(args.onAnswer).toHaveBeenCalledWith({
 			[RELEASE_QUESTION.question]: "Now",
 		})
+	},
+})
+
+const INVERSE_BUTTONS =
+	'button[type="submit"], [data-card="action"] [data-slot="button"]'
+
+const INVERSE_TREATMENT =
+	"The primary controls of the card in the inverse treatment of artboards V1e and V1f, light and dark side by side: `Send answers`, `Next question` on a card with a question still waiting, and the action of a notice, each filled with the `foreground` token with its label and glyph drawn with the `background` token. Dismiss stays outline. "
+
+const inverseButtonsIn = (canvasElement: HTMLElement) => [
+	...canvasElement.querySelectorAll<HTMLButtonElement>(INVERSE_BUTTONS),
+]
+
+const tokenBeside = (
+	element: HTMLElement,
+	className: string,
+	property: "color" | "backgroundColor" | "borderTopColor",
+) => probedStyleOf(className, property, element)
+
+const realPointer = async () => (await import("vitest/browser")).userEvent
+
+const expectInverseAtRest = async (button: HTMLElement) => {
+	const style = getComputedStyle(button)
+	await expect(style.backgroundColor).toBe(
+		tokenBeside(button, "bg-foreground", "backgroundColor"),
+	)
+	await expect(style.color).toBe(
+		tokenBeside(button, "text-background", "color"),
+	)
+	await expect(style.backgroundColor).not.toBe(
+		tokenBeside(button, "bg-primary", "backgroundColor"),
+	)
+}
+
+const InverseButtonCards = (args: ComponentProps<typeof ToolQuestion>) => (
+	<div className="flex flex-col gap-4">
+		<ToolQuestion {...args} questions={[FRAMEWORK_QUESTION]} />
+		<ToolQuestion {...args} questions={[SCOPE_QUESTION, REGISTRY_QUESTION]} />
+		<div data-card="action">
+			<ToolQuestion
+				{...args}
+				onDeny={undefined}
+				questions={[KEY_REFUSED_NOTICE]}
+			/>
+		</div>
+	</div>
+)
+
+export const InverseButtonsIdle = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		a11y: A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+		docs: { description: { story: `${INVERSE_TREATMENT}At rest.` } },
+	},
+	render: InverseButtonCards,
+	play: async ({ canvasElement }) => {
+		const buttons = inverseButtonsIn(canvasElement)
+		await expect(buttons.length).toBe(6)
+		for (const button of buttons) await expectInverseAtRest(button)
+		for (const dismiss of within(canvasElement).getAllByRole("button", {
+			name: /dismiss/i,
+		}))
+			await expect(getComputedStyle(dismiss).backgroundColor).not.toBe(
+				tokenBeside(dismiss, "bg-foreground", "backgroundColor"),
+			)
+	},
+})
+
+export const InverseButtonsHover = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		a11y: A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+		pseudo: { hover: INVERSE_BUTTONS },
+		docs: {
+			description: {
+				story: `${INVERSE_TREATMENT}Under the pointer, which the play drives only in the Vitest browser runner, the fill moves a fifth of the way toward the \`background\` token, a solid colour, so the label keeps its contrast.`,
+			},
+		},
+	},
+	render: InverseButtonCards,
+	play: async ({ canvasElement }) => {
+		if (!isInBrowserRunner()) return
+		const pointer = await realPointer()
+		for (const button of inverseButtonsIn(canvasElement)) {
+			const rest = tokenBeside(button, "bg-foreground", "backgroundColor")
+			await pointer.hover(button)
+			await waitFor(() => expect(button.matches(":hover")).toBe(true))
+			await waitFor(() =>
+				expect(getComputedStyle(button).backgroundColor).not.toBe(rest),
+			)
+			await expect(getComputedStyle(button).color).toBe(
+				tokenBeside(button, "text-background", "color"),
+			)
+			await pointer.unhover(button)
+		}
+	},
+})
+
+export const InverseButtonsFocusVisible = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		a11y: A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+		pseudo: { focusVisible: INVERSE_BUTTONS },
+		docs: {
+			description: {
+				story: `${INVERSE_TREATMENT}Keyboard focus draws the primitive's own ring: the \`ring\` border on the fill and the translucent halo around it.`,
+			},
+		},
+	},
+	render: InverseButtonCards,
+	play: async ({ canvasElement }) => {
+		for (const button of inverseButtonsIn(canvasElement)) {
+			const ring = tokenBeside(button, "border-ring", "borderTopColor")
+			button.focus()
+			await expect(button.matches(":focus-visible")).toBe(true)
+			await waitFor(() =>
+				expect(getComputedStyle(button).borderTopColor).toBe(ring),
+			)
+			await expect(getComputedStyle(button).backgroundColor).toBe(
+				tokenBeside(button, "bg-foreground", "backgroundColor"),
+			)
+		}
+	},
+})
+
+export const InverseButtonsPending = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { onAnswer: fn(() => new Promise(() => {})) },
+	parameters: {
+		a11y: A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+		docs: {
+			description: {
+				story: `${INVERSE_TREATMENT}The only disabled state these buttons have: \`Send answers\` while the answers are on their way. The primitive halves the opacity of the whole button, fill and label together, so the label stays apart from its fill.`,
+			},
+		},
+	},
+	play: async ({ canvasElement, userEvent }) => {
+		for (const form of within(canvasElement).getAllByRole("form")) {
+			const card = within(form)
+			const send = card.getByRole("button", { name: chat.toolQuestion.submit })
+			await userEvent.click(card.getByRole("radio", { name: /Vite/ }))
+			await userEvent.click(send)
+			await expect(send).toBeDisabled()
+			await waitFor(() => expect(getComputedStyle(send).opacity).toBe("0.5"))
+			await expectInverseAtRest(send)
+		}
 	},
 })
