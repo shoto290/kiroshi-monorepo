@@ -377,9 +377,18 @@ const panelInView = (canvasElement: HTMLElement) => {
 	return panel
 }
 
-const searchFieldIn = (canvasElement: HTMLElement) =>
-	within(slotIn(canvasElement, "sidebar-search-field")).getByRole("button", {
-		name: /Search/,
+const SEARCH = "Search"
+
+const SEARCH_CHORD = "⌘K"
+
+const searchButtonIn = (canvasElement: HTMLElement) =>
+	within(slotIn(canvasElement, "sidebar-header")).getByRole("button", {
+		name: SEARCH,
+	})
+
+const querySearchButtonIn = (canvasElement: HTMLElement) =>
+	within(slotIn(canvasElement, "sidebar-header")).queryByRole("button", {
+		name: SEARCH,
 	})
 
 const avatarDrawingIn = (row: HTMLElement) =>
@@ -615,7 +624,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The roster panel of an agent app, mounted whole: the animated sidebar shell around every companion the reader owns. Its pinned region carries the space switcher and the create menu, with the search field under it, and it clears the window controls when `insetWindowControls` says a transparent title bar sits over it, and the open state comes from the `WorkspaceShell` above it, so Cmd/Ctrl+B and whatever trigger the page mounts drive the panel and the column beside it together. A row is the companion avatar, its name, an optional title badge and the time of its last message, over one clipped line of that message. A companion at rest holds the pose it was given in its settings, drawn as a still frame; a companion that is running holds its work pose, animates, and wears an activity dot. A companion wearing a picture its reader uploaded shows that instead, and it never moves — the dot is what says it is working. Under the list it pins the reader's own chip beside a slot the host fills, and at rest that slot draws nothing, so the resting row is the chip alone. Settings, duplicate and delete live behind a right-click on the row — there is no actions button to reveal — and selection and running state are props, so a host maps its store onto `botsBySpaceId` and `selectedBotId` and nothing here polls the transport.",
+					"The roster panel of an agent app, mounted whole: the animated sidebar shell around every companion the reader owns. Its pinned region carries the space switcher, the search button and the create menu, and it clears the window controls when `insetWindowControls` says a transparent title bar sits over it, and the open state comes from the `WorkspaceShell` above it, so Cmd/Ctrl+B and whatever trigger the page mounts drive the panel and the column beside it together. A row is the companion avatar, its name, an optional title badge and the time of its last message, over one clipped line of that message. A companion at rest holds the pose it was given in its settings, drawn as a still frame; a companion that is running holds its work pose, animates, and wears an activity dot. A companion wearing a picture its reader uploaded shows that instead, and it never moves — the dot is what says it is working. Under the list it pins the reader's own chip beside a slot the host fills, and at rest that slot draws nothing, so the resting row is the chip alone. Settings, duplicate and delete live behind a right-click on the row — there is no actions button to reveal — and selection and running state are props, so a host maps its store onto `botsBySpaceId` and `selectedBotId` and nothing here polls the transport.",
 			},
 		},
 	},
@@ -654,7 +663,7 @@ export const WithUser = meta.story({
 		docs: {
 			description: {
 				story:
-					"The reader themselves, pinned under the list, which is the only way into their own settings, so a host that has an account to show always hands one down. Check that the chip opens the region with the picture leading and the name beside it, that it covers the whole row since nothing else is drawn there, and that activating it fires the open event once. Check then the two lanes this panel actually draws: the roster sits 9px in from the panel edge and leaves the same 9px on the trailing side, where the pinned region insets the chip by 8px, so the chip starts 1px short of the column the row above it starts on. That 1px is the carousel panel's `px-[9px]` read against the footer's `p-2`, and it is an open spacing question this panel cannot settle on its own: the fix is one inset chosen once, for the roster lane and the pinned region together, not a nudge inside either. Pick `WithUserAndFooter` for the same chip sharing the row, `WithSearch` for the field that does land on the roster lane.",
+					"The reader themselves, pinned under the list, which is the only way into their own settings, so a host that has an account to show always hands one down. Check that the chip opens the region with the picture leading and the name beside it, that it covers the whole row since nothing else is drawn there, and that activating it fires the open event once. Check then the two lanes this panel actually draws: the roster sits 9px in from the panel edge and leaves the same 9px on the trailing side, where the pinned region insets the chip by 8px, so the chip starts 1px short of the column the row above it starts on. That 1px is the carousel panel's `px-[9px]` read against the footer's `p-2`, and it is an open spacing question this panel cannot settle on its own: the fix is one inset chosen once, for the roster lane and the pinned region together, not a nudge inside either. Pick `WithUserAndFooter` for the same chip sharing the row, `WithSearch` for the search button in the header.",
 			},
 		},
 	},
@@ -688,7 +697,7 @@ export const Roster = meta.story({
 		docs: {
 			description: {
 				story:
-					"A dozen companions, some with a title badge and some without, each wearing the blot it was given. Check that the avatars, the names and the timestamps each hold one column down the whole list — a row without a badge must not slide its name or its preview out of line with the row above it — and that every row is the same height whatever it carries. The message and the time read as muted and read alike, on the selected row as on the rest, so a row says its name first and dates itself second; the name is the only line in the row drawn at full strength. The roster sits in the panel the app mounts: one space, its own roster, the create menu and the search field above it, so the carousel holds a single panel and there is no dot strip to count. The list is walked with Tab and a row is its own only stop, since the actions carry no button: the space switcher, the create menu and the search field first, then one stop per row, and Enter on a row reports the selection rather than taking it. Pick `LongContent` for the same list under names and messages that do not fit, `RowContextMenu` for the actions behind a row, `Identities` for the blots at rest.",
+					"A dozen companions, some with a title badge and some without, each wearing the blot it was given. Check that the avatars, the names and the timestamps each hold one column down the whole list — a row without a badge must not slide its name or its preview out of line with the row above it — and that every row is the same height whatever it carries. The message and the time read as muted and read alike, on the selected row as on the rest, so a row says its name first and dates itself second; the name is the only line in the row drawn at full strength. The roster sits in the panel the app mounts: one space, its own roster, the search button and the create menu above it, so the carousel holds a single panel and there is no dot strip to count. The list is walked with Tab and a row is its own only stop, since the actions carry no button: the space switcher, the search button and the create menu first, then one stop per row, and Enter on a row reports the selection rather than taking it. Pick `LongContent` for the same list under names and messages that do not fit, `RowContextMenu` for the actions behind a row, `Identities` for the blots at rest.",
 			},
 		},
 	},
@@ -717,6 +726,8 @@ export const Roster = meta.story({
 		await userEvent.tab()
 		await expect(slotIn(canvasElement, "space-switcher")).toHaveFocus()
 		await userEvent.tab()
+		await expect(searchButtonIn(canvasElement)).toHaveFocus()
+		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await userEvent.keyboard("{Enter}")
 		await userEvent.click(
@@ -730,8 +741,6 @@ export const Roster = meta.story({
 			await expect(create).toHaveFocus()
 		}, FRAME_POLL)
 
-		await userEvent.tab()
-		await expect(searchFieldIn(canvasElement)).toHaveFocus()
 		await userEvent.tab()
 		await expect(rowButton(rows[0])).toHaveFocus()
 		await userEvent.tab()
@@ -785,6 +794,7 @@ export const CreateLabel = meta.story({
 		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
+		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await opensBelow()
 	},
@@ -830,6 +840,7 @@ export const Empty = meta.story({
 		)
 
 		const create = canvas.getByRole("button", { name: CREATE })
+		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
@@ -2044,7 +2055,7 @@ export const Collapsed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel opened on its icon rail, which is how a host restores a remembered choice through `defaultOpen`. Check that the rail is one avatar wide with the avatars sitting centred in it and nothing clipped against either edge, that an avatar keeps the size the row asks for and fits whole inside the row rather than being cut by it, that hovering a row names it in a hint beside the rail — the rail hides the label, so the pointer needs the name back, and the row keeps `aria-label` for the readers who never hover — that the create button rides down with it, and that the names, badges and timestamps are gone from the picture and from the accessibility tree — each row keeps its name through `aria-label` instead. A row is still one button and one only, and right-clicking it still reaches its actions. Pick `Toggle` to watch the panel travel between the two widths.",
+					"The panel opened on its icon rail, which is how a host restores a remembered choice through `defaultOpen`. Check that the rail is one avatar wide with the avatars sitting centred in it and nothing clipped against either edge, that an avatar keeps the size the row asks for and fits whole inside the row rather than being cut by it, that hovering a row names it in a hint beside the rail — the rail hides the label, so the pointer needs the name back, and the row keeps `aria-label` for the readers who never hover — that the create button rides down with it while no search button does, Cmd/Ctrl+K being the only way to search from the rail, and that the names, badges and timestamps are gone from the picture and from the accessibility tree — each row keeps its name through `aria-label` instead. A row is still one button and one only, and right-clicking it still reaches its actions. Pick `Toggle` to watch the panel travel between the two widths.",
 			},
 		},
 	},
@@ -2055,6 +2066,8 @@ export const Collapsed = meta.story({
 			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
 		}, FRAME_POLL)
 
+		await expect(querySearchButtonIn(canvasElement)).toBeNull()
+
 		const create = canvas.getByRole("button", { name: CREATE })
 		await userEvent.tab()
 		await userEvent.tab()
@@ -2062,7 +2075,6 @@ export const Collapsed = meta.story({
 		await expect(create).toHaveFocus()
 
 		const row = rowsIn(canvasElement)[0]
-		await userEvent.tab()
 		await userEvent.tab()
 		await expect(rowButton(row)).toHaveFocus()
 		await expect(rowButton(row).matches(":focus-visible")).toBe(true)
@@ -3668,7 +3680,7 @@ export const WindowControlsReserved = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this in a desktop window whose title bar is transparent, so the OS paints its close/minimise/zoom buttons over the top of this panel. Check that the header holds a gutter wide enough that the space switcher and the create button both start past those buttons, that the space name reads as far from the last button as the first button is from the window edge, and that the list below is untouched — the reserve is owed by the header alone. The gutter is measured to the first glyph of the name, not to the switcher's box, so it subtracts the padding the switcher already carries. Pick `NoWindowControlsReserve` in a browser tab or on a host that draws its own title bar, `WindowControlsReservedOnRail` for the same window with the panel collapsed.",
+					"Reach for this in a desktop window whose title bar is transparent, so the OS paints its close/minimise/zoom buttons over the top of this panel. Check that the header holds a gutter wide enough that the space switcher, the search button and the create button all start past those buttons, that the space name reads as far from the last button as the first button is from the window edge, and that the list below is untouched — the reserve is owed by the header alone. The gutter is measured to the first glyph of the name, not to the switcher's box, so it subtracts the padding the switcher already carries. Pick `NoWindowControlsReserve` in a browser tab or on a host that draws its own title bar, `WindowControlsReservedOnRail` for the same window with the panel collapsed.",
 			},
 		},
 	},
@@ -4989,7 +5001,6 @@ export const CollapsedSections = meta.story({
 		await userEvent.tab()
 		await expect(canvas.getByRole("button", { name: CREATE })).toHaveFocus()
 		await userEvent.tab()
-		await userEvent.tab()
 		await expect(rowButton(rowsIn(canvasElement)[0])).toHaveFocus()
 
 		lift(rowButton(rowsIn(canvasElement)[0]))
@@ -5607,6 +5618,7 @@ export const CreateMenu = meta.story({
 		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
+		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await userEvent.keyboard("{Enter}")
 
@@ -5716,43 +5728,62 @@ export const DragConversationToSection = meta.story({
 	},
 })
 
-const SEARCH_TO_ROSTER_AIR = 9
+const HEADER_ACTION_GAP = 2
+
+const settledRingOf = async (control: HTMLElement) => {
+	let last = ""
+	await waitFor(() => {
+		const ring = getComputedStyle(control).boxShadow
+		const isSettled = ring === last && ring !== "none"
+		last = ring
+		expect(isSettled).toBe(true)
+	}, FRAME_POLL)
+	return last
+}
 
 export const WithSearch = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The roster with the search field mounted above it. Check that the field sits between the pinned header and the first row rather than inside either, so it never scrolls away with the list, that its box lands in the lane a roster row's fill holds — same start edge, same end edge — and that the column leaves 9px of air between the box and the first row's fill, so the field reads as its own box on the surface rather than a lid glued on top of the list. Pressing it reports and nothing else: the palette it opens is the host's to mount. Pick `NoSearch` for the panel of a host that passes no `onOpenSearch` and gets no field, `Roster` for the same field read as the Tab stop between the create menu and the first row.",
+					"The search button in the pinned header, a ghost icon button 2px before the create menu and drawn like it, the two held tight as one group apart from the space switcher, so the header reads as one row of controls and the roster starts straight under it with no search row in between. Check the button is named Search, sits left of the create menu, wears the same focus ring as the create menu under the keyboard, and shows a hint carrying its name and the Cmd/Ctrl+K chord on focus. Pressing it reports and nothing else: the palette it opens is the host's to mount. Pick `NoSearch` for the panel of a host that passes no `onOpenSearch` and gets no button, `Collapsed` for the rail, where Cmd/Ctrl+K is the only way in.",
 			},
 		},
 	},
-	play: async ({ args, canvasElement, userEvent }) => {
-		const slot = slotIn(canvasElement, "sidebar-search-field")
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const search = searchButtonIn(canvasElement)
+		const create = canvas.getByRole("button", { name: CREATE })
+
+		await expect(search).toHaveAccessibleName(SEARCH)
+		await expect(
+			search.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy()
+		await expect(
+			create.getBoundingClientRect().left -
+				search.getBoundingClientRect().right,
+		).toBeCloseTo(HEADER_ACTION_GAP, 0)
+
 		const header = slotIn(canvasElement, "sidebar-header")
-		const content = slotIn(canvasElement, "sidebar-content")
-
-		await expect(
-			header.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING,
-		).toBeTruthy()
-		await expect(
-			content.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_PRECEDING,
-		).toBeTruthy()
-		await expect(header.contains(slot)).toBe(false)
-		await expect(content.contains(slot)).toBe(false)
-
-		const field = searchFieldIn(canvasElement)
 		const [first] = rowsIn(canvasElement)
-		const fieldBox = field.getBoundingClientRect()
-		const firstFill = rowButton(first).getBoundingClientRect()
+		await expect(
+			rowButton(first).getBoundingClientRect().top,
+		).toBeGreaterThanOrEqual(header.getBoundingClientRect().bottom)
 
-		await expect(Math.round(fieldBox.left)).toBe(Math.round(firstFill.left))
-		await expect(Math.round(fieldBox.right)).toBe(Math.round(firstFill.right))
-		await expect(Math.round(firstFill.top - fieldBox.bottom)).toBe(
-			SEARCH_TO_ROSTER_AIR,
-		)
+		await userEvent.tab()
+		await userEvent.tab()
+		await userEvent.tab()
+		await expect(search).toHaveFocus()
+		await expect(search.matches(":focus-visible")).toBe(true)
+		const tooltip = await screen.findByRole("tooltip")
+		await expect(tooltip).toHaveTextContent(SEARCH)
+		await expect(tooltip).toHaveTextContent(SEARCH_CHORD)
+		const searchRing = await settledRingOf(search)
 
-		await userEvent.click(field)
+		await userEvent.tab()
+		await expect(create).toHaveFocus()
+		await expect(await settledRingOf(create)).toBe(searchRing)
+
+		await userEvent.click(search)
 		await expect(args.onOpenSearch).toHaveBeenCalledTimes(1)
 	},
 })
@@ -5764,12 +5795,12 @@ export const NoSearch = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel given no `onOpenSearch`. No field is drawn at all rather than a dead box a press would do nothing with, so the roster starts straight under the pinned header and Tab reaches the first row one stop after the create menu. The app always passes the callback, so this one is kept as a test and out of the catalogue. Pick `WithSearch` for the field the app mounts and the lane it lands on.",
+					"The panel given no `onOpenSearch`. No search button is drawn at all rather than a dead control a press would do nothing with, so Tab goes from the space switcher straight to the create menu. The app always passes the callback, so this one is kept as a test and out of the catalogue. Pick `WithSearch` for the button the app mounts.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
-		await expect(slotsIn(canvasElement, "sidebar-search-field")).toHaveLength(0)
+		await expect(querySearchButtonIn(canvasElement)).toBeNull()
 
 		const header = slotIn(canvasElement, "sidebar-header")
 		const [first] = rowsIn(canvasElement)

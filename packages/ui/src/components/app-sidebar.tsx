@@ -44,7 +44,6 @@ import {
 } from "@workspace/ui/components/roster-menu-items"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { SidebarResizeHandle } from "@workspace/ui/components/sidebar-resize"
-import { SidebarSearchField } from "@workspace/ui/components/sidebar-search-field"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"
 import {
 	SpaceDots,
@@ -58,6 +57,7 @@ import {
 	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@workspace/ui/components/ui/context-menu"
+import { Kbd } from "@workspace/ui/components/ui/kbd"
 import {
 	Sidebar,
 	SidebarContent,
@@ -95,6 +95,8 @@ const HEADER =
 const WINDOW_CONTROLS_INSET = "pl-[78px] group-data-[collapsible=icon]:*:hidden"
 
 const NO_WINDOW_CONTROLS_INSET = "pl-2.5"
+
+const HEADER_ACTIONS = "flex items-center gap-0.5"
 
 const ROW_AVATAR_SIZE = 40
 
@@ -190,20 +192,29 @@ const DROP_AVATAR_SIZE = 28
 
 const CONTENT_INSET = "p-2 group-data-[collapsible=icon]:px-0"
 
-const SEARCH_INSET = "px-[9px] pb-[9px] group-data-[collapsible=icon]:px-0"
+type SidebarSearchButtonProps = { onOpenSearch: () => void }
 
-type SidebarSearchSlotProps = { onOpenSearch: () => void }
-
-const SidebarSearchSlot = ({ onOpenSearch }: SidebarSearchSlotProps) => {
-	const { isMobile, state } = useSidebar()
+const SidebarSearchButton = ({ onOpenSearch }: SidebarSearchButtonProps) => {
+	const { t } = useTranslation("search")
+	const label = t("open")
 
 	return (
-		<div className={SEARCH_INSET}>
-			<SidebarSearchField
-				isCollapsed={!isMobile && state === "collapsed"}
-				onOpen={onOpenSearch}
-			/>
-		</div>
+		<TooltipButton
+			aria-label={label}
+			className="group-data-[collapsible=icon]:hidden"
+			onClick={onOpenSearch}
+			size="icon-sm"
+			tooltip={
+				<>
+					{label}
+					<Kbd>{t("chord")}</Kbd>
+				</>
+			}
+			tooltipSide="bottom"
+			variant="ghost"
+		>
+			<Icons.Search aria-hidden="true" />
+		</TooltipButton>
 	)
 }
 
@@ -1939,28 +1950,30 @@ const AppSidebarBase = ({
 						selectedSpaceId={selectedSpaceId}
 						spaces={spaces}
 					/>
-					{onCreateConversation ? (
-						<CreateMenu
-							onCreateBot={onCreateBot}
-							onCreateConversation={onCreateConversation}
-							onCreateSection={onCreateSection ? nameLooseSection : undefined}
-						/>
-					) : (
-						<TooltipButton
-							aria-label={createLabel}
-							onClick={onCreateBot}
-							size="icon-sm"
-							tooltip={createLabel}
-							tooltipSide="bottom"
-							variant="ghost"
-						>
-							<Icons.Add aria-hidden="true" />
-						</TooltipButton>
-					)}
+					<div className={HEADER_ACTIONS}>
+						{onOpenSearch ? (
+							<SidebarSearchButton onOpenSearch={onOpenSearch} />
+						) : null}
+						{onCreateConversation ? (
+							<CreateMenu
+								onCreateBot={onCreateBot}
+								onCreateConversation={onCreateConversation}
+								onCreateSection={onCreateSection ? nameLooseSection : undefined}
+							/>
+						) : (
+							<TooltipButton
+								aria-label={createLabel}
+								onClick={onCreateBot}
+								size="icon-sm"
+								tooltip={createLabel}
+								tooltipSide="bottom"
+								variant="ghost"
+							>
+								<Icons.Add aria-hidden="true" />
+							</TooltipButton>
+						)}
+					</div>
 				</SidebarHeader>
-				{onOpenSearch ? (
-					<SidebarSearchSlot onOpenSearch={onOpenSearch} />
-				) : null}
 				<SidebarContent
 					className={hasRosterPerSpace ? CAROUSEL_CONTENT : CONTENT_INSET}
 				>
