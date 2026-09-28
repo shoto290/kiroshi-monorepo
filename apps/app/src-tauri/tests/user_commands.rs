@@ -113,6 +113,7 @@ fn a_record(picture: Value) -> Value {
 		"notifyOnFinishedTurn": false,
 		"notifyWithSound": false,
 		"sidebarWidth": 320,
+		"sidebarTab": "companions",
 		"activityPanelOpen": true,
 		"firstRunDone": true,
 		"lastSpaceId": "space-one",
@@ -176,6 +177,7 @@ fn a_record_nobody_has_written_crosses_as_the_defaults() {
 			"notifyOnFinishedTurn": true,
 			"notifyWithSound": true,
 			"sidebarWidth": null,
+			"sidebarTab": "conversations",
 			"activityPanelOpen": false,
 			"firstRunDone": false,
 			"lastSpaceId": null,
@@ -211,6 +213,21 @@ fn a_scheme_outside_the_vocabulary_never_reaches_the_record() {
 		"a scheme this build cannot paint was accepted"
 	);
 	assert_eq!(read(&window)["colorScheme"], json!("system"));
+}
+
+#[test]
+fn a_record_sent_without_a_tab_is_stored_on_conversations() {
+	let home = Home::new();
+	let app = home.app();
+	let window = window(&app);
+	let mut older = a_record(Value::Null);
+	older.as_object_mut().expect("a record").remove("sidebarTab");
+
+	let answered = call(&window, "user_set_preferences", json!({ "preferences": older }))
+		.expect("the record is stored");
+
+	assert_eq!(answered["sidebarTab"], json!("conversations"));
+	assert_eq!(read(&window)["sidebarTab"], json!("conversations"));
 }
 
 #[test]

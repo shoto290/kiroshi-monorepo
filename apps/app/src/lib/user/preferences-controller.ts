@@ -63,6 +63,7 @@ const UNMIRRORED_DEFAULTS = {
 	notifyOnPermission: true,
 	notifyOnFinishedTurn: true,
 	notifyWithSound: true,
+	sidebarTab: "conversations",
 } satisfies Omit<UserPreferences, keyof MirroredPreferences>
 
 const openingPreferences = (): ReaderPreferences => ({

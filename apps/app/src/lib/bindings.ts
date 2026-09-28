@@ -1022,6 +1022,8 @@ export type SessionHandle = {
 	resumed: boolean,
 };
 
+export type SidebarTab = "conversations" | "missions" | "companions" | "applications";
+
 export type SignInError = { kind: "alreadyRunning" } | { kind: "notRunning" } | { kind: "cancelled" } | { kind: "timedOut" } | { kind: "refusedUrl"; url: string } | { kind: "flowTimedOut"; timeoutMs: number } | { kind: "failed"; detail: string } | { kind: "transport"; error: TransportError };
 
 export type Skill = {
@@ -1192,6 +1194,7 @@ export type UserPreferences = {
 	notifyOnFinishedTurn: boolean,
 	notifyWithSound: boolean,
 	sidebarWidth: number | null,
+	sidebarTab?: SidebarTab,
 	activityPanelOpen?: boolean,
 	firstRunDone?: boolean,
 	lastSpaceId: string | null,

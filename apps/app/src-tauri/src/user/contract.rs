@@ -36,6 +36,38 @@ impl From<ColorScheme> for user::ColorScheme {
 	}
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum SidebarTab {
+	#[default]
+	Conversations,
+	Missions,
+	Companions,
+	Applications,
+}
+
+impl From<user::SidebarTab> for SidebarTab {
+	fn from(tab: user::SidebarTab) -> Self {
+		match tab {
+			user::SidebarTab::Conversations => SidebarTab::Conversations,
+			user::SidebarTab::Missions => SidebarTab::Missions,
+			user::SidebarTab::Companions => SidebarTab::Companions,
+			user::SidebarTab::Applications => SidebarTab::Applications,
+		}
+	}
+}
+
+impl From<SidebarTab> for user::SidebarTab {
+	fn from(tab: SidebarTab) -> Self {
+		match tab {
+			SidebarTab::Conversations => user::SidebarTab::Conversations,
+			SidebarTab::Missions => user::SidebarTab::Missions,
+			SidebarTab::Companions => user::SidebarTab::Companions,
+			SidebarTab::Applications => user::SidebarTab::Applications,
+		}
+	}
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UserPreferences {
@@ -48,6 +80,8 @@ pub struct UserPreferences {
 	pub notify_on_finished_turn: bool,
 	pub notify_with_sound: bool,
 	pub sidebar_width: Option<u32>,
+	#[serde(default)]
+	pub sidebar_tab: SidebarTab,
 	#[serde(default)]
 	pub activity_panel_open: bool,
 	#[serde(default)]
@@ -75,6 +109,7 @@ impl UserPreferences {
 			notify_on_finished_turn: preferences.notify_on_finished_turn,
 			notify_with_sound: preferences.notify_with_sound,
 			sidebar_width: preferences.sidebar_width,
+			sidebar_tab: preferences.sidebar_tab.into(),
 			activity_panel_open: preferences.activity_panel_open,
 			first_run_done: preferences.first_run_done,
 			last_space_id: preferences.last_space_id,
@@ -95,6 +130,7 @@ impl From<UserPreferences> for user::Preferences {
 			notify_on_finished_turn: preferences.notify_on_finished_turn,
 			notify_with_sound: preferences.notify_with_sound,
 			sidebar_width: preferences.sidebar_width,
+			sidebar_tab: preferences.sidebar_tab.into(),
 			activity_panel_open: preferences.activity_panel_open,
 			first_run_done: preferences.first_run_done,
 			last_space_id: preferences.last_space_id,
