@@ -345,13 +345,13 @@ const MissionMenu = ({ children, onClose, ...props }: MissionMenuProps) => {
 		action()
 	}
 
-	const rememberOpening = (isOpen: boolean) => {
+	const staysOnCardWhenOpened = (isOpen: boolean) => {
 		if (isOpen) isLeavingCard.current = false
 	}
 
 	return (
 		<>
-			<ContextMenu onOpenChange={rememberOpening}>
+			<ContextMenu onOpenChange={staysOnCardWhenOpened}>
 				<ContextMenuPrimitive.Trigger
 					render={({ ref, ...surface }) =>
 						cloneElement(children, {
