@@ -105,7 +105,7 @@ export const Default = meta.story({
 		)
 		await expect(mark?.dataset.state).toBe("idle")
 		await expect(
-			mark?.querySelector('[data-slot="avatar-exploration"]'),
+			mark?.querySelector('[data-slot="companion-field"]'),
 		).toHaveAccessibleName(BRAND_NAME)
 	},
 })
@@ -125,6 +125,7 @@ export const Themes = meta.story({
 })
 
 export const EveryState = meta.story({
+	tags: ["test-only"],
 	beforeEach: recordLitCells,
 	render: () => (
 		<Row>
@@ -147,7 +148,7 @@ export const EveryState = meta.story({
 	play: async ({ canvasElement }) => {
 		const marks = Array.from(
 			canvasElement.querySelectorAll<HTMLElement>(
-				'[data-slot="avatar-exploration"]',
+				'[data-slot="companion-field"]',
 			),
 		)
 
@@ -160,6 +161,7 @@ export const EveryState = meta.story({
 })
 
 export const EverySize = meta.story({
+	tags: ["test-only"],
 	beforeEach: recordLitCells,
 	render: () => (
 		<Row>

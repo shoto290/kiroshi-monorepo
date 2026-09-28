@@ -9,11 +9,11 @@ import {
 	useState,
 } from "react"
 
+import { brandRingField } from "@workspace/ui/components/brand-ring-field"
 import {
 	companionSeed,
-	type ExplorationState,
-} from "@workspace/ui/components/avatar-exploration"
-import { brandRingField } from "@workspace/ui/components/brand-ring-field"
+	type FieldState,
+} from "@workspace/ui/components/companion-field"
 import {
 	DitheredField,
 	FIELD_CELLS,
@@ -29,9 +29,9 @@ const BRAND_CELLS = "var(--brand-mark-cells)"
 
 const BRAND_GROUND = "var(--brand-mark-ground)"
 
-const RESTING_STATE: ExplorationState = "idle"
+const RESTING_STATE: FieldState = "idle"
 
-const PLAYABLE_STATES: ExplorationState[] = [
+const PLAYABLE_STATES: FieldState[] = [
 	"thinking",
 	"searching",
 	"working",
@@ -46,8 +46,8 @@ const restDelay = () =>
 	REST_DELAY[0] + Math.random() * (REST_DELAY[1] - REST_DELAY[0])
 
 type PlayOneState = {
-	lastPlayed: RefObject<ExplorationState>
-	onPlay: (state: ExplorationState) => void
+	lastPlayed: RefObject<FieldState>
+	onPlay: (state: FieldState) => void
 }
 
 const playOneState = ({ lastPlayed, onPlay }: PlayOneState) => {
@@ -61,7 +61,7 @@ const playOneState = ({ lastPlayed, onPlay }: PlayOneState) => {
 
 type BrandMarkProps = {
 	size: number
-	state?: ExplorationState
+	state?: FieldState
 }
 
 const BrandMark = ({ size, state = RESTING_STATE }: BrandMarkProps) => (
@@ -93,8 +93,8 @@ const AppIconMark = ({
 	ref,
 }: AppIconMarkProps) => {
 	const prefersReducedMotion = usePrefersReducedMotion()
-	const [state, setState] = useState<ExplorationState>(RESTING_STATE)
-	const lastPlayedRef = useRef<ExplorationState>(RESTING_STATE)
+	const [state, setState] = useState<FieldState>(RESTING_STATE)
+	const lastPlayedRef = useRef<FieldState>(RESTING_STATE)
 
 	useImperativeHandle(ref, () => ({
 		play: () => playOneState({ lastPlayed: lastPlayedRef, onPlay: setState }),

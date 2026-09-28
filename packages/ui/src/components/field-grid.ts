@@ -110,7 +110,6 @@ const honeycombGrid = (columns: number, cellShare: number): FieldGrid => {
 }
 
 export {
-	type CellShape,
 	type FieldGrid,
 	type FieldPoint,
 	hexagonCorners,

@@ -353,7 +353,7 @@ export const WithImage = meta.story({
 				UPLOADED_AVATAR_IMAGE,
 			)
 			await expect(
-				avatar.querySelector('[data-slot="avatar-exploration"]'),
+				avatar.querySelector('[data-slot="companion-field"]'),
 			).toBeNull()
 			await expectCompanionPictureShape(avatar)
 		}
@@ -472,7 +472,7 @@ export const BoundToOneBot = meta.story({
 				UPLOADED_AVATAR_IMAGE,
 			)
 			await expect(
-				avatar.querySelector('[data-slot="avatar-exploration"]'),
+				avatar.querySelector('[data-slot="companion-field"]'),
 			).toBeNull()
 		}
 

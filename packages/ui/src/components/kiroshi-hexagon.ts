@@ -64,7 +64,6 @@ const roundedHexagonPath = (shape: RoundedHexagon) => {
 }
 
 export {
-	hexagonMetrics,
 	isInsideRoundedHexagon,
 	OUTER,
 	type RoundedHexagon,

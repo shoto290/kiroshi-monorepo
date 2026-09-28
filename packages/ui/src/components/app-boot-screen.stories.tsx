@@ -17,7 +17,7 @@ const cellsOf = (avatar: HTMLElement) => {
 }
 
 const expectBootAvatar = async (screen: HTMLElement) => {
-	const avatar = slotIn(screen, "avatar-exploration")
+	const avatar = slotIn(screen, "companion-field")
 
 	await expect(avatar.dataset.state).toBe("thinking")
 	await expect(avatar.style.backgroundColor).toBe("")

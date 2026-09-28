@@ -3,25 +3,22 @@
 import { useRef } from "react"
 
 import {
-	companionSeed,
-	type ExplorationAvatarProps,
-	type ExplorationState,
-	fieldIntensity,
-	pickSilhouette,
-	seededRandom,
-} from "@workspace/ui/components/avatar-exploration"
-import {
-	ExplorationFrame,
-	useExplorationClock,
-} from "@workspace/ui/components/avatar-exploration-frame"
-import {
 	type BotAvatarBlot,
 	blotTint,
 } from "@workspace/ui/components/companion-colour"
 import {
+	companionSeed,
+	type FieldAvatarProps,
+	type FieldState,
+	fieldIntensity,
+	pickSilhouette,
+	seededRandom,
+} from "@workspace/ui/components/companion-field"
+import {
 	COMPANION_SILHOUETTE_SPACE,
 	silhouetteCells,
 } from "@workspace/ui/components/companion-silhouette"
+import { FieldFrame, useFieldClock } from "@workspace/ui/components/field-frame"
 import {
 	type FieldGrid,
 	type FieldPoint,
@@ -32,7 +29,7 @@ import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced
 
 type FieldInk = "companion" | "foreground"
 
-type DitheredFieldAvatarProps = ExplorationAvatarProps & {
+type DitheredFieldAvatarProps = FieldAvatarProps & {
 	hasGround?: boolean
 	ink?: FieldInk
 }
@@ -46,7 +43,7 @@ type DensityField = {
 
 type DitheredFieldProps = {
 	name: string
-	state: ExplorationState
+	state: FieldState
 	size: number
 	field: DensityField
 	ink: string
@@ -134,7 +131,7 @@ const noiseAt = (lattice: Float32Array, u: number, v: number) => {
 
 const densities = (
 	{ grid, silhouette, lattice }: DensityField,
-	state: ExplorationState,
+	state: FieldState,
 	time: number,
 ) => {
 	const drift = state === "idle" ? 0 : time / DRIFT_PERIOD
@@ -162,11 +159,7 @@ const organicTones = (field: number[], { ahead }: FieldGrid) => {
 	})
 }
 
-const fieldTones = (
-	field: DensityField,
-	state: ExplorationState,
-	time: number,
-) =>
+const fieldTones = (field: DensityField, state: FieldState, time: number) =>
 	organicTones(densities(field, state, time), field.grid).map((tone, index) =>
 		field.mask?.[index] === 0 ? 0 : tone,
 	)
@@ -244,7 +237,7 @@ const DitheredField = ({
 	const prefersReducedMotion = usePrefersReducedMotion()
 	const drawnState = prefersReducedMotion ? "idle" : state
 
-	useExplorationClock({
+	useFieldClock({
 		state: drawnState,
 		paint: (time) => {
 			const element = canvas.current
@@ -266,7 +259,7 @@ const DitheredField = ({
 	})
 
 	return (
-		<ExplorationFrame
+		<FieldFrame
 			name={name}
 			size={size}
 			state={state}
@@ -280,7 +273,7 @@ const DitheredField = ({
 				ref={canvas}
 				style={{ color: ink }}
 			/>
-		</ExplorationFrame>
+		</FieldFrame>
 	)
 }
 
@@ -312,7 +305,6 @@ export {
 	type DensityField,
 	DitheredField,
 	DitheredFieldAvatar,
-	type DitheredFieldAvatarProps,
 	FIELD_CELLS,
 	fieldLattice,
 	fieldTones,

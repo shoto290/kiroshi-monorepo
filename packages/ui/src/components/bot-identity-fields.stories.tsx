@@ -173,7 +173,7 @@ export const WithPicture = meta.story({
 			UPLOADED_AVATAR_IMAGE,
 		)
 		await expect(
-			preview.querySelector('[data-slot="avatar-exploration"]'),
+			preview.querySelector('[data-slot="companion-field"]'),
 		).toBeNull()
 		await expect(canvas.getByText("Uploaded image")).toBeVisible()
 	},

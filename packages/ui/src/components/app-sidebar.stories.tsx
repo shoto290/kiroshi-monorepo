@@ -34,14 +34,14 @@ import {
 	type Space,
 	type UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
-import {
-	companionSeed,
-	pickSilhouette,
-} from "@workspace/ui/components/avatar-exploration"
 import type {
 	BotMissionState,
 	BotMissionTicket,
 } from "@workspace/ui/components/bot-badge"
+import {
+	companionSeed,
+	pickSilhouette,
+} from "@workspace/ui/components/companion-field"
 import {
 	COMPANION_SILHOUETTE_SPACE,
 	silhouetteKey,

@@ -1,7 +1,7 @@
 import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import type { BotAvatarState } from "@workspace/ui/components/companion-state"
 
-const EXPLORATION_STATES = [
+const FIELD_STATES = [
 	"idle",
 	"thinking",
 	"searching",
@@ -10,12 +10,12 @@ const EXPLORATION_STATES = [
 	"waiting",
 ] as const satisfies readonly BotAvatarState[]
 
-type ExplorationState = (typeof EXPLORATION_STATES)[number]
+type FieldState = (typeof FIELD_STATES)[number]
 
-type ExplorationAvatarProps = {
+type FieldAvatarProps = {
 	name: string
 	tint?: BotAvatarBlot
-	state?: ExplorationState
+	state?: FieldState
 	size?: number
 }
 
@@ -88,7 +88,7 @@ const breath: Wave = (cycle) => 0.5 - 0.5 * Math.cos(TURN * cycle)
 
 const across = (value: number) => (value + 1) / 2
 
-const STATE_MOTION: Record<Exclude<ExplorationState, "idle">, StateMotion> = {
+const STATE_MOTION: Record<Exclude<FieldState, "idle">, StateMotion> = {
 	thinking: {
 		period: 1800,
 		phase: ({ x, y }) => (Math.hypot(x, y) / Math.SQRT2) * RIPPLE_SPAN,
@@ -116,14 +116,10 @@ const STATE_MOTION: Record<Exclude<ExplorationState, "idle">, StateMotion> = {
 	},
 }
 
-const stillTime = (state: ExplorationState) =>
+const stillTime = (state: FieldState) =>
 	state === "idle" ? 0 : STATE_MOTION[state].period * STILL_CYCLE
 
-const fieldIntensity = (
-	state: ExplorationState,
-	point: FieldPoint,
-	time: number,
-) => {
+const fieldIntensity = (state: FieldState, point: FieldPoint, time: number) => {
 	if (state === "idle") return 1
 	const { period, phase, wave } = STATE_MOTION[state]
 	const cycle = fraction(time / period - phase(point))
@@ -132,13 +128,11 @@ const fieldIntensity = (
 
 export {
 	companionSeed,
-	EXPLORATION_STATES,
-	type ExplorationAvatarProps,
-	type ExplorationState,
+	type FieldAvatarProps,
+	type FieldState,
 	fieldIntensity,
 	pickSilhouette,
 	type Silhouette,
-	type SilhouetteSpace,
 	seededRandom,
 	silhouetteRandom,
 	stillTime,

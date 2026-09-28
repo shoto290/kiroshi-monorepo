@@ -130,10 +130,10 @@ export const botIdentityAvatars = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "bot-identity-avatar")
 
 export const companionGlyphOf = (avatar: Element) =>
-	slotIn(avatar, "avatar-exploration")
+	slotIn(avatar, "companion-field")
 
 export const companionGlyphs = (root: Element) =>
-	slotsIn(root, "avatar-exploration")
+	slotsIn(root, "companion-field")
 
 export const companionTintOf = (glyph: HTMLElement) =>
 	glyph.style.backgroundColor.match(/var\(--bot-blot-\w+\)/)?.[0] ?? ""

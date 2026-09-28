@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
 	companionSeed,
 	pickSilhouette,
-} from "@workspace/ui/components/avatar-exploration"
+} from "@workspace/ui/components/companion-field"
 import {
 	COMPANION_SILHOUETTE_SPACE,
 	silhouetteCells,

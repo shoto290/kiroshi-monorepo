@@ -1,25 +1,24 @@
 import { type ComponentType, useId, useState } from "react"
 import { expect, userEvent, within } from "storybook/test"
 
-import {
-	EXPLORATION_STATES,
-	type ExplorationAvatarProps,
-	type ExplorationState,
-} from "@workspace/ui/components/avatar-exploration"
+import type {
+	FieldAvatarProps,
+	FieldState,
+} from "@workspace/ui/components/companion-field"
 import {
 	RadioGroup,
 	RadioGroupItem,
 } from "@workspace/ui/components/ui/radio-group"
 
-type RosterChoice = "mixed" | ExplorationState
+type RosterChoice = "mixed" | FieldState
 
-type ExplorationRosterProps = {
-	Avatar: ComponentType<ExplorationAvatarProps>
+type CompanionStatesRosterProps = {
+	Avatar: ComponentType<FieldAvatarProps>
 }
 
 type RosterPlay = { canvasElement: HTMLElement }
 
-type RosterCompanion = Required<Omit<ExplorationAvatarProps, "size">>
+type RosterCompanion = Required<Omit<FieldAvatarProps, "size">>
 
 const ROSTER: RosterCompanion[] = [
 	{ name: "Lyra", tint: "blue", state: "idle" },
@@ -31,24 +30,33 @@ const ROSTER: RosterCompanion[] = [
 	{ name: "Castor", tint: "cyan", state: "working" },
 ]
 
-const CHOICES: RosterChoice[] = ["mixed", ...EXPLORATION_STATES]
+const CHOICES: RosterChoice[] = [
+	"mixed",
+	"idle",
+	"thinking",
+	"searching",
+	"working",
+	"writing",
+	"waiting",
+]
 
 const LADDER = [16, 40, 96]
 
-const SWITCHED_STATE: ExplorationState = "working"
+const SWITCHED_STATE: FieldState = "working"
 
-const RESTING_STATE: ExplorationState = "idle"
+const RESTING_STATE: FieldState = "idle"
 
 const STILL_WAIT = 300
 
 const pause = (duration: number) =>
 	new Promise((resolve) => setTimeout(resolve, duration))
 
-export const ExplorationRoster = ({ Avatar }: ExplorationRosterProps) => {
+export const CompanionStatesRoster = ({
+	Avatar,
+}: CompanionStatesRosterProps) => {
 	const [choice, setChoice] = useState<RosterChoice>("mixed")
 	const group = useId()
-	const stateOf = (state: ExplorationState) =>
-		choice === "mixed" ? state : choice
+	const stateOf = (state: FieldState) => (choice === "mixed" ? state : choice)
 	const [featured] = ROSTER
 
 	return (
@@ -111,10 +119,12 @@ const statesIn = (roster: HTMLElement) =>
 const framesIn = (roster: HTMLElement) =>
 	Array.from(roster.querySelectorAll("canvas"), (canvas) => canvas.toDataURL())
 
-const pickState = (control: HTMLElement, state: ExplorationState) =>
+const pickState = (control: HTMLElement, state: FieldState) =>
 	userEvent.click(within(control).getByRole("radio", { name: state }))
 
-export const playExplorationRoster = async ({ canvasElement }: RosterPlay) => {
+export const playCompanionStatesRoster = async ({
+	canvasElement,
+}: RosterPlay) => {
 	const canvas = within(canvasElement)
 	const controls = canvas.getAllByRole("radiogroup", { name: "State" })
 	const rosters = canvas.getAllByRole("group", { name: "Roster" })

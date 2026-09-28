@@ -220,7 +220,7 @@ type PaintRecorder = {
 	restore: () => void
 }
 
-const AVATAR_CANVAS = '[data-slot="avatar-exploration"] canvas'
+const AVATAR_CANVAS = '[data-slot="companion-field"] canvas'
 
 const recordAvatarCanvasPaints = (): PaintRecorder => {
 	const original = HTMLCanvasElement.prototype.getContext
@@ -642,7 +642,7 @@ describe("PRF1 render baseline", () => {
 		const working = tallyFrames(frames)
 
 		expect({
-			avatars: document.querySelectorAll('[data-slot="avatar-exploration"]')
+			avatars: document.querySelectorAll('[data-slot="companion-field"]')
 				.length,
 			idle,
 			working,

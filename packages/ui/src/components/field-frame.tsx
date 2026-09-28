@@ -3,25 +3,25 @@
 import { type ReactNode, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
-import {
-	type ExplorationAvatarProps,
-	type ExplorationState,
-	stillTime,
-} from "@workspace/ui/components/avatar-exploration"
 import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
+import {
+	type FieldAvatarProps,
+	type FieldState,
+	stillTime,
+} from "@workspace/ui/components/companion-field"
 import { COMPANION_SILHOUETTE } from "@workspace/ui/components/companion-picture"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
 type Paint = (time: number) => void
 
-type ExplorationFrameProps = Required<Omit<ExplorationAvatarProps, "tint">> & {
+type FieldFrameProps = Required<Omit<FieldAvatarProps, "tint">> & {
 	tint?: BotAvatarBlot
 	surface?: string
 	children: ReactNode
 }
 
-type ExplorationClock = { state: ExplorationState; paint: Paint }
+type FieldClock = { state: FieldState; paint: Paint }
 
 const painters = new Set<Paint>()
 let frame = 0
@@ -42,14 +42,14 @@ const subscribe = (paint: Paint) => {
 	}
 }
 
-const ExplorationFrame = ({
+const FieldFrame = ({
 	name,
 	tint,
 	state,
 	size,
 	surface,
 	children,
-}: ExplorationFrameProps) => {
+}: FieldFrameProps) => {
 	const { t } = useTranslation("common")
 
 	return (
@@ -59,7 +59,7 @@ const ExplorationFrame = ({
 				"relative inline-flex shrink-0 overflow-hidden",
 				tint ? "text-(--bot-blot-ink)" : "text-(--bot-avatar-ink)",
 			)}
-			data-slot="avatar-exploration"
+			data-slot="companion-field"
 			data-state={state}
 			role="img"
 			style={{
@@ -74,7 +74,7 @@ const ExplorationFrame = ({
 	)
 }
 
-const useExplorationClock = ({ state, paint }: ExplorationClock) => {
+const useFieldClock = ({ state, paint }: FieldClock) => {
 	const prefersReducedMotion = usePrefersReducedMotion()
 	const isAnimated = state !== "idle" && !prefersReducedMotion
 	const latestPaint = useRef(paint)
@@ -89,4 +89,4 @@ const useExplorationClock = ({ state, paint }: ExplorationClock) => {
 	})
 }
 
-export { ExplorationFrame, useExplorationClock }
+export { FieldFrame, useFieldClock }

@@ -1,7 +1,7 @@
 import {
 	type Silhouette,
 	silhouetteRandom,
-} from "@workspace/ui/components/avatar-exploration"
+} from "@workspace/ui/components/companion-field"
 
 type Symmetry = (column: number, row: number) => [number, number]
 
@@ -65,9 +65,4 @@ const silhouetteKey = (silhouette: Silhouette) =>
 		.map(({ column, row }) => `${column},${row}`)
 		.join(" ")
 
-export {
-	COMPANION_SILHOUETTE_SPACE,
-	type SilhouetteCell,
-	silhouetteCells,
-	silhouetteKey,
-}
+export { COMPANION_SILHOUETTE_SPACE, silhouetteCells, silhouetteKey }

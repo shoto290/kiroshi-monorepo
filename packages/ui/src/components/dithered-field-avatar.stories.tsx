@@ -1,9 +1,9 @@
 import { expect, waitFor } from "storybook/test"
 
 import {
-	ExplorationRoster,
-	playExplorationRoster,
-} from "@workspace/storybook/avatar-exploration-roster"
+	CompanionStatesRoster,
+	playCompanionStatesRoster,
+} from "@workspace/storybook/companion-states-roster"
 import preview from "@workspace/storybook/preview"
 import { drawingOf, recordLitCells } from "@workspace/storybook/story-utils"
 import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
@@ -89,7 +89,7 @@ export const OneScreenForEveryCompanion = meta.story({
 })
 
 export const EveryState = meta.story({
-	render: () => <ExplorationRoster Avatar={DitheredFieldAvatar} />,
+	render: () => <CompanionStatesRoster Avatar={DitheredFieldAvatar} />,
 	parameters: {
 		docs: {
 			description: {
@@ -98,10 +98,11 @@ export const EveryState = meta.story({
 			},
 		},
 	},
-	play: playExplorationRoster,
+	play: playCompanionStatesRoster,
 })
 
 export const OneDrawingAtEverySize = meta.story({
+	tags: ["test-only"],
 	beforeEach: recordLitCells,
 	render: () => (
 		<div aria-label="Sizes" className="flex items-end gap-4" role="group">
@@ -174,7 +175,7 @@ export const WithoutGround = meta.story({
 	play: async ({ canvasElement }) => {
 		const avatars = Array.from(
 			canvasElement.querySelectorAll<HTMLElement>(
-				'[data-slot="avatar-exploration"]',
+				'[data-slot="companion-field"]',
 			),
 		)
 
