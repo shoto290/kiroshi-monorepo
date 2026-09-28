@@ -327,6 +327,11 @@ fn on_open(key: &str, runs: &mut HashMap<String, Run>, command: &Value) {
 	match run.scenario.as_str() {
 		"startup_timeout" => return,
 		"startup_crash" => return emit_closed(key, "the agent exited during startup"),
+		"open_exit" => {
+			eprintln!("loading the providers");
+			eprintln!("the provider binary is missing");
+			std::process::exit(71);
+		}
 		"resume_crash" if run.resumed => {
 			return emit_closed(key, "the agent exited during startup")
 		}
@@ -552,6 +557,10 @@ fn on_permission(key: &str, runs: &mut HashMap<String, Run>, command: &Value) {
 }
 
 fn serve() {
+	#[cfg(unix)]
+	if std::env::var("FAKE_AGENT_STARTUP_SIGKILL").is_ok() {
+		unsafe { libc::raise(libc::SIGKILL) };
+	}
 	if let Ok(motive) = std::env::var("FAKE_AGENT_STARTUP_STDERR") {
 		eprintln!("{motive}");
 		std::process::exit(70);

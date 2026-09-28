@@ -1,5 +1,6 @@
-import { mkdirSync } from "node:fs"
 import { dirname, join } from "node:path"
+
+import { compile } from "./compile"
 
 import { prepareProviders, stageProviders } from "../src/providers/build"
 
@@ -22,26 +23,11 @@ const hostTargetTriple = () => {
 	return host[1].trim()
 }
 
-const compile = (outfile: string) => {
-	mkdirSync(dirname(outfile), { recursive: true })
-	const build = Bun.spawnSync(
-		[
-			"bun",
-			"build",
-			"--compile",
-			join(sidecarRoot, "src", "index.ts"),
-			"--outfile",
-			outfile,
-		],
-		{ cwd: sidecarRoot, stdio: ["inherit", "inherit", "inherit"] },
-	)
-	if (!build.success) {
-		throw new Error(`bun build --compile failed for ${outfile}`)
-	}
-}
-
 const targetTriple = hostTargetTriple()
 await prepareProviders()
 stageProviders({ directory: binariesDirectory, targetTriple })
 
-compile(join(binariesDirectory, `${BINARY_NAME}-${targetTriple}`))
+compile(
+	join(sidecarRoot, "src", "index.ts"),
+	join(binariesDirectory, `${BINARY_NAME}-${targetTriple}`),
+)

@@ -548,10 +548,7 @@ async fn read_loop(
 	}
 
 	if let Some(tx) = opened_tx.take() {
-		let _ = tx.send(Err(TransportError::Crashed {
-			code: None,
-			detail: Some("the sidecar exited during startup".into()),
-		}));
+		let _ = tx.send(Err(desk.sidecar.startup_crash()));
 		return;
 	}
 	on_exit(shared, sink, None).await;

@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use std::process::Stdio;
+use std::process::{ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -128,6 +128,8 @@ type Answers = Arc<std::sync::Mutex<HashMap<String, Vec<oneshot::Sender<Value>>>
 
 type StdinChannel = std::sync::Mutex<Option<mpsc::UnboundedSender<Value>>>;
 
+type ExitReport = Arc<std::sync::Mutex<Option<TransportError>>>;
+
 pub struct Sidecar {
 	stdin_tx: StdinChannel,
 	routes: Routes,
@@ -137,6 +139,7 @@ pub struct Sidecar {
 	version: String,
 	capabilities: Vec<String>,
 	gone: Arc<AtomicBool>,
+	exit_report: ExitReport,
 }
 
 impl Sidecar {
@@ -159,25 +162,26 @@ impl Sidecar {
 		tokio::spawn(write_loop(stdin, stdin_rx));
 		let kept_stderr = StderrTail::default();
 		let stderr_reader = tokio::spawn(keep_stderr(stderr, kept_stderr.clone()));
+		let exit_report = ExitReport::default();
+		let exit = ExitWatch {
+			child: child.clone(),
+			pid,
+			stderr: kept_stderr,
+			stderr_reader,
+			report: exit_report.clone(),
+		};
 		tokio::spawn(read_loop(
 			stdout,
 			routes.clone(),
 			answers.clone(),
 			ready_tx,
 			gone.clone(),
-			child.clone(),
-			pid,
+			exit,
 		));
 
 		let announced = match tokio::time::timeout(options.ready_timeout, ready_rx).await {
 			Ok(Ok(ready)) => ready,
-			Ok(Err(_)) => {
-				let code = reap(&child, pid).await;
-				return Err(TransportError::Crashed {
-					code,
-					detail: Some(startup_detail(kept_stderr, stderr_reader).await),
-				});
-			}
+			Ok(Err(_)) => return Err(startup_crash(&exit_report)),
 			Err(_) => {
 				sweep_group(pid);
 				return Err(TransportError::StartupTimeout {
@@ -195,6 +199,7 @@ impl Sidecar {
 			version: announced.version,
 			capabilities: announced.capabilities,
 			gone,
+			exit_report,
 		}))
 	}
 
@@ -208,6 +213,10 @@ impl Sidecar {
 
 	pub fn is_live(&self) -> bool {
 		!self.gone.load(Ordering::Relaxed)
+	}
+
+	pub fn startup_crash(&self) -> TransportError {
+		startup_crash(&self.exit_report)
 	}
 
 	pub fn supports(&self, capability: &str) -> bool {
@@ -571,12 +580,40 @@ pub fn live_groups() -> Vec<u32> {
 	LIVE_GROUPS.lock().expect("live groups").clone()
 }
 
-async fn reap(child: &Arc<Mutex<Option<Child>>>, pid: u32) -> Option<i32> {
+async fn reap(child: &Arc<Mutex<Option<Child>>>, pid: u32) -> Option<ExitStatus> {
 	let mut slot = child.lock().await;
 	let handle = slot.as_mut()?;
 	let waited = tokio::time::timeout(TERMINATE_GRACE, handle.wait()).await.ok()?;
 	sweep_group(pid);
-	waited.ok().and_then(|status| status.code())
+	waited.ok()
+}
+
+struct ExitWatch {
+	child: Arc<Mutex<Option<Child>>>,
+	pid: u32,
+	stderr: StderrTail,
+	stderr_reader: JoinHandle<()>,
+	report: ExitReport,
+}
+
+impl ExitWatch {
+	async fn record(self) {
+		let status = reap(&self.child, self.pid).await;
+		let detail = startup_detail(status, self.stderr, self.stderr_reader).await;
+		let crash = TransportError::Crashed {
+			code: status.and_then(|status| status.code()),
+			detail: Some(detail),
+		};
+		*self.report.lock().expect("exit report") = Some(crash);
+	}
+}
+
+fn startup_crash(report: &ExitReport) -> TransportError {
+	report
+		.lock()
+		.expect("exit report")
+		.clone()
+		.unwrap_or(TransportError::Crashed { code: None, detail: Some(STARTUP_EXIT.to_owned()) })
 }
 
 fn spawn(options: &SidecarOptions) -> Result<Child, TransportError> {
@@ -646,14 +683,34 @@ impl StderrTail {
 	}
 }
 
-async fn startup_detail(tail: StderrTail, reader: JoinHandle<()>) -> String {
+async fn startup_detail(
+	status: Option<ExitStatus>,
+	tail: StderrTail,
+	reader: JoinHandle<()>,
+) -> String {
 	if tokio::time::timeout(STDERR_DRAIN_GRACE, reader).await.is_err() {
 		eprintln!("the sidecar left its stderr open past the drain grace");
 	}
-	match tail.kept() {
-		Some(written) => format!("{STARTUP_EXIT}: {written}"),
-		None => STARTUP_EXIT.to_owned(),
-	}
+	let killed = status.and_then(killing_signal).map(|signal| format!("killed by signal {signal}"));
+	let last_line = tail.kept().and_then(|written| {
+		written.lines().rev().map(str::trim).find(|line| !line.is_empty()).map(str::to_owned)
+	});
+	[Some(STARTUP_EXIT.to_owned()), killed, last_line]
+		.into_iter()
+		.flatten()
+		.collect::<Vec<_>>()
+		.join(": ")
+}
+
+#[cfg(unix)]
+fn killing_signal(status: ExitStatus) -> Option<i32> {
+	use std::os::unix::process::ExitStatusExt;
+	status.signal()
+}
+
+#[cfg(not(unix))]
+fn killing_signal(_status: ExitStatus) -> Option<i32> {
+	None
 }
 
 async fn keep_stderr(mut stderr: tokio::process::ChildStderr, tail: StderrTail) {
@@ -672,8 +729,7 @@ async fn read_loop(
 	answers: Answers,
 	ready_tx: oneshot::Sender<Ready>,
 	gone: Arc<AtomicBool>,
-	child: Arc<Mutex<Option<Child>>>,
-	pid: u32,
+	exit: ExitWatch,
 ) {
 	let mut lines = BufReader::new(stdout).lines();
 	let mut ready_tx = Some(ready_tx);
@@ -702,9 +758,10 @@ async fn read_loop(
 	}
 
 	gone.store(true, Ordering::Relaxed);
+	exit.record().await;
+	drop(ready_tx);
 	routes.lock().expect("routes").clear();
 	answers.lock().expect("answers").clear();
-	reap(&child, pid).await;
 }
 
 fn settle_answer(answers: &Answers, line: &str) {
@@ -759,10 +816,10 @@ mod tests {
 		let writing = tail.clone();
 		let reader = tokio::spawn(async move {
 			tokio::task::yield_now().await;
-			writing.push(b"refusing to start: the port is taken\n");
+			writing.push(b"binding the port\nrefusing to start: the port is taken\n");
 		});
 
-		let detail = startup_detail(tail, reader).await;
+		let detail = startup_detail(None, tail, reader).await;
 
 		assert_eq!(detail, format!("{STARTUP_EXIT}: refusing to start: the port is taken"));
 	}
@@ -771,7 +828,7 @@ mod tests {
 	async fn a_startup_the_reader_saw_nothing_of_still_says_when_it_failed() {
 		let reader = tokio::spawn(async {});
 
-		let detail = startup_detail(StderrTail::default(), reader).await;
+		let detail = startup_detail(None, StderrTail::default(), reader).await;
 
 		assert_eq!(detail, STARTUP_EXIT);
 	}
