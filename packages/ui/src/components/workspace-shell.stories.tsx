@@ -213,24 +213,6 @@ export const ConversationOpenDark = meta.story({
 	},
 })
 
-export const ComposerOnShellInsetDark = meta.story({
-	args: {
-		sidebar: SIDEBAR,
-	},
-	globals: { theme: "dark" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The composer's bottom and right edges sit as far from the window edges as the You avatar sits from the bottom, both read from `--shell-inset`. Check the bottom-right corner: the composer no longer leaves a wide dead band against the card edge.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		await expectComposerOnShellInset(canvasElement)
-	},
-})
-
 export const ComposerWithReplyOnShellInset = meta.story({
 	tags: ["test-only"],
 	args: {
