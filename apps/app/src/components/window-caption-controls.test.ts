@@ -119,8 +119,6 @@ const reportedFocus = (isFocused: boolean) => {
 	act(() => report(isFocused))
 }
 
-const MAXIMIZE_STATES: MaximizeButtonState[] = ["idle", "hover", "pressed"]
-
 const carriesState: Record<
 	MaximizeButtonState,
 	(classes: DOMTokenList) => boolean
@@ -133,7 +131,8 @@ const carriesState: Record<
 
 const maximizeShows = (state: MaximizeButtonState) => {
 	const { classList } = screen.getByRole("button", { name: "Maximize" })
-	return MAXIMIZE_STATES.every(
+	const candidates = Object.keys(carriesState) as MaximizeButtonState[]
+	return candidates.every(
 		(candidate) => carriesState[candidate](classList) === (candidate === state),
 	)
 }
