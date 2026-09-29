@@ -664,6 +664,12 @@ layout-threadlayout--outside-content-card
 layout-threadlayout--pending
 layout-threadlayout--start-of-older-messages
 layout-threadlayout--streaming-into-short-transcript
+layout-windowcontrols--close-hovered
+layout-windowcontrols--close-hovered-dark
+layout-windowcontrols--maximized
+layout-windowcontrols--maximized-dark
+layout-windowcontrols--rest
+layout-windowcontrols--rest-dark
 layout-workspaceshell--boxed-host
 layout-workspaceshell--composer-with-reply-on-shell-inset
 layout-workspaceshell--conversation-open-dark

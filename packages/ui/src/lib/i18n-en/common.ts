@@ -24,6 +24,12 @@ const common = {
 		close: "Close sidebar",
 		resize: "Resize sidebar",
 	},
+	windowControls: {
+		minimize: "Minimize",
+		maximize: "Maximize",
+		restore: "Restore",
+		close: "Close",
+	},
 	notice: {
 		label: "Notices",
 		close: "Close notice",
