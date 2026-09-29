@@ -19,6 +19,7 @@ import { useRosterLines } from "@/lib/workspace/use-roster-lines"
 import { useRosterLists } from "@/lib/workspace/use-roster-lists"
 import { useRosterView } from "@/lib/workspace/use-roster-view"
 import { useSettingsPanels } from "@/lib/workspace/use-settings-panels"
+import { useSidebarMissions } from "@/lib/workspace/use-sidebar-missions"
 import { useSpaceLoading } from "@/lib/workspace/use-space-loading"
 import { useSpaceSections } from "@/lib/workspace/use-space-sections"
 import { useWorkspaceCore } from "@/lib/workspace/use-workspace-core"
@@ -37,7 +38,14 @@ export function App() {
 	useWorkspaceSubscriptions({ core, drivers, rosterView, scopes })
 	const rosterLines = useRosterLines({ core, drivers, rosterView })
 	const collapsedSectionIds = useSpaceSections({ core, rosterLines })
-	const rosterLists = useRosterLists({ core, drivers, rosterLines, rosterView })
+	const sidebarMissions = useSidebarMissions({ core, rosterLines })
+	const rosterLists = useRosterLists({
+		core,
+		drivers,
+		rosterLines,
+		rosterView,
+		sidebarMissions,
+	})
 	const overlay = useWorkspaceOverlay({ core, rosterLines, rosterView, scopes })
 	const sidebarTab = useSidebarTab(core.user)
 	const companionMenu = useCompanionMenuLookup({
@@ -86,6 +94,7 @@ export function App() {
 						badgesBySpaceId={rosterLists.badgesBySpaceId}
 						railCounts={rosterLists.railSignals.counts}
 						railDots={rosterLists.railSignals.dots}
+						missions={sidebarMissions.panel}
 						openPanel={sidebarTab.openTab}
 						onOpenPanelChange={sidebarTab.openSidebarTab}
 						collapsedSectionIds={collapsedSectionIds}

@@ -7,11 +7,6 @@ import type { BotBadge as ShownBadge } from "@workspace/ui/components/bot-badge"
 import type { BotBadge } from "./bot-badge"
 
 import { rosterLineKey } from "../bots/roster-line"
-import {
-	isAnyMissionWaiting,
-	type MissionsByRow,
-	missionsIn,
-} from "../missions/missions-model"
 
 type BadgedRow = {
 	id: string
@@ -70,7 +65,7 @@ export const toSpaceBadges = (
 
 type RailSources = {
 	conversationsBySpaceId: BadgeCarriersBySpaceId
-	missionsBySpaceId: Record<string, MissionsByRow>
+	waitingMissionCount: number
 	spaceId: string | null
 }
 
@@ -83,7 +78,7 @@ const NO_CONVERSATIONS: BadgeCarrier[] = []
 
 export const toRailSignals = ({
 	conversationsBySpaceId,
-	missionsBySpaceId,
+	waitingMissionCount,
 	spaceId,
 }: RailSources): RailSignals => {
 	const conversations =
@@ -93,10 +88,10 @@ export const toRailSignals = ({
 	return {
 		counts: {
 			conversations: conversations.filter((row) => row.badge).length,
+			missions: waitingMissionCount,
 		},
 		dots: {
 			conversations: conversations.some((row) => row.badge === "attention"),
-			missions: isAnyMissionWaiting(missionsIn(missionsBySpaceId, spaceId)),
 		},
 	}
 }

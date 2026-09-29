@@ -38,3 +38,25 @@ export const useMissionReadFailure = (hasFailedToRead: boolean): void => {
 		})
 	}, [hasFailedToRead, t])
 }
+
+export const useSpaceMissionsFailure = (
+	hasFailed: boolean,
+	reload: () => void,
+): void => {
+	const t = useChatCopy()
+	const wasFailing = useRef(false)
+
+	useEffect(() => {
+		const wasReported = wasFailing.current
+		wasFailing.current = hasFailed
+
+		if (!hasFailed || wasReported) {
+			return
+		}
+		raiseFailureNotice({
+			title: t("activity.failure.missions.title"),
+			description: t("activity.failure.missions.description"),
+			action: { label: t("notice.retry"), onPress: reload },
+		})
+	}, [hasFailed, reload, t])
+}

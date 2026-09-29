@@ -3,6 +3,7 @@ import { useMemo } from "react"
 import { useRosterBotsBySpace } from "./use-roster-bots-by-space"
 import type { RosterLines } from "./use-roster-lines"
 import type { RosterView } from "./use-roster-view"
+import type { SidebarMissions } from "./use-sidebar-missions"
 import type { WorkspaceCore } from "./use-workspace-core"
 import type { WorkspaceDrivers } from "./use-workspace-drivers"
 
@@ -31,6 +32,7 @@ type RosterListsInput = {
 	drivers: WorkspaceDrivers
 	rosterLines: RosterLines
 	rosterView: RosterView
+	sidebarMissions: SidebarMissions
 }
 
 export const useRosterLists = ({
@@ -38,6 +40,7 @@ export const useRosterLists = ({
 	drivers,
 	rosterLines,
 	rosterView,
+	sidebarMissions,
 }: RosterListsInput) => {
 	const { conversationRuntimes, roster, spaces } = core
 	const { selectedSpaceId } = spaces.state
@@ -158,10 +161,10 @@ export const useRosterLists = ({
 		() =>
 			toRailSignals({
 				conversationsBySpaceId: rosterConversationsBySpace,
-				missionsBySpaceId: missions,
+				waitingMissionCount: sidebarMissions.waitingCount,
 				spaceId: selectedSpaceId,
 			}),
-		[rosterConversationsBySpace, missions, selectedSpaceId],
+		[rosterConversationsBySpace, sidebarMissions.waitingCount, selectedSpaceId],
 	)
 
 	return {
