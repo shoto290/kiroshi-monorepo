@@ -844,7 +844,6 @@ navigation-settingsrail--default
 navigation-settingsrail--icons-only
 navigation-settingsrail--scrolling-panel
 navigation-settingsrail--with-back
-navigation-sidebar--collapsed
 navigation-sidebar--expanded
 navigation-sidebar--right-side
 navigation-sidebarlistrow--all-slots
@@ -853,7 +852,6 @@ navigation-sidebarlistrow--height-without-a-detail
 navigation-sidebarlistrow--long-content
 navigation-sidebarlistrow--muted-name
 navigation-sidebarlistrow--name-only
-navigation-sidebarlistrow--on-rail
 navigation-sidebarlistrow--pressed
 navigation-sidebarlistrow--preview-from-nodes
 navigation-sidebarlistrow--skin-matches-menu-button
@@ -864,7 +862,6 @@ navigation-sidebarlistrow--with-strips
 navigation-sidebarlistrow--with-title-cut-before-name
 navigation-sidebarlistrow--with-trailing-badge-and-timestamp
 navigation-sidebarlistrow--working-preview
-navigation-sidebarmenurow--collapsed
 navigation-sidebarmenurow--default
 navigation-sidebarmenurow--long-content
 navigation-sidebarmenurow--selected

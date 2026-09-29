@@ -36,11 +36,12 @@ export const useWorkspaceOverlay = ({
 		spaces,
 		user,
 	} = core
-	const { now, sidebarActions, startConversation } = rosterLines
+	const { now, sidebarActions } = rosterLines
 	const {
 		conversationRosters,
 		isEditing,
 		isEditingConversation,
+		selected,
 		selectedBotId,
 		selectedConversationId,
 		settingsBotId,
@@ -115,10 +116,18 @@ export const useWorkspaceOverlay = ({
 
 	useTheme({ colorScheme: preferences.colorScheme })
 
+	const startConversationWith = useCallback(
+		(botIds: string[]) => {
+			void roster.controller.createConversation(botIds)
+		},
+		[roster.controller],
+	)
+
 	useWorkspaceShortcuts({
 		isEnabled: !isOverlayOpen,
+		selectedBotId: selected?.id ?? null,
 		onOpenUserSettings: sidebarActions.onOpenUserSettings,
-		onStartConversation: startConversation,
+		onStartConversation: startConversationWith,
 	})
 
 	return {

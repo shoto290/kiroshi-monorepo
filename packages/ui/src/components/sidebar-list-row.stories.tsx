@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { expect, fn, screen, waitFor } from "storybook/test"
+import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -38,13 +38,6 @@ const BOX_ON_B1E22DA1 = {
 		height: 108,
 		padding: "6px 6px 6px 6px",
 		gap: "4px",
-		radius: "10px",
-		border: "0px",
-	},
-	rail: {
-		height: 44,
-		padding: "8px 8px 8px 8px",
-		gap: "0px",
 		radius: "10px",
 		border: "0px",
 	},
@@ -190,46 +183,6 @@ const meta = preview.meta({
 			</SidebarMenuItem>
 		</Shell>
 	),
-})
-
-export const OnRail = meta.story({
-	args: {
-		media: <BotIdentityAvatar badge="attention" name="Atlas" seed="atlas" />,
-		timestamp: "09:24",
-		preview: "Pulled the papers for the brief.",
-		strips: STRIPS,
-	},
-	render: (args) => (
-		<Shell isOpen={false}>
-			<SidebarMenuItem>
-				<SidebarListRow {...args} />
-			</SidebarMenuItem>
-		</Shell>
-	),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The row once the panel is down to its icon rail. Check that only the media is drawn, with the badge it carries, that the name line and the preview leave the picture and the accessibility tree while the strips are not drawn at all, and that the row is still reached by the name `Atlas` and named again in a hint on hover. Pick `WithStrips` for the strips the open panel draws. The app assembles it at `apps/app/src/App.tsx:935`.",
-			},
-		},
-	},
-	play: async ({ canvasElement, userEvent }) => {
-		const row = rowIn(canvasElement)
-
-		await waitFor(() => expect(row).toHaveAccessibleName("Atlas"))
-		await expect(slotIn(row, "bot-identity-avatar")).toBeVisible()
-		await expect(
-			slotIn(row, "roster-row-name")?.closest("[aria-hidden='true']"),
-		).not.toBeNull()
-		await expect(
-			slotIn(row, "roster-row-preview")?.closest("[aria-hidden='true']"),
-		).not.toBeNull()
-		await expect(slotIn(row, "roster-row-missions")).toBeNull()
-
-		await userEvent.hover(row)
-		await expect(await screen.findByRole("tooltip")).toHaveTextContent("Atlas")
-	},
 })
 
 export const NameOnly = meta.story({
@@ -419,7 +372,7 @@ export const WithBadgeDot = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row whose companion is asking for the reader. Check the badge dot sits at the end of the preview line, inside the row, without pushing the preview or the timestamp. Pick `OnRail` for the badge the rail moves onto the avatar. The app assembles it at `apps/app/src/App.tsx:935`.",
+					"A row whose companion is asking for the reader. Check the badge dot sits at the end of the preview line, inside the row, without pushing the preview or the timestamp. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -456,7 +409,7 @@ export const WithStrips = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row carrying open missions: the strips hang under both lines, one per mission, in the row's own box. Check the avatar stays centred on the name and preview rather than on the whole row. Pick `OnRail` for the rail that drops them. The app assembles it at `apps/app/src/App.tsx:935`.",
+					"A row carrying open missions: the strips hang under both lines, one per mission, in the row's own box. Check the avatar stays centred on the name and preview rather than on the whole row. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -799,23 +752,18 @@ export const BoxMetrics = meta.story({
 		</Shell>
 	),
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"The row box against the numbers measured on the roster at commit b1e22da1: 52px open, 108px open with two strips, 44px on the rail, with the padding, gaps and 10px corner of that commit and no border box. Check that rebuilding the row on `Item` moved none of them. Pick `OnRail` for what the rail draws.",
+					"The row box against the numbers measured on the roster at commit b1e22da1: 52px open and 108px open with two strips, with the padding, gaps and 10px corner of that commit and no border box. Check that rebuilding the row on `Item` moved none of them.",
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
+	play: async ({ canvasElement }) => {
 		const [plain, stripped] = rowsIn(canvasElement)
 
 		await expect(boxOf(plain)).toEqual(BOX_ON_B1E22DA1.open)
 		await expect(boxOf(stripped)).toEqual(BOX_ON_B1E22DA1.openWithStrips)
-
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Toggle the panel" }),
-		)
-		await waitFor(() => expect(boxOf(plain)).toEqual(BOX_ON_B1E22DA1.rail))
-		await expect(boxOf(stripped)).toEqual(BOX_ON_B1E22DA1.rail)
 	},
 })

@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react"
 
+import { isTypingTarget } from "@workspace/ui/lib/typing-target"
+
 const NEXT = 1
 
 const PREVIOUS = -1
@@ -42,7 +44,8 @@ const pressOf = (
 	isOpen: boolean,
 ): SearchKeyPress | undefined => {
 	if (isOpeningChord(event)) {
-		return isOpen ? KEEP_THE_CHORD : OPEN_PALETTE
+		if (isOpen) return KEEP_THE_CHORD
+		return isTypingTarget(event.target) ? undefined : OPEN_PALETTE
 	}
 
 	if (!isOpen) {

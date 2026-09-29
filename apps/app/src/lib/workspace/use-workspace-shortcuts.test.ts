@@ -16,9 +16,10 @@ const REMOVED_CHORDS: KeyboardEventInit[] = [
 	{ key: "Backspace", metaKey: true },
 ]
 
-const mounted = (isEnabled = true) => {
+const mounted = (isEnabled = true, selectedBotId: string | null = null) => {
 	const shortcuts: WorkspaceShortcuts = {
 		isEnabled,
+		selectedBotId,
 		onOpenUserSettings: vi.fn(),
 		onStartConversation: vi.fn(),
 	}
@@ -59,12 +60,24 @@ describe("useWorkspaceShortcuts", () => {
 		expect(event.defaultPrevented).toBe(true)
 	})
 
-	it("starts a conversation on Cmd+N", () => {
+	it("starts an empty conversation on Cmd+N with no companion selected", () => {
 		const shortcuts = mounted()
 
 		const event = pressOn(document.body, { key: "n", metaKey: true })
 
 		expect(shortcuts.onStartConversation).toHaveBeenCalledTimes(1)
+		expect(shortcuts.onStartConversation).toHaveBeenCalledWith([])
+		expect(shortcuts.onOpenUserSettings).not.toHaveBeenCalled()
+		expect(event.defaultPrevented).toBe(true)
+	})
+
+	it("seats the selected companion in the conversation Cmd+N starts", () => {
+		const shortcuts = mounted(true, "atlas")
+
+		const event = pressOn(document.body, { key: "n", metaKey: true })
+
+		expect(shortcuts.onStartConversation).toHaveBeenCalledTimes(1)
+		expect(shortcuts.onStartConversation).toHaveBeenCalledWith(["atlas"])
 		expect(shortcuts.onOpenUserSettings).not.toHaveBeenCalled()
 		expect(event.defaultPrevented).toBe(true)
 	})

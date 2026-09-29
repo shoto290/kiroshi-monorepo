@@ -1174,6 +1174,19 @@ describe("createRosterController on conversations", () => {
 		expect(state.selectedBotId).toBeNull()
 	})
 
+	it("seats the companions it is handed in the conversation it creates and selects", async () => {
+		const store = createFakeTranscriptStore()
+		const controller = await loaded(store)
+		controller.select("default")
+
+		const created = await controller.createConversation(["default"])
+
+		const state = controller.getState()
+		expect(created ? seatedIn(created) : null).toEqual(["default"])
+		expect(state.selectedConversationId).toBe(created?.id)
+		expect(state.selectedBotId).toBeNull()
+	})
+
 	it("keeps a created conversation after a reload", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = await loaded(store)

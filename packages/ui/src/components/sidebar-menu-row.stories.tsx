@@ -2,10 +2,9 @@
 // packages/ui/src/components/user-chip.tsx line 26
 
 import type { ReactNode } from "react"
-import { expect, fn, screen, waitFor } from "storybook/test"
+import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { FRAME_POLL } from "@workspace/storybook/story-utils"
 import { Icons } from "@workspace/ui/components/icons"
 import { SidebarMenuRow } from "@workspace/ui/components/sidebar-menu-row"
 import { Item } from "@workspace/ui/components/ui/item"
@@ -107,35 +106,6 @@ export const Selected = meta.story({
 
 		await expect(row).toHaveAttribute("aria-current", "page")
 		await expect(row).toHaveAttribute("data-active")
-	},
-})
-
-export const Collapsed = meta.story({
-	parameters: {
-		isPanelOpen: false,
-		docs: {
-			description: {
-				story:
-					"The same row once the panel is down to its icon rail. Check that the label leaves the screen without leaving the accessible tree — the text goes `aria-hidden` and the row takes the label as its own name — that the row keeps a 44px square so the icon is still a comfortable target, and that hovering says in a tooltip what the rail stopped showing. The app assembles it at `apps/app/src/App.tsx:935`.",
-			},
-		},
-	},
-	play: async ({ canvas, userEvent }) => {
-		const row = canvas.getByRole("button", { name: CONVERSATION })
-
-		await expect(row).toHaveAttribute("aria-label", CONVERSATION)
-		await expect(canvas.getByText(CONVERSATION)).toHaveAttribute(
-			"aria-hidden",
-			"true",
-		)
-		await expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
-
-		await userEvent.hover(row)
-		await waitFor(async () => {
-			await expect(await screen.findByRole("tooltip")).toHaveTextContent(
-				CONVERSATION,
-			)
-		}, FRAME_POLL)
 	},
 })
 

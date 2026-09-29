@@ -231,6 +231,53 @@ it("opens the palette on an empty query, the All tab and the current space", () 
 	})
 })
 
+const pressInField = (markup: string, key: string, held: KeyboardEventInit) => {
+	const holder = document.createElement("div")
+	holder.innerHTML = markup
+	document.body.append(holder)
+	const field = holder.querySelector("span") ?? holder.firstElementChild
+	const event = new KeyboardEvent("keydown", {
+		bubbles: true,
+		cancelable: true,
+		key,
+		...held,
+	})
+	field?.dispatchEvent(event)
+	holder.remove()
+	return event
+}
+
+it.each([
+	"<input />",
+	"<textarea></textarea>",
+	"<div contenteditable='true'><span>draft</span></div>",
+])("opens no palette on the chord while typing in %s", (markup) => {
+	const { navigation } = aNavigation()
+	const result = renderSearch({ navigation, port: aPort() })
+
+	let event: KeyboardEvent | undefined
+	act(() => {
+		event = pressInField(markup, "k", { metaKey: true })
+	})
+
+	expect(result.current.isOpen).toBe(false)
+	expect(event?.defaultPrevented).toBe(false)
+})
+
+it("keeps the chord on an open palette whatever field holds the focus", () => {
+	const { navigation } = aNavigation()
+	const result = renderSearch({ navigation, port: aPort() })
+	act(() => press("k", { metaKey: true }))
+
+	let event: KeyboardEvent | undefined
+	act(() => {
+		event = pressInField("<input />", "k", { metaKey: true })
+	})
+
+	expect(result.current.isOpen).toBe(true)
+	expect(event?.defaultPrevented).toBe(true)
+})
+
 it("opens no palette on the chord while another dialog is open", () => {
 	const { navigation } = aNavigation()
 	const result = renderSearch({
