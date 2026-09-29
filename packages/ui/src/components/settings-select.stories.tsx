@@ -8,8 +8,8 @@ import {
 	expectInvalidOutline,
 	FRAME_POLL,
 	isInBrowserRunner,
-	probedStyleOf,
 	realPointer,
+	tokenStyleIn,
 } from "@workspace/storybook/story-utils"
 import {
 	SettingsSelect,
@@ -213,11 +213,7 @@ export const ThemesInvalid = meta.story({
 })
 
 const hoverOutlineOf = (trigger: HTMLElement) =>
-	probedStyleOf(
-		"border-muted-foreground",
-		"borderTopColor",
-		trigger.parentElement ?? document.body,
-	)
+	tokenStyleIn(trigger, "border-muted-foreground", "borderTopColor")
 
 export const ThemesHover = meta.story({
 	globals: { theme_layout: "side-by-side" },
