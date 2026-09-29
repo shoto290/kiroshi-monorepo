@@ -48,6 +48,10 @@ import {
 } from "@workspace/ui/components/companion-silhouette"
 import { Icons } from "@workspace/ui/components/icons"
 import { OUTER } from "@workspace/ui/components/kiroshi-hexagon"
+import {
+	SPACE_EARLIER_TODAY_MISSIONS,
+	SPACE_OPEN_MISSIONS,
+} from "@workspace/ui/components/missions.fixtures"
 import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
@@ -2411,7 +2415,7 @@ export const EmptyPanels = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three rail entries whose panels have no content yet. Check each opens a panel titled and named after it, with no roster, no search and no create button, that the rail marks it current, and that coming back to Conversations brings the roster back.",
+					"The three rail entries with nothing handed down for them. Check each opens a panel titled and named after it, with no roster, no search and no create button, that the rail marks it current, that Missions draws its empty state, and that coming back to Conversations brings the roster back.",
 			},
 		},
 	},
@@ -2428,9 +2432,53 @@ export const EmptyPanels = meta.story({
 			await expect(canvas.queryByRole("button", { name: CREATE })).toBeNull()
 		}
 		await userEvent.click(
+			within(rail).getByRole("button", { name: "Missions" }),
+		)
+		await expect(
+			canvas.getByRole("heading", { name: "No missions yet" }),
+		).toBeVisible()
+		await userEvent.click(
 			within(rail).getByRole("button", { name: "Conversations" }),
 		)
 		await expect(rowsIn(canvasElement)).toHaveLength(ROSTER.length)
+	},
+})
+
+export const MissionsTab = meta.story({
+	args: {
+		insetWindowControls: true,
+		openPanel: "missions",
+		missions: {
+			open: SPACE_OPEN_MISSIONS,
+			earlierToday: SPACE_EARLIER_TODAY_MISSIONS,
+			onOpen: fn(),
+		},
+		onSearchMissions: fn(),
+	},
+	globals: { theme: "dark" },
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The V1 shell with the Missions tab selected, drawn against the V1f artboard: the 304px panel, its 32px header carrying the title and the search button, then Waiting on you, In progress and Earlier today folded. Check the panel holds no roster, that the search button is named and fires once, and that each group carries its count.",
+			},
+		},
+	},
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const panel = canvas.getByRole("complementary", { name: "Missions" })
+		await expect(panel.getBoundingClientRect().width).toBe(EXPANDED_PANEL_WIDTH)
+		await expect(rowsIn(canvasElement)).toHaveLength(0)
+		await expect(
+			within(panel).getByRole("heading", { name: "Waiting on you" }),
+		).toBeVisible()
+		await expect(
+			within(panel).getByRole("button", { name: /Earlier today/ }),
+		).toHaveAttribute("aria-expanded", "false")
+		await userEvent.click(
+			within(panel).getByRole("button", { name: "Search missions" }),
+		)
+		await expect(args.onSearchMissions).toHaveBeenCalledTimes(1)
 	},
 })
 

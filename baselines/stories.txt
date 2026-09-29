@@ -724,6 +724,7 @@ navigation-appsidebar--mission-strip-truncated-title
 navigation-appsidebar--mission-strip-unnamed-platform
 navigation-appsidebar--mission-strip-untracked-ticket
 navigation-appsidebar--mission-strip-with-chat-badge
+navigation-appsidebar--missions-tab
 navigation-appsidebar--move-bot-to-section
 navigation-appsidebar--narrow
 navigation-appsidebar--new-section-for-a-bot
@@ -793,6 +794,13 @@ navigation-headeridentitybutton--in-layout
 navigation-headeridentitybutton--long-content
 navigation-headeridentitybutton--variants
 navigation-headeridentitybutton--working
+navigation-missionspanel--default
+navigation-missionspanel--earlier-today-unfolded
+navigation-missionspanel--empty
+navigation-missionspanel--long-title
+navigation-missionspanel--one-group
+navigation-missionspanel--opening-a-mission
+navigation-missionspanel--toggling
 navigation-searchresultrow--activated
 navigation-searchresultrow--active
 navigation-searchresultrow--active-under-pointer

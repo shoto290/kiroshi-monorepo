@@ -582,6 +582,13 @@ const chat = {
 		},
 	},
 	missions: {
+		panel: {
+			empty: {
+				title: "Aucune mission pour l’instant",
+				description:
+					"Les missions ouvertes par vos compagnons dans cet espace apparaissent ici.",
+			},
+		},
 		state: {
 			waiting_human: "Bloquée sur vous",
 			ready_to_merge: "Prête à fusionner",

@@ -44,6 +44,11 @@ import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-p
 import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
 import { Icons } from "@workspace/ui/components/icons"
 import {
+	MissionsPanel,
+	MissionsPanelEmpty,
+	type MissionsPanelProps,
+} from "@workspace/ui/components/missions-panel"
+import {
 	PinGroup,
 	type RosterPinActions,
 	SectionBranch,
@@ -1827,6 +1832,8 @@ interface AppSidebarProps
 	user?: UserChipIdentity
 	onOpenUserSettings?: () => void
 	onOpenSearch?: () => void
+	missions?: MissionsPanelProps
+	onSearchMissions?: () => void
 	insetWindowControls?: boolean
 	railCounts?: AppRailCounts
 	railDots?: AppRailDots
@@ -1874,6 +1881,8 @@ const AppSidebarBase = ({
 	user,
 	onOpenUserSettings,
 	onOpenSearch,
+	missions,
+	onSearchMissions,
 	insetWindowControls = false,
 	railCounts,
 	railDots,
@@ -2027,6 +2036,30 @@ const AppSidebarBase = ({
 		</div>
 	)
 
+	const isMissionsOpen = openPanel === "missions"
+
+	const missionsActions = onSearchMissions ? (
+		<div className={HEADER_ACTIONS}>
+			<TooltipButton
+				aria-label={t("rail.searchMissions")}
+				className={HEADER_ACTION}
+				onClick={onSearchMissions}
+				size="icon-sm"
+				tooltip={t("rail.searchMissions")}
+				tooltipSide="bottom"
+				variant="ghost"
+			>
+				<Icons.Search aria-hidden="true" />
+			</TooltipButton>
+		</div>
+	) : null
+
+	const missionsContent = (
+		<SidebarContent className={CONTENT_INSET}>
+			{missions ? <MissionsPanel {...missions} /> : <MissionsPanelEmpty />}
+		</SidebarContent>
+	)
+
 	const panelName = t(`rail.${openPanel}`)
 
 	return (
@@ -2077,9 +2110,12 @@ const AppSidebarBase = ({
 					<div className={HEADER_ROW}>
 						<h2 className={HEADER_TITLE}>{panelName}</h2>
 						{isRosterOpen ? rosterActions : null}
+						{isMissionsOpen ? missionsActions : null}
 					</div>
 				</SidebarHeader>
-				{isRosterOpen ? rosterContent : <SidebarContent />}
+				{isRosterOpen ? rosterContent : null}
+				{isMissionsOpen ? missionsContent : null}
+				{isRosterOpen || isMissionsOpen ? null : <SidebarContent />}
 				{footer || spaces.length > 1 ? (
 					<SidebarFooter className={FOOTER_INSET}>
 						<SpaceDots

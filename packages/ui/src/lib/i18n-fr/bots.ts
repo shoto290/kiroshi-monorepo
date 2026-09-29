@@ -69,6 +69,7 @@ const bots = {
 		label: "Navigation",
 		conversations: "Conversations",
 		missions: "Missions",
+		searchMissions: "Rechercher des missions",
 		companions: "Compagnons",
 		applications: "Applications",
 		settings: "Réglages",
