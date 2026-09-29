@@ -532,6 +532,7 @@ conversation-tools-toolquestion--step-paste-the-code
 conversation-tools-toolquestion--step-sign-in-failed
 conversation-tools-toolquestion--step-sign-in-or-key
 conversation-tools-toolquestion--step-welcome
+conversation-tools-toolquestion--themes-link-row-at-rest
 feedback-activityindicator--blot
 feedback-activityindicator--conversation-change
 feedback-activityindicator--default
@@ -627,6 +628,7 @@ forms-settingsselect--error
 forms-settingsselect--themes-at-rest
 forms-settingsselect--themes-filled
 forms-settingsselect--themes-focus-visible
+forms-settingsselect--themes-hover
 forms-settingsselect--themes-invalid
 forms-settingsselect--with-hint
 forms-settingsswitch--on
@@ -1181,6 +1183,7 @@ settings-plugins-applicationinstallpage--refused
 settings-plugins-applicationinstallpage--refused-without-reason
 settings-plugins-applicationinstallpage--runs-on-its-host
 settings-plugins-applicationinstallpage--signs-you-in
+settings-plugins-applicationinstallpage--themes-key-field-at-rest
 settings-plugins-applicationmark--card
 settings-plugins-applicationmark--extra-small
 settings-plugins-applicationmark--inline

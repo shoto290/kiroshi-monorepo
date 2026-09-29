@@ -4,6 +4,7 @@ import { expect, fireEvent, fn, spyOn, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+	expectControlFrame,
 	expectInverseAtRest,
 	isInBrowserRunner,
 	realPointer,
@@ -1006,7 +1007,7 @@ export const EntryWithLink = meta.story({
 		)
 		await expect(
 			getComputedStyle(link.parentElement as HTMLElement).backgroundColor,
-		).toBe(tokenColor("--background"))
+		).toBe(tokenColor("--muted"))
 
 		await userEvent.click(copy)
 		await expect(
@@ -1454,5 +1455,30 @@ export const InverseButtonsPending = meta.story({
 			await waitFor(() => expect(getComputedStyle(send).opacity).toBe("0.5"))
 			await expectInverseAtRest(send)
 		}
+	},
+})
+
+export const ThemesLinkRowAtRest = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { questions: [CODE_STEP] },
+	render: (args) => (
+		<div className="w-[320px]">
+			<ToolQuestion {...args} />
+		</div>
+	),
+	parameters: {
+		a11y: A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+		docs: {
+			description: {
+				story:
+					"The link row on the frame of the artboard V1e text field, light and dark side by side: a `muted` fill, a 1px `input` outline and the `radius-control` corner around the read-only link and its copy control.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const links = canvas.getAllByLabelText("Open this link and sign in")
+		await expect(links.length).toBe(2)
+		for (const link of links)
+			await expectControlFrame(link.parentElement as HTMLElement)
 	},
 })

@@ -3,6 +3,10 @@ import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+	probedStyleOf,
+} from "@workspace/storybook/story-utils"
+import {
 	ApplicationInstallPage,
 	type ApplicationInstallPageProps,
 } from "@workspace/ui/components/plugin-settings/application-install-page"
@@ -576,5 +580,40 @@ export const HostedNothingToSetUp = meta.story({
 		await expect(facts[1]).toHaveTextContent(
 			"Runs on slack.run.tools, not on this machine.",
 		)
+	},
+})
+
+export const ThemesKeyFieldAtRest = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { application: API_KEY_INSTALL },
+	parameters: {
+		a11y: A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+		docs: {
+			description: {
+				story:
+					"The key field in light and dark side by side: the 1px `input` outline and the `radius-control` corner of the artboard V1e text field, filled with the `background` token so it keeps reading as a field on the `muted` key panel around it.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const fields = canvas.getAllByLabelText("Authorization")
+		await expect(fields.length).toBe(2)
+		for (const field of fields) {
+			const frame = field.parentElement as HTMLElement
+			const panel = frame.closest("section") as HTMLElement
+			const style = getComputedStyle(frame)
+			await expect(style.borderTopColor).toBe(
+				probedStyleOf("border-input", "borderTopColor", panel),
+			)
+			await expect(style.borderTopLeftRadius).toBe(
+				probedStyleOf("rounded-control", "borderTopLeftRadius", panel),
+			)
+			await expect(style.backgroundColor).toBe(
+				probedStyleOf("bg-background", "backgroundColor", panel),
+			)
+			await expect(style.backgroundColor).not.toBe(
+				getComputedStyle(panel).backgroundColor,
+			)
+		}
 	},
 })

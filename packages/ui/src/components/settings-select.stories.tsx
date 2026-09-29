@@ -7,6 +7,9 @@ import {
 	expectFocusRing,
 	expectInvalidOutline,
 	FRAME_POLL,
+	isInBrowserRunner,
+	probedStyleOf,
+	realPointer,
 } from "@workspace/storybook/story-utils"
 import {
 	SettingsSelect,
@@ -198,5 +201,53 @@ export const ThemesInvalid = meta.story({
 	play: async ({ canvasElement }) => {
 		for (const trigger of triggersIn(canvasElement))
 			await expectInvalidOutline(trigger)
+		if (!isInBrowserRunner()) return
+		const pointer = await realPointer()
+		for (const trigger of triggersIn(canvasElement)) {
+			await pointer.hover(trigger)
+			await waitFor(() => expect(trigger.matches(":hover")).toBe(true))
+			await expectInvalidOutline(trigger)
+			await pointer.unhover(trigger)
+		}
+	},
+})
+
+const hoverOutlineOf = (trigger: HTMLElement) =>
+	probedStyleOf(
+		"border-muted-foreground",
+		"borderTopColor",
+		trigger.parentElement ?? document.body,
+	)
+
+export const ThemesHover = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		pseudo: { hover: '[role="combobox"]' },
+		docs: {
+			description: {
+				story: `${ARTBOARD_TRIGGER}Under the pointer, which the play drives only in the Vitest browser runner, the outline darkens to the \`muted-foreground\` token while the fill stays \`muted\`; keyboard focus still draws the \`ring\` outline over it.`,
+			},
+		},
+	},
+	play: async ({ canvasElement, userEvent }) => {
+		if (!isInBrowserRunner()) return
+		const pointer = await realPointer()
+		const triggers = triggersIn(canvasElement)
+		for (const trigger of triggers) {
+			const rest = getComputedStyle(trigger).borderTopColor
+			await pointer.hover(trigger)
+			await waitFor(() =>
+				expect(getComputedStyle(trigger).borderTopColor).toBe(
+					hoverOutlineOf(trigger),
+				),
+			)
+			await expect(hoverOutlineOf(trigger)).not.toBe(rest)
+			await pointer.unhover(trigger)
+		}
+		const [first] = triggers
+		await userEvent.tab()
+		await pointer.hover(first)
+		await waitFor(() => expect(first.matches(":hover")).toBe(true))
+		await expectFocusRing(first)
 	},
 })
