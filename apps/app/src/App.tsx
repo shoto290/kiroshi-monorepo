@@ -13,13 +13,13 @@ import { ConversationSeatingContext } from "@/lib/conversations/use-conversation
 import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
 import { useCompanionSelectGuard } from "@/lib/sidebar/companion-select"
-import { useSidebarTab } from "@/lib/user/use-sidebar-tab"
 import { useApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import { useRosterLines } from "@/lib/workspace/use-roster-lines"
 import { useRosterLists } from "@/lib/workspace/use-roster-lists"
 import { useRosterView } from "@/lib/workspace/use-roster-view"
 import { useSettingsPanels } from "@/lib/workspace/use-settings-panels"
 import { useSidebarMissions } from "@/lib/workspace/use-sidebar-missions"
+import { useSidebarPanelSwitch } from "@/lib/workspace/use-sidebar-panel-switch"
 import { useSpaceLoading } from "@/lib/workspace/use-space-loading"
 import { useSpaceSections } from "@/lib/workspace/use-space-sections"
 import { useWorkspaceCore } from "@/lib/workspace/use-workspace-core"
@@ -37,7 +37,6 @@ export function App() {
 	const loadSpaces = useSpaceLoading({ core, scopes })
 	useWorkspaceSubscriptions({ core, drivers, rosterView, scopes })
 	const rosterLines = useRosterLines({ core, drivers, rosterView })
-	const collapsedSectionIds = useSpaceSections({ core, rosterLines })
 	const sidebarMissions = useSidebarMissions({ core, rosterLines })
 	const rosterLists = useRosterLists({
 		core,
@@ -47,7 +46,17 @@ export function App() {
 		waitingMissionCount: sidebarMissions.waitingCount,
 	})
 	const overlay = useWorkspaceOverlay({ core, rosterLines, rosterView, scopes })
-	const sidebarTab = useSidebarTab(core.user)
+	const collapsedSectionIds = useSpaceSections({ core, rosterLines })
+	const sidebarTab = useSidebarPanelSwitch({
+		core,
+		sidebarMissions,
+		sidebarRosters: {
+			botsBySpaceId: rosterLists.rosterBotsBySpace,
+			conversationsBySpaceId: rosterLists.rosterConversationsBySpace,
+			sectionsBySpaceId: core.sections.state.sections,
+			collapsedSectionIds,
+		},
+	})
 	const companionMenu = useCompanionMenuLookup({
 		actions: rosterLines.sidebarActions,
 		conversationRosters: core.roster.state.conversationRosters,
@@ -138,6 +147,7 @@ export function App() {
 										isConversationSettingsOpen={
 											overlay.isThreadConversationSettingsOpen
 										}
+										isMissionsPanelOpen={sidebarTab.openTab === "missions"}
 										isOverlayOpen={overlay.isOverlayOpen}
 										isSettingsOpen={overlay.isThreadSettingsOpen}
 										landings={core.messageLandings}

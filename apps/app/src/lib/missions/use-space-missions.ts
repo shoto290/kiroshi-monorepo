@@ -38,6 +38,7 @@ const withChangeApplied =
 
 export type SpaceMissionsView = SpaceMissionGroups & {
 	waitingCount: number
+	hasLoaded: boolean
 	hasFailed: boolean
 	reload: () => void
 }
@@ -98,12 +99,10 @@ export const useSpaceMissions = (spaceId: string | null): SpaceMissionsView => {
 		}
 	}, [reload])
 
+	const hasLoaded = spaceId !== null && held?.spaceId === spaceId
 	const groups = useMemo(
-		() =>
-			spaceId !== null && held?.spaceId === spaceId
-				? toSpaceMissionGroups(held)
-				: NO_GROUPS,
-		[spaceId, held],
+		() => (hasLoaded && held ? toSpaceMissionGroups(held) : NO_GROUPS),
+		[hasLoaded, held],
 	)
 	const hasFailed = spaceId !== null && failedSpaceId === spaceId
 
@@ -111,9 +110,10 @@ export const useSpaceMissions = (spaceId: string | null): SpaceMissionsView => {
 		() => ({
 			...groups,
 			waitingCount: groups.waitingOnYou.length,
+			hasLoaded,
 			hasFailed,
 			reload,
 		}),
-		[groups, hasFailed, reload],
+		[groups, hasLoaded, hasFailed, reload],
 	)
 }

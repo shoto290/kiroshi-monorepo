@@ -8,8 +8,13 @@ import {
 	useSidebarActions,
 } from "./use-sidebar-actions"
 
+import { createStore } from "../store"
 import { createFakeTranscriptStore } from "../conversations/fake-transcript-store"
 import { spacePlugin } from "../conversations/plugin-scope"
+import {
+	createOpenedMissionController,
+	type SelectedRow,
+} from "../missions/opened-mission-controller"
 import { createPluginController } from "../plugins/plugin-controller"
 import {
 	createSpacesController,
@@ -26,6 +31,7 @@ const gearFor = (spaces: SpacesController) => {
 		attachments: UNUSED,
 		collapsedSections: UNUSED,
 		drafts: UNUSED,
+		openedMission: UNUSED,
 		roster: UNUSED,
 		runtimes: UNUSED,
 		sections: UNUSED,
@@ -61,5 +67,76 @@ describe("the rail gear", () => {
 		gear.press()
 
 		expect(gear.opening).not.toHaveBeenCalled()
+	})
+})
+
+const rowsFor = (selected: SelectedRow) => {
+	const roster = createStore(selected)
+	const openedMission = createOpenedMissionController(roster)
+	const rows = {
+		select: vi.fn((id: string) =>
+			roster.setState({ selectedBotId: id, selectedConversationId: null }),
+		),
+		selectConversation: vi.fn((id: string) =>
+			roster.setState({ selectedBotId: null, selectedConversationId: id }),
+		),
+	}
+	const source: SidebarActionsSource = {
+		attachments: UNUSED,
+		collapsedSections: UNUSED,
+		drafts: UNUSED,
+		openedMission,
+		roster: rows as never,
+		runtimes: UNUSED,
+		sections: UNUSED,
+		spacePlugin: UNUSED,
+		spaces: UNUSED,
+		user: UNUSED,
+		userPlugin: UNUSED,
+	}
+	const { result, rerender } = renderHook(() => useSidebarActions(source))
+	return { actions: () => result.current, rerender, openedMission, rows }
+}
+
+describe("a row click while a mission is open", () => {
+	it("closes the mission when the reader clicks the conversation it was opened from", () => {
+		const shown = rowsFor({
+			selectedBotId: null,
+			selectedConversationId: "c-1",
+		})
+		shown.openedMission.open({ missionId: "m-1", rowId: "c-1" })
+
+		shown.actions().onSelectConversation("c-1")
+		shown.rerender()
+
+		expect(shown.openedMission.getState()).toBeNull()
+		expect(shown.rows.selectConversation).toHaveBeenCalledWith("c-1")
+	})
+
+	it("closes the mission when the reader clicks the bot it was opened from", () => {
+		const shown = rowsFor({
+			selectedBotId: "b-1",
+			selectedConversationId: null,
+		})
+		shown.openedMission.open({ missionId: "m-1", rowId: "b-1" })
+
+		shown.actions().onSelectBot("b-1")
+		shown.rerender()
+
+		expect(shown.openedMission.getState()).toBeNull()
+		expect(shown.rows.select).toHaveBeenCalledWith("b-1")
+	})
+
+	it("closes the mission and shows another row the reader clicks", () => {
+		const shown = rowsFor({
+			selectedBotId: "b-1",
+			selectedConversationId: null,
+		})
+		shown.openedMission.open({ missionId: "m-1", rowId: "b-1" })
+
+		shown.actions().onSelectConversation("c-2")
+
+		expect(shown.openedMission.getState()).toBeNull()
+		expect(shown.rows.selectConversation).toHaveBeenCalledWith("c-2")
 	})
 })

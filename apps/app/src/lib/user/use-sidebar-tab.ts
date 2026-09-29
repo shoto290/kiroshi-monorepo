@@ -4,7 +4,7 @@ import type { User } from "./use-user"
 
 import type { SidebarTab } from "@/lib/bindings"
 
-type SidebarPanel = Extract<SidebarTab, "conversations" | "missions">
+export type SidebarPanel = Extract<SidebarTab, "conversations" | "missions">
 
 const panelOf = (tab: SidebarTab): SidebarPanel =>
 	tab === "missions" ? "missions" : "conversations"

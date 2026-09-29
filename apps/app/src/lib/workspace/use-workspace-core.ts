@@ -22,6 +22,7 @@ import { createOpenedRoutineController } from "../routines/opened-routine-contro
 import { createMessageLandingController } from "../search/message-landing-controller"
 import { useCollapsedSections } from "../sections/use-collapsed-sections"
 import { useSections } from "../sections/use-sections"
+import { createShownMemory } from "../sidebar/shown-memory"
 import { useSpaces } from "../spaces/use-spaces"
 import { useUser } from "../user/use-user"
 
@@ -61,6 +62,10 @@ export const useWorkspaceCore = () => {
 	const openedMission = useMemo(
 		() => createOpenedMissionController(roster.controller),
 		[roster.controller],
+	)
+	const shownMemory = useMemo(
+		() => createShownMemory({ roster: roster.controller, openedMission }),
+		[roster.controller, openedMission],
 	)
 	const openedRoutine = useMemo(createOpenedRoutineController, [])
 	const messageLandings = useMemo(createMessageLandingController, [])
@@ -108,6 +113,7 @@ export const useWorkspaceCore = () => {
 		roster,
 		sections,
 		serverEnvironment,
+		shownMemory,
 		spaceConnections,
 		spaceEnvironment,
 		spaceMcpServers,

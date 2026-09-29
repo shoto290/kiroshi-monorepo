@@ -255,6 +255,7 @@ const workspaceOf = async (store = createFakeTranscriptStore()) => {
 			drafts: createDraftsController(),
 			haveSpacesFailed: false,
 			isConversationSettingsOpen: false,
+			isMissionsPanelOpen: false,
 			isOverlayOpen: false,
 			isSettingsOpen: false,
 			landings: createMessageLandingController(),
