@@ -2,7 +2,13 @@ import { useState } from "react"
 import { expect, fn, screen, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { FRAME_POLL } from "@workspace/storybook/story-utils"
+import {
+	expectControlRadius,
+	expectFieldFrame,
+	expectFocusRing,
+	expectInvalidOutline,
+	FRAME_POLL,
+} from "@workspace/storybook/story-utils"
 import {
 	SettingsSelect,
 	type SettingsSelectProps,
@@ -130,5 +136,73 @@ export const WithHint = meta.story({
 					"The rule under the control, in the same place a text field's is read. Reach for this whenever what the field decides is not obvious from its name — the sentence is announced after the label rather than in place of it, so a screen reader lands on the name first.",
 			},
 		},
+	},
+})
+
+const ARTBOARD_TRIGGER =
+	"The trigger on the frame of the artboard V1e text field, light and dark side by side: a `muted` fill, a 1px `input` outline and the `radius-control` corner. "
+
+const triggersIn = (canvasElement: HTMLElement) => [
+	...canvasElement.querySelectorAll<HTMLElement>('[role="combobox"]'),
+]
+
+const expectArtboardTrigger = async (trigger: HTMLElement) => {
+	await expectFieldFrame(trigger)
+	await expectControlRadius(trigger)
+}
+
+export const ThemesAtRest = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { placeholder: "Pick a model", value: "" },
+	parameters: {
+		docs: { description: { story: `${ARTBOARD_TRIGGER}No answer yet.` } },
+	},
+	play: async ({ canvasElement }) => {
+		const triggers = triggersIn(canvasElement)
+		await expect(triggers.length).toBe(2)
+		for (const trigger of triggers) await expectArtboardTrigger(trigger)
+	},
+})
+
+export const ThemesFilled = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		docs: { description: { story: `${ARTBOARD_TRIGGER}Reading an answer.` } },
+	},
+	play: async ({ canvasElement }) => {
+		for (const trigger of triggersIn(canvasElement))
+			await expectArtboardTrigger(trigger)
+	},
+})
+
+export const ThemesFocusVisible = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		pseudo: { focusVisible: '[role="combobox"]' },
+		docs: {
+			description: {
+				story: `${ARTBOARD_TRIGGER}Keyboard focus keeps the existing \`ring\` outline and halo.`,
+			},
+		},
+	},
+	play: async ({ canvasElement, userEvent }) => {
+		await userEvent.tab()
+		await expectFocusRing(triggersIn(canvasElement)[0])
+	},
+})
+
+export const ThemesInvalid = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { error: "This model is not available on this plan." },
+	parameters: {
+		docs: {
+			description: {
+				story: `${ARTBOARD_TRIGGER}Refused, the trigger keeps the existing \`destructive\` outline.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const trigger of triggersIn(canvasElement))
+			await expectInvalidOutline(trigger)
 	},
 })

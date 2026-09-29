@@ -104,7 +104,7 @@ export function PromptInput({
 			onDragEnd={handleDragEnd}
 			onDrop={handleDrop}
 			className={cn(
-				"flex w-full flex-wrap items-center gap-1 rounded-4xl border border-border bg-background p-2 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30",
+				"flex w-full flex-wrap items-center gap-1 rounded-4xl border border-border bg-muted p-2 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30",
 				isDropTarget && "border-primary bg-primary/10",
 				disabled && "opacity-50",
 				className,

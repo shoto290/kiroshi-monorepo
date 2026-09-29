@@ -553,7 +553,6 @@ const EntryField = ({
 				className={cn(
 					FIELD_CONTROL_CLASS,
 					QUESTION_MONO_LINE_CLASS,
-					"border-border",
 					errorId && FIELD_CONTROL_INVALID_CLASS,
 				)}
 				id={id}

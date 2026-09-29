@@ -3,6 +3,12 @@ import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	expectControlRadius,
+	expectFieldFrame,
+	expectFocusRing,
+	expectInvalidOutline,
+} from "@workspace/storybook/story-utils"
+import {
 	SettingsListField,
 	type SettingsListFieldProps,
 } from "@workspace/ui/components/settings-list-field"
@@ -120,5 +126,85 @@ export const Removing = meta.story({
 		await userEvent.click(canvas.getByRole("button", { name: "Remove Bash" }))
 
 		await expect(args.onItemsChange).toHaveBeenCalledWith(["Edit"])
+	},
+})
+
+const ARTBOARD_LIST =
+	"The input and every row on the frame of the artboard V1e text field, light and dark side by side: a `muted` fill, a 1px `input` outline and the `radius-control` corner. "
+
+const framesIn = (canvasElement: HTMLElement) => [
+	...canvasElement.querySelectorAll<HTMLElement>("input, li"),
+]
+
+const inputsIn = (canvasElement: HTMLElement) => [
+	...canvasElement.querySelectorAll<HTMLInputElement>("input"),
+]
+
+const expectArtboardFrames = async (canvasElement: HTMLElement) => {
+	for (const frame of framesIn(canvasElement)) {
+		await expectFieldFrame(frame)
+		await expectControlRadius(frame)
+	}
+}
+
+export const ThemesAtRest = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { items: [] },
+	parameters: {
+		docs: { description: { story: `${ARTBOARD_LIST}Nothing listed yet.` } },
+	},
+	play: async ({ canvasElement }) => {
+		await expect(inputsIn(canvasElement).length).toBe(2)
+		await expectArtboardFrames(canvasElement)
+	},
+})
+
+export const ThemesFilled = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		docs: { description: { story: `${ARTBOARD_LIST}Holding two rows.` } },
+	},
+	play: async ({ canvasElement }) => {
+		await expect(framesIn(canvasElement).length).toBe(6)
+		await expectArtboardFrames(canvasElement)
+	},
+})
+
+export const ThemesFocusVisible = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		pseudo: { focusVisible: "input" },
+		docs: {
+			description: {
+				story: `${ARTBOARD_LIST}Keyboard focus keeps the existing \`ring\` outline and halo on the input.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const input of inputsIn(canvasElement)) {
+			input.focus()
+			await expectFocusRing(input)
+		}
+	},
+})
+
+export const ThemesInvalid = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: {
+		isItemValid: () => false,
+		invalidMessage: "Write a rule as Tool or Tool(specifier).",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story: `${ARTBOARD_LIST}Refused, the input keeps the existing \`destructive\` outline.`,
+			},
+		},
+	},
+	play: async ({ canvasElement, userEvent }) => {
+		for (const input of inputsIn(canvasElement)) {
+			await userEvent.type(input, "not a rule!{Enter}")
+			await expectInvalidOutline(input)
+		}
 	},
 })
