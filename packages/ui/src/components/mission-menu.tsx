@@ -202,12 +202,11 @@ const MissionMenu = ({ children, ...props }: MissionMenuProps) => {
 	return (
 		<ContextMenu onOpenChange={staysOnCardWhenOpened}>
 			<ContextMenuPrimitive.Trigger
-				render={({ ref, ...surface }) =>
+				render={(surface) =>
 					cloneElement(children, {
 						surface: {
 							...surface,
 							onKeyDown: alsoClosingFromKeyboard(surface.onKeyDown),
-							ref,
 						},
 					})
 				}
