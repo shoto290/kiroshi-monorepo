@@ -49,7 +49,7 @@ describe("toSettingsValue", () => {
 				}),
 			),
 		).toEqual({
-			identity: { animal: PLACEHOLDER_ANIMAL, blot: "green", image: undefined },
+			identity: { blot: "green", image: undefined },
 			name: "Nyx",
 			title: "Reviewer",
 			instructions: "Answer briefly.",
@@ -99,7 +99,7 @@ describe("changesRuntime", () => {
 		expect(
 			changesRuntime(stored, {
 				...value,
-				identity: { animal: PLACEHOLDER_ANIMAL, blot: "blue" },
+				identity: { blot: "blue" },
 			}),
 		).toBe(false)
 	})
@@ -118,10 +118,7 @@ describe("toIdentity", () => {
 		const value = toSettingsValue(stored)
 
 		expect(
-			toIdentity(
-				{ ...value, identity: { animal: PLACEHOLDER_ANIMAL, blot: "yellow" } },
-				stored,
-			),
+			toIdentity({ ...value, identity: { blot: "yellow" } }, stored),
 		).toMatchObject({
 			avatarAnimal: PLACEHOLDER_ANIMAL,
 			avatarBlot: "yellow",
@@ -132,10 +129,7 @@ describe("toIdentity", () => {
 	it("writes a blot the reader cleared as an absence", () => {
 		const value = toSettingsValue(stored)
 
-		expect(
-			toIdentity({ ...value, identity: { animal: PLACEHOLDER_ANIMAL } }, stored)
-				.avatarBlot,
-		).toBeNull()
+		expect(toIdentity({ ...value, identity: {} }, stored).avatarBlot).toBeNull()
 	})
 
 	it("carries the style the companion already answers under", () => {

@@ -55,8 +55,7 @@ const BotIdentityFields = ({
 	const blotLabel = (blot?: BotAvatarBlot) =>
 		blot ? t(`identity.colour.option.${blot}`) : t("identity.colour.none")
 
-	const dropPicture = () =>
-		onIdentityChange({ animal: identity.animal, blot: identity.blot })
+	const dropPicture = () => onIdentityChange({ blot: identity.blot })
 
 	const currentLabel = identity.image
 		? t("identity.uploadedImage")
@@ -101,9 +100,7 @@ const BotIdentityFields = ({
 							checked={identity.blot === blot}
 							className="sr-only"
 							name={`${groupId}-blot`}
-							onChange={() =>
-								onIdentityChange({ animal: identity.animal, blot })
-							}
+							onChange={() => onIdentityChange({ blot })}
 							type="radio"
 							value={blot ?? ""}
 						/>
