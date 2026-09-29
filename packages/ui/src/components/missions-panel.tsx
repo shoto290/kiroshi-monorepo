@@ -72,9 +72,7 @@ const MissionsPanelEmpty = () => {
 const MissionsPanel = ({
 	open,
 	earlierToday,
-	onOpen,
-	openMissionId,
-	wrap,
+	...rowProps
 }: MissionsPanelProps) => {
 	const { t } = useTranslation("chat")
 	const [isEarlierTodayOpen, setEarlierTodayOpen] = useState(false)
@@ -96,12 +94,7 @@ const MissionsPanel = ({
 						slot={`missions-${key}`}
 						title={t(`activity.missions.group.${key}`)}
 					>
-						<MissionsPanelRows
-							missions={held}
-							onOpen={onOpen}
-							openMissionId={openMissionId}
-							wrap={wrap}
-						/>
+						<MissionsPanelRows {...rowProps} missions={held} />
 					</ActivityGroup>
 				)
 			})}
@@ -115,12 +108,7 @@ const MissionsPanel = ({
 					slot="missions-earlierToday"
 					title={t("activity.missions.group.earlierToday")}
 				>
-					<MissionsPanelRows
-						missions={earlierToday}
-						onOpen={onOpen}
-						openMissionId={openMissionId}
-						wrap={wrap}
-					/>
+					<MissionsPanelRows {...rowProps} missions={earlierToday} />
 				</ActivityGroup>
 			) : null}
 		</div>
