@@ -100,7 +100,7 @@ function ThreadLayout({
 			</MarkProvider>
 
 			{notice || pending || composer ? (
-				<div className="flex w-full shrink-0 flex-col gap-3 px-6 pb-6">
+				<div className="flex w-full shrink-0 flex-col gap-3 px-[calc(var(--shell-inset)-var(--spacing)-1px)] pb-[calc(var(--shell-inset)-var(--spacing)-1px)]">
 					{notice}
 					{pending}
 					{composer ? (
