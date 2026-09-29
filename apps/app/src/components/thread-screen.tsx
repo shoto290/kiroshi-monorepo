@@ -65,6 +65,7 @@ import {
 	ThreadRoutines,
 } from "@/components/thread-routines"
 import { QueuedTurn, RefusedTurn, ThreadTurn } from "@/components/thread-turn"
+import { titleBarWindowControls } from "@/components/window-caption-controls"
 import type { ApplicationInstall } from "@/lib/applications/application-port"
 import {
 	isLeftOutOf,
@@ -340,6 +341,7 @@ const ThreadHeader = ({
 				state={mission.mission.state}
 				ticket={mission.mission.ticket}
 				tools={mission.mission.tools}
+				windowControls={titleBarWindowControls()}
 			/>
 		)
 	}
@@ -388,6 +390,7 @@ const ThreadHeader = ({
 					pinned
 				)
 			}
+			windowControls={titleBarWindowControls()}
 		/>
 	)
 }

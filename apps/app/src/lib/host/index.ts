@@ -20,6 +20,8 @@ import {
 	listen as tauriListen,
 } from "./tauri"
 
+import { commands } from "../bindings"
+
 const hasTauriInternals = (): boolean =>
 	typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
 
@@ -70,6 +72,47 @@ export function drivesRealHost(): boolean {
 
 export function hasOverlayWindowControls(): boolean {
 	return isDesktopHost() && platform() === "macos"
+}
+
+export const hasCaptionWindowControls = (): boolean =>
+	isDesktopHost() && platform() === "windows"
+
+export const minimizeWindow = (): Promise<void> => getCurrentWindow().minimize()
+
+export const toggleMaximizeWindow = (): Promise<void> =>
+	getCurrentWindow().toggleMaximize()
+
+export const closeWindow = (): Promise<void> => getCurrentWindow().close()
+
+export type MaximizedWatch = {
+	report: (isMaximized: boolean) => void
+	onError: (reason: unknown) => void
+}
+
+export const watchWindowMaximized = ({
+	report,
+	onError,
+}: MaximizedWatch): Promise<() => void> => {
+	const current = getCurrentWindow()
+	const readMaximized = () => current.isMaximized().then(report, onError)
+	readMaximized()
+	return current.onResized(readMaximized)
+}
+
+export type MaximizeButtonBounds = {
+	x: number
+	y: number
+	width: number
+	height: number
+}
+
+export const declareMaximizeButton = async (
+	bounds: MaximizeButtonBounds | null,
+): Promise<void> => {
+	const result = await commands.windowDeclareMaximizeButton(bounds)
+	if (result.status === "error") {
+		throw new Error(result.error.kind)
+	}
 }
 
 export function assetSrc(path: string): string {

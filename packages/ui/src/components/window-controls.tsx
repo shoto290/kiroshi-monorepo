@@ -1,5 +1,6 @@
 "use client"
 
+import type { Ref } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
@@ -11,6 +12,7 @@ type WindowControlsProps = {
 	onMinimize: () => void
 	onToggleMaximize: () => void
 	onClose: () => void
+	maximizeButtonRef?: Ref<HTMLButtonElement>
 }
 
 const ROW = "ms-auto flex h-full justify-end"
@@ -26,6 +28,7 @@ const WindowControls = ({
 	onMinimize,
 	onToggleMaximize,
 	onClose,
+	maximizeButtonRef,
 }: WindowControlsProps) => {
 	const { t } = useTranslation("common")
 	const MaximizeGlyph = maximized ? Icons.Restore : Icons.Maximize
@@ -46,6 +49,7 @@ const WindowControls = ({
 				)}
 				className={CAPTION_BUTTON}
 				onClick={onToggleMaximize}
+				ref={maximizeButtonRef}
 				variant="ghost"
 			>
 				<MaximizeGlyph aria-hidden="true" />
