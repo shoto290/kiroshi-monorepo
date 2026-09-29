@@ -3,8 +3,7 @@ import { expect, fn, screen, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
-	expectControlRadius,
-	expectFieldFrame,
+	expectControlFrame,
 	expectFocusRing,
 	expectInvalidOutline,
 	FRAME_POLL,
@@ -146,11 +145,6 @@ const triggersIn = (canvasElement: HTMLElement) => [
 	...canvasElement.querySelectorAll<HTMLElement>('[role="combobox"]'),
 ]
 
-const expectArtboardTrigger = async (trigger: HTMLElement) => {
-	await expectFieldFrame(trigger)
-	await expectControlRadius(trigger)
-}
-
 export const ThemesAtRest = meta.story({
 	globals: { theme_layout: "side-by-side" },
 	args: { placeholder: "Pick a model", value: "" },
@@ -160,7 +154,7 @@ export const ThemesAtRest = meta.story({
 	play: async ({ canvasElement }) => {
 		const triggers = triggersIn(canvasElement)
 		await expect(triggers.length).toBe(2)
-		for (const trigger of triggers) await expectArtboardTrigger(trigger)
+		for (const trigger of triggers) await expectControlFrame(trigger)
 	},
 })
 
@@ -171,7 +165,7 @@ export const ThemesFilled = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		for (const trigger of triggersIn(canvasElement))
-			await expectArtboardTrigger(trigger)
+			await expectControlFrame(trigger)
 	},
 })
 

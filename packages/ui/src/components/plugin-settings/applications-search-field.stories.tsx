@@ -3,8 +3,7 @@ import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
-	expectControlRadius,
-	expectFieldFrame,
+	expectControlFrame,
 	expectFocusRing,
 } from "@workspace/storybook/story-utils"
 import {
@@ -120,8 +119,7 @@ const shellsIn = (canvasElement: HTMLElement) => [
 ]
 
 const expectArtboardShell = async (shell: HTMLElement) => {
-	await expectFieldFrame(shell)
-	await expectControlRadius(shell)
+	await expectControlFrame(shell)
 	await expect(getComputedStyle(shell).paddingInlineStart).toBe("12px")
 }
 

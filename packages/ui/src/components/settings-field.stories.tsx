@@ -3,8 +3,7 @@ import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
-	expectControlRadius,
-	expectFieldFrame,
+	expectControlFrame,
 	expectFocusRing,
 	expectInvalidOutline,
 	slotsIn,
@@ -378,8 +377,7 @@ const namesIn = (canvasElement: HTMLElement) => [
 
 const expectArtboardField = async (field: HTMLElement) => {
 	const style = getComputedStyle(field)
-	await expectFieldFrame(field)
-	await expectControlRadius(field)
+	await expectControlFrame(field)
 	await expect(style.fontSize).toBe("14px")
 	await expect(style.lineHeight).toBe("20px")
 	await expect(style.paddingBlockStart).toBe("8px")

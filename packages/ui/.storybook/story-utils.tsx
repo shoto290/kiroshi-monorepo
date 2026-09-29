@@ -183,10 +183,12 @@ export const expectFieldFrame = async (
 	)
 }
 
-export const expectControlRadius = async (frame: HTMLElement) =>
-	expect(getComputedStyle(frame).borderTopLeftRadius).toBe(
+export const expectControlFrame = async (frame: HTMLElement) => {
+	await expectFieldFrame(frame)
+	await expect(getComputedStyle(frame).borderTopLeftRadius).toBe(
 		probedStyleOf("rounded-control", "borderTopLeftRadius", surfaceOf(frame)),
 	)
+}
 
 export const expectFocusRing = async (frame: HTMLElement) =>
 	waitFor(() =>

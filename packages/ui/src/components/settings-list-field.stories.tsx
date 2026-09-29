@@ -3,8 +3,7 @@ import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
-	expectControlRadius,
-	expectFieldFrame,
+	expectControlFrame,
 	expectFocusRing,
 	expectInvalidOutline,
 } from "@workspace/storybook/story-utils"
@@ -141,10 +140,7 @@ const inputsIn = (canvasElement: HTMLElement) => [
 ]
 
 const expectArtboardFrames = async (canvasElement: HTMLElement) => {
-	for (const frame of framesIn(canvasElement)) {
-		await expectFieldFrame(frame)
-		await expectControlRadius(frame)
-	}
+	for (const frame of framesIn(canvasElement)) await expectControlFrame(frame)
 }
 
 export const ThemesAtRest = meta.story({
