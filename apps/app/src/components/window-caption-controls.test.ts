@@ -106,16 +106,16 @@ const reportedMaximized = (isMaximized: boolean) => {
 }
 
 const reportedPointer = (state: MaximizeButtonState) => {
-	const [report] = vi.mocked(watchMaximizeButton).mock.calls.at(-1) as [
-		(state: MaximizeButtonState) => void,
-	]
+	const [report] = vi
+		.mocked(watchMaximizeButton)
+		.mock.calls.at(-1) as Parameters<typeof watchMaximizeButton>
 	act(() => report(state))
 }
 
 const reportedFocus = (isFocused: boolean) => {
-	const [report] = vi.mocked(watchWindowFocus).mock.calls.at(-1) as [
-		(isFocused: boolean) => void,
-	]
+	const [report] = vi.mocked(watchWindowFocus).mock.calls.at(-1) as Parameters<
+		typeof watchWindowFocus
+	>
 	act(() => report(isFocused))
 }
 
