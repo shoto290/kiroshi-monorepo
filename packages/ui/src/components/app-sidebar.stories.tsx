@@ -383,6 +383,12 @@ const panelInView = (canvasElement: HTMLElement) => {
 	return panel
 }
 
+const missionsPanelOf = (open: MissionsPanelMission[]): MissionsPanelProps => ({
+	open,
+	earlierToday: [],
+	onOpen: fn(),
+})
+
 const SEARCH = "Search"
 
 const RAIL_STOPS = 4
@@ -2416,6 +2422,7 @@ export const ConversationsPanel = meta.story({
 
 export const EmptyPanels = meta.story({
 	tags: ["test-only"],
+	args: { missionsBySpaceId: { [HOME]: missionsPanelOf([]) } },
 	parameters: {
 		docs: {
 			description: {
@@ -2580,12 +2587,6 @@ const NINE_ROSTERS = rostersAcross(SPACES)
 
 const ROSTER_IN_EVERY_SPACE: Record<string, AppSidebarBot[]> =
 	Object.fromEntries(FIVE_SPACES.map((space) => [space.id, ROSTER]))
-
-const missionsPanelOf = (open: MissionsPanelMission[]): MissionsPanelProps => ({
-	open,
-	earlierToday: [],
-	onOpen: fn(),
-})
 
 const missionsAcross = (spaces: Space[]): Record<string, MissionsPanelProps> =>
 	Object.fromEntries(
@@ -3893,7 +3894,7 @@ export const MissionsOfUnloadedSpaces = meta.story({
 		docs: {
 			description: {
 				story:
-					"The Missions tab as the app hands it over: only the open space has a feed, so the panels waiting off each edge have no entry of their own. Check the panel in view lists the open space's missions, and each neighbour draws no mission at all rather than borrowing that list.",
+					"The Missions tab as the app hands it over: only the open space has a feed, so the panels waiting off each edge have no entry of their own. Check the panel in view lists the open space's missions, and each neighbour draws nothing at all, neither borrowing that list nor claiming an empty state for a feed not loaded yet.",
 			},
 		},
 	},
@@ -3906,6 +3907,10 @@ export const MissionsOfUnloadedSpaces = meta.story({
 		for (const neighbour of [before, after]) {
 			await expect(neighbour).toHaveAttribute("inert")
 			await expect(missionIdsIn(neighbour)).toEqual([])
+			await expect(
+				neighbour.querySelector('[data-slot="missions-panel-empty"]'),
+			).toBeNull()
+			await expect(neighbour.textContent).toBe("")
 		}
 	},
 })

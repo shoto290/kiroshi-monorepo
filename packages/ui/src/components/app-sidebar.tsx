@@ -1985,9 +1985,9 @@ const AppSidebarBase = ({
 		/>
 	)
 
-	const missionsIn = (spaceId?: string) => {
-		const missions = spaceId ? missionsBySpaceId?.[spaceId] : undefined
-		return missions ? <MissionsPanel {...missions} /> : <MissionsPanelEmpty />
+	const missionsOfSpace = (space: Space) => {
+		const missions = missionsBySpaceId?.[space.id]
+		return missions ? <MissionsPanel {...missions} /> : null
 	}
 
 	const isListPerSpace = isRosterOpen ? hasRosterPerSpace : spaces.length > 0
@@ -1998,9 +1998,7 @@ const AppSidebarBase = ({
 				isSwipeEnabled={isSpaceSwitchingEnabled && spaces.length > 1}
 				list={openPanel}
 				onSelectSpace={onSelectSpace}
-				renderSpace={
-					isRosterOpen ? rosterOfSpace : (space) => missionsIn(space.id)
-				}
+				renderSpace={isRosterOpen ? rosterOfSpace : missionsOfSpace}
 				selectedSpaceId={selectedSpaceId}
 				spaces={spaces}
 			/>
@@ -2024,7 +2022,7 @@ const AppSidebarBase = ({
 					spaces={spaces}
 				/>
 			) : (
-				missionsIn(selectedSpaceId)
+				<MissionsPanelEmpty />
 			)}
 		</SidebarContent>
 	)
