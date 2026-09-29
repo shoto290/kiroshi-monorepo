@@ -11,10 +11,12 @@ import {
 import { rosterTimestamp } from "./roster-timestamp"
 
 import { avatarSrc } from "../host"
-import type { BotPermissions as HostBotPermissions } from "@/lib/bindings"
-import type { SidebarActivity } from "../chat/screen-model"
 import type {
 	AvatarAnimal,
+	BotPermissions as HostBotPermissions,
+} from "@/lib/bindings"
+import type { SidebarActivity } from "../chat/screen-model"
+import type {
 	AvatarBlot,
 	Bot,
 	BotIdentity,
@@ -46,16 +48,7 @@ export const modelOptionsFor = (
 	return values.map((value) => ({ label: value, value }))
 }
 
-export const FACES = [
-	"rabbit",
-	"cat",
-	"bear",
-	"chick",
-	"dog",
-	"mouse",
-	"owl",
-	"koala",
-] as const satisfies readonly AvatarAnimal[]
+export const PLACEHOLDER_ANIMAL: AvatarAnimal = "cat"
 
 export const BOT_NAMES = [
 	"Bean",
@@ -96,13 +89,6 @@ export const BOT_NAMES = [
 	"Waffle",
 ] as const
 
-const nextFace = (bots: Bot[]): AvatarAnimal => {
-	const worn = new Set(bots.map((bot) => bot.avatarAnimal))
-	return (
-		FACES.find((face) => !worn.has(face)) ?? FACES[bots.length % FACES.length]
-	)
-}
-
 const nextBlot = (bots: Bot[]): AvatarBlot => {
 	const marked = new Set(bots.map((bot) => bot.avatarBlot))
 	return (
@@ -122,7 +108,7 @@ export const newBotIdentity = (bots: Bot[]): BotIdentity => ({
 	name: nextName(bots),
 	title: "",
 	model: NEW_BOT_MODEL,
-	avatarAnimal: nextFace(bots),
+	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: nextBlot(bots),
 	avatarImagePath: null,
 	instructions: "",
@@ -133,7 +119,7 @@ export const newBotIdentity = (bots: Bot[]): BotIdentity => ({
 
 export const toSettingsValue = (bot: Bot): BotSettingsValue => ({
 	identity: {
-		animal: bot.avatarAnimal,
+		animal: PLACEHOLDER_ANIMAL,
 		blot: bot.avatarBlot ?? undefined,
 		image: avatarSrc(bot.avatarImagePath),
 	},
@@ -154,7 +140,7 @@ export const toIdentity = (
 	name: value.name,
 	title: value.title,
 	model: value.model,
-	avatarAnimal: value.identity.animal,
+	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: value.identity.blot ?? null,
 	avatarImagePath: value.identity.image ? bot.avatarImagePath : null,
 	instructions: value.instructions,
@@ -210,7 +196,6 @@ export const toRosterBots = (
 			sectionId: bot.sectionId,
 			pinPosition: bot.pinPosition,
 			title: bot.title || undefined,
-			animal: bot.avatarAnimal,
 			blot: bot.avatarBlot ?? undefined,
 			image: avatarSrc(bot.avatarImagePath),
 			lastMessage: preview?.text,

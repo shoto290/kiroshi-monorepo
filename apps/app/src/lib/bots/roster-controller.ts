@@ -189,7 +189,6 @@ const withSeatsOf = (
 
 const faceOf = (bot: Bot): Partial<Participant> => ({
 	name: bot.name,
-	avatarAnimal: bot.avatarAnimal,
 	avatarBlot: bot.avatarBlot,
 	avatarImagePath: bot.avatarImagePath,
 })

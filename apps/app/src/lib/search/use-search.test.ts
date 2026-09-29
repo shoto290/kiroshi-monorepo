@@ -24,6 +24,7 @@ import type { SearchNavigation } from "./search-navigation"
 import type { SearchPort } from "./search-port"
 import { useSearch } from "./use-search"
 
+import { PLACEHOLDER_ANIMAL } from "@/lib/bots/bot-settings"
 import type {
 	Bot,
 	Conversation,
@@ -41,7 +42,7 @@ const SPACES: Space[] = [
 ]
 
 const A_BOT: Bot = {
-	...botIdentity({ name: "Basile", avatarAnimal: "owl", avatarBlot: null }),
+	...botIdentity({ name: "Basile", avatarBlot: null }),
 	id: "b-work",
 	createdAt: 1,
 	changesNothing: false,
@@ -66,7 +67,7 @@ const A_ROOM: Conversation = {
 			joinedAt: 1,
 			leftAt: null,
 			name: A_BOT.name,
-			avatarAnimal: A_BOT.avatarAnimal,
+			avatarAnimal: PLACEHOLDER_ANIMAL,
 			avatarBlot: null,
 			avatarImagePath: null,
 			isDeleted: false,

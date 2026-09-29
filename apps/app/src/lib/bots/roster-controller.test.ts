@@ -5,6 +5,7 @@ import type { BotSettingsValue } from "@workspace/ui/components/bot-settings"
 import {
 	BOT_NAMES,
 	newBotIdentity,
+	PLACEHOLDER_ANIMAL,
 	toRosterBots,
 	toSettingsValue,
 } from "./bot-settings"
@@ -296,14 +297,14 @@ describe("createRosterController", () => {
 		expect(state.selectedBotId).toBe("default")
 	})
 
-	it("gives every companion it creates a face no other companion is wearing", async () => {
+	it("gives every companion it creates a tint no other companion is marked with", async () => {
 		const controller = await loaded(await anEmptyStore())
 
 		await controller.create()
 		await controller.create()
 		await controller.create()
 
-		const worn = controller.getState().bots.map((bot) => bot.avatarAnimal)
+		const worn = controller.getState().bots.map((bot) => bot.avatarBlot)
 		expect(new Set(worn).size).toBe(worn.length)
 	})
 
@@ -320,7 +321,7 @@ describe("createRosterController", () => {
 				title: "Reviewer",
 				instructions: "Answer briefly.",
 				model: "haiku",
-				identity: { animal: "owl", blot: "blue" },
+				identity: { animal: PLACEHOLDER_ANIMAL, blot: "blue" },
 			}),
 		)
 		expect(held(controller, id).name).toBe("Nyx")
@@ -332,7 +333,6 @@ describe("createRosterController", () => {
 			title: "Reviewer",
 			instructions: "Answer briefly.",
 			model: "haiku",
-			avatarAnimal: "owl",
 			avatarBlot: "blue",
 		})
 	})
@@ -373,7 +373,7 @@ describe("createRosterController", () => {
 		)
 	})
 
-	it("takes the picture off when an animal is picked and keeps it when it is not", async () => {
+	it("takes the picture off when it is removed and keeps it when it is not", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = await loaded(store)
 		const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
@@ -395,7 +395,7 @@ describe("createRosterController", () => {
 		const value = toSettingsValue(held(controller, "default"))
 		controller.describe("default", {
 			...value,
-			identity: { animal: "bear", blot: "yellow" },
+			identity: { animal: PLACEHOLDER_ANIMAL, blot: "yellow" },
 		})
 		await vi.waitFor(async () =>
 			expect((await reloaded(store)).bots[0].avatarImagePath).toBeNull(),
@@ -1312,12 +1312,15 @@ describe("createRosterController on conversations", () => {
 
 		controller.describe(
 			"default",
-			edited(value, { name: "Nyx", identity: { animal: "owl", blot: "blue" } }),
+			edited(value, {
+				name: "Nyx",
+				identity: { animal: PLACEHOLDER_ANIMAL, blot: "blue" },
+			}),
 		)
 
 		expect(
 			faceIn(controller.getState().conversations[0], "default"),
-		).toMatchObject({ name: "Nyx", avatarAnimal: "owl", avatarBlot: "blue" })
+		).toMatchObject({ name: "Nyx", avatarBlot: "blue" })
 		expect(faceIn(controller.getState().conversations[0], second.id).name).toBe(
 			second.name,
 		)

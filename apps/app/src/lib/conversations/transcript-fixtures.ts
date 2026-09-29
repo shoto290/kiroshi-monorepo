@@ -9,6 +9,7 @@ import type { TranscriptStore } from "./store-port"
 import type { TranscriptMessage } from "./transcript-contract"
 
 import type { AgentCommand } from "@/lib/agent/contract"
+import { PLACEHOLDER_ANIMAL } from "../bots/bot-settings"
 
 export const CONVERSATION = "c-1"
 
@@ -37,7 +38,7 @@ export const botIdentity = (
 	name: "Nyx",
 	title: "Reviewer",
 	model: "opus",
-	avatarAnimal: "owl",
+	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: "green",
 	avatarImagePath: null,
 	instructions: "Answer with the file you would touch.",
