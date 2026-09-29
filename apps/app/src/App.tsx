@@ -103,7 +103,7 @@ export function App() {
 						badgesBySpaceId={rosterLists.badgesBySpaceId}
 						railCounts={rosterLists.railSignals.counts}
 						railDots={rosterLists.railSignals.dots}
-						missions={sidebarMissions.panel}
+						missionsBySpaceId={sidebarMissions.panelsBySpaceId}
 						openPanel={sidebarTab.openTab}
 						onOpenPanelChange={sidebarTab.openSidebarTab}
 						collapsedSectionIds={collapsedSectionIds}

@@ -709,6 +709,7 @@ navigation-appsidebar--full-row-menu
 navigation-appsidebar--identities
 navigation-appsidebar--idle-footer
 navigation-appsidebar--live-space-selection
+navigation-appsidebar--live-space-selection-in-missions
 navigation-appsidebar--long-content
 navigation-appsidebar--markdown-preview
 navigation-appsidebar--mission-space-ring
@@ -725,6 +726,9 @@ navigation-appsidebar--mission-strip-truncated-title
 navigation-appsidebar--mission-strip-unnamed-platform
 navigation-appsidebar--mission-strip-untracked-ticket
 navigation-appsidebar--mission-strip-with-chat-badge
+navigation-appsidebar--missions-across-spaces
+navigation-appsidebar--missions-of-unloaded-spaces
+navigation-appsidebar--missions-scroll-memory
 navigation-appsidebar--missions-tab
 navigation-appsidebar--move-bot-to-section
 navigation-appsidebar--narrow
@@ -738,6 +742,7 @@ navigation-appsidebar--no-search
 navigation-appsidebar--no-titles
 navigation-appsidebar--no-window-controls-reserve
 navigation-appsidebar--one-space
+navigation-appsidebar--one-space-in-missions
 navigation-appsidebar--one-space-row-menu
 navigation-appsidebar--permission-pending
 navigation-appsidebar--plain-create-button
@@ -769,8 +774,11 @@ navigation-appsidebar--space-flick-momentum
 navigation-appsidebar--space-landing
 navigation-appsidebar--space-scroll-memory
 navigation-appsidebar--space-scrolling
+navigation-appsidebar--space-scrolling-in-missions
 navigation-appsidebar--space-swipe-taken-back
+navigation-appsidebar--space-swipe-taken-back-in-missions
 navigation-appsidebar--space-switching-off
+navigation-appsidebar--space-switching-off-in-missions
 navigation-appsidebar--space-tinted
 navigation-appsidebar--spaces-on-rail
 navigation-appsidebar--spaces-without-rosters

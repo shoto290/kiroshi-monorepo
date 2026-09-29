@@ -17,7 +17,10 @@ import type {
 import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 import "@workspace/ui/lib/i18n"
 
-import { useSidebarMissions } from "./use-sidebar-missions"
+import {
+	type SidebarMissions,
+	useSidebarMissions,
+} from "./use-sidebar-missions"
 
 import type { Bot, Conversation } from "@/lib/conversations/store-contract"
 import { createFakeThreadRuntimes } from "@/lib/missions/fake-thread-runtimes"
@@ -124,6 +127,12 @@ const ELSEWHERE = anEntry({
 const idsOf = (missions: MissionsPanelMission[]) =>
 	missions.map(({ id, conversationId }) => ({ id, conversationId }))
 
+const panelOf = ({ panelsBySpaceId }: SidebarMissions) => {
+	const [panel] = Object.values(panelsBySpaceId)
+	if (!panel) throw new Error("no missions panel handed over")
+	return panel
+}
+
 const renderSidebarMissions = (
 	spaceId: string | null = "s-1",
 	lastMissions: Record<string, string> = {},
@@ -186,12 +195,12 @@ describe("useSidebarMissions", () => {
 	it("feeds waiting and in progress missions as open, closed ones as earlier today", async () => {
 		const { result } = renderSidebarMissions()
 
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
-		expect(idsOf(result.current.panel.open)).toEqual([
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
+		expect(idsOf(panelOf(result.current).open)).toEqual([
 			{ id: "m-waiting", conversationId: "c-1" },
 			{ id: "m-working", conversationId: "c-2" },
 		])
-		expect(idsOf(result.current.panel.earlierToday)).toEqual([
+		expect(idsOf(panelOf(result.current).earlierToday)).toEqual([
 			{ id: "m-done", conversationId: "c-1" },
 		])
 	})
@@ -206,7 +215,7 @@ describe("useSidebarMissions", () => {
 		readSpaceFeed.mockResolvedValue([WORKING, DONE])
 		const { result } = renderSidebarMissions()
 
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(1))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(1))
 		expect(result.current.waitingCount).toBe(0)
 	})
 
@@ -232,34 +241,37 @@ describe("useSidebarMissions", () => {
 		})
 
 		expect(result.current.waitingCount).toBe(0)
-		expect(result.current.panel.open.map(({ id }) => id)).toEqual(["m-working"])
-		expect(result.current.panel.earlierToday.map(({ id }) => id)).toContain(
+		expect(panelOf(result.current).open.map(({ id }) => id)).toEqual([
+			"m-working",
+		])
+		expect(panelOf(result.current).earlierToday.map(({ id }) => id)).toContain(
 			"m-waiting",
 		)
 	})
 
 	it("shows only the missions of the newly selected space", async () => {
 		const { result, rerender } = renderSidebarMissions()
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
 		readSpaceFeed.mockResolvedValue([ELSEWHERE])
 
 		rerender({ selectedSpaceId: "s-2" })
 
-		expect(result.current.panel.open).toEqual([])
+		expect(Object.keys(result.current.panelsBySpaceId)).toEqual(["s-2"])
+		expect(panelOf(result.current).open).toEqual([])
 		await waitFor(() =>
-			expect(idsOf(result.current.panel.open)).toEqual([
+			expect(idsOf(panelOf(result.current).open)).toEqual([
 				{ id: "m-elsewhere", conversationId: "c-9" },
 			]),
 		)
-		expect(result.current.panel.earlierToday).toEqual([])
+		expect(panelOf(result.current).earlierToday).toEqual([])
 		expect(readSpaceFeed).toHaveBeenLastCalledWith("s-2", expect.any(Number))
 	})
 
 	it("opens the mission on a listed conversation, then selects it", async () => {
 		const { result, select, selectConversation, open } = renderSidebarMissions()
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
 
-		result.current.panel.onOpen("m-working", "c-2")
+		panelOf(result.current).onOpen("m-working", "c-2")
 
 		expect(selectConversation).toHaveBeenCalledWith("c-2")
 		expect(open).toHaveBeenCalledWith({
@@ -275,9 +287,9 @@ describe("useSidebarMissions", () => {
 
 	it("opens the mission on its bot, then selects the bot, when its conversation is not listed", async () => {
 		const { result, select, selectConversation, open } = renderSidebarMissions()
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
 
-		result.current.panel.onOpen("m-waiting", "c-1")
+		panelOf(result.current).onOpen("m-waiting", "c-1")
 
 		expect(select).toHaveBeenCalledWith(BOT.id)
 		expect(open).toHaveBeenCalledWith({
@@ -295,7 +307,7 @@ describe("useSidebarMissions", () => {
 		const { result, selectConversation, open } = renderSidebarMissions("s-1", {
 			"s-1": "m-working",
 		})
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
 
 		result.current.showLastMission()
 
@@ -309,7 +321,7 @@ describe("useSidebarMissions", () => {
 
 	it("opens the first mission when the last one shown is gone from the list", async () => {
 		const { result, open } = renderSidebarMissions("s-1", { "s-1": "m-gone" })
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
 
 		result.current.showLastMission()
 
@@ -325,11 +337,11 @@ describe("useSidebarMissions", () => {
 			"s-1": "m-working",
 			"s-2": "m-elsewhere",
 		})
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
 		readSpaceFeed.mockResolvedValue([WORKING, ELSEWHERE])
 
 		rerender({ selectedSpaceId: "s-2" })
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
 		result.current.showLastMission()
 
 		expect(open).toHaveBeenCalledWith({
@@ -407,27 +419,27 @@ describe("useSidebarMissions", () => {
 	it("marks no row open while no mission is open", async () => {
 		const { result } = renderSidebarMissions()
 
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
-		expect(result.current.panel.openMissionId).toBeNull()
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
+		expect(panelOf(result.current).openMissionId).toBeNull()
 	})
 
 	it("marks the open mission row, and none once the mission is left", async () => {
 		const { result, openedMission } = renderSidebarMissions()
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
 
-		act(() => result.current.panel.onOpen("m-working", "c-2"))
-		expect(result.current.panel.openMissionId).toBe("m-working")
+		act(() => panelOf(result.current).onOpen("m-working", "c-2"))
+		expect(panelOf(result.current).openMissionId).toBe("m-working")
 
 		act(() => openedMission.leave())
-		expect(result.current.panel.openMissionId).toBeNull()
+		expect(panelOf(result.current).openMissionId).toBeNull()
 	})
 
 	it("wraps each row in the mission menu for its state", async () => {
 		const { result } = renderSidebarMissions()
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
 
-		const menus = result.current.panel.open.map((mission) =>
-			menuOn(mission, result.current.panel.wrap),
+		const menus = panelOf(result.current).open.map((mission) =>
+			menuOn(mission, panelOf(result.current).wrap),
 		)
 
 		expect(menus.map(({ type }) => type)).toEqual([MissionMenu, MissionMenu])
@@ -439,10 +451,10 @@ describe("useSidebarMissions", () => {
 
 	it("opens the mission of a row from its menu, landing on the composer", async () => {
 		const { result, open } = renderSidebarMissions()
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
-		const [waiting] = result.current.panel.open
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
+		const [waiting] = panelOf(result.current).open
 
-		act(() => menuOn(waiting, result.current.panel.wrap).props.onAnswer())
+		act(() => menuOn(waiting, panelOf(result.current).wrap).props.onAnswer())
 
 		expect(open).toHaveBeenCalledWith({
 			missionId: "m-waiting",
@@ -450,17 +462,17 @@ describe("useSidebarMissions", () => {
 			spaceId: "s-1",
 			landing: "composer",
 		})
-		expect(result.current.panel.openMissionId).toBe("m-waiting")
+		expect(panelOf(result.current).openMissionId).toBe("m-waiting")
 	})
 
 	it("reads the feed again once a row menu closes a mission", async () => {
 		closeMission.mockResolvedValue(WAITING.mission)
 		const { result } = renderSidebarMissions()
-		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		await waitFor(() => expect(panelOf(result.current).open).toHaveLength(2))
 		const reads = readSpaceFeed.mock.calls.length
 
-		const [waiting] = result.current.panel.open
-		menuOn(waiting, result.current.panel.wrap).props.onClose()
+		const [waiting] = panelOf(result.current).open
+		menuOn(waiting, panelOf(result.current).wrap).props.onClose()
 
 		await waitFor(() => expect(readSpaceFeed.mock.calls.length).toBe(reads + 1))
 		expect(closeMission).toHaveBeenCalledWith("m-waiting")
@@ -470,12 +482,12 @@ describe("useSidebarMissions", () => {
 		reopenMission.mockResolvedValue(DONE.mission)
 		const { result } = renderSidebarMissions()
 		await waitFor(() =>
-			expect(result.current.panel.earlierToday).toHaveLength(1),
+			expect(panelOf(result.current).earlierToday).toHaveLength(1),
 		)
 		const reads = readSpaceFeed.mock.calls.length
 
-		const [done] = result.current.panel.earlierToday
-		menuOn(done, result.current.panel.wrap).props.onReopen()
+		const [done] = panelOf(result.current).earlierToday
+		menuOn(done, panelOf(result.current).wrap).props.onReopen()
 
 		await waitFor(() => expect(readSpaceFeed.mock.calls.length).toBe(reads + 1))
 		expect(reopenMission).toHaveBeenCalledWith("m-done")
