@@ -19,6 +19,8 @@ export const ACTION_TOKENS = [
 
 export const FEEDBACK_TOKENS = ["--destructive"]
 
+export const WINDOW_TOKENS = ["--window-close"]
+
 export const TRANSCRIPT_TOKENS = ["--transcript-new-mark"]
 
 export const CONTROL_TOKENS = ["--border", "--input", "--ring"]

@@ -16,7 +16,7 @@ type WindowControlsProps = {
 const ROW = "ms-auto flex h-full justify-end"
 
 const CAPTION_BUTTON =
-	"h-full w-11.5 rounded-none [&_svg:not([class*='size-'])]:size-2.5"
+	"h-full w-11.5 rounded-none active:scale-100! [&_svg:not([class*='size-'])]:size-2.5"
 
 const CLOSE_BUTTON =
 	"hover:bg-window-close hover:text-white dark:hover:bg-window-close"

@@ -4,6 +4,7 @@ import preview from "@workspace/storybook/preview"
 import {
 	isInBrowserRunner,
 	realPointer,
+	settled,
 	slotIn,
 } from "@workspace/storybook/story-utils"
 import { WindowControls } from "@workspace/ui/components/window-controls"
@@ -24,6 +25,9 @@ const captionButtonsIn = (canvasElement: HTMLElement) => [
 	...slotIn(canvasElement, "window-controls").querySelectorAll("button"),
 ]
 
+const titleBarIn = (canvasElement: HTMLElement) =>
+	slotIn(canvasElement, "story-title-bar")
+
 const meta = preview.meta({
 	title: "Layout/WindowControls",
 	component: WindowControls,
@@ -35,7 +39,10 @@ const meta = preview.meta({
 	},
 	decorators: [
 		(Story) => (
-			<div className="flex h-8.5 items-center bg-background">
+			<div
+				className="flex h-8.5 items-center bg-background"
+				data-slot="story-title-bar"
+			>
 				<Story />
 			</div>
 		),
@@ -111,10 +118,11 @@ export const CloseHovered = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas }) => {
+	play: async ({ canvas, canvasElement }) => {
 		if (!isInBrowserRunner()) return
 		const close = canvas.getByRole("button", { name: "Close" })
-		await (await realPointer()).hover(close)
+		const pointer = await realPointer()
+		await pointer.hover(close)
 		await waitFor(() =>
 			expect(getComputedStyle(close).backgroundColor).toBe(CAPTION_CLOSE_RED),
 		)
@@ -123,6 +131,15 @@ export const CloseHovered = meta.story({
 		await expect(
 			contrastRatio(toRgb(color), toRgb(backgroundColor)),
 		).toBeGreaterThanOrEqual(GLYPH_CONTRAST_MIN)
+
+		close.focus()
+		await pointer.keyboard("{Space>}")
+		await expect(close.matches(":active")).toBe(true)
+		await settled(close)
+		await expect(close.getBoundingClientRect().top).toBe(
+			titleBarIn(canvasElement).getBoundingClientRect().top,
+		)
+		await pointer.keyboard("{/Space}")
 	},
 })
 

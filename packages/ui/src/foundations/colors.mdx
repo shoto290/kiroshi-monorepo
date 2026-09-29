@@ -8,6 +8,7 @@ import {
 	SIDEBAR_TOKENS,
 	SURFACE_TOKENS,
 	TRANSCRIPT_TOKENS,
+	WINDOW_TOKENS,
 } from "@workspace/ui/foundations/color-tokens"
 
 <Meta title="Foundations/Colors" />
@@ -31,6 +32,12 @@ Tokens are declared in `src/styles/globals.css`: light values on `:root`, dark o
 `--destructive` has no `-foreground` pair — components use it as a text colour or as an alpha background (`bg-destructive/10 text-destructive`), never as a solid surface with text on top.
 
 <ColorTokenGrid tokens={FEEDBACK_TOKENS} />
+
+## Window
+
+`--window-close` is the close caption surface under the pointer, identical in both themes, with a white glyph on top.
+
+<ColorTokenGrid tokens={WINDOW_TOKENS} />
 
 ## Transcript
 
