@@ -811,7 +811,7 @@ describe("WorkspaceBody mission menu", () => {
 	})
 
 	it.each(["Activity panel", "thread"] as const)(
-		"closes the mission at once from the $0 card into the closed group with the closed pill",
+		"closes the mission at once from the %s card into the closed group with the closed pill",
 		async (place) => {
 			const { mission } = await seed()
 			const closed: Mission = {
