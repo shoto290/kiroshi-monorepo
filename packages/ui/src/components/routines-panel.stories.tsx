@@ -81,7 +81,9 @@ const THREAD = (
 	</ThreadLayout>
 )
 
-const THEME_CLASSES = Object.values(THEME_CLASS_NAMES).filter(Boolean)
+const THEMES = Object.values(THEME_CLASS_NAMES)
+
+const THEME_CLASSES = THEMES.filter(Boolean)
 
 const cardPaintBeside = (panel: HTMLElement) =>
 	probedStyleOf("bg-card", "backgroundColor", panel.parentElement ?? panel)
@@ -98,16 +100,15 @@ const cardSurfaceIn = async (panel: HTMLElement, themeClass: string) => {
 const expectCardSurfaceInEveryTheme = async (panel: HTMLElement) => {
 	const root = document.documentElement
 	const themeAtStart = root.className
-	const themes = Object.values(THEME_CLASS_NAMES)
 	const painted = new Set<string>()
 	try {
-		for (const themeClass of themes) {
+		for (const themeClass of THEMES) {
 			painted.add(await cardSurfaceIn(panel, themeClass))
 		}
 	} finally {
 		root.className = themeAtStart
 	}
-	await expect(painted.size).toBe(themes.length)
+	await expect(painted.size).toBe(THEMES.length)
 }
 
 const expectChatDivider = async (panel: HTMLElement) => {
