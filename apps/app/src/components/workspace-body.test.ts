@@ -895,6 +895,6 @@ describe("WorkspaceBody mission menu", () => {
 		fireEvent.keyDown(open, { key: "Backspace", metaKey: true })
 		await settle()
 
-		expect(closeMission).toHaveBeenCalledWith("m-1", "done", "")
+		expect(closeMission).toHaveBeenCalledWith("m-1")
 	})
 })
