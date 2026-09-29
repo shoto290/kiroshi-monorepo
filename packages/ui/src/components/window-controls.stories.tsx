@@ -25,9 +25,6 @@ const captionButtonsIn = (canvasElement: HTMLElement) => [
 	...slotIn(canvasElement, "window-controls").querySelectorAll("button"),
 ]
 
-const titleBarIn = (canvasElement: HTMLElement) =>
-	slotIn(canvasElement, "story-title-bar")
-
 const meta = preview.meta({
 	title: "Layout/WindowControls",
 	component: WindowControls,
@@ -137,7 +134,7 @@ export const CloseHovered = meta.story({
 		await expect(close.matches(":active")).toBe(true)
 		await settled(close)
 		await expect(close.getBoundingClientRect().top).toBe(
-			titleBarIn(canvasElement).getBoundingClientRect().top,
+			slotIn(canvasElement, "story-title-bar").getBoundingClientRect().top,
 		)
 		await pointer.keyboard("{/Space}")
 	},
