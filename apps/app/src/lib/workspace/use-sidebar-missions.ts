@@ -39,6 +39,7 @@ type SidebarMissionsInput = {
 }
 
 export type SidebarMissions = {
+	loadedSpaceId: string | null
 	panel: MissionsPanelProps
 	showLastMission: () => void
 	waitingCount: number
@@ -105,14 +106,20 @@ export const useSidebarMissions = ({
 				mission.botId,
 				listedConversationIds,
 			)
-			openedMission.open({ missionId, rowId })
+			openedMission.open({ missionId, rowId, spaceId: spaceId ?? undefined })
 			if (rowId === conversationId) {
 				roster.controller.selectConversation(rowId)
 			} else {
 				roster.controller.select(rowId)
 			}
 		},
-		[missions, listedConversationIds, roster.controller, openedMission],
+		[
+			missions,
+			listedConversationIds,
+			roster.controller,
+			openedMission,
+			spaceId,
+		],
 	)
 
 	const showLastMission = useCallback(() => {
@@ -140,5 +147,10 @@ export const useSidebarMissions = ({
 		[feed, faces, liveMissionIds, now, openMission],
 	)
 
-	return { panel, showLastMission, waitingCount: feed.waitingCount }
+	return {
+		loadedSpaceId: feed.hasLoaded ? spaceId : null,
+		panel,
+		showLastMission,
+		waitingCount: feed.waitingCount,
+	}
 }

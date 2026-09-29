@@ -230,7 +230,11 @@ describe("useSidebarMissions", () => {
 		result.current.panel.onOpen("m-working", "c-2")
 
 		expect(selectConversation).toHaveBeenCalledWith("c-2")
-		expect(open).toHaveBeenCalledWith({ missionId: "m-working", rowId: "c-2" })
+		expect(open).toHaveBeenCalledWith({
+			missionId: "m-working",
+			rowId: "c-2",
+			spaceId: "s-1",
+		})
 		expect(open.mock.invocationCallOrder[0]).toBeLessThan(
 			selectConversation.mock.invocationCallOrder[0],
 		)
@@ -247,6 +251,7 @@ describe("useSidebarMissions", () => {
 		expect(open).toHaveBeenCalledWith({
 			missionId: "m-waiting",
 			rowId: BOT.id,
+			spaceId: "s-1",
 		})
 		expect(open.mock.invocationCallOrder[0]).toBeLessThan(
 			select.mock.invocationCallOrder[0],
@@ -262,7 +267,11 @@ describe("useSidebarMissions", () => {
 
 		result.current.showLastMission()
 
-		expect(open).toHaveBeenCalledWith({ missionId: "m-working", rowId: "c-2" })
+		expect(open).toHaveBeenCalledWith({
+			missionId: "m-working",
+			rowId: "c-2",
+			spaceId: "s-1",
+		})
 		expect(selectConversation).toHaveBeenCalledWith("c-2")
 	})
 
@@ -272,7 +281,11 @@ describe("useSidebarMissions", () => {
 
 		result.current.showLastMission()
 
-		expect(open).toHaveBeenCalledWith({ missionId: "m-waiting", rowId: BOT.id })
+		expect(open).toHaveBeenCalledWith({
+			missionId: "m-waiting",
+			rowId: BOT.id,
+			spaceId: "s-1",
+		})
 	})
 
 	it("reads the memory of the space shown after a space change", async () => {
@@ -290,6 +303,7 @@ describe("useSidebarMissions", () => {
 		expect(open).toHaveBeenCalledWith({
 			missionId: "m-elsewhere",
 			rowId: BOT.id,
+			spaceId: "s-2",
 		})
 	})
 

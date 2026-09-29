@@ -37,7 +37,6 @@ export function App() {
 	const loadSpaces = useSpaceLoading({ core, scopes })
 	useWorkspaceSubscriptions({ core, drivers, rosterView, scopes })
 	const rosterLines = useRosterLines({ core, drivers, rosterView })
-	const collapsedSectionIds = useSpaceSections({ core, rosterLines })
 	const sidebarMissions = useSidebarMissions({ core, rosterLines })
 	const rosterLists = useRosterLists({
 		core,
@@ -47,7 +46,17 @@ export function App() {
 		waitingMissionCount: sidebarMissions.waitingCount,
 	})
 	const overlay = useWorkspaceOverlay({ core, rosterLines, rosterView, scopes })
-	const sidebarTab = useSidebarPanelSwitch({ core, sidebarMissions })
+	const collapsedSectionIds = useSpaceSections({ core, rosterLines })
+	const sidebarTab = useSidebarPanelSwitch({
+		core,
+		sidebarMissions,
+		sidebarRosters: {
+			botsBySpaceId: rosterLists.rosterBotsBySpace,
+			conversationsBySpaceId: rosterLists.rosterConversationsBySpace,
+			sectionsBySpaceId: core.sections.state.sections,
+			collapsedSectionIds,
+		},
+	})
 	const companionMenu = useCompanionMenuLookup({
 		actions: rosterLines.sidebarActions,
 		conversationRosters: core.roster.state.conversationRosters,

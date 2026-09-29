@@ -656,7 +656,7 @@ describe("startNotificationSource on a mission thread", () => {
 		await Promise.resolve()
 
 		expect(harness.missions.opened).toEqual([
-			{ missionId: "mission-1", rowId: "bot-one" },
+			{ missionId: "mission-1", rowId: "bot-one", spaceId: "space-one" },
 		])
 	})
 })

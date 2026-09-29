@@ -188,7 +188,9 @@ it("enters the space of the mission's companion and opens that mission thread", 
 
 	expect(spaces.getState().selectedSpaceId).toBe(elsewhere.id)
 	expect(roster.getState().selectedBotId).toBe(away.id)
-	expect(missions.opened).toEqual([{ missionId: mission.id, rowId: away.id }])
+	expect(missions.opened).toEqual([
+		{ missionId: mission.id, rowId: away.id, spaceId: elsewhere.id },
+	])
 })
 
 it("opens a mission of the space already on screen without changing space", async () => {

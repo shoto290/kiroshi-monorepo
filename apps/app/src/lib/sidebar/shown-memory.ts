@@ -46,7 +46,7 @@ export const createShownMemory = ({
 
 	const rememberMission = () => {
 		const opened = openedMission.getState()
-		const { spaceId } = roster.getState()
+		const spaceId = opened?.spaceId ?? roster.getState().spaceId
 		if (opened && spaceId) {
 			lastMissions.set(spaceId, opened.missionId)
 		}

@@ -1,73 +1,126 @@
-import { useCallback } from "react"
+import { useCallback, useEffect, useRef } from "react"
 
-import type { RosterController, RosterState } from "../bots/roster-controller"
+import type {
+	AppSidebarBot,
+	AppSidebarConversation,
+	AppSidebarSection,
+} from "@workspace/ui/components/app-sidebar"
+
+import type { RosterController } from "../bots/roster-controller"
 import type { OpenedMissionController } from "../missions/opened-mission-controller"
 import type { ShownMemory } from "../sidebar/shown-memory"
+import { type DisplayedRoster, topRowIdOf } from "../sidebar/top-row"
 import { type SidebarPanel, useSidebarTab } from "../user/use-sidebar-tab"
 import type { User } from "../user/use-user"
 
 type PanelRoster = Pick<RosterController, "select" | "selectConversation"> & {
-	getState: () => Pick<RosterState, "spaceId" | "bots" | "conversations">
+	getState: () => { spaceId: string | null }
 }
 
 type PanelMemory = Pick<ShownMemory, "lastRowIn">
 
 type SidebarPanelSwitchCore = {
-	openedMission: Pick<OpenedMissionController, "leave">
+	openedMission: Pick<OpenedMissionController, "getState" | "leave">
 	roster: { controller: PanelRoster }
 	shownMemory: PanelMemory
 	user: User
 }
 
+export type SidebarRosters = {
+	botsBySpaceId: Record<string, AppSidebarBot[]>
+	conversationsBySpaceId: Record<string, AppSidebarConversation[]>
+	sectionsBySpaceId: Record<string, AppSidebarSection[]>
+	collapsedSectionIds: string[]
+}
+
 type SidebarPanelSwitchInput = {
 	core: SidebarPanelSwitchCore
-	sidebarMissions: { showLastMission: () => void }
+	sidebarRosters: SidebarRosters
+	sidebarMissions: {
+		loadedSpaceId: string | null
+		showLastMission: () => void
+	}
 }
+
+const displayedIn = (
+	sidebarRosters: SidebarRosters,
+	spaceId: string,
+): DisplayedRoster => ({
+	bots: sidebarRosters.botsBySpaceId[spaceId] ?? [],
+	conversations: sidebarRosters.conversationsBySpaceId[spaceId] ?? [],
+	sections: sidebarRosters.sectionsBySpaceId[spaceId] ?? [],
+	collapsedSectionIds: sidebarRosters.collapsedSectionIds,
+})
+
+const isDisplayed = (displayedRoster: DisplayedRoster, rowId: string | null) =>
+	[...displayedRoster.bots, ...displayedRoster.conversations].some(
+		({ id }) => id === rowId,
+	)
 
 const showLastConversation = (
 	roster: PanelRoster,
 	shownMemory: PanelMemory,
+	sidebarRosters: SidebarRosters,
 ) => {
-	const { spaceId, bots, conversations } = roster.getState()
-	const lastRowId = spaceId === null ? null : shownMemory.lastRowIn(spaceId)
-	const bot = bots.find(({ id }) => id === lastRowId)
-	const conversation = conversations.find(({ id }) => id === lastRowId)
-
-	if (bot) {
-		roster.select(bot.id)
-	} else if (conversation) {
-		roster.selectConversation(conversation.id)
-	} else if (bots[0]) {
-		roster.select(bots[0].id)
-	} else if (conversations[0]) {
-		roster.selectConversation(conversations[0].id)
+	const { spaceId } = roster.getState()
+	if (spaceId === null) {
+		return
+	}
+	const displayedRoster = displayedIn(sidebarRosters, spaceId)
+	const lastRowId = shownMemory.lastRowIn(spaceId)
+	const rowId = isDisplayed(displayedRoster, lastRowId)
+		? lastRowId
+		: topRowIdOf(displayedRoster)
+	if (rowId === null) {
+		return
+	}
+	if (displayedRoster.bots.some(({ id }) => id === rowId)) {
+		roster.select(rowId)
+	} else {
+		roster.selectConversation(rowId)
 	}
 }
 
 export const useSidebarPanelSwitch = ({
 	core,
+	sidebarRosters,
 	sidebarMissions,
 }: SidebarPanelSwitchInput) => {
 	const { openedMission, roster, shownMemory, user } = core
 	const { openTab, openSidebarTab } = useSidebarTab(user)
-	const { showLastMission } = sidebarMissions
+	const { loadedSpaceId, showLastMission } = sidebarMissions
+	const missionsShownForSpaceId = useRef<string | null>(null)
+
+	useEffect(() => {
+		if (
+			openTab !== "missions" ||
+			loadedSpaceId === null ||
+			missionsShownForSpaceId.current === loadedSpaceId
+		) {
+			return
+		}
+		missionsShownForSpaceId.current = loadedSpaceId
+		if (!openedMission.getState()) {
+			showLastMission()
+		}
+	}, [openTab, loadedSpaceId, openedMission, showLastMission])
 
 	const switchPanel = useCallback(
 		(panel: SidebarPanel) => {
 			openSidebarTab(panel)
 			if (panel === "missions") {
-				showLastMission()
 				return
 			}
+			missionsShownForSpaceId.current = null
 			openedMission.leave()
-			showLastConversation(roster.controller, shownMemory)
+			showLastConversation(roster.controller, shownMemory, sidebarRosters)
 		},
 		[
 			openSidebarTab,
-			showLastMission,
 			openedMission,
 			roster.controller,
 			shownMemory,
+			sidebarRosters,
 		],
 	)
 

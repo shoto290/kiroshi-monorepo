@@ -33,7 +33,11 @@ export type SearchNavigation = {
 	selectBot: (botId: string) => void
 	selectConversation: (conversationId: string) => void
 	selectSpace: (spaceId: string) => void
-	openMission: (opened: { missionId: string; rowId: string }) => void
+	openMission: (opened: {
+		missionId: string
+		rowId: string
+		spaceId: string
+	}) => void
 	leaveMission: () => void
 	openRoutine: (opened: { routineId: string; conversationId: string }) => void
 	openActivityPanel: () => void
@@ -58,6 +62,7 @@ export const openSearchTarget = (
 		navigation.openMission({
 			missionId: target.missionId,
 			rowId: target.botId,
+			spaceId: target.spaceId,
 		})
 		return
 	}
