@@ -157,14 +157,14 @@ const resolveStyle = (
 
 export const ClassNameOverridesProjectTokens = meta.story({
 	tags: ["test-only"],
-	args: { className: "rounded-card text-compact" },
+	args: { className: "rounded-control text-compact" },
 	play: async ({ canvas, canvasElement }) => {
 		const button = canvas.getByRole("button", { name: "Button" })
 		const style = getComputedStyle(button)
-		const cardRadius = resolveStyle(
+		const controlRadius = resolveStyle(
 			canvasElement,
 			"borderTopLeftRadius",
-			"var(--radius-card)",
+			"var(--radius-control)",
 		)
 		const compactSize = resolveStyle(
 			canvasElement,
@@ -172,13 +172,13 @@ export const ClassNameOverridesProjectTokens = meta.story({
 			"var(--text-compact)",
 		)
 
-		await expect(cardRadius).not.toBe(
+		await expect(controlRadius).not.toBe(
 			resolveStyle(canvasElement, "borderTopLeftRadius", "var(--radius-2xl)"),
 		)
 		await expect(compactSize).not.toBe(
 			resolveStyle(canvasElement, "fontSize", "var(--text-sm)"),
 		)
-		await expect(style.borderTopLeftRadius).toBe(cardRadius)
+		await expect(style.borderTopLeftRadius).toBe(controlRadius)
 		await expect(style.fontSize).toBe(compactSize)
 		await expect(button).not.toHaveClass("rounded-2xl")
 		await expect(button).not.toHaveClass("text-sm")

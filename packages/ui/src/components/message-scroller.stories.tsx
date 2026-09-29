@@ -31,7 +31,7 @@ const LONG_THREAD = [
 ]
 
 const BUBBLE =
-	"rounded-xl border border-border bg-card px-4 py-3 text-card-foreground text-sm"
+	"rounded-xl border border-border bg-card px-4 py-3 text-foreground text-sm"
 
 const FRAME = "h-72 w-[32rem]"
 
