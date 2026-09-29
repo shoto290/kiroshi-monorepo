@@ -194,6 +194,11 @@
 	body {
 		@apply bg-background text-foreground;
 	}
+	html:has(> body > #root),
+	html:has(> body > #root) > body {
+		overflow: hidden;
+		overscroll-behavior: none;
+	}
 	html {
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
