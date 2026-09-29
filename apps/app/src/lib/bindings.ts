@@ -58,6 +58,7 @@ export const commands = {
 	conversationCreateBotFromDraft: (draft: BotDraft, spaceId: string) => typedError<Bot, TranscriptStoreError>(__TAURI_INVOKE("conversation_create_bot_from_draft", { draft, spaceId })),
 	conversationSuggestedBots: () => __TAURI_INVOKE<SuggestedBot[]>("conversation_suggested_bots"),
 	companionLaunchOutcome: () => __TAURI_INVOKE<LaunchOutcome>("companion_launch_outcome"),
+	windowDeclareMaximizeButton: (bounds: MaximizeButtonBounds) => typedError<null, WindowFrameError>(__TAURI_INVOKE("window_declare_maximize_button", { bounds })),
 	conversationDuplicateBot: (botId: string, spaceId: string | null) => typedError<Bot, TranscriptStoreError>(__TAURI_INVOKE("conversation_duplicate_bot", { botId, spaceId })),
 	conversationUpdateBot: (id: string, identity: BotIdentity) => typedError<Bot, TranscriptStoreError>(__TAURI_INVOKE("conversation_update_bot", { id, identity })),
 	conversationDeleteBot: (id: string) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_delete_bot", { id })),
@@ -646,6 +647,13 @@ export type LiveSession = {
 	startedAt: number,
 };
 
+export type MaximizeButtonBounds = {
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+};
+
 export type McpServer = McpServer_Serialize | McpServer_Deserialize;
 
 export type McpServer_Deserialize = {
@@ -1196,6 +1204,8 @@ export type UserPreferences = {
 };
 
 export type UserPreferencesError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "rejectedProfilePicture"; reason: AvatarRejection };
+
+export type WindowFrameError = { kind: "unsupported" } | { kind: "invalidBounds" } | { kind: "unavailable" } | { kind: "overlayFailed" };
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {

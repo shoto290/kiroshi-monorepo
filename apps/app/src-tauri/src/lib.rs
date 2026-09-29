@@ -61,6 +61,8 @@ pub fn run() {
 			app.manage(db::bootstrap(app.handle()));
 			if let Some(window) = app.get_webview_window("main") {
 				window_controls::center_in_header(&window);
+				#[cfg(windows)]
+				window_controls::frame(&window);
 			}
 			app.manage(routines::sentinel::spawn(app.handle().clone()));
 			app.manage(routines::webhook::start(app.handle().clone()));
