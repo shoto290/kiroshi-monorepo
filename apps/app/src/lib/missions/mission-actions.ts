@@ -8,7 +8,7 @@ import {
 } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
-import type { Mission, MissionOutcome } from "./mission-contract"
+import type { Mission } from "./mission-contract"
 
 export type MissionLanding = "composer"
 
@@ -19,11 +19,7 @@ export type MissionActionsPort = {
 	openInBrowser: (url: string | null) => Promise<void>
 	writeClipboard: (text: string) => Promise<void>
 	stopThread: (conversationId: string) => Promise<void>
-	close: (
-		missionId: string,
-		outcome: MissionOutcome,
-		summary: string,
-	) => Promise<unknown>
+	close: (missionId: string) => Promise<unknown>
 	reopen: (missionId: string) => Promise<unknown>
 	onChanged: () => void
 }
@@ -87,7 +83,7 @@ export const missionActionsOf = (
 		attempt("stopAgent", () => port.stopThread(mission.threadConversationId)),
 	onClose: () =>
 		attempt("close", async () => {
-			await port.close(mission.id, "done", "")
+			await port.close(mission.id)
 			port.onChanged()
 		}),
 	onReopen: () =>

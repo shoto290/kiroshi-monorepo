@@ -40,6 +40,7 @@ const BADGE_BY_STATE: Record<MissionState, BotBadge | null> = {
 	ready_to_merge: "done",
 	failed: "failed",
 	done: null,
+	closed: null,
 }
 
 export const badgeOfMissionState = (state: MissionState): BotBadge | null =>
@@ -112,6 +113,7 @@ const SPACE_GROUP_BY_STATE: Record<MissionState, SpaceMissionGroup> = {
 	ready_to_merge: "inProgress",
 	done: "earlierToday",
 	failed: "earlierToday",
+	closed: "earlierToday",
 }
 
 export type SpaceMissionGroups = Record<SpaceMissionGroup, MissionInSpace[]>

@@ -820,7 +820,7 @@ describe("WorkspaceBody mission menu", () => {
 
 		await choose(panelCardIn("Waiting on you"), CLOSE_ENTRY)
 
-		expect(closeMission).toHaveBeenCalledWith("m-1", "done", "")
+		expect(closeMission).toHaveBeenCalledWith("m-1")
 		expect(panelGroup("Waiting on you")).toBeNull()
 		expect(panelCardIn("Earlier today")).toBeTruthy()
 		expect(within(transcriptCard()).getByText("Completed")).toBeTruthy()
