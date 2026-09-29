@@ -661,13 +661,14 @@ layout-workspaceshell--skips-to-the-conversation
 layout-workspaceshell--space-tinted
 layout-workspaceshell--tall-content
 layout-workspaceshell--tall-host
-navigation-apprail--applications-selected
-navigation-apprail--companions-selected
 navigation-apprail--conversations-selected
 navigation-apprail--dark
+navigation-apprail--first-tab-level-with-panel-title
 navigation-apprail--keyboard-reach
 navigation-apprail--missions-selected
 navigation-apprail--on-tinted-space
+navigation-apprail--removed-panel-falls-back-to-conversations
+navigation-apprail--space-settings-gear-hovered
 navigation-apprail--with-count
 navigation-apprail--with-dot
 navigation-appsidebar--badges

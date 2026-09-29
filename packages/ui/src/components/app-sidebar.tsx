@@ -1837,7 +1837,7 @@ interface AppSidebarProps
 	insetWindowControls?: boolean
 	railCounts?: AppRailCounts
 	railDots?: AppRailDots
-	openPanel?: AppRailPanel
+	openPanel?: string
 	onOpenPanelChange?: (panel: AppRailPanel) => void
 	"data-tauri-drag-region"?: string
 }
@@ -1895,7 +1895,8 @@ const AppSidebarBase = ({
 	const { t } = useTranslation("bots")
 	const createLabel = t("roster.create")
 	const [ownPanel, setOwnPanel] = useState<AppRailPanel>("conversations")
-	const openPanel = controlledPanel ?? ownPanel
+	const openPanel: AppRailPanel =
+		(controlledPanel ?? ownPanel) === "missions" ? "missions" : "conversations"
 	const setOpenPanel = (next: AppRailPanel) => {
 		setOwnPanel(next)
 		onOpenPanelChange?.(next)
@@ -2088,10 +2089,8 @@ const AppSidebarBase = ({
 				counts={railCounts}
 				data-tauri-drag-region={dragRegion}
 				dots={railDots}
-				onOpenSettings={onOpenUserSettings}
+				onOpenSpaceSettings={onOpenSpaceSettings}
 				onOpenYou={onOpenUserSettings}
-				onSelectApplications={() => setOpenPanel("applications")}
-				onSelectCompanions={() => setOpenPanel("companions")}
 				onSelectConversations={() => setOpenPanel("conversations")}
 				onSelectMissions={() => setOpenPanel("missions")}
 				selected={openPanel}

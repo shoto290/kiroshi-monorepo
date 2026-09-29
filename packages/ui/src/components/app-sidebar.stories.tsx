@@ -381,7 +381,7 @@ const panelInView = (canvasElement: HTMLElement) => {
 
 const SEARCH = "Search"
 
-const RAIL_STOPS = 6
+const RAIL_STOPS = 4
 
 type Tabbing = { tab: () => Promise<void> }
 
@@ -685,7 +685,7 @@ export const WithUser = meta.story({
 		docs: {
 			description: {
 				story:
-					"The reader themselves, at the foot of the rail under the settings gear, which is the only way into their own settings, so a host that has an account to show always hands one down. Check that the reader is a 26px round picture centred in a 36px slot, named by their name, that it is the last stop of the rail, and that activating it or the gear fires the open event once each. Check then the lane the roster draws: its rows sit 8px in from both inner edges of the panel, the panel's own inline padding and nothing more. Pick `WithSearch` for the search button in the header.",
+					"The reader themselves, at the foot of the rail under the space settings gear. The reader is the only way into their own settings, so a host that has an account to show always hands one down. Check that the reader is a 26px round picture centred in a 36px slot, named by their name, that it is the last stop of the rail, that activating it opens the user settings and that the gear opens the space settings. Check then the lane the roster draws: its rows sit 8px in from both inner edges of the panel, the panel's own inline padding and nothing more. Pick `WithSearch` for the search button in the header.",
 			},
 		},
 	},
@@ -710,9 +710,10 @@ export const WithUser = meta.story({
 		await userEvent.click(reader)
 		await expect(args.onOpenUserSettings).toHaveBeenCalledTimes(1)
 		await userEvent.click(
-			within(rail).getByRole("button", { name: "Settings" }),
+			within(rail).getByRole("button", { name: "Space settings" }),
 		)
-		await expect(args.onOpenUserSettings).toHaveBeenCalledTimes(2)
+		await expect(args.onOpenSpaceSettings).toHaveBeenCalledTimes(1)
+		await expect(args.onOpenUserSettings).toHaveBeenCalledTimes(1)
 	},
 })
 
@@ -2415,22 +2416,21 @@ export const EmptyPanels = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three rail entries with nothing handed down for them. Check each opens a panel titled and named after it, with no roster, no search and no create button, that the rail marks it current, that Missions draws its empty state, and that coming back to Conversations brings the roster back.",
+					"The rail entry whose panel has no content yet. Check it opens a panel titled and named after it, with no roster, no search and no create button, that the rail marks it current, that it draws its empty state, and that coming back to Conversations brings the roster back.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		const rail = slotIn(canvasElement, "app-rail")
-		for (const name of ["Missions", "Companions", "Applications"]) {
-			const entry = within(rail).getByRole("button", { name })
-			await userEvent.click(entry)
-			await expect(entry).toHaveAttribute("aria-current", "true")
-			const panel = canvas.getByRole("complementary", { name })
-			await expect(within(panel).getByRole("heading", { name })).toBeVisible()
-			await expect(rowsIn(canvasElement)).toHaveLength(0)
-			await expect(querySearchButtonIn(canvasElement)).toBeNull()
-			await expect(canvas.queryByRole("button", { name: CREATE })).toBeNull()
-		}
+		const name = "Missions"
+		const entry = within(rail).getByRole("button", { name })
+		await userEvent.click(entry)
+		await expect(entry).toHaveAttribute("aria-current", "true")
+		const panel = canvas.getByRole("complementary", { name })
+		await expect(within(panel).getByRole("heading", { name })).toBeVisible()
+		await expect(rowsIn(canvasElement)).toHaveLength(0)
+		await expect(querySearchButtonIn(canvasElement)).toBeNull()
+		await expect(canvas.queryByRole("button", { name: CREATE })).toBeNull()
 		await userEvent.click(
 			within(rail).getByRole("button", { name: "Missions" }),
 		)

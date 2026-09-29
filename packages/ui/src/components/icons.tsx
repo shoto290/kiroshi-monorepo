@@ -29,8 +29,6 @@ import {
 	FolderIcon,
 	FolderOpenIcon,
 	Globe2Icon,
-	Grid2x2PlusIcon,
-	HexagonIcon,
 	HistoryIcon,
 	HouseIcon,
 	ImageIcon,
@@ -241,8 +239,6 @@ const Icons = {
 	Web: Globe2Icon,
 	Write: PencilLineIcon,
 	X,
-	Applications: Grid2x2PlusIcon,
-	Companions: HexagonIcon,
 	Conversations: MessageCircleIcon,
 	Missions: FlagIcon,
 }

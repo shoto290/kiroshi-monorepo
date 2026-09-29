@@ -13,7 +13,7 @@ import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import type { UserChipIdentity } from "@workspace/ui/components/user-chip"
 import { cn } from "@workspace/ui/lib/utils"
 
-type AppRailPanel = "conversations" | "missions" | "companions" | "applications"
+type AppRailPanel = "conversations" | "missions"
 
 type AppRailEntry = AppRailPanel | "settings" | "you"
 
@@ -21,7 +21,10 @@ type AppRailCounts = Partial<Record<AppRailEntry, number>>
 
 type AppRailDots = Partial<Record<AppRailEntry, boolean>>
 
-const RAIL = "flex w-13 shrink-0 flex-col justify-between gap-1 px-2 pt-2 pb-1"
+const RAIL =
+	"flex w-13 shrink-0 flex-col justify-between gap-1 px-2 pt-1.75 pb-1"
+
+const RAIL_PANELS = "flex flex-col gap-1.75"
 
 const RAIL_GROUP = "flex flex-col gap-1"
 
@@ -131,9 +134,7 @@ type AppRailProps = Omit<ComponentProps<"nav">, "children"> & {
 	user?: UserChipIdentity
 	onSelectConversations?: () => void
 	onSelectMissions?: () => void
-	onSelectCompanions?: () => void
-	onSelectApplications?: () => void
-	onOpenSettings?: () => void
+	onOpenSpaceSettings?: () => void
 	onOpenYou?: () => void
 }
 
@@ -144,9 +145,7 @@ const AppRail = ({
 	user,
 	onSelectConversations,
 	onSelectMissions,
-	onSelectCompanions,
-	onSelectApplications,
-	onOpenSettings,
+	onOpenSpaceSettings,
 	onOpenYou,
 	className,
 	...props
@@ -169,7 +168,7 @@ const AppRail = ({
 			className={cn(RAIL, className)}
 			data-slot="app-rail"
 		>
-			<ul className={RAIL_GROUP}>
+			<ul className={RAIL_PANELS}>
 				<RailItem
 					{...panelEntry("conversations")}
 					onPress={onSelectConversations}
@@ -179,21 +178,12 @@ const AppRail = ({
 				<RailItem {...panelEntry("missions")} onPress={onSelectMissions}>
 					<Icons.Missions aria-hidden="true" />
 				</RailItem>
-				<RailItem {...panelEntry("companions")} onPress={onSelectCompanions}>
-					<Icons.Companions aria-hidden="true" />
-				</RailItem>
-				<RailItem
-					{...panelEntry("applications")}
-					onPress={onSelectApplications}
-				>
-					<Icons.Applications aria-hidden="true" />
-				</RailItem>
 			</ul>
 			<ul className={RAIL_GROUP}>
 				<RailItem
 					{...badgeOf("settings")}
-					name={t("rail.settings")}
-					onPress={onOpenSettings}
+					name={t("rail.spaceSettings")}
+					onPress={onOpenSpaceSettings}
 				>
 					<Icons.Settings aria-hidden="true" />
 				</RailItem>
