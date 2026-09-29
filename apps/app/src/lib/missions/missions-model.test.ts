@@ -16,6 +16,7 @@ import { aMission } from "./mission-fixtures"
 import {
 	type ActivityMissionsRead,
 	AGENT_SILENCE_MS,
+	badgeOfMissionState,
 	liveMissionsIn,
 	type MissionLivenessRead,
 	missionRingBadges,
@@ -324,6 +325,16 @@ describe("toActivityMissions", () => {
 		expect(earlierToday[0]).toMatchObject({ now: READ_AT })
 	})
 
+	it("shows a mission the person closed in the closed group with the closed pill", () => {
+		const { open, earlierToday } = rowsOf({
+			closed: [{ ...missionIn("closed"), closedAt: READ_AT - 7_200_000 }],
+		})
+
+		expect(open).toEqual([])
+		expect(earlierToday).toHaveLength(1)
+		expect(earlierToday[0]).toMatchObject({ state: "closed", isClosed: true })
+	})
+
 	it("reads a mission no companion is live on as resting whatever its state", () => {
 		const { open } = rowsOf({ open: [missionIn("working")] })
 
@@ -493,6 +504,18 @@ it("keeps an event silent when its payload holds no spoken key", () => {
 		undefined,
 		undefined,
 		undefined,
+	])
+})
+
+it("keeps the close of the person as dismissed beside the close of the companion", () => {
+	const models = toMissionEventModels([
+		{ ...EVENT, id: "e-1", kind: "dismissed", source: "person" },
+		{ ...EVENT, id: "e-2", kind: "closed", source: "bot" },
+	])
+
+	expect(models.map(({ kind, source }) => ({ kind, source }))).toEqual([
+		{ kind: "dismissed", source: "person" },
+		{ kind: "closed", source: "bot" },
 	])
 })
 
@@ -830,6 +853,16 @@ describe("missionsByRow", () => {
 		).toEqual({})
 	})
 
+	it("gives a mission the person closed no chip and no badge", () => {
+		const rows = missionsByRow(
+			[onBoard({ id: "m-closed", state: "closed", closedAt: 9 })],
+			NO_LISTED_CONVERSATIONS,
+		)
+
+		expect(rows).toEqual({})
+		expect(badgeOfMissionState("closed")).toBeNull()
+	})
+
 	it("breaks a tie on the mission id so two reads of one board agree", () => {
 		const board = [
 			onBoard({
@@ -1038,6 +1071,7 @@ describe("toSpaceMissionGroups", () => {
 		"ready_to_merge",
 		"done",
 		"failed",
+		"closed",
 	]
 	const CONVERSATIONS = ["c-crashes", "c-billing"]
 
@@ -1046,7 +1080,7 @@ describe("toSpaceMissionGroups", () => {
 		conversationId: string,
 		movedAt: number,
 	): MissionInSpace => {
-		const isClosed = state === "done" || state === "failed"
+		const isClosed = ["done", "failed", "closed"].includes(state)
 		return {
 			mission: aMission({
 				id: `${conversationId}-${state}`,
@@ -1092,8 +1126,10 @@ describe("toSpaceMissionGroups", () => {
 		expect(idsOf(groups.earlierToday)).toEqual([
 			"c-billing-done",
 			"c-billing-failed",
+			"c-billing-closed",
 			"c-crashes-done",
 			"c-crashes-failed",
+			"c-crashes-closed",
 		])
 	})
 })
