@@ -7,7 +7,7 @@ import { toRailSignals, toSpaceBadges, withBadges } from "./sidebar-badges"
 import type { Bot } from "../bindings"
 import type { MissionState } from "../missions/mission-contract"
 import { aMission } from "../missions/mission-fixtures"
-import { missionsByRow } from "../missions/missions-model"
+import { type MissionsByRow, missionsByRow } from "../missions/missions-model"
 
 type ShownBadge = AppSidebarBot["badge"]
 
@@ -110,7 +110,7 @@ describe("toRailSignals", () => {
 
 	type RailSeed = {
 		conversations?: Record<string, ReturnType<typeof badged>>
-		missions?: Record<string, ReturnType<typeof missionsOf>>
+		missions?: Record<string, MissionsByRow>
 		spaceId?: string | null
 	}
 
