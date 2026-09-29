@@ -13,6 +13,7 @@ import {
 	FALLBACK_MODELS,
 	modelOptionsFor,
 	newBotIdentity,
+	PLACEHOLDER_ANIMAL,
 	toIdentity,
 	toRosterBots,
 	toSettingsValue,
@@ -44,12 +45,11 @@ describe("toSettingsValue", () => {
 					title: "Reviewer",
 					instructions: "Answer briefly.",
 					model: "haiku",
-					avatarAnimal: "owl",
 					avatarBlot: "green",
 				}),
 			),
 		).toEqual({
-			identity: { animal: "owl", blot: "green", image: undefined },
+			identity: { animal: PLACEHOLDER_ANIMAL, blot: "green", image: undefined },
 			name: "Nyx",
 			title: "Reviewer",
 			instructions: "Answer briefly.",
@@ -99,7 +99,7 @@ describe("changesRuntime", () => {
 		expect(
 			changesRuntime(stored, {
 				...value,
-				identity: { animal: "owl", blot: "blue" },
+				identity: { animal: PLACEHOLDER_ANIMAL, blot: "blue" },
 			}),
 		).toBe(false)
 	})
@@ -119,11 +119,11 @@ describe("toIdentity", () => {
 
 		expect(
 			toIdentity(
-				{ ...value, identity: { animal: "bear", blot: "yellow" } },
+				{ ...value, identity: { animal: PLACEHOLDER_ANIMAL, blot: "yellow" } },
 				stored,
 			),
 		).toMatchObject({
-			avatarAnimal: "bear",
+			avatarAnimal: PLACEHOLDER_ANIMAL,
 			avatarBlot: "yellow",
 			avatarImagePath: null,
 		})
@@ -133,7 +133,8 @@ describe("toIdentity", () => {
 		const value = toSettingsValue(stored)
 
 		expect(
-			toIdentity({ ...value, identity: { animal: "owl" } }, stored).avatarBlot,
+			toIdentity({ ...value, identity: { animal: PLACEHOLDER_ANIMAL } }, stored)
+				.avatarBlot,
 		).toBeNull()
 	})
 
@@ -253,16 +254,14 @@ describe("newBotIdentity", () => {
 	const rosterCarrying = (names: readonly string[]): Bot[] =>
 		names.map((name, index) => bot({ id: `b-${index}`, name }))
 
-	it("names a companion before it is named and gives it a face nobody wears", () => {
-		const created = newBotIdentity([
-			bot({ avatarAnimal: "cat", avatarBlot: "red" }),
-		])
+	it("names a companion before it is named and gives it the placeholder animal", () => {
+		const created = newBotIdentity([bot({ avatarBlot: "red" })])
 
 		expect(BOT_NAMES).toContain(created.name)
 		expect(created).toMatchObject({
 			title: "",
 			instructions: "",
-			avatarAnimal: "rabbit",
+			avatarAnimal: PLACEHOLDER_ANIMAL,
 			avatarImagePath: null,
 		})
 	})
@@ -345,7 +344,6 @@ describe("toRosterBots", () => {
 			id: "b-1",
 			name: "Atlas",
 			title: "Research",
-			animal: "owl",
 			blot: "green",
 			sectionId: "n-1",
 			pinPosition: 2,
@@ -488,7 +486,7 @@ describe("toRosterBots", () => {
 		expect(ordered.map((bot) => bot.id)).toEqual(["b-1", "b-2"])
 	})
 
-	it("passes an uploaded picture through and leaves a companion without one to its animal", () => {
+	it("passes an uploaded picture through and leaves a companion without one bare", () => {
 		const [worn, drawn] = toRosterBots(
 			[
 				bot({ id: "b-1", avatarImagePath: "/pictures/owl.png" }),

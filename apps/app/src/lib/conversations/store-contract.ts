@@ -1,6 +1,5 @@
 export type {
 	ApplicationMark_Serialize as McpServerMark,
-	AvatarAnimal,
 	AvatarBlot,
 	Bot,
 	BotChangedFile,

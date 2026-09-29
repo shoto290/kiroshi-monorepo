@@ -31,6 +31,7 @@ import {
 	withMissions,
 } from "./missions-model"
 
+import { PLACEHOLDER_ANIMAL } from "@/lib/bots/bot-settings"
 import type { ThreadFace } from "@/lib/chat/thread-contract"
 import type { Bot } from "@/lib/conversations/store-contract"
 import type { ReportedRunRead } from "@/lib/routines/routines-model"
@@ -698,7 +699,7 @@ const bot = (id: string): Bot => ({
 	name: "Atlas",
 	title: "",
 	model: "sonnet",
-	avatarAnimal: "owl",
+	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: "blue",
 	avatarImagePath: null,
 	instructions: "",

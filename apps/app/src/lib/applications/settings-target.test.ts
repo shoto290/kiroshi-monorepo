@@ -24,6 +24,7 @@ import "@workspace/ui/lib/i18n"
 import { applicationToOpenIn, type SettingsTarget } from "./settings-target"
 
 import { APPLICATIONS_TAB } from "@/lib/applications/connection-settings"
+import { PLACEHOLDER_ANIMAL } from "@/lib/bots/bot-settings"
 
 const SPACE_ID = "space-of-the-release"
 const COMPANION_ID = "companion-of-the-nest"
@@ -36,7 +37,7 @@ const SPACE_SCOPE = { kind: "space", id: SPACE_ID } as const
 const COMPANION_SCOPE = { kind: "companion", id: COMPANION_ID } as const
 
 const COMPANION = {
-	identity: { animal: "owl" as const },
+	identity: { animal: PLACEHOLDER_ANIMAL },
 	name: COMPANION_NAME,
 	title: "Repository archivist",
 	instructions: "",

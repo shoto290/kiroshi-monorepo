@@ -16,10 +16,7 @@ import type { ConversationPreviews, LastWord } from "./transcript-state"
 import { avatarSrc } from "../host"
 import { rosterTimestamp } from "../bots/roster-timestamp"
 
-type BotFace = Pick<
-	Bot,
-	"name" | "avatarAnimal" | "avatarBlot" | "avatarImagePath"
->
+type BotFace = Pick<Bot, "name" | "avatarBlot" | "avatarImagePath">
 
 export type ConversationWorker = {
 	botId: string
