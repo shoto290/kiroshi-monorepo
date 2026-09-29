@@ -38,7 +38,7 @@ const QUESTION_TAB_CLASS =
 	"h-fit max-w-full shrink-0 px-2.5 py-1 motion-reduce:transition-none motion-reduce:duration-0"
 
 const QUESTION_FORM_CLASS =
-	"grid w-full grid-cols-[minmax(0,1fr)] gap-3 rounded-2xl text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+	"grid w-full grid-cols-[minmax(0,1fr)] gap-3 rounded-2xl text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-card"
 
 const QUESTION_GROUP_CLASS = "flex flex-col gap-1.5"
 
@@ -453,7 +453,7 @@ const FailureBlock = ({ failure, titleId }: FailureBlockProps) => (
 			</p>
 		</div>
 		{failure.detail ? (
-			<p className="self-start wrap-break-word rounded-md bg-background px-2 py-1 text-start font-mono text-muted-foreground text-xs leading-4.5">
+			<p className="self-start wrap-break-word rounded-md bg-card px-2 py-1 text-start font-mono text-muted-foreground text-xs leading-4.5">
 				{failure.detail}
 			</p>
 		) : null}
@@ -581,9 +581,7 @@ const OptionRow = ({ option, isSelected, render }: OptionRowProps) => {
 		<div
 			className={cn(
 				"grid gap-1 rounded-xl",
-				isSelected
-					? "bg-background"
-					: "bg-background/50 hover:bg-background/75",
+				isSelected ? "bg-card" : "bg-card/50 hover:bg-card/75",
 			)}
 		>
 			<label className="flex cursor-pointer items-start gap-3 p-3" htmlFor={id}>

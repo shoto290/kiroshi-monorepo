@@ -132,7 +132,7 @@ function bubbleSurfaceClass(variant: MessageBubbleVariant) {
 		variant === "solid" && "surface-user-bubble",
 		variant === "soft" && "bg-muted",
 		variant === "tint" && "surface-user-bubble-soft",
-		variant === "outline" && "border border-border/70 bg-background",
+		variant === "outline" && "border border-border/70 bg-card",
 		variant === "danger" && "bg-destructive/10",
 	)
 }

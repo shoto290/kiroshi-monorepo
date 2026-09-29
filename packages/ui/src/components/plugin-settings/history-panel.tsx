@@ -85,7 +85,7 @@ const UNDONE_CLASS = `${SUFFIX_CLASS} text-muted-foreground before:me-1 before:c
 const UNDO_SLOT_CLASS = "relative z-10 grid size-6 shrink-0 place-items-center"
 
 const UNDO_CONTROL_CLASS =
-	"rounded-md bg-background text-muted-foreground transition-opacity duration-150 [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 group-has-[:focus-visible]/row:opacity-100 motion-reduce:transition-none"
+	"rounded-md bg-card text-muted-foreground transition-opacity duration-150 [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 group-has-[:focus-visible]/row:opacity-100 motion-reduce:transition-none"
 
 const TIME_CLASS =
 	"w-10 shrink-0 text-end text-muted-foreground text-xs/4 tabular-nums"

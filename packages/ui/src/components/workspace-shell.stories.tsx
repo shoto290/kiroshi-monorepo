@@ -324,7 +324,7 @@ export const SpaceTinted = meta.story({
 		await expect(paintOf(surface)).toBe(shellPaintFor("var(--bot-blot-blue)"))
 		await expect(paintOf(surface)).not.toBe(shellPaintFor())
 		await expect(paintOf(canvas.getByRole("main"))).toBe(
-			paintFor("var(--background)"),
+			paintFor("var(--card)"),
 		)
 	},
 })

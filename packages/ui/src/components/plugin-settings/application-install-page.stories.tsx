@@ -609,7 +609,7 @@ export const ThemesKeyFieldAtRest = meta.story({
 				probedStyleOf("rounded-control", "borderTopLeftRadius", panel),
 			)
 			await expect(style.backgroundColor).toBe(
-				probedStyleOf("bg-background", "backgroundColor", panel),
+				probedStyleOf("bg-card", "backgroundColor", panel),
 			)
 			await expect(style.backgroundColor).not.toBe(
 				getComputedStyle(panel).backgroundColor,

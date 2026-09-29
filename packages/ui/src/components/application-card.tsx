@@ -53,7 +53,7 @@ const ApplicationCardHeader = ({
 const ApplicationCard = ({ footnote, ...application }: ApplicationCardProps) =>
 	footnote ? (
 		<div
-			className="w-full overflow-hidden rounded-control border border-border bg-background"
+			className="w-full overflow-hidden rounded-control border border-border bg-card"
 			data-slot="application-receipt"
 		>
 			<ApplicationCardHeader {...application} />
@@ -72,7 +72,7 @@ const ApplicationCard = ({ footnote, ...application }: ApplicationCardProps) =>
 		</div>
 	) : (
 		<ApplicationCardHeader
-			className="rounded-control bg-background"
+			className="rounded-control bg-card"
 			{...application}
 		/>
 	)

@@ -32,10 +32,7 @@ const withThemeLayout: Decorator = (Story, context) => {
 	return (
 		<div className="grid grid-cols-2 gap-px bg-border">
 			{SIDE_BY_SIDE_THEMES.map((theme) => (
-				<div
-					key={theme}
-					className={`${theme} bg-background p-6 text-foreground`}
-				>
+				<div key={theme} className={`${theme} bg-card p-6 text-foreground`}>
 					<Story />
 				</div>
 			))}

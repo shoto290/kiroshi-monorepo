@@ -1,3 +1,10 @@
 @import "@workspace/ui/styles/globals.css";
 
 @source "../src/**/*.tsx";
+
+@layer base {
+	html,
+	body {
+		@apply bg-card;
+	}
+}

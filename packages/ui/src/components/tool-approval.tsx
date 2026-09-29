@@ -53,7 +53,7 @@ export interface ToolApprovalProps {
 const STATUS_BADGE: Record<ToolApprovalStatus, string> = {
 	pending: "border-border bg-muted text-foreground",
 	allowed: "border-border bg-muted text-foreground",
-	denied: "border-destructive/40 bg-background text-destructive",
+	denied: "border-destructive/40 bg-card text-destructive",
 }
 
 function StatusIcon({ status }: { status: ToolApprovalStatus }) {
