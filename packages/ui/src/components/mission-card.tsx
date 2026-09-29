@@ -49,6 +49,7 @@ type MissionCardProps = Omit<MissionCardModel, "author"> & {
 	density: MissionCardDensity
 	onOpen: (missionId: string) => void
 	surface?: MissionCardSurface
+	isActive?: boolean
 	className?: string
 }
 
@@ -198,6 +199,7 @@ const RowDensity = ({
 	pullRequest,
 	lastActivity,
 	surface,
+	isActive,
 	onOpen,
 	className,
 }: MissionDensityProps) => {
@@ -238,6 +240,7 @@ const RowDensity = ({
 						</>
 					) : undefined
 				}
+				isActive={isActive}
 				isNameMuted={state === "done"}
 				isWorking={isWorking}
 				media={
