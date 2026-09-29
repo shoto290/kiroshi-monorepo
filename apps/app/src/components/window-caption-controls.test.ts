@@ -20,6 +20,7 @@ import {
 	titleBarDragRegion,
 	titleBarWindowControls,
 } from "@/components/window-caption-controls"
+import type { MaximizeButtonState } from "@/lib/bindings"
 import {
 	closeWindow,
 	declareMaximizeButton,
@@ -27,6 +28,8 @@ import {
 	type MaximizedWatch,
 	minimizeWindow,
 	toggleMaximizeWindow,
+	watchMaximizeButton,
+	watchWindowFocus,
 	watchWindowMaximized,
 } from "@/lib/host"
 
@@ -37,9 +40,13 @@ vi.mock("@/lib/host", () => ({
 	closeWindow: vi.fn(),
 	watchWindowMaximized: vi.fn(),
 	declareMaximizeButton: vi.fn(),
+	watchMaximizeButton: vi.fn(),
+	watchWindowFocus: vi.fn(),
 }))
 
 const stopWatching = vi.fn()
+const stopFollowingPointer = vi.fn()
+const stopFollowingFocus = vi.fn()
 let resizeObservers: Array<() => void> = []
 
 class FakeResizeObserver {
@@ -98,6 +105,41 @@ const reportedMaximized = (isMaximized: boolean) => {
 	act(() => watch.report(isMaximized))
 }
 
+const reportedPointer = (state: MaximizeButtonState) => {
+	const [report] = vi
+		.mocked(watchMaximizeButton)
+		.mock.calls.at(-1) as Parameters<typeof watchMaximizeButton>
+	act(() => report(state))
+}
+
+const reportedFocus = (isFocused: boolean) => {
+	const [report] = vi.mocked(watchWindowFocus).mock.calls.at(-1) as Parameters<
+		typeof watchWindowFocus
+	>
+	act(() => report(isFocused))
+}
+
+const carriesState: Record<
+	MaximizeButtonState,
+	(classes: DOMTokenList) => boolean
+> = {
+	idle: (classes) => classes.contains("hover:bg-transparent"),
+	hover: (classes) =>
+		classes.contains("bg-muted") && !classes.contains("scale-100"),
+	pressed: (classes) => classes.contains("scale-100"),
+}
+
+const maximizeShows = (state: MaximizeButtonState) => {
+	const { classList } = screen.getByRole("button", { name: "Maximize" })
+	const candidates = Object.keys(carriesState) as MaximizeButtonState[]
+	return candidates.every(
+		(candidate) => carriesState[candidate](classList) === (candidate === state),
+	)
+}
+
+const POINTER_FAILURE =
+	"The maximize button can’t show hover or press feedback."
+
 beforeEach(() => {
 	resizeObservers = []
 	vi.stubGlobal("ResizeObserver", FakeResizeObserver)
@@ -107,6 +149,8 @@ beforeEach(() => {
 	vi.mocked(closeWindow).mockResolvedValue()
 	vi.mocked(declareMaximizeButton).mockResolvedValue()
 	vi.mocked(watchWindowMaximized).mockResolvedValue(stopWatching)
+	vi.mocked(watchMaximizeButton).mockResolvedValue(stopFollowingPointer)
+	vi.mocked(watchWindowFocus).mockResolvedValue(stopFollowingFocus)
 })
 
 afterEach(() => {
@@ -215,6 +259,77 @@ describe("title bar window controls", () => {
 		expect(
 			await screen.findAllByText("Couldn’t tell whether Kiroshi is maximized."),
 		).toBeTruthy()
+	})
+
+	it("forces the maximize button into the state the host reports", () => {
+		renderHeader()
+		expect(maximizeShows("idle")).toBe(true)
+
+		reportedPointer("hover")
+		expect(maximizeShows("hover")).toBe(true)
+
+		reportedPointer("pressed")
+		expect(maximizeShows("pressed")).toBe(true)
+
+		reportedPointer("idle")
+		expect(maximizeShows("idle")).toBe(true)
+	})
+
+	it("returns the maximize button to idle when the window loses focus", () => {
+		renderHeader()
+		reportedPointer("hover")
+		expect(maximizeShows("hover")).toBe(true)
+
+		reportedFocus(true)
+		expect(maximizeShows("hover")).toBe(true)
+
+		reportedFocus(false)
+		expect(maximizeShows("idle")).toBe(true)
+	})
+
+	it("subscribes to the maximize button once per mount", () => {
+		renderHeader()
+		reportedPointer("hover")
+		reportedPointer("pressed")
+
+		expect(watchMaximizeButton).toHaveBeenCalledOnce()
+		expect(watchWindowFocus).toHaveBeenCalledOnce()
+	})
+
+	it("stops following the maximize button once unmounted", async () => {
+		const { unmount } = renderHeader()
+
+		unmount()
+
+		await waitFor(() => {
+			expect(stopFollowingPointer).toHaveBeenCalledOnce()
+			expect(stopFollowingFocus).toHaveBeenCalledOnce()
+		})
+	})
+
+	it("follows no maximize button off Windows", () => {
+		vi.mocked(hasCaptionWindowControls).mockReturnValue(false)
+		renderHeader()
+
+		expect(watchMaximizeButton).not.toHaveBeenCalled()
+		expect(watchWindowFocus).not.toHaveBeenCalled()
+	})
+
+	it("names the maximize button events it could not follow and stays idle", async () => {
+		vi.mocked(watchMaximizeButton).mockRejectedValue(new Error("denied"))
+		renderHeader()
+
+		expect(await screen.findAllByText(POINTER_FAILURE)).toBeTruthy()
+		expect(maximizeShows("idle")).toBe(true)
+	})
+
+	it("names the focus changes it could not follow and ignores later reports", async () => {
+		vi.mocked(watchWindowFocus).mockRejectedValue(new Error("denied"))
+		renderHeader()
+
+		expect(await screen.findAllByText(POINTER_FAILURE)).toBeTruthy()
+		reportedPointer("hover")
+		expect(maximizeShows("idle")).toBe(true)
 	})
 
 	it("drags the window from the mission header on Windows", () => {

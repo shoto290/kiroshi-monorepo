@@ -35,6 +35,7 @@ const common = {
 			close: "Impossible de fermer Kiroshi.",
 			state: "Impossible de savoir si Kiroshi est agrandi.",
 			snap: "Les dispositions d’ancrage sont indisponibles sur le bouton Agrandir.",
+			pointer: "Le bouton Agrandir ne peut pas afficher le survol ni l’appui.",
 		},
 	},
 	notice: {

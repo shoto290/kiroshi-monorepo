@@ -4,6 +4,7 @@ import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 import { WindowControls } from "@workspace/ui/components/window-controls"
 import { i18n } from "@workspace/ui/lib/i18n"
 
+import type { MaximizeButtonState } from "@/lib/bindings"
 import {
 	closeWindow,
 	declareMaximizeButton,
@@ -11,10 +12,18 @@ import {
 	type MaximizeButtonBounds,
 	minimizeWindow,
 	toggleMaximizeWindow,
+	watchMaximizeButton,
+	watchWindowFocus,
 	watchWindowMaximized,
 } from "@/lib/host"
 
-type WindowAction = "minimize" | "maximize" | "close" | "state" | "snap"
+type WindowAction =
+	| "minimize"
+	| "maximize"
+	| "close"
+	| "state"
+	| "snap"
+	| "pointer"
 
 const raiseWindowFailure = (action: WindowAction) => () => {
 	raiseFailureNotice({
@@ -75,13 +84,44 @@ const useWindowMaximized = (): boolean => {
 	return isMaximized
 }
 
+const useMaximizeButtonState = (): MaximizeButtonState => {
+	const [state, setState] = useState<MaximizeButtonState>("idle")
+
+	useEffect(() => {
+		let hasFailed = false
+		const follow = (next: MaximizeButtonState) => {
+			if (!hasFailed) setState(next)
+		}
+		const resetWhenBlurred = (isFocused: boolean) => {
+			if (!isFocused) follow("idle")
+		}
+		const failOnce = () => {
+			if (hasFailed) return
+			hasFailed = true
+			setState("idle")
+			raiseWindowFailure("pointer")()
+		}
+		const watches = [
+			watchMaximizeButton(follow),
+			watchWindowFocus(resetWhenBlurred),
+		].map((watch) => watch.catch(failOnce))
+		return () => {
+			for (const watch of watches) watch.then((stop) => stop?.())
+		}
+	}, [])
+
+	return state
+}
+
 const WindowCaptionControls = () => {
 	const isMaximized = useWindowMaximized()
+	const maximizeState = useMaximizeButtonState()
 
 	return (
 		<WindowControls
 			maximizeButtonRef={observeMaximizeButton}
 			maximized={isMaximized}
+			maximizeState={maximizeState}
 			onClose={runWindowAction("close", closeWindow)}
 			onMinimize={runWindowAction("minimize", minimizeWindow)}
 			onToggleMaximize={runWindowAction("maximize", toggleMaximizeWindow)}
