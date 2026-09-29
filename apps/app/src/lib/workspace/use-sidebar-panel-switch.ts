@@ -6,14 +6,16 @@ import type { ShownMemory } from "../sidebar/shown-memory"
 import { type SidebarPanel, useSidebarTab } from "../user/use-sidebar-tab"
 import type { User } from "../user/use-user"
 
+type PanelRoster = Pick<RosterController, "select" | "selectConversation"> & {
+	getState: () => Pick<RosterState, "spaceId" | "bots" | "conversations">
+}
+
+type PanelMemory = Pick<ShownMemory, "lastRowIn">
+
 type SidebarPanelSwitchCore = {
 	openedMission: Pick<OpenedMissionController, "leave">
-	roster: {
-		controller: Pick<RosterController, "select" | "selectConversation"> & {
-			getState: () => Pick<RosterState, "spaceId" | "bots" | "conversations">
-		}
-	}
-	shownMemory: Pick<ShownMemory, "lastRowIn">
+	roster: { controller: PanelRoster }
+	shownMemory: PanelMemory
 	user: User
 }
 
@@ -23,8 +25,8 @@ type SidebarPanelSwitchInput = {
 }
 
 const showLastConversation = (
-	roster: SidebarPanelSwitchCore["roster"]["controller"],
-	shownMemory: SidebarPanelSwitchCore["shownMemory"],
+	roster: PanelRoster,
+	shownMemory: PanelMemory,
 ) => {
 	const { spaceId, bots, conversations } = roster.getState()
 	const lastRowId = spaceId === null ? null : shownMemory.lastRowIn(spaceId)
