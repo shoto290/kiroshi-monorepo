@@ -19,7 +19,7 @@ const QUOTE_TONE = {
 	assistant: "bg-muted text-foreground",
 } satisfies Record<MessageFrom, string>
 
-export type MessageQuoteSize = "sm" | "md"
+type MessageQuoteSize = "sm" | "md"
 
 interface QuoteMetrics {
 	body: string

@@ -60,4 +60,4 @@ const HeaderConversationButton = ({
 	)
 }
 
-export { HeaderConversationButton, type HeaderConversationButtonProps }
+export { HeaderConversationButton }

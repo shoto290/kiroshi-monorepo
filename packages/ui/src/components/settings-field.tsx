@@ -121,4 +121,4 @@ const SettingsField = ({
 	)
 }
 
-export { SettingsField, type SettingsFieldKind, type SettingsFieldProps }
+export { SettingsField, type SettingsFieldProps }

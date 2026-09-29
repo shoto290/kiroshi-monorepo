@@ -47,7 +47,7 @@ const QUESTION_MONO_LINE_CLASS = "truncate font-mono text-compact leading-5"
 const QUESTION_LINK_ROW_CLASS =
 	"flex items-center gap-2 rounded-control border border-input bg-muted py-1 pe-1 ps-3 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/30"
 
-export type ToolQuestionOption = {
+type ToolQuestionOption = {
 	label: string
 	description: string
 	preview?: ReactNode
@@ -74,7 +74,7 @@ export type ToolQuestionExit = {
 	onSelect: () => void
 }
 
-export type ToolQuestionAction = {
+type ToolQuestionAction = {
 	label: string
 	icon: Icon
 	onSelect: () => void

@@ -207,4 +207,4 @@ const MissionEventRow = ({ event, tools, bot, now }: MissionEventRowProps) => {
 	)
 }
 
-export { MissionEventRow, type MissionEventRowProps }
+export { MissionEventRow }

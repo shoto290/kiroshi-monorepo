@@ -77,4 +77,4 @@ const MissionTurn = ({ mission, onOpen, wrap }: MissionTurnProps) => {
 	)
 }
 
-export { MissionTurn, type MissionTurnProps }
+export { MissionTurn }

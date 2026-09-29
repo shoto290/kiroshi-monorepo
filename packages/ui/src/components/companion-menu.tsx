@@ -176,10 +176,8 @@ const CompanionMenuHost = ({
 
 export {
 	CompanionMenuContent,
-	type CompanionMenuContentProps,
 	CompanionMenuHost,
 	type CompanionMenuLookup,
 	CompanionMenuProvider,
-	type CompanionMenuProviderProps,
 	type CompanionMenuSubject,
 }

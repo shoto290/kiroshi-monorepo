@@ -10,8 +10,6 @@ const COLOR_SCHEME_IDS = Object.keys(COLOR_SCHEMES) as ColorScheme[]
 
 const NOTIFIED_EVENTS = ["question", "permission", "turn"] as const
 
-type NotifiedEvent = (typeof NOTIFIED_EVENTS)[number]
-
 const NOTIFICATION_SWITCHES = [...NOTIFIED_EVENTS, "sound"] as const
 
 type NotificationSwitch = (typeof NOTIFICATION_SWITCHES)[number]
@@ -34,13 +32,11 @@ type UserSettingsValue = {
 
 export {
 	COLOR_SCHEME_IDS,
-	COLOR_SCHEMES,
 	type ColorScheme,
 	DEFAULT_NOTIFICATIONS,
 	NOTIFICATION_SWITCHES,
 	NOTIFIED_EVENTS,
 	type NotificationSwitch,
 	type Notifications,
-	type NotifiedEvent,
 	type UserSettingsValue,
 }

@@ -146,15 +146,6 @@ type BotSkillItem = BotSkillDraft & {
 
 type BotCommitAuthor = "user" | "bot"
 
-type BotCommitItem = {
-	id: string
-	at: number
-	author: BotCommitAuthor
-	title: string
-	body: string
-	diff?: string
-}
-
 type BotMcpConnectionState = (typeof MCP_CONNECTION_STATES)[number]
 
 const MCP_CONNECTION_STATES = [
@@ -437,14 +428,12 @@ export {
 	BOT_PERMISSION_RULE_LISTS,
 	type BotAvatarBlot,
 	type BotCommitAuthor,
-	type BotCommitItem,
 	type BotIdentity,
 	type BotMcpConnectionReason,
 	type BotMcpConnectionState,
 	type BotMcpServerDraft,
 	type BotMcpServerFields,
 	type BotMcpServerItem,
-	type BotMcpTransport,
 	type BotModelOption,
 	type BotOutputStyle,
 	type BotPermissionMode,
@@ -456,13 +445,10 @@ export {
 	type BotSkillEffort,
 	type BotSkillItem,
 	DEFAULT_BOT_OUTPUT_STYLE,
-	DEFAULT_BOT_PERMISSION_MODE,
-	isConfigObject,
 	isMcpServerDraftUnsaved,
 	isPermissionRule,
 	isSameFieldAnswer,
 	isSkillDraftUnsaved,
-	MCP_CONNECTION_STATES,
 	MCP_ENDPOINT_KINDS,
 	MCP_TRANSPORTS,
 	parseMcpServerConfig,

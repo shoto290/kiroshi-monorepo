@@ -45,8 +45,4 @@ function ConnectionStatus({
 	)
 }
 
-export {
-	ConnectionStatus,
-	type ConnectionStatusProps,
-	type ConnectionStatusState,
-}
+export { ConnectionStatus, type ConnectionStatusState }

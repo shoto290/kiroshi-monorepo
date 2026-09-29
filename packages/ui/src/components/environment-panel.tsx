@@ -326,12 +326,8 @@ const EnvironmentPanel = ({
 }
 
 export {
-	ENVIRONMENT_SCOPES,
 	type EnvironmentEntry,
 	EnvironmentPanel,
-	type EnvironmentPanelProps,
-	type EnvironmentScope,
 	type EnvironmentSection,
 	type EnvironmentWrite,
-	isEnvironmentName,
 }

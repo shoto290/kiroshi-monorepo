@@ -80,4 +80,4 @@ const ApplicationMark = ({
 	)
 }
 
-export { ApplicationMark, type ApplicationMarkProps }
+export { ApplicationMark }

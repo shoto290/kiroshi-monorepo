@@ -187,16 +187,10 @@ const MissionStatusTime = ({ status, className }: MissionStatusTimeProps) => (
 )
 
 export {
-	isNamedMissionTool,
 	type MissionMark,
-	type MissionSourceKind,
 	MissionStatusTime,
-	type MissionStatusTimeProps,
 	MissionTicketLine,
-	type MissionTicketLineProps,
-	type MissionTicketPlatform,
 	MissionToolMark,
-	type MissionToolMarkProps,
 	missionAgentTool,
 	missionSourceKind,
 	missionTicketPlatform,

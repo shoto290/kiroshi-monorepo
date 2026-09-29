@@ -39,4 +39,4 @@ function AppHeader({
 	)
 }
 
-export { AppHeader, type AppHeaderProps }
+export { AppHeader }

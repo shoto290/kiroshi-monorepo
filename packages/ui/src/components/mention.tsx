@@ -101,4 +101,4 @@ const Mention = ({ botId, count = 1, className }: MentionProps) => {
 	)
 }
 
-export { Mention, type MentionProps }
+export { Mention }

@@ -267,8 +267,4 @@ const ApplicationsPanel = ({
 	)
 }
 
-export {
-	type ApplicationsOwner,
-	ApplicationsPanel,
-	type ApplicationsPanelProps,
-}
+export { type ApplicationsOwner, ApplicationsPanel }

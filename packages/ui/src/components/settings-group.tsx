@@ -23,4 +23,4 @@ const SettingsGroup = ({
 	</fieldset>
 )
 
-export { SettingsGroup, type SettingsGroupProps }
+export { SettingsGroup }

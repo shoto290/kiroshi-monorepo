@@ -237,7 +237,6 @@ const useMcpSession = ({
 }
 
 export {
-	type ApplicationInstallSection,
 	type ApplicationsCatalogueSection,
 	type ApplicationsSection,
 	type McpSession,

@@ -2,7 +2,7 @@
 
 import { type RefObject, useEffect } from "react"
 
-export type DismissBehavior = "pass-through" | "consume"
+type DismissBehavior = "pass-through" | "consume"
 
 export interface DismissOptions {
 	behavior?: DismissBehavior

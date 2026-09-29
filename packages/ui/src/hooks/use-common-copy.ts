@@ -7,4 +7,4 @@ type CommonCopy = TFunction<"common">
 
 const useCommonCopy = (): CommonCopy => useTranslation("common").t
 
-export { type CommonCopy, useCommonCopy }
+export { useCommonCopy }

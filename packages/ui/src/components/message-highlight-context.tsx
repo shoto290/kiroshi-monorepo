@@ -32,8 +32,4 @@ const useMessageAnchor = (messageId?: string) => {
 	}
 }
 
-export {
-	MessageHighlightProvider,
-	type MessageHighlightProviderProps,
-	useMessageAnchor,
-}
+export { MessageHighlightProvider, useMessageAnchor }

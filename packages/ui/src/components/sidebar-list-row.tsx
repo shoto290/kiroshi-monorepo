@@ -91,4 +91,4 @@ const SidebarListRow = ({
 	)
 }
 
-export { SidebarListRow, type SidebarListRowProps }
+export { SidebarListRow }

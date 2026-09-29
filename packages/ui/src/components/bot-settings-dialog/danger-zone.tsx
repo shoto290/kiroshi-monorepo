@@ -52,4 +52,4 @@ const DangerZone = ({
 	</div>
 )
 
-export { DangerZone, type DangerZoneProps }
+export { DangerZone }

@@ -126,9 +126,4 @@ const McpServerLaunch = ({ config }: McpServerLaunchProps) => {
 	)
 }
 
-export {
-	McpServerLaunch,
-	type McpServerLaunchProps,
-	type McpServerLaunchReading,
-	readMcpServerLaunch,
-}
+export { McpServerLaunch, readMcpServerLaunch }

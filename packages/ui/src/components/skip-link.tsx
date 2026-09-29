@@ -31,4 +31,4 @@ const SkipLink = ({ targetId, label }: SkipLinkProps) => {
 	)
 }
 
-export { SkipLink, type SkipLinkProps }
+export { SkipLink }

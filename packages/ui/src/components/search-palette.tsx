@@ -393,7 +393,6 @@ export {
 	type SearchPaletteProps,
 	type SearchPaletteResult,
 	type SearchRestingGroup,
-	type SearchRestingKind,
 	type SearchResultGroup,
 	type SearchTab,
 }

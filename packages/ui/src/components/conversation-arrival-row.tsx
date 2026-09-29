@@ -54,8 +54,4 @@ const ConversationArrivalRow = ({
 	)
 }
 
-export {
-	type ConversationArrivalInviter,
-	ConversationArrivalRow,
-	type ConversationArrivalRowProps,
-}
+export { type ConversationArrivalInviter, ConversationArrivalRow }

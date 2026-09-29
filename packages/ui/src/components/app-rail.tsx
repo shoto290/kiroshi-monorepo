@@ -212,7 +212,6 @@ export {
 	AppRail,
 	type AppRailCounts,
 	type AppRailDots,
-	type AppRailEntry,
 	type AppRailPanel,
 	type AppRailProps,
 	NAVIGATION_ROW_GAP,

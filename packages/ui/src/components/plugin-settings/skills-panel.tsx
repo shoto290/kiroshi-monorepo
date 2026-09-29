@@ -93,4 +93,4 @@ const SkillsPanel = ({ skills, onOpen, onAdd }: SkillsPanelProps) => {
 	)
 }
 
-export { SkillsPanel, type SkillsPanelProps }
+export { SkillsPanel }

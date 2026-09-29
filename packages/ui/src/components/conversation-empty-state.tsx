@@ -137,4 +137,4 @@ const ConversationEmptyState = ({
 	)
 }
 
-export { ConversationEmptyState, type ConversationEmptyStateProps }
+export { ConversationEmptyState }

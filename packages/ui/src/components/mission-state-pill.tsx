@@ -52,9 +52,4 @@ const MissionStatePill = ({ state, className }: MissionStatePillProps) => {
 	)
 }
 
-export {
-	hasStatePill,
-	MissionStatePill,
-	type MissionStatePillProps,
-	type MissionStateWithPill,
-}
+export { hasStatePill, MissionStatePill }

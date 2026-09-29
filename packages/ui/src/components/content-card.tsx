@@ -36,4 +36,4 @@ const ContentCard = ({ isLandmark = true, id, children }: ContentCardProps) =>
 		</div>
 	)
 
-export { ContentCard, type ContentCardProps }
+export { ContentCard }

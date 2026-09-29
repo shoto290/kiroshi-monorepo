@@ -178,11 +178,8 @@ export {
 	SETTINGS_PANEL_CLASS,
 	SettingsRail,
 	SettingsRailBack,
-	type SettingsRailBackProps,
 	SettingsRailItem,
-	type SettingsRailItemProps,
 	type SettingsRailProps,
 	SettingsRailSeparator,
 	SettingsScrollingPanel,
-	type SettingsScrollingPanelProps,
 }

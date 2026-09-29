@@ -10,13 +10,10 @@ import {
 import { BotIdentityFields } from "@workspace/ui/components/bot-identity-fields"
 import type {
 	BotIdentity,
-	BotMcpServerItem,
 	BotModelOption,
 	BotOutputStyle,
 	BotPermissions,
 	BotSettingsValue,
-	BotSkillDraft,
-	BotSkillItem,
 } from "@workspace/ui/components/bot-settings"
 import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
 import { MemoryPanel } from "@workspace/ui/components/bot-settings-dialog/memory-panel"
@@ -300,14 +297,8 @@ const BotSettingsDialog = ({
 }
 
 export {
-	type BotMcpServerItem,
 	type BotModelOption,
-	type BotOutputStyle,
-	type BotPermissions,
 	BotSettingsDialog,
 	type BotSettingsDialogProps,
 	type BotSettingsValue,
-	type BotSkillDraft,
-	type BotSkillItem,
-	type PluginHistory,
 }

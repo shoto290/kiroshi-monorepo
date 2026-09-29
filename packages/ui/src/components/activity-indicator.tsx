@@ -184,4 +184,4 @@ function ActivityIndicator(props: ActivityIndicatorProps) {
 }
 
 export type { ActivityIndicatorKind, ActivityIndicatorWait }
-export { ActivityIndicator, type ActivityIndicatorProps }
+export { ActivityIndicator }

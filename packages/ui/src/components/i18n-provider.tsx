@@ -13,4 +13,4 @@ const I18nProvider = ({ children }: I18nProviderProps) => (
 	<I18nextProvider i18n={i18n}>{children}</I18nextProvider>
 )
 
-export { I18nProvider, type I18nProviderProps }
+export { I18nProvider }
