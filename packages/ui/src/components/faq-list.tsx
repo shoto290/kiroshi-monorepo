@@ -60,4 +60,4 @@ const FaqList = ({ items, defaultOpen }: FaqListProps) => (
 	</Accordion>
 )
 
-export { type FaqItem, FaqList, type FaqListProps }
+export { type FaqItem, FaqList }

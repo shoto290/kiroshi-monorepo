@@ -104,10 +104,4 @@ function Notice({
 	)
 }
 
-export {
-	Notice,
-	type NoticeProps,
-	type NoticeRetry,
-	type NoticeTone,
-	noticeVariants,
-}
+export { Notice, type NoticeRetry, type NoticeTone }

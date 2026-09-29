@@ -110,7 +110,6 @@ export {
 	type MissionPullRequest,
 	type MissionState,
 	type MissionStatus,
-	type MissionTicket,
 	type MissionTicketLink,
 	missionBadgeFor,
 	type ShownMissionStatus,

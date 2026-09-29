@@ -77,8 +77,4 @@ const HeaderIdentityButton = ({
 	)
 }
 
-export {
-	HEADER_IDENTITY_CLASS,
-	HeaderIdentityButton,
-	type HeaderIdentityButtonProps,
-}
+export { HEADER_IDENTITY_CLASS, HeaderIdentityButton }

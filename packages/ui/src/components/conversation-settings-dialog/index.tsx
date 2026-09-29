@@ -149,5 +149,4 @@ export {
 	ConversationSettingsDialog,
 	type ConversationSettingsDialogProps,
 	type ConversationSettingsValue,
-	type RosterBot,
 }

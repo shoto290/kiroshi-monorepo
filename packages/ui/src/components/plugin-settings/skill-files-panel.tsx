@@ -264,10 +264,8 @@ const SkillFilesPanel = ({
 }
 
 export {
-	type OpenedSkillFile,
 	type PluginSkillFiles,
 	type SkillFile,
-	type SkillFileFailure,
 	SkillFilesPanel,
 	type SkillFilesPanelProps,
 }

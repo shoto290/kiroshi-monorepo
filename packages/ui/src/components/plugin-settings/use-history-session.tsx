@@ -94,9 +94,4 @@ const useHistorySession = ({
 	}
 }
 
-export {
-	HISTORY_TAB,
-	type HistorySession,
-	type HistorySessionProps,
-	useHistorySession,
-}
+export { HISTORY_TAB, type HistorySession, useHistorySession }

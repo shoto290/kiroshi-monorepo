@@ -148,8 +148,6 @@ export {
 	BotIdentityAvatar,
 	type BotIdentityAvatarProps,
 	BotSelectButton,
-	type BotSelectButtonProps,
 	BotStopButton,
-	type BotStopButtonProps,
 	type BotStopProps,
 }

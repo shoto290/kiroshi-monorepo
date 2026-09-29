@@ -31,7 +31,7 @@ interface Press extends Point {
 	isLifted: boolean
 }
 
-export interface Lift<Landing> {
+interface Lift<Landing> {
 	id: string
 	landing: Landing | null
 }
@@ -44,7 +44,7 @@ const place = (node: HTMLElement | null, at: Point, from: Point) => {
 	node.style.setProperty("--lift-dy", `${at.y - from.y}px`)
 }
 
-export interface RosterLiftHandlers {
+interface RosterLiftHandlers {
 	onPointerCancel: () => void
 	onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void
 	onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void

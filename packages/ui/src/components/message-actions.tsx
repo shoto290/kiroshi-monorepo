@@ -92,9 +92,4 @@ function MessageAction({
 	)
 }
 
-export {
-	MessageAction,
-	type MessageActionProps,
-	MessageActions,
-	type MessageActionsProps,
-}
+export { MessageAction, MessageActions }

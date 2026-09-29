@@ -4,19 +4,6 @@ import type {
 	HistoryDay,
 } from "@workspace/ui/components/plugin-settings/history-panel"
 
-export const INSTRUCTIONS_PATCH = `diff --git a/AGENTS.md b/AGENTS.md
-index 3c1f7a2..8b40d19 100644
---- a/AGENTS.md
-+++ b/AGENTS.md
-@@ -12,7 +12,8 @@
- You are the Nest Keeper.
-
--Answer with the file you would touch.
-+Answer with the file you would touch, then the change.
-+Search the package for a component that already does the job first.
-
- Every visual belongs to packages/ui.`
-
 export const ADDED_SKILL_PATCH = `diff --git a/skills/release-notes/SKILL.md b/skills/release-notes/SKILL.md
 new file mode 100644
 index 0000000..e69de29
@@ -52,7 +39,7 @@ index 8b40d19..a71c904 100644
 
 export const UNREADABLE_PATCH = `The bundle was restored from a snapshot rather than from a commit, so there is no patch to read here — only the note the host wrote in its place.`
 
-export const RETOUCHED_CHANGE: HistoryChange = {
+const RETOUCHED_CHANGE: HistoryChange = {
 	id: "change-5",
 	author: "bot",
 	sentence: "Tightened the wording of the instructions",
@@ -62,7 +49,7 @@ export const RETOUCHED_CHANGE: HistoryChange = {
 	retouchCount: 4,
 }
 
-export const UNDONE_CHANGE: HistoryChange = {
+const UNDONE_CHANGE: HistoryChange = {
 	id: "change-3",
 	author: "user",
 	sentence: "Raised the tool budget to twelve calls",
@@ -71,7 +58,7 @@ export const UNDONE_CHANGE: HistoryChange = {
 	isUndone: true,
 }
 
-export const LONG_SENTENCE_CHANGE: HistoryChange = {
+const LONG_SENTENCE_CHANGE: HistoryChange = {
 	id: "change-long",
 	author: "bot",
 	sentence:
@@ -160,7 +147,7 @@ export const LONG_SIGNALLED_DAYS: HistoryDay[] = [
 	},
 ]
 
-export const DEEP_PATH_PATCH = `diff --git a/skills/release-notes/references/wording/house-style.md b/skills/release-notes/references/wording/house-style.md
+const DEEP_PATH_PATCH = `diff --git a/skills/release-notes/references/wording/house-style.md b/skills/release-notes/references/wording/house-style.md
 index 2f1b904..c40de81 100644
 --- a/skills/release-notes/references/wording/house-style.md
 +++ b/skills/release-notes/references/wording/house-style.md

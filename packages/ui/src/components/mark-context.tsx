@@ -25,4 +25,4 @@ const useMarkId = (botId?: string) => {
 	return transcriptKey && botId ? `${transcriptKey}-${botId}` : undefined
 }
 
-export { MarkProvider, type MarkProviderProps, useMarkId }
+export { MarkProvider, useMarkId }

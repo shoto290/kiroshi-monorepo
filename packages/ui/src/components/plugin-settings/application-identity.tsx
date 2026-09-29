@@ -110,8 +110,4 @@ const ApplicationMetaLine = ({
 	)
 }
 
-export {
-	ApplicationMetaLine,
-	type ApplicationMetaLineProps,
-	ApplicationVerifiedPill,
-}
+export { ApplicationMetaLine, ApplicationVerifiedPill }

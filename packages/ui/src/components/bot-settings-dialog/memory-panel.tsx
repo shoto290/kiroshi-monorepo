@@ -75,4 +75,4 @@ const MemoryPanel = ({ memory, onSave }: MemoryPanelProps) => {
 	)
 }
 
-export { MemoryPanel, type MemoryPanelProps }
+export { MemoryPanel }

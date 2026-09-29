@@ -114,4 +114,4 @@ const ConfirmDialog = ({
 	)
 }
 
-export { ConfirmDialog, type ConfirmDialogProps }
+export { ConfirmDialog }

@@ -27,9 +27,4 @@ const RosterProvider = ({ bots, children }: RosterProviderProps) => (
 const useRosterBot = (id: string) =>
 	useContext(RosterContext).find((bot) => bot.id === id)
 
-export {
-	type RosterBot,
-	RosterProvider,
-	type RosterProviderProps,
-	useRosterBot,
-}
+export { type RosterBot, RosterProvider, useRosterBot }

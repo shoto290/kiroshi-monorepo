@@ -251,4 +251,4 @@ const HistoryChangePage = ({
 	)
 }
 
-export { HistoryChangePage, type HistoryChangePageProps }
+export { HistoryChangePage }

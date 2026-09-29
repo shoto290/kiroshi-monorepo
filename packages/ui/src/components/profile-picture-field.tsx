@@ -69,4 +69,4 @@ const ProfilePictureField = ({
 	)
 }
 
-export { ProfilePictureField, type ProfilePictureFieldProps }
+export { ProfilePictureField }

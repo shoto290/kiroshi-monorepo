@@ -79,4 +79,4 @@ function ChatEmptyState({
 	)
 }
 
-export { ChatEmptyState, type ChatEmptyStateProps, type ChatEmptyStateStatus }
+export { ChatEmptyState, type ChatEmptyStateStatus }

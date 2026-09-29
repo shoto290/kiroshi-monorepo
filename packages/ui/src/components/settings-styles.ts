@@ -42,9 +42,6 @@ const POPUP_CLASS =
 
 const DIALOG_POPUP_CLASS = `${POPUP_CLASS} transition-[scale,opacity,filter] duration-150 ease-out data-ending-style:scale-[0.99] data-ending-style:opacity-0 data-ending-style:blur-[4px] data-starting-style:scale-[0.98] data-starting-style:opacity-0 motion-reduce:transition-none`
 
-const POPUP_DROP_SHADOW_CLASS =
-	"[filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.10))_drop-shadow(0_10px_18px_rgba(0,0,0,0.16))] dark:[filter:drop-shadow(0_0_1px_rgba(255,255,255,0.16))_drop-shadow(0_12px_28px_rgba(0,0,0,0.7))]"
-
 const DANGER_BLOCK_CLASS =
 	"flex flex-col items-start gap-3 rounded-xl border border-destructive/30 p-4"
 
@@ -67,7 +64,6 @@ export {
 	PICTURE_REMOVE_CLASS,
 	PICTURE_REMOVE_INSET,
 	POPUP_CLASS,
-	POPUP_DROP_SHADOW_CLASS,
 	SETTINGS_EMPTY_CLASS,
 	SETTINGS_HEADER_CLASS,
 	SETTINGS_TAG_CLASS,

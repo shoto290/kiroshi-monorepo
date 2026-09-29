@@ -55,4 +55,4 @@ const EmptyStateShell = ({
 	</div>
 )
 
-export { EmptyStateShell, type EmptyStateShellProps }
+export { EmptyStateShell }

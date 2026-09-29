@@ -129,4 +129,4 @@ const useSkillSession = ({
 	}
 }
 
-export { type SkillSession, type SkillSessionProps, useSkillSession }
+export { type SkillSession, useSkillSession }

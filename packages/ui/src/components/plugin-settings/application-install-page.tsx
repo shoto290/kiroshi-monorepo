@@ -566,6 +566,4 @@ export {
 	ApplicationInstallPage,
 	type ApplicationInstallPageProps,
 	type InstallableApplication,
-	type InstallableField,
-	type InstallValues,
 }

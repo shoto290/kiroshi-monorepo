@@ -19,7 +19,7 @@ import { useAutoFocus } from "@workspace/ui/hooks/use-auto-focus"
 import { SPRING_SWAP } from "@workspace/ui/lib/ease"
 import { cn } from "@workspace/ui/lib/utils"
 
-export type ToolApprovalStatus = "pending" | "allowed" | "denied"
+type ToolApprovalStatus = "pending" | "allowed" | "denied"
 
 export type ToolApprovalParameter = {
 	id: string

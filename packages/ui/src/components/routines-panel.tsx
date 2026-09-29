@@ -602,5 +602,4 @@ export {
 	type RoutinesPanelMissions,
 	type RoutinesPanelProps,
 	RoutinesPanelTrigger,
-	type RoutinesPanelTriggerProps,
 }

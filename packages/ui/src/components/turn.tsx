@@ -536,15 +536,11 @@ function AssistantTurn(props: AssistantTurnProps) {
 
 export {
 	AssistantTurn,
-	type AssistantTurnProps,
 	TURN_AVATAR_SIZE,
 	type TurnCause,
 	type TurnCauseKind,
 	TurnGroup,
-	type TurnGroupProps,
 	type TurnRun,
 	type TurnState,
 	UserTurn,
-	type UserTurnProps,
-	type UserTurnState,
 }

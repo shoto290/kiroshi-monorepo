@@ -22,7 +22,7 @@ import {
 } from "@workspace/ui/lib/code-highlight"
 import { cn } from "@workspace/ui/lib/utils"
 
-export type CodeBlockStatus = "streaming" | "complete"
+type CodeBlockStatus = "streaming" | "complete"
 
 type CopyOutcome = "idle" | "copied" | "failed"
 

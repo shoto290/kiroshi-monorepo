@@ -23,9 +23,4 @@ const CompanionSelectProvider = ({
 
 const useCompanionSelect = () => useContext(CompanionSelectContext)
 
-export {
-	type CompanionSelect,
-	CompanionSelectProvider,
-	type CompanionSelectProviderProps,
-	useCompanionSelect,
-}
+export { type CompanionSelect, CompanionSelectProvider, useCompanionSelect }

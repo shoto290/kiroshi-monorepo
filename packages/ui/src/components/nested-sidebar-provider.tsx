@@ -46,4 +46,4 @@ const NestedSidebarProvider = ({
 	)
 }
 
-export { NestedSidebarProvider, type NestedSidebarProviderProps }
+export { NestedSidebarProvider }

@@ -92,8 +92,4 @@ const ApplicationInstallTurn = ({
 	</Message>
 )
 
-export {
-	type ApplicationInstallNotice,
-	ApplicationInstallTurn,
-	type ApplicationInstallTurnProps,
-}
+export { type ApplicationInstallNotice, ApplicationInstallTurn }

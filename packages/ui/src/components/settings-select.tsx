@@ -117,4 +117,4 @@ const SettingsSelect = ({
 	)
 }
 
-export { SettingsSelect, type SettingsSelectOption, type SettingsSelectProps }
+export { SettingsSelect, type SettingsSelectProps }

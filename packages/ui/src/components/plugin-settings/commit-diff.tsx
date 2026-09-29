@@ -64,4 +64,4 @@ const CommitDiff = ({ patch }: CommitDiffProps) => {
 	)
 }
 
-export { CommitDiff, type CommitDiffProps }
+export { CommitDiff }

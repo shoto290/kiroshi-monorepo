@@ -44,4 +44,4 @@ function AppBootScreen({ className, ...props }: AppBootScreenProps) {
 	)
 }
 
-export { AppBootScreen, type AppBootScreenProps, BOOT_MARK_SIZE }
+export { AppBootScreen, BOOT_MARK_SIZE }

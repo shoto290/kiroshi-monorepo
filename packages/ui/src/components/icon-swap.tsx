@@ -22,4 +22,4 @@ const IconSwap = ({ isSwapped, icon, swappedIcon }: IconSwapProps) => (
 	</span>
 )
 
-export { IconSwap, type IconSwapProps }
+export { IconSwap }

@@ -21,4 +21,4 @@ const AppBootNotice = ({ title, description, onRetry }: AppBootNoticeProps) => (
 	</div>
 )
 
-export { AppBootNotice, type AppBootNoticeProps }
+export { AppBootNotice }

@@ -33,7 +33,7 @@ export type MessageAuthor = RosterBot & {
 	isDeleted?: boolean
 }
 
-export interface MessageAuthorProps extends ComponentPropsWithRef<"div"> {
+interface MessageAuthorProps extends ComponentPropsWithRef<"div"> {
 	author: MessageAuthor
 }
 

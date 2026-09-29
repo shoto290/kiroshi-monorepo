@@ -99,9 +99,4 @@ const WorkspaceShell = ({
 	)
 }
 
-export {
-	SHELL_GUTTER,
-	SHELL_TITLE_BAR_HEIGHT,
-	WorkspaceShell,
-	type WorkspaceShellProps,
-}
+export { SHELL_GUTTER, SHELL_TITLE_BAR_HEIGHT, WorkspaceShell }
