@@ -94,16 +94,16 @@ export const Crowded = meta.story({
 	},
 	play: async ({ canvas }) => {
 		const hive = slotIn(canvas.getByRole("button"), "conversation-avatar")
-		const [first, second] = slotsIn(hive, "conversation-avatar-member")
+		const members = slotsIn(hive, "conversation-avatar-member")
 		const counter = slotIn(hive, "conversation-avatar-overflow")
 		const cell = counter.getBoundingClientRect()
 		const drawn = (
 			counter.querySelector("path") as Element
 		).getBoundingClientRect()
-		const above = first.getBoundingClientRect()
+		const above = members[0].getBoundingClientRect()
 
 		await expect(hive).toHaveAccessibleName("+3")
-		for (const member of [first, second]) {
+		for (const member of members) {
 			const box = member.getBoundingClientRect()
 			await expect(cell.width).toBeCloseTo(box.width, 1)
 			await expect(cell.height).toBeCloseTo(box.height, 1)
