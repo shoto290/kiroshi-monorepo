@@ -587,6 +587,7 @@ const chat = {
 			ready_to_merge: "Prête à fusionner",
 			failed: "Bloquée",
 			done: "Terminée",
+			closed: "Fermée",
 		},
 		live: "En cours maintenant",
 		event: {
@@ -606,6 +607,7 @@ const chat = {
 				checks_failed: "Vérifications en échec signalées par {{source}}",
 				failed: "Échec signalé par {{source}}",
 				closed: "Mission fermée par {{source}}",
+				dismissed: "Fermée par vous",
 				reopened: "Mission rouverte par {{source}}",
 			},
 			kind: {
@@ -618,6 +620,7 @@ const chat = {
 				checks_failed: "Vérifications en échec",
 				failed: "En échec",
 				closed: "Fermée",
+				dismissed: "Fermée",
 				reopened: "Rouverte",
 			},
 			link: "Ouvrir {{host}}",
@@ -634,7 +637,6 @@ const chat = {
 		menu: {
 			label: "Actions de la mission",
 			open: "Ouvrir la mission",
-			openTicket: "Ouvrir dans Linear",
 			openPullRequest: "Ouvrir la PR",
 			copy: "Copier",
 			copyKind: {
@@ -647,25 +649,15 @@ const chat = {
 			stopAgent: "Arrêter l’agent",
 			answer: "Répondre à la question",
 			close: "Fermer la mission",
-			closeAs: {
-				done: "Fermer comme terminée",
-				failed: "Fermer comme échouée",
-			},
 			reopen: "Rouvrir",
 			copied: "{{kind}} copié",
 			failed: {
-				openTicket: "Impossible d’ouvrir le ticket",
 				openPullRequest: "Impossible d’ouvrir la pull request",
 				copy: "Impossible de copier dans le presse-papiers",
 				stopAgent: "Impossible d’arrêter l’agent",
 				close: "Impossible de fermer la mission",
 				reopen: "Impossible de rouvrir la mission",
 			},
-		},
-		close: {
-			summary: "Résumé (facultatif)",
-			summaryPlaceholder: "Quel est le résultat ?",
-			confirm: "Fermer la mission",
 		},
 		card: {
 			open: "Ouvrir la mission : {{objective}}",

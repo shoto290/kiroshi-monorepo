@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react"
-import { expect, fn, screen } from "storybook/test"
+import { expect, fn, screen, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -9,7 +9,6 @@ import {
 	slotsIn,
 } from "@workspace/storybook/story-utils"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
-import { Icons } from "@workspace/ui/components/icons"
 import type {
 	MissionCardModel,
 	MissionState,
@@ -40,7 +39,6 @@ import {
 } from "@workspace/ui/components/missions.fixtures"
 import { ROUTINES_PANEL_WIDTH } from "@workspace/ui/components/routines-panel"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
-import { Button } from "@workspace/ui/components/ui/button"
 import { Sidebar, SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 
 const UNRECOGNISED_MISSION_CARD = {
@@ -112,12 +110,6 @@ const Panel = ({ children }: PanelProps) => (
 			<ul className="flex flex-col gap-0.5">{children}</ul>
 		</Sidebar>
 	</SidebarProvider>
-)
-
-const MENU = (
-	<Button aria-label="Mission actions" size="icon-xs" variant="ghost">
-		<Icons.More />
-	</Button>
 )
 
 const rowsIn = (canvasElement: HTMLElement) =>
@@ -359,6 +351,33 @@ export const CardDone = meta.story({
 		await expect(canvas.queryByText("Working now")).toBeNull()
 		await expect(canvas.getByText("09:12")).toBeVisible()
 		await expectLiveActivity({ canvasElement, isShown: false })
+	},
+})
+
+export const CardClosed = meta.story({
+	args: { ...CLOSED_MISSION_CARD, state: "closed" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission the person closed, neither done nor failed. Check that the pill reads Closed in the muted foreground, with no success and no failure colour, and that the objective steps back like a done mission. " +
+					MOUNTED_BY_THE_TURN,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const pill = slotIn(canvasElement, "mission-state-pill")
+
+		await expect(pill).toHaveAttribute("data-state", "closed")
+		await expect(within(pill).getByText("Closed")).toBeVisible()
+		await expect(pill.querySelector("svg")).toHaveClass("text-muted-foreground")
+		await expect(slotIn(canvasElement, "mission-card")).toHaveAttribute(
+			"data-closed",
+			"true",
+		)
+		await expect(
+			canvas.queryByRole("button", { name: "Mission actions" }),
+		).toBeNull()
 	},
 })
 
@@ -761,13 +780,33 @@ export const RowDone = meta.story({
 	},
 })
 
+export const RowClosed = meta.story({
+	args: { ...CLOSED_MISSION, state: "closed", density: "row" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission the person closed, neither done nor failed. Check that no badge dot is drawn and that the state word reads Closed. " +
+					LISTED_BY_THE_PANEL,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(dotIn(canvasElement)).toBeNull()
+		await expect(canvas.getByText("Closed")).toBeVisible()
+		await expect(
+			canvas.queryByRole("button", { name: "Mission actions" }),
+		).toBeNull()
+	},
+})
+
 export const RowStates = meta.story({
 	args: { density: "row" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The six states a mission can be in, each drawn twice: with a companion live on it, then with nobody on it. Check that the row of each pair somebody is on opens on the word only a screen reader hears and carries the tool call line, that the preview line closes on a state word for the four states a reader can act on, that the blot turns in the first row of each pair and rests in the second, and that the badge dot keeps following the state rather than the work. " +
+					"The seven states a mission can be in, each drawn twice: with a companion live on it, then with nobody on it. Check that the row of each pair somebody is on opens on the word only a screen reader hears and carries the tool call line, that the preview line closes on a state word for the five states a reader can act on, that the blot turns in the first row of each pair and rests in the second, and that the badge dot keeps following the state rather than the work. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -1197,97 +1236,95 @@ export const CardPullRequestOpensAlone = meta.story({
 	},
 })
 
-type MenuCheck = {
-	withMenu: HTMLElement
-	withoutMenu: HTMLElement
-	timestampSlot: string
+type PillOffsetCheck = {
+	withPill: HTMLElement
+	withoutPill: HTMLElement
+	objectiveSlot: string
 }
 
-const expectMenuHoldsNoRoom = async ({
-	withMenu,
-	withoutMenu,
-	timestampSlot,
-}: MenuCheck) => {
-	const menu = slotIn(withMenu, "mission-menu")
-	const boxesOf = (root: HTMLElement) =>
-		[
-			slotIn(root, timestampSlot),
-			root.querySelector(
-				"[data-slot=mission-objective], [data-slot=roster-row-name]",
-			),
-		].map((element) => {
-			const box = (element as Element).getBoundingClientRect()
-			return { width: box.width, height: box.height, x: box.x }
-		})
+const objectiveOffsetIn = (surface: HTMLElement, objectiveSlot: string) =>
+	slotIn(surface, objectiveSlot).getBoundingClientRect().top -
+	surface.getBoundingClientRect().top
 
-	await expect(slotsIn(withoutMenu, "mission-menu")).toHaveLength(0)
-	await expect(boxesOf(withMenu)).toEqual(boxesOf(withoutMenu))
+const expectNoMenuButtonIn = async (surface: HTMLElement) => {
+	await expect(slotsIn(surface, "mission-menu")).toHaveLength(0)
 	await expect(
-		Math.abs(
-			menu.getBoundingClientRect().right -
-				slotIn(withMenu, timestampSlot).getBoundingClientRect().right,
-		),
+		within(surface).queryByRole("button", { name: "Mission actions" }),
+	).toBeNull()
+}
+
+const expectSameObjectiveOffset = async ({
+	withPill,
+	withoutPill,
+	objectiveSlot,
+}: PillOffsetCheck) => {
+	await expect(
+		slotsIn(withPill, "mission-state-pill").length,
 	).toBeLessThanOrEqual(1)
-
-	await expect(getComputedStyle(menu).opacity).toBe("0")
-	menu.querySelector("button")?.focus()
-	await expect(getComputedStyle(menu).opacity).toBe("1")
-	await expect(
-		getComputedStyle(slotIn(withMenu, timestampSlot)).visibility,
-	).toBe("hidden")
+	await expect(slotsIn(withoutPill, "mission-state-pill")).toHaveLength(0)
+	await expect(objectiveOffsetIn(withoutPill, objectiveSlot)).toBe(
+		objectiveOffsetIn(withPill, objectiveSlot),
+	)
+	await expectNoMenuButtonIn(withPill)
+	await expectNoMenuButtonIn(withoutPill)
 }
 
-export const RowMenuHoldsNoRoom = meta.story({
-	tags: ["test-only"],
-	args: { ...WAITING_HUMAN_MISSION, density: "row" },
+export const RowWithAndWithoutPill = meta.story({
+	args: { density: "row" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same row with a trailing menu and without one. Check that the row without it draws no menu slot, that the time and the objective sit where they sit on the row without it, that the menu sits at the trailing edge of the time, and that hovering or focusing the row shows the menu in place of the time.",
+					"A row whose state carries a word beside a row whose state carries none. Check that the objective sits at the same distance from the top edge of both rows, and that neither draws a menu button: the menu opens on a right click. " +
+					LISTED_BY_THE_PANEL,
 			},
 		},
 	},
 	render: (args) => (
 		<Panel>
-			<MissionCard {...args} menu={MENU} />
-			<MissionCard {...args} id="mission-without-menu" />
+			<MissionCard {...args} {...WAITING_HUMAN_MISSION} />
+			<MissionCard {...args} {...WAITING_BOT_MISSION} />
 		</Panel>
 	),
 	play: async ({ canvasElement }) => {
-		const [withMenu, withoutMenu] = slotsIn(canvasElement, "mission-card-row")
+		const [withPill, withoutPill] = slotsIn(canvasElement, "mission-card-row")
 
-		await expectMenuHoldsNoRoom({
-			withMenu,
-			withoutMenu,
-			timestampSlot: "roster-row-timestamp",
+		await expect(within(withPill).getByText("Blocked on you")).toBeVisible()
+		await expectSameObjectiveOffset({
+			withPill,
+			withoutPill,
+			objectiveSlot: "roster-row-name",
 		})
 	},
 })
 
-export const CardMenuHoldsNoRoom = meta.story({
-	tags: ["test-only"],
+export const CardWithAndWithoutPill = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same card with a trailing menu and without one. Check that the card without it draws no menu slot, that the time and the objective sit where they sit on the card without it, that the menu sits at the trailing edge of the time, and that hovering or focusing the bubble shows the menu in place of the time.",
+					"A card with a state pill beside a card with none. Check that the objective sits at the same distance from the top edge of both bubbles, and that neither draws a menu button: the menu opens on a right click. " +
+					MOUNTED_BY_THE_TURN,
 			},
 		},
 	},
 	render: (args) => (
 		<div className="flex w-md flex-col gap-4">
-			<MissionCard {...args} menu={MENU} />
-			<MissionCard {...args} id="mission-without-menu" />
+			<MissionCard {...args} {...cardIn("waiting_human")} />
+			<MissionCard {...args} {...cardIn("waiting_bot")} timestamp="" />
 		</div>
 	),
 	play: async ({ canvasElement }) => {
-		const [withMenu, withoutMenu] = slotsIn(canvasElement, "message-bubble")
+		const [withPill, withoutPill] = slotsIn(
+			canvasElement,
+			"message-bubble-content",
+		)
 
-		await expectMenuHoldsNoRoom({
-			withMenu,
-			withoutMenu,
-			timestampSlot: "mission-timestamp",
+		await expect(slotIn(withPill, "mission-state-pill")).toBeVisible()
+		await expectSameObjectiveOffset({
+			withPill,
+			withoutPill,
+			objectiveSlot: "mission-objective",
 		})
 	},
 })

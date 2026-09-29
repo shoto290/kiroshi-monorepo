@@ -8,7 +8,7 @@ import {
 	MISSION_STATES_WITHOUT_A_PILL,
 } from "@workspace/ui/components/missions.fixtures"
 
-const PILLS_THE_STATES_DRAW = 4
+const PILLS_THE_STATES_DRAW = 5
 
 const meta = preview.meta({
 	title: "Conversation/Missions/MissionStatePill",
@@ -18,7 +18,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Where a mission stands, said in words rather than in colour. It speaks for the four states a reader can act on; a mission being worked on or waiting for its companion is not a place it stands, so the pill draws nothing and the animated avatar carries that signal alone. Every label reads on the same badge, the colour sitting on the mark, so no state shouts louder than another. Reach for it inside `MissionHeader` and `MissionCard`.",
+					"Where a mission stands, said in words rather than in colour. It speaks for the four states a reader can act on and for a mission the person closed, in the muted foreground since a close is no outcome; a mission being worked on or waiting for its companion is not a place it stands, so the pill draws nothing and the animated avatar carries that signal alone. Every label reads on the same badge, the colour sitting on the mark, so no state shouts louder than another. Reach for it inside `MissionHeader` and `MissionCard`.",
 			},
 		},
 	},
@@ -30,7 +30,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"The six states a mission can be in, exhaustively, each in its own holder. Check that four of them name themselves in words on the very same badge, that only the mark changes colour between them, and that `working` and `waiting_bot` leave their holder empty. Adding a state to `MissionState` without adding it here is a type error, so this list cannot drift from the contract. `packages/ui/src/components/mission-card.tsx:43` and `packages/ui/src/components/mission-header.tsx:84` each mount one pill for the state their mission is in.",
+					"The seven states a mission can be in, exhaustively, each in its own holder. Check that five of them name themselves in words on the very same badge, that only the mark changes colour between them, and that `working` and `waiting_bot` leave their holder empty. Adding a state to `MissionState` without adding it here is a type error, so this list cannot drift from the contract. `packages/ui/src/components/mission-card.tsx:43` and `packages/ui/src/components/mission-header.tsx:84` each mount one pill for the state their mission is in.",
 			},
 		},
 	},

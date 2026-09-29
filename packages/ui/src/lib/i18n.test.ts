@@ -59,6 +59,14 @@ describe("the runtime", () => {
 		)
 	})
 
+	it("says a mission the person closed was closed by you, in both languages", () => {
+		expect(i18n.t("chat:missions.event.line.dismissed")).toBe("Closed by you")
+
+		activateLanguage("fr")
+
+		expect(i18n.t("chat:missions.event.line.dismissed")).toBe("Fermée par vous")
+	})
+
 	it("counts in the plural forms French takes", () => {
 		activateLanguage("fr")
 

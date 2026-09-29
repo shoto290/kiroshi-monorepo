@@ -13,6 +13,7 @@ type MissionEventKind =
 	| "checks_failed"
 	| "failed"
 	| "closed"
+	| "dismissed"
 	| "reopened"
 
 type MissionState =
@@ -22,6 +23,7 @@ type MissionState =
 	| "ready_to_merge"
 	| "failed"
 	| "done"
+	| "closed"
 
 const MISSION_AVATAR_SIZE = 32
 

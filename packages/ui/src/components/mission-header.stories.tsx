@@ -40,7 +40,7 @@ const WORKING_HEADER: Omit<MissionHeaderProps, "onBack"> = {
 
 const ACTIVITIES = [true, false]
 
-const PILLS_THE_MATRIX_DRAWS = 8
+const PILLS_THE_MATRIX_DRAWS = 10
 
 const LONG_OBJECTIVE =
 	"Rework the mission thread so a reader can follow a run that spans several days without ever losing the ticket it answers"
@@ -94,7 +94,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"The six states a mission can be in, exhaustively, each one drawn twice: with a companion at work on it, then with nobody on it. Check that the pill names the four states it speaks for at the trailing edge of the first band and leaves that edge empty for `working` and `waiting_bot`, that the avatar holds the working pose in the first column and rests in the second whatever the state beside it says, that only `waiting_human` adds the attention dot, and that the two bands keep their height throughout. " +
+					"The seven states a mission can be in, exhaustively, each one drawn twice: with a companion at work on it, then with nobody on it. Check that the pill names the five states it speaks for at the trailing edge of the first band and leaves that edge empty for `working` and `waiting_bot`, that the avatar holds the working pose in the first column and rests in the second whatever the state beside it says, that only `waiting_human` adds the attention dot, and that the two bands keep their height throughout. " +
 					FILLED_BY_THE_THREAD,
 			},
 		},

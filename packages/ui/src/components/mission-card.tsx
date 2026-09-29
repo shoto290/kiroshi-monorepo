@@ -48,7 +48,6 @@ type MissionCardSurface = HTMLAttributes<HTMLElement> & {
 type MissionCardProps = Omit<MissionCardModel, "author"> & {
 	density: MissionCardDensity
 	onOpen: (missionId: string) => void
-	menu?: ReactNode
 	surface?: MissionCardSurface
 	className?: string
 }
@@ -71,48 +70,17 @@ const MARK_CLASS =
 
 const IDENTIFIER_CLASS = "font-medium tabular-nums"
 
-const MENU_REVEAL =
-	"opacity-0 group-hover/mission:opacity-100 group-focus-within/mission:opacity-100"
-
-const TIMESTAMP_YIELD =
-	"group-hover/mission:invisible group-focus-within/mission:invisible"
-
-const ROW_TIMESTAMP_YIELD =
-	"hover:[&_[data-slot=roster-row-timestamp]]:invisible focus-within:[&_[data-slot=roster-row-timestamp]]:invisible"
-
 const isTicketed = ({ platform, externalId, title }: MissionTicketLink) =>
 	Boolean(platform || externalId || title)
-
-type MissionMenuSlotProps = {
-	menu: ReactNode
-	className: string
-}
-
-const MissionMenuSlot = ({ menu, className }: MissionMenuSlotProps) =>
-	menu ? (
-		<span
-			className={cn("absolute flex h-5 items-center", MENU_REVEAL, className)}
-			data-slot="mission-menu"
-		>
-			{menu}
-		</span>
-	) : null
 
 type MissionTitleRowProps = Pick<
 	MissionCardProps,
 	"state" | "tools" | "timestamp"
-> & {
-	hasMenu: boolean
-}
+>
 
-const MissionTitleRow = ({
-	state,
-	tools,
-	timestamp,
-	hasMenu,
-}: MissionTitleRowProps) => (
+const MissionTitleRow = ({ state, tools, timestamp }: MissionTitleRowProps) => (
 	<span
-		className="flex flex-wrap items-center gap-x-2 gap-y-1"
+		className="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1"
 		data-slot="mission-title-row"
 	>
 		{tools.map((tool) => (
@@ -120,10 +88,7 @@ const MissionTitleRow = ({
 		))}
 		<MissionStatePill state={state} />
 		<span
-			className={cn(
-				"ms-auto shrink-0 text-[11px] text-muted-foreground leading-5 tabular-nums",
-				hasMenu && TIMESTAMP_YIELD,
-			)}
+			className="ms-auto shrink-0 text-[11px] text-muted-foreground leading-5 tabular-nums"
 			data-slot="mission-timestamp"
 		>
 			{timestamp}
@@ -150,7 +115,6 @@ const CardDensity = ({
 	commitsAhead,
 	pullRequest,
 	lastActivity,
-	menu,
 	surface,
 	onOpen,
 	className,
@@ -161,10 +125,7 @@ const CardDensity = ({
 
 	return (
 		<MessageBubble className={className} variant="soft">
-			<MessageBubbleContent
-				{...surface}
-				className={cn("group/mission", MESSAGE_BUBBLE_INTERACTIVE)}
-			>
+			<MessageBubbleContent {...surface} className={MESSAGE_BUBBLE_INTERACTIVE}>
 				<button
 					aria-label={t("missions.card.open", { objective })}
 					className={cn(
@@ -182,12 +143,7 @@ const CardDensity = ({
 					{isWorking ? (
 						<span className="sr-only">{t("missions.live")}</span>
 					) : null}
-					<MissionTitleRow
-						hasMenu={Boolean(menu)}
-						state={state}
-						timestamp={timestamp}
-						tools={tools}
-					/>
+					<MissionTitleRow state={state} timestamp={timestamp} tools={tools} />
 					<span className="flex min-w-0 flex-col gap-1">
 						<span
 							className={cn(
@@ -219,7 +175,6 @@ const CardDensity = ({
 						/>
 					) : null}
 				</span>
-				<MissionMenuSlot className="end-0 top-0" menu={menu} />
 			</MessageBubbleContent>
 		</MessageBubble>
 	)
@@ -238,7 +193,6 @@ const RowDensity = ({
 	commitsAhead,
 	pullRequest,
 	lastActivity,
-	menu,
 	surface,
 	onOpen,
 	className,
@@ -262,11 +216,7 @@ const RowDensity = ({
 	return (
 		<li
 			{...surface}
-			className={cn(
-				"group/mission relative",
-				Boolean(menu) && ROW_TIMESTAMP_YIELD,
-				className,
-			)}
+			className={cn("relative", className)}
 			data-slot="mission-card-row"
 		>
 			<SidebarListRow
@@ -350,7 +300,6 @@ const RowDensity = ({
 					pullRequest={pullRequest}
 				/>
 			) : null}
-			<MissionMenuSlot className="end-3 top-1.5" menu={menu} />
 		</li>
 	)
 }

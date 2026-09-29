@@ -15,6 +15,7 @@ const MISSION_STATE_MARK = {
 	ready_to_merge: { Mark: Icons.Check, markClass: "text-bot-badge-done" },
 	failed: { Mark: Icons.Error, markClass: "text-bot-badge-failed" },
 	done: { Mark: Icons.Success, markClass: "text-bot-badge-done" },
+	closed: { Mark: Icons.Close, markClass: "text-muted-foreground" },
 } as const satisfies Partial<Record<MissionState, StateMark>>
 
 type MissionStateWithPill = keyof typeof MISSION_STATE_MARK

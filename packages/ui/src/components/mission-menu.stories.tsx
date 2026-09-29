@@ -9,6 +9,7 @@ import {
 	mergeA11y,
 	shown,
 	slotIn,
+	slotsIn,
 	withStoryProps,
 } from "@workspace/storybook/story-utils"
 import type { MissionState } from "@workspace/ui/components/mission"
@@ -29,15 +30,11 @@ const OPEN_SHORTCUT = "↵"
 
 const CLOSE_SHORTCUT = "⌘⌫"
 
-const SUMMARY = "Shipped behind the flag"
-
 const PANEL_WIDTH = {
 	"--sidebar-width": `${ROUTINES_PANEL_WIDTH}px`,
 } as CSSProperties
 
-const LEADING_ENTRIES = ["Open mission↵", "Open in Linear"]
-
-const OPEN_ENTRIES = [...LEADING_ENTRIES, "Copy"]
+const OPEN_ENTRIES = ["Open mission↵", "Copy"]
 
 const AGENT_RUNNING_ENTRIES = [
 	...OPEN_ENTRIES,
@@ -55,13 +52,12 @@ const ENTRIES_WITHOUT_A_PULL_REQUEST: Record<MissionState, string[]> = {
 	ready_to_merge: [...OPEN_ENTRIES, "Close mission⌘⌫"],
 	failed: CLOSED_ENTRIES,
 	done: CLOSED_ENTRIES,
+	closed: CLOSED_ENTRIES,
 }
 
 const entriesFor = (state: MissionState, hasPullRequest: boolean) => {
-	const [open, ticket, ...rest] = ENTRIES_WITHOUT_A_PULL_REQUEST[state]
-	return hasPullRequest
-		? [open, ticket, "Open PR", ...rest]
-		: [open, ticket, ...rest]
+	const [open, ...rest] = ENTRIES_WITHOUT_A_PULL_REQUEST[state]
+	return hasPullRequest ? [open, "Open PR", ...rest] : [open, ...rest]
 }
 
 const cardIn = (state: MissionState, density: string) => ({
@@ -69,7 +65,7 @@ const cardIn = (state: MissionState, density: string) => ({
 	id: `mission-${state}-${density}`,
 	state,
 	isWorking: state === "working",
-	isClosed: state === "done" || state === "failed",
+	isClosed: state === "done" || state === "failed" || state === "closed",
 })
 
 const Densities = (args: MissionMenuStoryArgs) => (
@@ -116,8 +112,15 @@ const rowIn = (canvasElement: HTMLElement) =>
 const cardSurfaceIn = (canvasElement: HTMLElement) =>
 	slotIn(canvasElement, "message-bubble-content")
 
-const menuButtonIn = (surface: HTMLElement) =>
-	within(surface).getByRole("button", { name: MENU_LABEL })
+const expectNoMenuButtonIn = async (surface: HTMLElement) => {
+	await expect(
+		within(surface).queryByRole("button", { name: MENU_LABEL }),
+	).toBeNull()
+	await expect(slotsIn(surface, "mission-menu")).toHaveLength(0)
+}
+
+const openByRightClick = (surface: HTMLElement) =>
+	fireEvent.contextMenu(surface, { clientX: 40, clientY: 20 })
 
 type EntriesCheck = {
 	canvasElement: HTMLElement
@@ -129,12 +132,11 @@ const expectEntriesInBothDensities = async ({
 	expected,
 }: EntriesCheck) => {
 	for (const surface of [rowIn(canvasElement), cardSurfaceIn(canvasElement)]) {
-		fireEvent.contextMenu(surface, { clientX: 40, clientY: 20 })
-		await expect(await entriesIn()).toEqual(expected)
-		await dismissMenu()
-
-		menuButtonIn(surface).click()
-		await expect(await entriesIn()).toEqual(expected)
+		await expectNoMenuButtonIn(surface)
+		openByRightClick(surface)
+		const entries = await entriesIn()
+		await expect(entries).toEqual(expected)
+		await expect(entries).not.toContain("Open in Linear")
 		await dismissMenu()
 	}
 }
@@ -148,7 +150,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything a person can do to one mission, in one menu. It wraps a `MissionCard` in either density: a right click on the card and a press on the trailing ellipsis it puts in the card's menu slot open the same list. Only the entries that apply to the mission's state are drawn, never a greyed one: Open mission and Open in Linear always, Open PR when there's a pull request, the Copy branch, Message the agent and Stop the agent while the agent runs, Answer the question while the mission waits on the person, then Close mission on an open mission or Reopen on a closed one. Close as done and Close as failed open a small popover under the card, with an optional summary and one confirm button. The component calls nothing on its own: every entry calls the callback it was given.",
+					"Everything a person can do to one mission, in one menu. It wraps a `MissionCard` in either density: a right click on the card opens it, and the card draws no button of its own for it. Only the entries that apply to the mission's state are drawn, never a greyed one: Open mission always, Open PR when there's a pull request, the Copy branch, Message the agent and Stop the agent while the agent runs, Answer the question while the mission waits on the person, then Close mission on an open mission or Reopen on a done, failed or closed one. Close mission calls `onClose` at once, with no popover and no submenu. The component calls nothing on its own: every entry calls the callback it was given.",
 			},
 		},
 	},
@@ -160,7 +162,6 @@ const meta = preview.meta({
 		openShortcut: OPEN_SHORTCUT,
 		closeShortcut: CLOSE_SHORTCUT,
 		onOpen: fn(),
-		onOpenTicket: fn(),
 		onOpenPullRequest: fn(),
 		onCopy: fn(),
 		onMessageAgent: fn(),
@@ -198,7 +199,7 @@ export const Working = meta.story(
 		state: "working",
 		hasPullRequest: true,
 		story:
-			"A mission the agent is working on, with a pull request. Check that a right click on the row and a press on the card's ellipsis both open the list Open mission, Open in Linear, Open PR, Copy, Message the agent, Stop the agent and Close mission, and that Open mission and Close mission carry their shortcut. Pick `WorkingWithoutAPullRequest` for the same mission before its pull request.",
+			"A mission the agent is working on, with a pull request. Check that a right click on the row and on the card both open the list Open mission, Open PR, Copy, Message the agent, Stop the agent and Close mission, and that Open mission and Close mission carry their shortcut. Pick `WorkingWithoutAPullRequest` for the same mission before its pull request.",
 	}),
 )
 
@@ -253,6 +254,15 @@ export const Done = meta.story(
 		hasPullRequest: true,
 		story:
 			"A mission closed as done, with its pull request. Check that Reopen takes the place of Close mission and that no Pin, Hide, Mark done or Delete worktree entry is drawn. Pick `DoneWithoutAPullRequest` for a mission closed with no pull request.",
+	}),
+)
+
+export const Closed = meta.story(
+	stateStoryOf({
+		state: "closed",
+		hasPullRequest: true,
+		story:
+			"A mission the person closed, neither done nor failed. Check that Reopen takes the place of Close mission, as on a done mission.",
 	}),
 )
 
@@ -320,147 +330,36 @@ export const EveryCopyChoice = meta.story({
 	},
 })
 
-const expectAnchoredTo = async (popover: HTMLElement, card: HTMLElement) => {
-	const panel = popover.getBoundingClientRect()
-	const anchor = card.getBoundingClientRect()
-	const gap = Math.min(
-		Math.abs(panel.top - anchor.bottom),
-		Math.abs(anchor.top - panel.bottom),
-	)
-
-	await expect(gap).toBeLessThanOrEqual(8)
-	await expect(Math.abs(panel.right - anchor.right)).toBeLessThanOrEqual(1)
+const expectNothingLeftOpen = async () => {
+	await expect(screen.queryAllByRole("menu")).toHaveLength(0)
+	await expect(screen.queryAllByRole("dialog")).toHaveLength(0)
 }
 
-const chooseCloseAs = async (canvasElement: HTMLElement, label: string) => {
-	menuButtonIn(cardSurfaceIn(canvasElement)).click()
-	const close = await openSubmenu("Close mission")
-
-	await expect(
-		close.getAllByRole("menuitem").map((item) => item.textContent),
-	).toEqual(["Close as done", "Close as failed"])
-	fireEvent.click(close.getByRole("menuitem", { name: label }))
-
-	const popover = await shown(
-		await waitFor(() => {
-			const found = document.querySelector<HTMLElement>(
-				'[data-slot="mission-close-popover"]',
-			)
-			if (!found) throw new Error("the close popover isn't open")
-			return found
-		}, FRAME_POLL),
-	)
-	await waitFor(() => expect(screen.queryByRole("menu")).toBeNull(), FRAME_POLL)
-	return popover
-}
-
-export const ClosePopover = meta.story({
+export const CloseAtOnce = meta.story({
+	args: { state: "waiting_human" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The popover Close as done opens. Check that it hangs under the card rather than over a backdrop, that it holds one optional summary field and one confirm button, and that confirming calls `onClose` with `done` and the summary typed. Pick `ClosingWithoutASummary` for a confirm with the field left empty.",
+					"Close mission chosen from the menu. Check that `onClose` is called with no argument at once, and that no submenu and no popover opens.",
 			},
 		},
 	},
-	play: async ({ args, canvasElement, userEvent }) => {
-		const popover = await chooseCloseAs(canvasElement, "Close as done")
-		const panel = within(popover)
-		const summary = panel.getByRole("textbox", { name: "Summary (optional)" })
+	play: async ({ args, canvasElement }) => {
+		openByRightClick(cardSurfaceIn(canvasElement))
+		const close = (await openMenu()).getByRole("menuitem", {
+			name: /^Close mission/,
+		})
+		await expect(close).not.toHaveAttribute("aria-haspopup")
+		fireEvent.click(close)
 
-		await waitFor(() => expect(summary).toHaveFocus(), FRAME_POLL)
-		await expect(panel.getAllByRole("textbox")).toHaveLength(1)
-		await expect(panel.getAllByRole("button")).toHaveLength(1)
-		await expectAnchoredTo(popover, cardSurfaceIn(canvasElement))
-		await expect(popover).not.toHaveAttribute("aria-modal", "true")
-
-		await userEvent.type(summary, SUMMARY)
-		await userEvent.click(panel.getByRole("button", { name: "Close mission" }))
-
-		await expect(args.onClose).toHaveBeenCalledWith("done", SUMMARY)
+		await expect(args.onClose).toHaveBeenCalledTimes(1)
+		await expect(args.onClose).toHaveBeenCalledWith()
 		await waitFor(
-			() => expect(menuButtonIn(cardSurfaceIn(canvasElement))).toHaveFocus(),
+			() => expect(screen.queryByRole("menu")).toBeNull(),
 			FRAME_POLL,
 		)
-	},
-})
-
-const expectDismissedTo = async (
-	canvasElement: HTMLElement,
-	onClose: MissionMenuStoryArgs["onClose"] | undefined,
-) => {
-	await waitFor(
-		() =>
-			expect(
-				document.querySelector('[data-slot="mission-close-popover"]'),
-			).toBeNull(),
-		FRAME_POLL,
-	)
-	await expect(onClose).not.toHaveBeenCalled()
-	await waitFor(
-		() => expect(menuButtonIn(cardSurfaceIn(canvasElement))).toHaveFocus(),
-		FRAME_POLL,
-	)
-
-	const reopened = await chooseCloseAs(canvasElement, "Close as done")
-	await expect(within(reopened).getByRole("textbox")).toHaveValue("")
-}
-
-export const DismissedByEscape = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The close popover dismissed with Escape after a summary was typed. Check that `onClose` isn't called, that focus goes back to the card's ellipsis, and that the summary field is empty the next time the popover opens.",
-			},
-		},
-	},
-	play: async ({ args, canvasElement, userEvent }) => {
-		const popover = await chooseCloseAs(canvasElement, "Close as done")
-
-		await userEvent.type(within(popover).getByRole("textbox"), SUMMARY)
-		await userEvent.keyboard("{Escape}")
-
-		await expectDismissedTo(canvasElement, args.onClose)
-	},
-})
-
-export const DismissedByAnOutsideClick = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The close popover dismissed by a click outside it after a summary was typed. Check that `onClose` isn't called, that focus goes back to the card's ellipsis, and that the summary field is empty the next time the popover opens.",
-			},
-		},
-	},
-	play: async ({ args, canvasElement, userEvent }) => {
-		const popover = await chooseCloseAs(canvasElement, "Close as done")
-
-		await userEvent.type(within(popover).getByRole("textbox"), SUMMARY)
-		await userEvent.click(document.body)
-
-		await expectDismissedTo(canvasElement, args.onClose)
-	},
-})
-
-export const ClosingWithoutASummary = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Close as failed confirmed with the summary left empty. Check that `onClose` is called with `failed` and the empty string.",
-			},
-		},
-	},
-	play: async ({ args, canvasElement, userEvent }) => {
-		const popover = await chooseCloseAs(canvasElement, "Close as failed")
-
-		await userEvent.click(
-			within(popover).getByRole("button", { name: "Close mission" }),
-		)
-
-		await expect(args.onClose).toHaveBeenCalledWith("failed", "")
+		await expectNothingLeftOpen()
 	},
 })
 
@@ -469,37 +368,34 @@ export const CloseFromTheKeyboard = meta.story({
 		docs: {
 			description: {
 				story:
-					"Cmd+Backspace pressed while the card's open button has focus. Check that the Close as done popover opens under the card with its summary field focused, and that confirming calls `onClose` with `done`.",
+					"Cmd+Backspace pressed while the card's open button has focus. Check that `onClose` is called with no argument at once, with no menu and no popover.",
 			},
 		},
 	},
 	play: async ({ args, canvasElement, userEvent }) => {
-		const surface = cardSurfaceIn(canvasElement)
-		within(surface)
+		within(cardSurfaceIn(canvasElement))
 			.getByRole("button", { name: /^Open the mission/ })
 			.focus()
 
 		await userEvent.keyboard("{Meta>}{Backspace}{/Meta}")
 
-		const popover = await shown(
-			await waitFor(() => {
-				const found = document.querySelector<HTMLElement>(
-					'[data-slot="mission-close-popover"]',
-				)
-				if (!found) throw new Error("the close popover isn't open")
-				return found
-			}, FRAME_POLL),
-		)
-		const panel = within(popover)
-		await expect(panel.getByText("Close as done")).toBeVisible()
-		await waitFor(
-			() => expect(panel.getByRole("textbox")).toHaveFocus(),
-			FRAME_POLL,
-		)
+		await expect(args.onClose).toHaveBeenCalledTimes(1)
+		await expect(args.onClose).toHaveBeenCalledWith()
+		await expectNothingLeftOpen()
+	},
+})
 
-		await userEvent.click(panel.getByRole("button", { name: "Close mission" }))
+export const NoCloseFromTheKeyboardOnAClosedMission = meta.story({
+	tags: ["test-only"],
+	args: { state: "closed" },
+	play: async ({ args, canvasElement, userEvent }) => {
+		within(cardSurfaceIn(canvasElement))
+			.getByRole("button", { name: /^Open the mission/ })
+			.focus()
 
-		await expect(args.onClose).toHaveBeenCalledWith("done", "")
+		await userEvent.keyboard("{Meta>}{Backspace}{/Meta}")
+
+		await expect(args.onClose).not.toHaveBeenCalled()
 	},
 })
 
@@ -534,7 +430,7 @@ const expectFocusLeftOnTheComposer = async ({
 		window.setTimeout(() => composer.focus(), COMPOSER_FOCUS_DELAY_MS)
 
 	for (const surface of [rowIn(canvasElement), cardSurfaceIn(canvasElement)]) {
-		await userEvent.click(menuButtonIn(surface))
+		openByRightClick(surface)
 		const item = (await openMenu()).getByRole("menuitem", { name: entry })
 		item.addEventListener("click", focusComposerLater)
 		await userEvent.click(item)
@@ -581,26 +477,16 @@ export const KeyboardTrigger = meta.story({
 		docs: {
 			description: {
 				story:
-					"The ellipsis reached from the keyboard. Check that Tab lands on it with its name, that it draws the focus ring, and that Enter opens the menu.",
+					"The menu reached from the keyboard, the way the context menu key or Shift+F10 does it: a contextmenu event on the focused open button. Check that the menu opens with the entries a right click draws, and that Escape closes it.",
 			},
 		},
 	},
-	play: async ({ canvasElement, userEvent }) => {
-		const button = menuButtonIn(rowIn(canvasElement))
+	play: async ({ canvasElement }) => {
+		const open = slotIn(rowIn(canvasElement), "sidebar-menu-button")
+		open.focus()
 
-		for (
-			let presses = 0;
-			presses < 10 && document.activeElement !== button;
-			presses++
-		)
-			await userEvent.tab()
-
-		await expect(button).toHaveAccessibleName(MENU_LABEL)
-		await expect(button).toHaveAttribute("aria-haspopup", "menu")
-		await expect(button).toHaveClass("focus-visible:ring-3")
-		await expect(getComputedStyle(button).boxShadow).not.toBe("none")
-
-		await userEvent.keyboard("{Enter}")
+		fireEvent.contextMenu(open)
 		await expect(await entriesIn()).toEqual(entriesFor("working", true))
+		await dismissMenu()
 	},
 })
