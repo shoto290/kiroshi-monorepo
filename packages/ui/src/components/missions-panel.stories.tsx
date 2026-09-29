@@ -258,6 +258,9 @@ const pressAndMove = (row: HTMLElement, distance: number) => {
 	fireEvent.click(row)
 }
 
+const firstRowButton = (canvasElement: HTMLElement) =>
+	slotIn(slotIn(canvasElement, "mission-card-row"), "sidebar-menu-button")
+
 export const DraggingTheWindowFromARow = meta.story({
 	tags: ["test-only"],
 	args: { onDragWindow: fn(), wrap: withMissionMenu },
@@ -274,10 +277,7 @@ export const DraggingTheWindowFromARow = meta.story({
 		},
 	},
 	play: async ({ args, canvasElement }) => {
-		const row = slotIn(
-			slotIn(canvasElement, "mission-card-row"),
-			"sidebar-menu-button",
-		)
+		const row = firstRowButton(canvasElement)
 
 		pressAndMove(row, 1)
 		await expect(args.onOpen).toHaveBeenCalledTimes(1)
