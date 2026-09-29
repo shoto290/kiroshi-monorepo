@@ -1756,16 +1756,19 @@ const SpaceCarousel = ({
 			onScroll={follow}
 			ref={viewport}
 		>
-			{nearby.map((space) => (
-				<SpacePanel
-					isInView={space.id === selectedSpaceId}
-					key={`${list}:${space.id}`}
-					scrollKey={`${list}:${space.id}`}
-					scrolls={scrolls}
-				>
-					{renderSpace(space)}
-				</SpacePanel>
-			))}
+			{nearby.map((space) => {
+				const scrollKey = `${list}:${space.id}`
+				return (
+					<SpacePanel
+						isInView={space.id === selectedSpaceId}
+						key={scrollKey}
+						scrollKey={scrollKey}
+						scrolls={scrolls}
+					>
+						{renderSpace(space)}
+					</SpacePanel>
+				)
+			})}
 		</div>
 	)
 }

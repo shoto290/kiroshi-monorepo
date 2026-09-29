@@ -3801,7 +3801,7 @@ export const SpaceScrollMemory = meta.story({
 	},
 })
 
-const IN_MISSIONS_DESCRIPTION = (story: string) => ({
+const inMissionsDocs = (story: string) => ({
 	docs: {
 		description: {
 			story: `The Missions tab mounted in the same carousel host as Conversations, with one mission per space. Check the play of \`${story}\` holds unchanged on this tab.`,
@@ -3811,23 +3811,23 @@ const IN_MISSIONS_DESCRIPTION = (story: string) => ({
 
 export const LiveSpaceSelectionInMissions = LiveSpaceSelection.extend({
 	args: IN_MISSIONS,
-	parameters: IN_MISSIONS_DESCRIPTION("LiveSpaceSelection"),
+	parameters: inMissionsDocs("LiveSpaceSelection"),
 })
 
 export const SpaceScrollingInMissions = SpaceScrolling.extend({
 	args: IN_MISSIONS,
-	parameters: IN_MISSIONS_DESCRIPTION("SpaceScrolling"),
+	parameters: inMissionsDocs("SpaceScrolling"),
 })
 
 export const SpaceSwipeTakenBackInMissions = SpaceSwipeTakenBack.extend({
 	args: IN_MISSIONS,
-	parameters: IN_MISSIONS_DESCRIPTION("SpaceSwipeTakenBack"),
+	parameters: inMissionsDocs("SpaceSwipeTakenBack"),
 })
 
 export const SpaceSwitchingOffInMissions = SpaceSwitchingOff.extend({
 	tags: ["test-only"],
 	args: IN_MISSIONS,
-	parameters: IN_MISSIONS_DESCRIPTION("SpaceSwitchingOff"),
+	parameters: inMissionsDocs("SpaceSwitchingOff"),
 })
 
 export const MissionsAcrossSpaces = meta.story({
