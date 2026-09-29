@@ -42,27 +42,34 @@ fn window_handles(source: &str) -> Vec<&str> {
 		.collect()
 }
 
+fn commands_called_on(source: &str, receiver: &str) -> Vec<String> {
+	let needle = format!("{receiver}.");
+	let mut commands = Vec::new();
+	for (index, _) in source.match_indices(&needle) {
+		let follows_an_identifier = source[..index]
+			.chars()
+			.next_back()
+			.is_some_and(|letter| letter.is_ascii_alphanumeric() || letter == '_');
+		if follows_an_identifier {
+			continue;
+		}
+		let rest = &source[index + needle.len()..];
+		let method: String = rest.chars().take_while(char::is_ascii_alphanumeric).collect();
+		if !rest[method.len()..].starts_with('(') || is_event_subscription(&method) {
+			continue;
+		}
+		commands.push(kebab(&method));
+	}
+	commands
+}
+
 fn commands_called_by_the_front(source: &str) -> BTreeSet<String> {
 	let mut commands: BTreeSet<String> =
 		WINDOW_COMMANDS_OF_THE_DRAG_REGION.iter().map(ToString::to_string).collect();
 	for handle in window_handles(source) {
-		let needle = format!("{handle}.");
-		for (index, _) in source.match_indices(&needle) {
-			let follows_an_identifier = source[..index]
-				.chars()
-				.next_back()
-				.is_some_and(|letter| letter.is_ascii_alphanumeric() || letter == '_');
-			if follows_an_identifier {
-				continue;
-			}
-			let rest = &source[index + needle.len()..];
-			let method: String = rest.chars().take_while(char::is_ascii_alphanumeric).collect();
-			if !rest[method.len()..].starts_with('(') || is_event_subscription(&method) {
-				continue;
-			}
-			commands.insert(kebab(&method));
-		}
+		commands.extend(commands_called_on(source, handle));
 	}
+	commands.extend(commands_called_on(source, HANDLE_FACTORY));
 	commands
 }
 
