@@ -13,6 +13,7 @@ import { ConversationSeatingContext } from "@/lib/conversations/use-conversation
 import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
 import { useCompanionSelectGuard } from "@/lib/sidebar/companion-select"
+import { useSidebarTab } from "@/lib/user/use-sidebar-tab"
 import { useApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import { useRosterLines } from "@/lib/workspace/use-roster-lines"
 import { useRosterLists } from "@/lib/workspace/use-roster-lists"
@@ -38,6 +39,7 @@ export function App() {
 	const collapsedSectionIds = useSpaceSections({ core, rosterLines })
 	const rosterLists = useRosterLists({ core, drivers, rosterLines, rosterView })
 	const overlay = useWorkspaceOverlay({ core, rosterLines, rosterView, scopes })
+	const sidebarTab = useSidebarTab(core.user)
 	const companionMenu = useCompanionMenuLookup({
 		actions: rosterLines.sidebarActions,
 		conversationRosters: core.roster.state.conversationRosters,
@@ -82,6 +84,10 @@ export function App() {
 						conversations={rosterLists.rosterConversations}
 						conversationsBySpaceId={rosterLists.rosterConversationsBySpace}
 						badgesBySpaceId={rosterLists.badgesBySpaceId}
+						railCounts={rosterLists.railSignals.counts}
+						railDots={rosterLists.railSignals.dots}
+						openPanel={sidebarTab.openTab}
+						onOpenPanelChange={sidebarTab.openSidebarTab}
 						collapsedSectionIds={collapsedSectionIds}
 						sectionsBySpaceId={core.sections.state.sections}
 						footer={rosterLines.updateBadge}

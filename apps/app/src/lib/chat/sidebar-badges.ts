@@ -1,8 +1,17 @@
+import type {
+	AppRailCounts,
+	AppRailDots,
+} from "@workspace/ui/components/app-rail"
 import type { BotBadge as ShownBadge } from "@workspace/ui/components/bot-badge"
 
 import type { BotBadge } from "./bot-badge"
 
 import { rosterLineKey } from "../bots/roster-line"
+import {
+	isAnyMissionWaiting,
+	type MissionsByRow,
+	missionsIn,
+} from "../missions/missions-model"
 
 type BadgedRow = {
 	id: string
@@ -57,4 +66,37 @@ export const toSpaceBadges = (
 		}
 	}
 	return badges
+}
+
+type RailSources = {
+	conversationsBySpaceId: BadgeCarriersBySpaceId
+	missionsBySpaceId: Record<string, MissionsByRow>
+	spaceId: string | null
+}
+
+type RailSignals = {
+	counts: AppRailCounts
+	dots: AppRailDots
+}
+
+const NO_CONVERSATIONS: BadgeCarrier[] = []
+
+export const toRailSignals = ({
+	conversationsBySpaceId,
+	missionsBySpaceId,
+	spaceId,
+}: RailSources): RailSignals => {
+	const conversations =
+		spaceId === null
+			? NO_CONVERSATIONS
+			: (conversationsBySpaceId[spaceId] ?? NO_CONVERSATIONS)
+	return {
+		counts: {
+			conversations: conversations.filter((row) => row.badge).length,
+		},
+		dots: {
+			conversations: conversations.some((row) => row.badge === "attention"),
+			missions: isAnyMissionWaiting(missionsIn(missionsBySpaceId, spaceId)),
+		},
+	}
 }
