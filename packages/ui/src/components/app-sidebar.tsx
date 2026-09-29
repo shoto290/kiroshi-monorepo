@@ -2102,7 +2102,6 @@ const AppSidebarBase = ({
 				aria-label={panelName}
 				className={PANEL}
 				collapsible="icon"
-				data-tauri-drag-region={dragRegion}
 				role="complementary"
 			>
 				<SidebarHeader className={HEADER}>

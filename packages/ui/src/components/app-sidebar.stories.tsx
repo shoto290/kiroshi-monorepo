@@ -2496,20 +2496,31 @@ export const DragRegion = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel as a frameless desktop window mounts it: the column is what the window is carried by. Check that the attribute lands on the panel itself, so the space between the rows drags the window, and that nothing the reader presses carries it — a row, the create button and the chip are buttons, and a button with no drag region of its own is what stops the drag.",
+					"The sidebar as a frameless desktop window mounts it: the title bar and the rail carry the window, the panel never does, so a press that moves anywhere on the list, its header, the gaps between rows or the empty space under them leaves the window where it stands. Check the attribute lands on the title bar and the rail, that nothing inside the panel carries a drag region other than an opt-out, and that nothing the reader presses carries one: a row, the create button, the rail items and the chip are buttons, and a button with no drag region of its own is what stops the drag.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(slotIn(canvasElement, "sidebar-container")).toHaveAttribute(
-			"data-tauri-drag-region",
-			"deep",
+		for (const slot of ["app-title-bar", "app-rail"]) {
+			await expect(slotIn(canvasElement, slot)).toHaveAttribute(
+				"data-tauri-drag-region",
+				"deep",
+			)
+		}
+
+		const panel = slotIn(canvasElement, "sidebar-container")
+		await expect(panel).not.toHaveAttribute("data-tauri-drag-region")
+		const regionsInPanel = Array.from(
+			panel.querySelectorAll("[data-tauri-drag-region]"),
+			(node) => node.getAttribute("data-tauri-drag-region"),
 		)
+		await expect(regionsInPanel.every((value) => value === "false")).toBe(true)
 
 		const pressable = [
 			rowButton(rowsIn(canvasElement)[0]),
 			canvas.getByRole("button", { name: CREATE }),
 			canvas.getByRole("button", { name: READER_NAME }),
+			...slotsIn(canvasElement, "app-rail-item"),
 		]
 		for (const target of pressable) {
 			await expect(target.tagName).toBe("BUTTON")
