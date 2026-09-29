@@ -553,6 +553,13 @@ const chat = {
 		},
 	},
 	missions: {
+		panel: {
+			empty: {
+				title: "No missions yet",
+				description:
+					"Missions your companions open in this space show up here.",
+			},
+		},
 		state: {
 			waiting_human: "Blocked on you",
 			ready_to_merge: "Ready to merge",
