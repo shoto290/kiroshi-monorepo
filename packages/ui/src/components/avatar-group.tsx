@@ -25,7 +25,9 @@ const FRAME = "relative grid shrink-0"
 
 const MEMBER_CELL = "absolute"
 
-const OVERFLOW_LAYER = "pointer-events-none absolute inset-0"
+const OVERFLOW_CELL = "pointer-events-none absolute"
+
+const OVERFLOW_ART = "block size-full"
 
 const COUNTER_TEXT = "font-bold tabular-nums"
 
@@ -145,31 +147,39 @@ type OverflowCellProps = {
 
 const OverflowCell = ({ label, shape, spot, size }: OverflowCellProps) => {
 	const font = shape.halfHeight * 2 * counterFontRatio(size)
+	const side = shape.halfWidth * 2
 	return (
-		<svg
-			aria-hidden="true"
-			className={OVERFLOW_LAYER}
+		<span
+			className={OVERFLOW_CELL}
 			data-slot="conversation-avatar-overflow"
-			height={size}
-			viewBox={`0 0 ${size} ${size}`}
-			width={size}
+			style={{
+				left: spot.x - shape.halfWidth,
+				top: spot.y - shape.halfWidth,
+				width: side,
+				height: side,
+			}}
 		>
-			<path
-				d={shape.path}
-				style={{ fill: "var(--sidebar-accent-foreground)" }}
-				transform={`translate(${spot.x - shape.halfWidth} ${spot.y - shape.halfWidth})`}
-			/>
-			<text
-				className={COUNTER_TEXT}
-				fontSize={font}
-				style={{ fill: "var(--sidebar)" }}
-				textAnchor="middle"
-				x={spot.x}
-				y={spot.y + font * CAP_CENTRE_RATIO}
+			<svg
+				aria-hidden="true"
+				className={OVERFLOW_ART}
+				viewBox={`0 0 ${side} ${side}`}
 			>
-				{label}
-			</text>
-		</svg>
+				<path
+					d={shape.path}
+					style={{ fill: "var(--sidebar-accent-foreground)" }}
+				/>
+				<text
+					className={COUNTER_TEXT}
+					fontSize={font}
+					style={{ fill: "var(--sidebar)" }}
+					textAnchor="middle"
+					x={shape.halfWidth}
+					y={shape.halfWidth + font * CAP_CENTRE_RATIO}
+				>
+					{label}
+				</text>
+			</svg>
+		</span>
 	)
 }
 
