@@ -4,11 +4,6 @@ import type { AppSidebarBot } from "@workspace/ui/components/app-sidebar"
 
 import { toRailSignals, toSpaceBadges, withBadges } from "./sidebar-badges"
 
-import type { Bot } from "../bindings"
-import type { MissionState } from "../missions/mission-contract"
-import { aMission } from "../missions/mission-fixtures"
-import { type MissionsByRow, missionsByRow } from "../missions/missions-model"
-
 type ShownBadge = AppSidebarBot["badge"]
 
 const rosterBot = (id: string) => ({ id, name: id })
@@ -105,23 +100,20 @@ describe("toRailSignals", () => {
 	const badged = (badges: ShownBadge[]) =>
 		badges.map((badge, index) => ({ id: `room-${index}`, badge }))
 
-	const missionsOf = (state: MissionState) =>
-		missionsByRow([{ mission: aMission({ state }), bot: {} as Bot }], [])
-
 	type RailSeed = {
 		conversations?: Record<string, ReturnType<typeof badged>>
-		missions?: Record<string, MissionsByRow>
+		waitingMissionCount?: number
 		spaceId?: string | null
 	}
 
 	const signalsOf = ({
 		conversations = {},
-		missions = {},
+		waitingMissionCount = 0,
 		spaceId = "vocca",
 	}: RailSeed) =>
 		toRailSignals({
 			conversationsBySpaceId: conversations,
-			missionsBySpaceId: missions,
+			waitingMissionCount,
 			spaceId,
 		})
 
@@ -152,36 +144,41 @@ describe("toRailSignals", () => {
 		expect(settled.dots.conversations).toBe(false)
 	})
 
-	it("dots Missions while a mission of the space waits on the reader", () => {
-		const waiting = signalsOf({
-			missions: { vocca: missionsOf("waiting_human") },
-		})
-		const working = signalsOf({ missions: { vocca: missionsOf("working") } })
-		expect(waiting.dots.missions).toBe(true)
-		expect(working.dots.missions).toBe(false)
+	it("counts on Missions the missions of the space waiting on the reader", () => {
+		const { counts } = signalsOf({ waitingMissionCount: 3 })
+		expect(counts.missions).toBe(3)
 	})
 
-	it("reads the signals of the selected space only", () => {
+	it("counts nothing on Missions when no mission waits on the reader", () => {
+		const { counts } = signalsOf({ waitingMissionCount: 0 })
+		expect(counts.missions).toBe(0)
+	})
+
+	it("never dots Missions", () => {
+		const { dots } = signalsOf({ waitingMissionCount: 2 })
+		expect(dots).not.toHaveProperty("missions")
+	})
+
+	it("reads the conversation signals of the selected space only", () => {
 		const sources = {
 			conversations: { atlas: badged(["attention", "done"]) },
-			missions: { atlas: missionsOf("waiting_human") },
 		}
 		const vocca = signalsOf({ ...sources, spaceId: "vocca" })
 		const atlas = signalsOf({ ...sources, spaceId: "atlas" })
 		expect(vocca).toEqual({
-			counts: { conversations: 0 },
-			dots: { conversations: false, missions: false },
+			counts: { conversations: 0, missions: 0 },
+			dots: { conversations: false },
 		})
 		expect(atlas).toEqual({
-			counts: { conversations: 2 },
-			dots: { conversations: true, missions: true },
+			counts: { conversations: 2, missions: 0 },
+			dots: { conversations: true },
 		})
 	})
 
 	it("signals nothing on Companions and Applications", () => {
 		const { counts, dots } = signalsOf({
 			conversations: { vocca: badged(["attention"]) },
-			missions: { vocca: missionsOf("waiting_human") },
+			waitingMissionCount: 1,
 		})
 		expect(counts).not.toHaveProperty("companions")
 		expect(counts).not.toHaveProperty("applications")
@@ -195,6 +192,6 @@ describe("toRailSignals", () => {
 			spaceId: null,
 		})
 		expect(counts.conversations).toBe(0)
-		expect(dots).toEqual({ conversations: false, missions: false })
+		expect(dots).toEqual({ conversations: false })
 	})
 })

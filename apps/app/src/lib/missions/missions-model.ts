@@ -11,6 +11,10 @@ import type {
 	MissionPullRequest,
 	MissionEventKind as ShownEventKind,
 } from "@workspace/ui/components/mission"
+import type {
+	MissionsPanelMission,
+	MissionsPanelProps,
+} from "@workspace/ui/components/missions-panel"
 import type { RosterBot } from "@workspace/ui/components/roster"
 import type {
 	EarlierTodayRow,
@@ -492,6 +496,13 @@ const toRowMission = ({
 	},
 })
 
+export const missionRowIdOf = (
+	conversationId: string,
+	botId: string,
+	listedConversationIds: ReadonlySet<string>,
+): string =>
+	listedConversationIds.has(conversationId) ? conversationId : botId
+
 export const missionsByRow = (
 	board: MissionOnBoard[],
 	listedConversations: { id: string }[],
@@ -507,9 +518,11 @@ export const missionsByRow = (
 		const state = CHIP_STATE_OF[shownStateOf(mission, waitingMissionIds)]
 		if (!state) continue
 
-		const rowId = listedConversationIds.has(mission.originConversationId)
-			? mission.originConversationId
-			: mission.botId
+		const rowId = missionRowIdOf(
+			mission.originConversationId,
+			mission.botId,
+			listedConversationIds,
+		)
 		open[rowId] = [...(open[rowId] ?? []), { state, mission }]
 	}
 
@@ -578,11 +591,6 @@ export const missionsIn = (
 ): MissionsByRow =>
 	spaceId === null ? NO_MISSIONS : (missions[spaceId] ?? NO_MISSIONS)
 
-export const isAnyMissionWaiting = (missions: MissionsByRow): boolean =>
-	Object.values(missions).some((held) =>
-		held.some((mission) => mission.state === CHIP_STATE_OF.waiting_human),
-	)
-
 export const withMissions = <Row extends MissionCarrier & { id: string }>(
 	rows: Row[],
 	missions: MissionsByRow,
@@ -602,3 +610,46 @@ export const missionRingBadges = (
 			})),
 		]),
 	)
+
+type MissionsPanelRowsRead = {
+	faceOf: MissionFaces
+	liveMissionIds: LiveMissionIds
+	now: number
+}
+
+type MissionsPanelRead = MissionsPanelRowsRead & {
+	groups: SpaceMissionGroups
+}
+
+const missionsPanelRowsOf = (
+	entries: MissionInSpace[],
+	{ faceOf, liveMissionIds, now }: MissionsPanelRowsRead,
+): MissionsPanelMission[] =>
+	entries.flatMap(({ mission, conversationId }) => {
+		const identity = faceOf(mission.botId)
+		return identity
+			? [
+					{
+						...toMissionCard({
+							mission,
+							identity,
+							state: mission.state,
+							isWorking: liveMissionIds.has(mission.id),
+							now,
+						}),
+						conversationId,
+					},
+				]
+			: []
+	})
+
+export const toMissionsPanel = ({
+	groups,
+	...read
+}: MissionsPanelRead): Omit<MissionsPanelProps, "onOpen"> => ({
+	open: missionsPanelRowsOf(
+		[...groups.waitingOnYou, ...groups.inProgress],
+		read,
+	),
+	earlierToday: missionsPanelRowsOf(groups.earlierToday, read),
+})
