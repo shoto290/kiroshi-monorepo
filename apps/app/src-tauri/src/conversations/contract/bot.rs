@@ -6,21 +6,9 @@ use super::room::drawable_avatar;
 use crate::bundles;
 use crate::db::repositories::conversations;
 
-macro_rules! avatar_palette {
-	($name:ident { $($variant:ident),+ $(,)? }) => {
-		#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
-		#[serde(rename_all = "camelCase")]
-		pub enum $name {
-			$($variant),+
-		}
-
-		impl $name {
-			pub const ALL: &'static [$name] = &[$($name::$variant),+];
-		}
-	};
-}
-
-avatar_palette!(AvatarBlot {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum AvatarBlot {
 	Red,
 	Yellow,
 	Green,
@@ -29,7 +17,20 @@ avatar_palette!(AvatarBlot {
 	Purple,
 	Pink,
 	Orange,
-});
+}
+
+impl AvatarBlot {
+	pub const ALL: &'static [AvatarBlot] = &[
+		AvatarBlot::Red,
+		AvatarBlot::Yellow,
+		AvatarBlot::Green,
+		AvatarBlot::Cyan,
+		AvatarBlot::Blue,
+		AvatarBlot::Purple,
+		AvatarBlot::Pink,
+		AvatarBlot::Orange,
+	];
+}
 
 impl From<conversations::AvatarBlot> for AvatarBlot {
 	fn from(blot: conversations::AvatarBlot) -> Self {

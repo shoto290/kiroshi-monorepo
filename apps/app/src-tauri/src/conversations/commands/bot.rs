@@ -247,7 +247,7 @@ fn drafted_identity(
 		name: name.to_owned(),
 		title: draft.job.trim().to_owned(),
 		model: DEFAULT_BOT_MODEL.to_owned(),
-		avatar_blot: Some(unworn(AvatarBlot::ALL, &blots, worn.len())),
+		avatar_blot: Some(unworn(&blots, worn.len())),
 		avatar_image_path: None,
 		instructions: draft.description.trim().to_owned(),
 		denied_tools: Vec::new(),
@@ -256,12 +256,12 @@ fn drafted_identity(
 	})
 }
 
-fn unworn<T: Copy + PartialEq>(declared: &[T], worn: &[T], crowd: usize) -> T {
-	declared
+fn unworn(worn: &[AvatarBlot], crowd: usize) -> AvatarBlot {
+	AvatarBlot::ALL
 		.iter()
 		.copied()
-		.find(|variant| !worn.contains(variant))
-		.unwrap_or(declared[crowd % declared.len()])
+		.find(|blot| !worn.contains(blot))
+		.unwrap_or(AvatarBlot::ALL[crowd % AvatarBlot::ALL.len()])
 }
 
 pub(in crate::conversations) async fn create_bundled_bot<R: Runtime>(
