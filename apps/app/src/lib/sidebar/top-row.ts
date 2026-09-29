@@ -1,7 +1,6 @@
 import type {
 	AppSidebarBot,
 	AppSidebarConversation,
-	AppSidebarRowMission,
 	AppSidebarSection,
 } from "@workspace/ui/components/app-sidebar"
 
@@ -21,7 +20,7 @@ const NO_ACTIVITY = -1
 const byMostRecent = (one: DisplayedRow, other: DisplayedRow) =>
 	(other.lastActivityAt ?? NO_ACTIVITY) - (one.lastActivityAt ?? NO_ACTIVITY)
 
-const isWaiting = ({ missions }: { missions?: AppSidebarRowMission[] }) =>
+const isWaiting = ({ missions }: DisplayedRow) =>
 	missions?.some(({ state }) => state === "waiting") ?? false
 
 const topPinnedRowId = ({
