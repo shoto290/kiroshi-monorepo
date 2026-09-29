@@ -24,14 +24,9 @@ const CAPTION_BUTTON =
 const CLOSE_BUTTON =
 	"hover:bg-window-close hover:text-white dark:hover:bg-window-close"
 
-const POINTER_PRESS_IGNORED = "active:scale-none!"
-
 const FORCED_MAXIMIZE: Record<MaximizeState, string> = {
-	idle: cn(
-		"hover:bg-transparent hover:text-inherit dark:hover:bg-transparent",
-		POINTER_PRESS_IGNORED,
-	),
-	hover: cn("bg-muted text-foreground dark:bg-muted/50", POINTER_PRESS_IGNORED),
+	idle: "hover:bg-transparent hover:text-inherit dark:hover:bg-transparent active:scale-none!",
+	hover: "bg-muted text-foreground dark:bg-muted/50 active:scale-none!",
 	pressed: "bg-muted text-foreground dark:bg-muted/50 scale-100",
 }
 
