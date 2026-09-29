@@ -77,7 +77,7 @@ const Bubble = ({ entry }: { entry: Entry }) => (
 			"max-w-[85%] rounded-lg px-3 py-2 text-sm",
 			entry.from === "user"
 				? "ml-auto bg-secondary text-secondary-foreground"
-				: "border border-border bg-card text-card-foreground",
+				: "border border-border bg-card text-foreground",
 		)}
 	>
 		{entry.text}

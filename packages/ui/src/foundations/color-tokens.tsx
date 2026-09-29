@@ -2,7 +2,6 @@ export const SURFACE_TOKENS = [
 	"--background",
 	"--foreground",
 	"--card",
-	"--card-foreground",
 	"--popover",
 	"--popover-foreground",
 ]
@@ -30,7 +29,6 @@ export const SIDEBAR_TOKENS = [
 	"--sidebar",
 	"--sidebar-foreground",
 	"--sidebar-primary",
-	"--sidebar-primary-foreground",
 	"--sidebar-accent",
 	"--sidebar-accent-foreground",
 	"--sidebar-border",

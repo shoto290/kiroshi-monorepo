@@ -45,19 +45,9 @@ const RADII = [
 		computed: "calc(var(--radius-root) * 1.8)",
 	},
 	{
-		token: "--radius-card",
-		className: "rounded-card",
-		computed: "calc(var(--radius-root) * 2)",
-	},
-	{
 		token: "--radius-control",
 		className: "rounded-control",
 		computed: "calc(var(--radius-root) * 1.2)",
-	},
-	{
-		token: "--radius-control-lg",
-		className: "rounded-control-lg",
-		computed: "calc(var(--radius-root) * 1.4)",
 	},
 ]
 
