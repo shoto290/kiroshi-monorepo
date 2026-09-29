@@ -11,19 +11,26 @@ use windows::Win32::Foundation::{
 	ERROR_CLASS_ALREADY_EXISTS, HINSTANCE, HWND, LPARAM, LRESULT, WPARAM,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+	TrackMouseEvent, TME_LEAVE, TME_NONCLIENT, TRACKMOUSEEVENT,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
-	CreateWindowExW, DefWindowProcW, GetParent, IsZoomed, PostMessageW, RegisterClassExW,
-	SetWindowLongPtrW, SetWindowPos, GWLP_USERDATA, HTMAXBUTTON, HWND_TOP, SC_MAXIMIZE, SC_RESTORE,
-	SWP_NOACTIVATE, SWP_SHOWWINDOW, WINDOW_EX_STYLE, WM_NCHITTEST, WM_NCLBUTTONDBLCLK,
-	WM_NCLBUTTONDOWN, WM_NCLBUTTONUP, WM_SYSCOMMAND, WNDCLASSEXW, WS_CHILD, WS_CLIPSIBLINGS,
-	WS_VISIBLE,
+	CreateWindowExW, DefWindowProcW, GetParent, GetWindowLongPtrW, IsZoomed, PostMessageW,
+	RegisterClassExW, SetWindowLongPtrW, SetWindowPos, GWLP_USERDATA, HTMAXBUTTON, HWND_TOP,
+	SC_MAXIMIZE, SC_RESTORE, SWP_HIDEWINDOW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+	SWP_SHOWWINDOW, WINDOW_EX_STYLE, WM_NCDESTROY, WM_NCHITTEST, WM_NCLBUTTONDBLCLK,
+	WM_NCLBUTTONDOWN, WM_NCLBUTTONUP, WM_NCMOUSELEAVE, WM_NCMOUSEMOVE, WM_SYSCOMMAND, WNDCLASSEXW,
+	WS_CHILD, WS_CLIPSIBLINGS, WS_VISIBLE,
 };
 
-use super::{MaximizeButtonBounds, WindowFrameError};
+use super::pointer::{Pointer, PointerInput};
+use super::{
+	MaximizeButtonBounds, MaximizeButtonPointer, MaximizeButtonState, WindowFrameError,
+	MAXIMIZE_BUTTON_EVENT,
+};
+use crate::events;
 
 const OVERLAY_CLASS: PCWSTR = w!("KiroshiMaximizeButton");
-const PRESSED: isize = 1;
-const RELEASED: isize = 0;
 
 #[derive(Default)]
 struct MaximizeButton(Mutex<Option<Overlay>>);
@@ -31,7 +38,12 @@ struct MaximizeButton(Mutex<Option<Overlay>>);
 #[derive(Clone, Copy)]
 struct Overlay {
 	hwnd: isize,
-	bounds: MaximizeButtonBounds,
+	bounds: Option<MaximizeButtonBounds>,
+}
+
+struct Tracker {
+	pointer: Pointer,
+	report: Box<dyn Fn(MaximizeButtonState)>,
 }
 
 struct Failure {
@@ -70,7 +82,7 @@ pub fn frame<R: Runtime>(window: &WebviewWindow<R>) {
 
 pub async fn declare_maximize_button<R: Runtime>(
 	window: WebviewWindow<R>,
-	bounds: MaximizeButtonBounds,
+	bounds: Option<MaximizeButtonBounds>,
 ) -> Result<(), WindowFrameError> {
 	place_on_main_thread(window, bounds).await.map_err(|failure| {
 		eprintln!(
@@ -83,9 +95,9 @@ pub async fn declare_maximize_button<R: Runtime>(
 
 async fn place_on_main_thread<R: Runtime>(
 	window: WebviewWindow<R>,
-	bounds: MaximizeButtonBounds,
+	bounds: Option<MaximizeButtonBounds>,
 ) -> Result<(), Failure> {
-	if !is_drawable(bounds) {
+	if bounds.is_some_and(|bounds| !is_drawable(bounds)) {
 		return Err(Failure {
 			error: WindowFrameError::InvalidBounds,
 			cause: "bounds out of range".into(),
@@ -113,17 +125,21 @@ fn is_drawable(bounds: MaximizeButtonBounds) -> bool {
 
 fn place<R: Runtime>(
 	window: &WebviewWindow<R>,
-	bounds: MaximizeButtonBounds,
+	bounds: Option<MaximizeButtonBounds>,
 ) -> Result<(), Failure> {
 	let state = window
 		.try_state::<MaximizeButton>()
 		.ok_or_else(|| Failure::unavailable("the main window was never framed"))?;
 	let mut declared = state.0.lock().map_err(Failure::unavailable)?;
-	let hwnd = match *declared {
-		Some(overlay) => overlay.hwnd,
-		None => create_overlay(window)?,
+	let hwnd = match (*declared, bounds) {
+		(Some(overlay), _) => overlay.hwnd,
+		(None, Some(_)) => create_overlay(window)?,
+		(None, None) => return Ok(()),
 	};
 	*declared = Some(Overlay { hwnd, bounds });
+	let Some(bounds) = bounds else {
+		return hide(hwnd);
+	};
 	let scale = window.scale_factor().map_err(Failure::unavailable)?;
 	position(hwnd, bounds, scale)
 }
@@ -134,8 +150,8 @@ fn follow_scale<R: Runtime>(window: &WebviewWindow<R>, scale: f64) -> Result<(),
 	};
 	let declared = *state.0.lock().map_err(Failure::unavailable)?;
 	match declared {
-		Some(overlay) => position(overlay.hwnd, overlay.bounds, scale),
-		None => Ok(()),
+		Some(Overlay { hwnd, bounds: Some(bounds) }) => position(hwnd, bounds, scale),
+		_ => Ok(()),
 	}
 }
 
@@ -165,9 +181,24 @@ fn position(hwnd: isize, bounds: MaximizeButtonBounds, scale: f64) -> Result<(),
 	.map_err(Failure::overlay)
 }
 
+fn hide(hwnd: isize) -> Result<(), Failure> {
+	unsafe {
+		SetWindowPos(
+			HWND(hwnd as _),
+			None,
+			0,
+			0,
+			0,
+			0,
+			SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+		)
+	}
+	.map_err(Failure::overlay)
+}
+
 fn create_overlay<R: Runtime>(window: &WebviewWindow<R>) -> Result<isize, Failure> {
 	let parent = window.hwnd().map_err(Failure::unavailable)?;
-	unsafe {
+	let overlay = unsafe {
 		let instance = HINSTANCE(GetModuleHandleW(None).map_err(Failure::overlay)?.0);
 		register_overlay_class(instance)?;
 		CreateWindowExW(
@@ -185,8 +216,20 @@ fn create_overlay<R: Runtime>(window: &WebviewWindow<R>) -> Result<isize, Failur
 			None,
 		)
 	}
-	.map(|hwnd| hwnd.0 as isize)
-	.map_err(Failure::overlay)
+	.map_err(Failure::overlay)?;
+	let tracker = Box::new(Tracker { pointer: Pointer::default(), report: reporter(window) });
+	unsafe { SetWindowLongPtrW(overlay, GWLP_USERDATA, Box::into_raw(tracker) as isize) };
+	Ok(overlay.0 as isize)
+}
+
+fn reporter<R: Runtime>(window: &WebviewWindow<R>) -> Box<dyn Fn(MaximizeButtonState)> {
+	let app = window.app_handle().clone();
+	Box::new(move |state| {
+		let payload = MaximizeButtonPointer { state };
+		if let Err(error) = events::emit(&app, MAXIMIZE_BUTTON_EVENT, payload) {
+			eprintln!("the maximize button did not report {state:?}: {error}");
+		}
+	})
 }
 
 unsafe fn register_overlay_class(instance: HINSTANCE) -> Result<(), Failure> {
@@ -213,19 +256,55 @@ unsafe extern "system" fn answer_as_the_maximize_button(
 	wparam: WPARAM,
 	lparam: LPARAM,
 ) -> LRESULT {
-	match message {
-		WM_NCHITTEST => LRESULT(HTMAXBUTTON as isize),
-		WM_NCLBUTTONDOWN | WM_NCLBUTTONDBLCLK => {
-			SetWindowLongPtrW(hwnd, GWLP_USERDATA, PRESSED);
-			LRESULT(0)
+	let input = match message {
+		WM_NCHITTEST => return LRESULT(HTMAXBUTTON as isize),
+		WM_NCDESTROY => {
+			release_tracker(hwnd);
+			return DefWindowProcW(hwnd, message, wparam, lparam);
 		}
-		WM_NCLBUTTONUP => {
-			if SetWindowLongPtrW(hwnd, GWLP_USERDATA, RELEASED) == PRESSED {
-				toggle_maximize(hwnd);
-			}
-			LRESULT(0)
-		}
-		_ => DefWindowProcW(hwnd, message, wparam, lparam),
+		WM_NCMOUSEMOVE => PointerInput::Moved,
+		WM_NCLBUTTONDOWN | WM_NCLBUTTONDBLCLK => PointerInput::Pressed,
+		WM_NCLBUTTONUP => PointerInput::Released,
+		WM_NCMOUSELEAVE => PointerInput::Left,
+		_ => return DefWindowProcW(hwnd, message, wparam, lparam),
+	};
+	let tracker = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Tracker;
+	if let Some(tracker) = tracker.as_mut() {
+		follow_pointer(hwnd, tracker, input);
+	}
+	LRESULT(0)
+}
+
+unsafe fn follow_pointer(hwnd: HWND, tracker: &mut Tracker, input: PointerInput) {
+	let (pointer, reaction) = tracker.pointer.react(input);
+	if pointer.is_inside && !tracker.pointer.is_inside {
+		track_leave(hwnd);
+	}
+	tracker.pointer = pointer;
+	if let Some(state) = reaction.report {
+		(tracker.report)(state);
+	}
+	if reaction.toggles_maximize {
+		toggle_maximize(hwnd);
+	}
+}
+
+unsafe fn track_leave(hwnd: HWND) {
+	let mut request = TRACKMOUSEEVENT {
+		cbSize: std::mem::size_of::<TRACKMOUSEEVENT>() as u32,
+		dwFlags: TME_LEAVE | TME_NONCLIENT,
+		hwndTrack: hwnd,
+		dwHoverTime: 0,
+	};
+	if let Err(error) = TrackMouseEvent(&mut request) {
+		eprintln!("the maximize button will not see the pointer leave: {error}");
+	}
+}
+
+unsafe fn release_tracker(hwnd: HWND) {
+	let tracker = SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0) as *mut Tracker;
+	if !tracker.is_null() {
+		drop(Box::from_raw(tracker));
 	}
 }
 

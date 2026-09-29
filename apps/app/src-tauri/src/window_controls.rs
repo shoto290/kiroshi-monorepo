@@ -4,6 +4,8 @@ use tauri::{AppHandle, Manager, Runtime, WebviewWindow};
 #[cfg(target_os = "macos")]
 pub use macos::center_in_header;
 
+#[cfg(any(windows, test))]
+mod pointer;
 #[cfg(windows)]
 mod win32;
 #[cfg(windows)]
@@ -24,6 +26,23 @@ pub struct MaximizeButtonBounds {
 	pub height: f64,
 }
 
+pub const MAXIMIZE_BUTTON_EVENT: &str = "window-maximize-button";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(not(windows), allow(dead_code))]
+pub enum MaximizeButtonState {
+	Idle,
+	Hover,
+	Pressed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
+#[cfg_attr(not(windows), allow(dead_code))]
+pub struct MaximizeButtonPointer {
+	pub state: MaximizeButtonState,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[cfg_attr(not(windows), allow(dead_code))]
@@ -39,7 +58,7 @@ pub enum WindowFrameError {
 #[specta::specta]
 pub async fn window_declare_maximize_button<R: Runtime>(
 	window: WebviewWindow<R>,
-	bounds: MaximizeButtonBounds,
+	bounds: Option<MaximizeButtonBounds>,
 ) -> Result<(), WindowFrameError> {
 	declare_maximize_button(window, bounds).await
 }
@@ -47,7 +66,7 @@ pub async fn window_declare_maximize_button<R: Runtime>(
 #[cfg(not(windows))]
 async fn declare_maximize_button<R: Runtime>(
 	_window: WebviewWindow<R>,
-	_bounds: MaximizeButtonBounds,
+	_bounds: Option<MaximizeButtonBounds>,
 ) -> Result<(), WindowFrameError> {
 	eprintln!("the maximize button is declared only on Windows");
 	Err(WindowFrameError::Unsupported)

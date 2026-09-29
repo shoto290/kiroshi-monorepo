@@ -58,7 +58,12 @@ export const commands = {
 	conversationCreateBotFromDraft: (draft: BotDraft, spaceId: string) => typedError<Bot, TranscriptStoreError>(__TAURI_INVOKE("conversation_create_bot_from_draft", { draft, spaceId })),
 	conversationSuggestedBots: () => __TAURI_INVOKE<SuggestedBot[]>("conversation_suggested_bots"),
 	companionLaunchOutcome: () => __TAURI_INVOKE<LaunchOutcome>("companion_launch_outcome"),
-	windowDeclareMaximizeButton: (bounds: MaximizeButtonBounds) => typedError<null, WindowFrameError>(__TAURI_INVOKE("window_declare_maximize_button", { bounds })),
+	windowDeclareMaximizeButton: (bounds: {
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+} | null) => typedError<null, WindowFrameError>(__TAURI_INVOKE("window_declare_maximize_button", { bounds })),
 	conversationDuplicateBot: (botId: string, spaceId: string | null) => typedError<Bot, TranscriptStoreError>(__TAURI_INVOKE("conversation_duplicate_bot", { botId, spaceId })),
 	conversationUpdateBot: (id: string, identity: BotIdentity) => typedError<Bot, TranscriptStoreError>(__TAURI_INVOKE("conversation_update_bot", { id, identity })),
 	conversationDeleteBot: (id: string) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_delete_bot", { id })),
@@ -187,6 +192,8 @@ export const commands = {
 export const ARCHIVE_EXTENSION = "kiroshi" as const;
 
 export const ARCHIVE_FILTER_NAME = "Kiroshi space" as const;
+
+export const MAXIMIZE_BUTTON_EVENT = "window-maximize-button" as const;
 
 /* Types */
 export type Account = {
@@ -653,6 +660,12 @@ export type MaximizeButtonBounds = {
 	width: number,
 	height: number,
 };
+
+export type MaximizeButtonPointer = {
+	state: MaximizeButtonState,
+};
+
+export type MaximizeButtonState = "idle" | "hover" | "pressed";
 
 export type McpServer = McpServer_Serialize | McpServer_Deserialize;
 
