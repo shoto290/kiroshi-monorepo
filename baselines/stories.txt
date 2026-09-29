@@ -799,8 +799,11 @@ navigation-missionspanel--default
 navigation-missionspanel--earlier-today-unfolded
 navigation-missionspanel--empty
 navigation-missionspanel--long-title
+navigation-missionspanel--no-selected-row
 navigation-missionspanel--one-group
 navigation-missionspanel--opening-a-mission
+navigation-missionspanel--row-menu
+navigation-missionspanel--selected-row
 navigation-missionspanel--toggling
 navigation-searchresultrow--activated
 navigation-searchresultrow--active

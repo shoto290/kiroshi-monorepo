@@ -1,10 +1,15 @@
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useSyncExternalStore } from "react"
 
 import type { MissionsPanelProps } from "@workspace/ui/components/missions-panel"
 
+import {
+	type StoppableRuntimes,
+	useMissionCardMenus,
+} from "@/components/mission-card-menu"
 import type { RosterController } from "../bots/roster-controller"
 import { faceOfBot } from "../chat/thread-contract"
 import type { Bot, Conversation } from "../conversations/store-contract"
+import type { MissionLanding } from "../missions/mission-actions"
 import {
 	missionRowIdOf,
 	type SpaceMissionGroups,
@@ -20,8 +25,11 @@ import { useSpaceMissions } from "../missions/use-space-missions"
 import type { ShownMemory } from "../sidebar/shown-memory"
 
 type SidebarMissionsCore = {
-	conversationRuntimes: MissionSpeakingRuntimes
-	openedMission: Pick<OpenedMissionController, "open" | "leave">
+	conversationRuntimes: MissionSpeakingRuntimes & StoppableRuntimes
+	openedMission: Pick<
+		OpenedMissionController,
+		"open" | "leave" | "getState" | "subscribe"
+	>
 	roster: {
 		state: {
 			rosters: Record<string, Bot[]>
@@ -84,6 +92,10 @@ export const useSidebarMissions = ({
 		() => entries.map(({ mission }) => mission),
 		[entries],
 	)
+	const opened = useSyncExternalStore(
+		openedMission.subscribe,
+		openedMission.getState,
+	)
 	const liveMissionIds = useLiveMissions(conversationRuntimes, missions, now)
 	const faces = useMemo(
 		() => facesOf(roster.state.rosters),
@@ -96,31 +108,38 @@ export const useSidebarMissions = ({
 	)
 
 	const openMission = useCallback(
-		(missionId: string, conversationId: string) => {
-			const mission = missions.find(({ id }) => id === missionId)
-			if (!mission) {
+		(missionId: string, landing?: MissionLanding) => {
+			const entry = entries.find(({ mission }) => mission.id === missionId)
+			if (!entry) {
 				return
 			}
+			const { mission, conversationId } = entry
 			const rowId = missionRowIdOf(
 				conversationId,
 				mission.botId,
 				listedConversationIds,
 			)
-			openedMission.open({ missionId, rowId, spaceId: spaceId ?? undefined })
+			openedMission.open({
+				missionId,
+				rowId,
+				spaceId: spaceId ?? undefined,
+				landing,
+			})
 			if (rowId === conversationId) {
 				roster.controller.selectConversation(rowId)
 			} else {
 				roster.controller.select(rowId)
 			}
 		},
-		[
-			missions,
-			listedConversationIds,
-			roster.controller,
-			openedMission,
-			spaceId,
-		],
+		[entries, listedConversationIds, roster.controller, openedMission, spaceId],
 	)
+
+	const wrap = useMissionCardMenus({
+		missions,
+		runtimes: conversationRuntimes,
+		onOpenMission: openMission,
+		onChanged: feed.reload,
+	})
 
 	const showLastMission = useCallback(() => {
 		const lastMissionId =
@@ -131,7 +150,7 @@ export const useSidebarMissions = ({
 			openedMission.leave()
 			return
 		}
-		openMission(shown.mission.id, shown.conversationId)
+		openMission(shown.mission.id)
 	}, [spaceId, shownMemory, entries, openedMission, openMission])
 
 	const panel = useMemo(
@@ -142,9 +161,11 @@ export const useSidebarMissions = ({
 				liveMissionIds,
 				now,
 			}),
-			onOpen: openMission,
+			onOpen: (missionId: string) => openMission(missionId),
+			openMissionId: opened?.missionId ?? null,
+			wrap,
 		}),
-		[feed, faces, liveMissionIds, now, openMission],
+		[feed, faces, liveMissionIds, now, openMission, opened, wrap],
 	)
 
 	return {

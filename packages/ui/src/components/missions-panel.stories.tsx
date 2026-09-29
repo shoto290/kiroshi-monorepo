@@ -1,12 +1,17 @@
 import type { CSSProperties } from "react"
-import { expect, fn, within } from "storybook/test"
+import { expect, fireEvent, fn, screen, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	A11Y_FLOATING_FOCUS_GUARDS,
+	mergeA11y,
+	shown,
 	slotIn,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
+import type { MissionCardWrap } from "@workspace/ui/components/mission-card"
+import { MissionMenu } from "@workspace/ui/components/mission-menu"
 import {
 	LONG_TITLE_MISSION,
 	NO_SPACE_MISSIONS,
@@ -37,6 +42,33 @@ const shownRows = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "mission-card-row").filter((row) =>
 		row.checkVisibility(),
 	)
+
+const withMissionMenu: MissionCardWrap = (card) => (
+	<MissionMenu
+		closeShortcut="⌘⌫"
+		hasBranch={false}
+		hasPullRequest={false}
+		hasWorkspacePath={false}
+		onAnswer={fn()}
+		onClose={fn()}
+		onCopy={fn()}
+		onMessageAgent={fn()}
+		onOpen={fn()}
+		onOpenPullRequest={fn()}
+		onReopen={fn()}
+		onStopAgent={fn()}
+		openShortcut="↵"
+		state={card.props.state}
+	>
+		{card}
+	</MissionMenu>
+)
+
+const firstOpenMission = () => {
+	const [mission] = SPACE_OPEN_MISSIONS
+	if (!mission) throw new Error("The fixture holds no mission")
+	return mission
+}
 
 const WIRED_BY_THE_APP =
 	"`AppSidebar` mounts the panel in its Missions tab with the space-wide missions its host hands down."
@@ -189,8 +221,7 @@ export const OpeningAMission = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const [mission] = SPACE_OPEN_MISSIONS
-		if (!mission) throw new Error("The fixture holds no mission")
+		const mission = firstOpenMission()
 		await userEvent.click(canvas.getByText(mission.objective))
 		await expect(args.onOpen).toHaveBeenCalledWith(
 			mission.id,
@@ -223,5 +254,77 @@ export const LongTitle = meta.story({
 		await expect(style.textOverflow).toBe("ellipsis")
 		await expect(style.whiteSpace).toBe("nowrap")
 		await expect(title.scrollWidth).toBeGreaterThan(title.clientWidth)
+	},
+})
+
+export const SelectedRow = meta.story({
+	args: { openMissionId: SPACE_OPEN_MISSIONS[2]?.id },
+	parameters: {
+		docs: {
+			description: {
+				story: `The mission open in the content, drawn active in its group like the open conversation row. Check only that row carries \`aria-current="page"\`. ${WIRED_BY_THE_APP}`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const current = canvasElement.querySelectorAll('[aria-current="page"]')
+		await expect(current).toHaveLength(1)
+		await expect(current[0]).toHaveAttribute(
+			"data-opens",
+			SPACE_OPEN_MISSIONS[2]?.id,
+		)
+		await expect(current[0]).toHaveAttribute("data-active")
+	},
+})
+
+export const NoSelectedRow = meta.story({
+	tags: ["test-only"],
+	args: { openMissionId: null },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"No mission open in the content. Check no row carries `aria-current`.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expect(canvasElement.querySelectorAll("[aria-current]")).toHaveLength(
+			0,
+		)
+	},
+})
+
+export const RowMenu = meta.story({
+	args: { wrap: withMissionMenu },
+	parameters: {
+		a11y: mergeA11y(
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_FLOATING_FOCUS_GUARDS,
+		),
+		docs: {
+			description: {
+				story: `A right click on a row opens the mission menu for that mission state instead of the native one. Check a waiting mission lists open, copy, answer and close. ${WIRED_BY_THE_APP}`,
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const row = canvas
+			.getByText(firstOpenMission().objective)
+			.closest("[data-slot='mission-card-row']")
+		if (!(row instanceof HTMLElement)) throw new Error("No mission row")
+		const isNativeMenuAllowed = fireEvent.contextMenu(row, {
+			clientX: 40,
+			clientY: 20,
+		})
+		await expect(isNativeMenuAllowed).toBe(false)
+		const menu = await shown(
+			await screen.findByRole("menu", { name: "Mission actions" }),
+		)
+		await expect(
+			within(menu)
+				.getAllByRole("menuitem")
+				.map((item) => item.textContent),
+		).toEqual(["Open mission↵", "Copy", "Answer the question", "Close⌘⌫"])
 	},
 })

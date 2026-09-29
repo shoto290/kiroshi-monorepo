@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { Fragment, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import {
@@ -8,7 +8,11 @@ import {
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
 import type { MissionCardModel } from "@workspace/ui/components/mission"
-import { MissionCard } from "@workspace/ui/components/mission-card"
+import {
+	MissionCard,
+	type MissionCardWrap,
+	wrapCard,
+} from "@workspace/ui/components/mission-card"
 
 type MissionsPanelMission = MissionCardModel & { conversationId: string }
 
@@ -16,21 +20,35 @@ type MissionsPanelProps = {
 	open: MissionsPanelMission[]
 	earlierToday: MissionsPanelMission[]
 	onOpen: (missionId: string, conversationId: string) => void
+	openMissionId?: string | null
+	wrap?: MissionCardWrap
 }
 
-type MissionsPanelRowsProps = {
+type MissionsPanelRowsProps = Pick<
+	MissionsPanelProps,
+	"onOpen" | "openMissionId" | "wrap"
+> & {
 	missions: MissionsPanelMission[]
-	onOpen: MissionsPanelProps["onOpen"]
 }
 
-const MissionsPanelRows = ({ missions, onOpen }: MissionsPanelRowsProps) =>
+const MissionsPanelRows = ({
+	missions,
+	onOpen,
+	openMissionId,
+	wrap,
+}: MissionsPanelRowsProps) =>
 	missions.map(({ conversationId, ...mission }) => (
-		<MissionCard
-			{...mission}
-			density="row"
-			key={mission.id}
-			onOpen={(missionId) => onOpen(missionId, conversationId)}
-		/>
+		<Fragment key={mission.id}>
+			{wrapCard(
+				<MissionCard
+					{...mission}
+					density="row"
+					isActive={mission.id === openMissionId}
+					onOpen={(missionId) => onOpen(missionId, conversationId)}
+				/>,
+				wrap,
+			)}
+		</Fragment>
 	))
 
 const MissionsPanelEmpty = () => {
@@ -51,7 +69,11 @@ const MissionsPanelEmpty = () => {
 	)
 }
 
-const MissionsPanel = ({ open, earlierToday, onOpen }: MissionsPanelProps) => {
+const MissionsPanel = ({
+	open,
+	earlierToday,
+	...rowProps
+}: MissionsPanelProps) => {
 	const { t } = useTranslation("chat")
 	const [isEarlierTodayOpen, setEarlierTodayOpen] = useState(false)
 
@@ -72,7 +94,7 @@ const MissionsPanel = ({ open, earlierToday, onOpen }: MissionsPanelProps) => {
 						slot={`missions-${key}`}
 						title={t(`activity.missions.group.${key}`)}
 					>
-						<MissionsPanelRows missions={held} onOpen={onOpen} />
+						<MissionsPanelRows {...rowProps} missions={held} />
 					</ActivityGroup>
 				)
 			})}
@@ -86,7 +108,7 @@ const MissionsPanel = ({ open, earlierToday, onOpen }: MissionsPanelProps) => {
 					slot="missions-earlierToday"
 					title={t("activity.missions.group.earlierToday")}
 				>
-					<MissionsPanelRows missions={earlierToday} onOpen={onOpen} />
+					<MissionsPanelRows {...rowProps} missions={earlierToday} />
 				</ActivityGroup>
 			) : null}
 		</div>
