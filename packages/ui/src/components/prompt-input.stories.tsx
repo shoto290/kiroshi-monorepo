@@ -2,6 +2,12 @@ import { type ComponentProps, useState } from "react"
 import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import {
+	expectInverseAtRest,
+	isInBrowserRunner,
+	realPointer,
+	tokenStyleIn,
+} from "@workspace/storybook/story-utils"
 import { Icons } from "@workspace/ui/components/icons"
 import { PromptAttachButton } from "@workspace/ui/components/prompt-attach-button"
 import { PromptAttachments } from "@workspace/ui/components/prompt-attachments"
@@ -368,6 +374,99 @@ export const States = meta.story({
 
 		remove.focus()
 		await expect(remove).not.toHaveFocus()
+	},
+})
+
+const SEND_SELECTOR = 'button[aria-label="Send"]'
+
+const INVERSE_SEND =
+	"The send button in the inverse treatment of artboards V1e and V1f, light and dark side by side: filled with the `foreground` token, its arrow drawn with the `background` token, so it reads ink on white in light and white on ink in dark. "
+
+const sendsIn = (canvasElement: HTMLElement) => [
+	...canvasElement.querySelectorAll<HTMLButtonElement>(SEND_SELECTOR),
+]
+
+export const SendIdle = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		docs: { description: { story: `${INVERSE_SEND}At rest.` } },
+	},
+	play: async ({ canvasElement }) => {
+		const sends = sendsIn(canvasElement)
+		await expect(sends.length).toBe(2)
+		for (const send of sends) await expectInverseAtRest(send)
+	},
+})
+
+export const SendHover = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		pseudo: { hover: SEND_SELECTOR },
+		docs: {
+			description: {
+				story: `${INVERSE_SEND}Under the pointer, which the play drives only in the Vitest browser runner, the fill moves a fifth of the way toward the \`background\` token, a solid colour, so the arrow keeps its contrast.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		if (!isInBrowserRunner()) return
+		const pointer = await realPointer()
+		for (const send of sendsIn(canvasElement)) {
+			const rest = tokenStyleIn(send, "bg-foreground", "backgroundColor")
+			await pointer.hover(send)
+			await waitFor(() => expect(send.matches(":hover")).toBe(true))
+			await waitFor(() =>
+				expect(getComputedStyle(send).backgroundColor).not.toBe(rest),
+			)
+			await expect(getComputedStyle(send).color).toBe(
+				tokenStyleIn(send, "text-background", "color"),
+			)
+			await pointer.unhover(send)
+		}
+	},
+})
+
+export const SendFocusVisible = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		pseudo: { focusVisible: SEND_SELECTOR },
+		docs: {
+			description: {
+				story: `${INVERSE_SEND}Keyboard focus draws the primitive's own ring: the \`ring\` border on the fill and the translucent halo around it.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const send of sendsIn(canvasElement)) {
+			const ring = tokenStyleIn(send, "border-ring", "borderTopColor")
+			send.focus()
+			await expect(send.matches(":focus-visible")).toBe(true)
+			await waitFor(() =>
+				expect(getComputedStyle(send).borderTopColor).toBe(ring),
+			)
+			await expect(getComputedStyle(send).backgroundColor).toBe(
+				tokenStyleIn(send, "bg-foreground", "backgroundColor"),
+			)
+		}
+	},
+})
+
+export const SendDisabled = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { disabled: true, value: DRAFT },
+	parameters: {
+		docs: {
+			description: {
+				story: `${INVERSE_SEND}Disabled, the primitive halves the opacity of the whole button, fill and arrow together, so the arrow stays apart from its fill.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const send of sendsIn(canvasElement)) {
+			await expect(send).toBeDisabled()
+			await expect(getComputedStyle(send).opacity).toBe("0.5")
+			await expectInverseAtRest(send)
+		}
 	},
 })
 

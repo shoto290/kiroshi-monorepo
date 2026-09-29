@@ -10,6 +10,7 @@ import {
 import { useTranslation } from "react-i18next"
 
 import { type Icon, Icons } from "@workspace/ui/components/icons"
+import { INVERSE_BUTTON_CLASS } from "@workspace/ui/components/inverse-button"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
 import { SettingsField } from "@workspace/ui/components/settings-field"
 import {
@@ -273,7 +274,12 @@ const ToolQuestion = ({
 				{item.action ? (
 					<ActionButton action={item.action} />
 				) : (
-					<Button disabled={isPending} size="sm" type="submit">
+					<Button
+						className={INVERSE_BUTTON_CLASS}
+						disabled={isPending}
+						size="sm"
+						type="submit"
+					>
 						{waiting ? (
 							<>
 								{t("toolQuestion.next")}
@@ -415,7 +421,12 @@ type ActionButtonProps = {
 const ActionButton = ({
 	action: { label, icon: Glyph, onSelect },
 }: ActionButtonProps) => (
-	<Button onClick={onSelect} size="sm" type="button">
+	<Button
+		className={INVERSE_BUTTON_CLASS}
+		onClick={onSelect}
+		size="sm"
+		type="button"
+	>
 		<Glyph data-icon="inline-start" />
 		{label}
 	</Button>

@@ -11,6 +11,7 @@ import {
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
+import { INVERSE_BUTTON_CLASS } from "@workspace/ui/components/inverse-button"
 import { PromptField } from "@workspace/ui/components/prompt-input-field"
 import { usePromptLayout } from "@workspace/ui/components/prompt-input-layout"
 import { usePromptTransfer } from "@workspace/ui/components/prompt-input-transfer"
@@ -152,7 +153,7 @@ export function PromptInput({
 					size="icon"
 					disabled={disabled}
 					aria-label={t("composer.send")}
-					className="rounded-full"
+					className={cn("rounded-full", INVERSE_BUTTON_CLASS)}
 				>
 					<Icons.Send />
 				</Button>

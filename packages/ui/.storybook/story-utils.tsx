@@ -34,6 +34,12 @@ export const A11Y_SUBMENU_PORTAL_GUARD = {
 	},
 }
 
+export const A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS = {
+	config: {
+		rules: [{ id: "landmark-unique", reviewOnFail: true }],
+	},
+}
+
 type A11yRuleSet = {
 	config: { rules: { id: string; reviewOnFail: boolean }[] }
 }
@@ -133,14 +139,40 @@ type ProbedProperty =
 	| "borderTopColor"
 	| "fontFamily"
 
-export const probedStyleOf = (className: string, property: ProbedProperty) => {
+export const probedStyleOf = (
+	className: string,
+	property: ProbedProperty,
+	host: Element = document.body,
+) => {
 	const probe = document.createElement("span")
 	probe.className = className
-	document.body.append(probe)
+	host.append(probe)
 	const value = getComputedStyle(probe)[property]
 	probe.remove()
 	return value
 }
+
+export const tokenStyleIn = (
+	element: HTMLElement,
+	className: string,
+	property: ProbedProperty,
+) => probedStyleOf(className, property, element)
+
+export const expectInverseAtRest = async (button: HTMLElement) => {
+	const style = getComputedStyle(button)
+	await expect(style.backgroundColor).toBe(
+		tokenStyleIn(button, "bg-foreground", "backgroundColor"),
+	)
+	await expect(style.color).toBe(
+		tokenStyleIn(button, "text-background", "color"),
+	)
+	await expect(style.backgroundColor).not.toBe(
+		tokenStyleIn(button, "bg-primary", "backgroundColor"),
+	)
+}
+
+export const realPointer = async () =>
+	(await import("vitest/browser")).userEvent
 
 export const botIdentityAvatars = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "bot-identity-avatar")
