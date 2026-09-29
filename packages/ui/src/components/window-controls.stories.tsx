@@ -63,12 +63,9 @@ export const Rest = meta.story({
 	},
 	play: async ({ args, canvas, canvasElement }) => {
 		const buttons = captionButtonsIn(canvasElement)
-		await expect(
-			buttons.map((button) => button.getAttribute("aria-label")),
-		).toEqual(NAMES)
-		for (const name of NAMES) {
-			await expect(canvas.getByRole("button", { name })).toBeVisible()
-		}
+		await expect(buttons).toEqual(
+			NAMES.map((name) => canvas.getByRole("button", { name })),
+		)
 		for (const button of buttons) {
 			const box = button.getBoundingClientRect()
 			await expect(box.height).toBe(TITLE_BAR_HEIGHT)
