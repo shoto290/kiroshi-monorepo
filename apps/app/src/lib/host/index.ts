@@ -20,7 +20,12 @@ import {
 	listen as tauriListen,
 } from "./tauri"
 
-import { commands } from "../bindings"
+import {
+	commands,
+	MAXIMIZE_BUTTON_EVENT,
+	type MaximizeButtonPointer,
+	type MaximizeButtonState,
+} from "../bindings"
 
 const hasTauriInternals = (): boolean =>
 	typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
@@ -98,6 +103,13 @@ export const watchWindowMaximized = ({
 	readMaximized()
 	return current.onResized(readMaximized)
 }
+
+export const watchMaximizeButton = (
+	report: (state: MaximizeButtonState) => void,
+): Promise<() => void> =>
+	listen<MaximizeButtonPointer>(MAXIMIZE_BUTTON_EVENT, ({ payload }) =>
+		report(payload.state),
+	)
 
 export type MaximizeButtonBounds = NonNullable<
 	Parameters<typeof commands.windowDeclareMaximizeButton>[0]

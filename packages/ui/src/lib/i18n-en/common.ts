@@ -35,6 +35,7 @@ const common = {
 			close: "Couldn’t close Kiroshi.",
 			state: "Couldn’t tell whether Kiroshi is maximized.",
 			snap: "Snap layouts are unavailable on the maximize button.",
+			pointer: "The maximize button can’t show hover or press feedback.",
 		},
 	},
 	notice: {
