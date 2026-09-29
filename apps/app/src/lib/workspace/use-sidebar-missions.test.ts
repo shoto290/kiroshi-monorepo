@@ -1,10 +1,19 @@
 // @vitest-environment happy-dom
 
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react"
+import { createElement, type ReactElement } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { BLANK_BOT_PERMISSIONS } from "@workspace/ui/components/bot-settings"
-import type { MissionsPanelMission } from "@workspace/ui/components/missions-panel"
+import { MissionCard } from "@workspace/ui/components/mission-card"
+import {
+	MissionMenu,
+	type MissionMenuProps,
+} from "@workspace/ui/components/mission-menu"
+import type {
+	MissionsPanelMission,
+	MissionsPanelProps,
+} from "@workspace/ui/components/missions-panel"
 import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 import "@workspace/ui/lib/i18n"
 
@@ -19,11 +28,16 @@ import type {
 } from "@/lib/missions/mission-contract"
 import { aMission } from "@/lib/missions/mission-fixtures"
 import { missionsTransport } from "@/lib/missions/missions-transport"
+import type { OpenedMission } from "@/lib/missions/opened-mission-controller"
+import type { MissionSpeakingRuntimes } from "@/lib/missions/use-live-missions"
+import { createOpenedController } from "@/lib/opened-controller"
 
 vi.mock("@/lib/missions/missions-transport", () => ({
 	missionsTransport: {
 		spaceFeed: vi.fn(),
 		onChanged: vi.fn(),
+		close: vi.fn(),
+		reopen: vi.fn(),
 	},
 }))
 
@@ -33,6 +47,8 @@ vi.mock("@workspace/ui/components/notice-surface", () => ({
 
 const readSpaceFeed = vi.mocked(missionsTransport.spaceFeed)
 const listenToMissions = vi.mocked(missionsTransport.onChanged)
+const closeMission = vi.mocked(missionsTransport.close)
+const reopenMission = vi.mocked(missionsTransport.reopen)
 const notice = vi.mocked(raiseFailureNotice)
 
 const BOT: Bot = {
@@ -111,14 +127,22 @@ const idsOf = (missions: MissionsPanelMission[]) =>
 const renderSidebarMissions = (spaceId: string | null = "s-1") => {
 	const select = vi.fn()
 	const selectConversation = vi.fn()
-	const open = vi.fn()
-	const { runtimes } = createFakeThreadRuntimes()
+	const openedMission = createOpenedController<OpenedMission>()
+	const open = vi.spyOn(openedMission, "open")
+	const threads: MissionSpeakingRuntimes = createFakeThreadRuntimes().runtimes
+	const runtimes = {
+		...threads,
+		heldFor: (conversationId: string) => {
+			const held = threads.heldFor(conversationId)
+			return held && { ...held, stop: vi.fn(async () => undefined) }
+		},
+	}
 	const rendered = renderHook(
 		({ selectedSpaceId }) =>
 			useSidebarMissions({
 				core: {
 					conversationRuntimes: runtimes,
-					openedMission: { open },
+					openedMission,
 					roster: {
 						state: {
 							rosters: { "s-1": [BOT], "s-2": [BOT] },
@@ -132,8 +156,16 @@ const renderSidebarMissions = (spaceId: string | null = "s-1") => {
 			}),
 		{ initialProps: { selectedSpaceId: spaceId } },
 	)
-	return { ...rendered, select, selectConversation, open }
+	return { ...rendered, select, selectConversation, open, openedMission }
 }
+
+const menuOn = (
+	{ conversationId: _, ...mission }: MissionsPanelMission,
+	wrap: MissionsPanelProps["wrap"],
+) =>
+	wrap?.(
+		createElement(MissionCard, { ...mission, density: "row", onOpen: vi.fn() }),
+	) as ReactElement<MissionMenuProps>
 
 describe("useSidebarMissions", () => {
 	beforeEach(() => {
@@ -297,5 +329,81 @@ describe("useSidebarMissions", () => {
 		expect(notice).toHaveBeenCalledTimes(1)
 		await act(async () => failRead(new Error("offline")))
 		await waitFor(() => expect(notice).toHaveBeenCalledTimes(2))
+	})
+
+	it("marks no row open while no mission is open", async () => {
+		const { result } = renderSidebarMissions()
+
+		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		expect(result.current.panel.openMissionId).toBeNull()
+	})
+
+	it("marks the open mission row, and none once the mission is left", async () => {
+		const { result, openedMission } = renderSidebarMissions()
+		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+
+		act(() => result.current.panel.onOpen("m-working", "c-2"))
+		expect(result.current.panel.openMissionId).toBe("m-working")
+
+		act(() => openedMission.leave())
+		expect(result.current.panel.openMissionId).toBeNull()
+	})
+
+	it("wraps each row in the mission menu for its state", async () => {
+		const { result } = renderSidebarMissions()
+		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+
+		const menus = result.current.panel.open.map((mission) =>
+			menuOn(mission, result.current.panel.wrap),
+		)
+
+		expect(menus.map(({ type }) => type)).toEqual([MissionMenu, MissionMenu])
+		expect(menus.map(({ props }) => props.state)).toEqual([
+			"waiting_human",
+			"working",
+		])
+	})
+
+	it("opens the mission of a row from its menu, landing on the composer", async () => {
+		const { result, open } = renderSidebarMissions()
+		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		const [waiting] = result.current.panel.open
+
+		act(() => menuOn(waiting, result.current.panel.wrap).props.onAnswer())
+
+		expect(open).toHaveBeenCalledWith({
+			missionId: "m-waiting",
+			rowId: BOT.id,
+			landing: "composer",
+		})
+		expect(result.current.panel.openMissionId).toBe("m-waiting")
+	})
+
+	it("reads the feed again once a row menu closes a mission", async () => {
+		closeMission.mockResolvedValue(WAITING.mission)
+		const { result } = renderSidebarMissions()
+		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+		const reads = readSpaceFeed.mock.calls.length
+
+		const [waiting] = result.current.panel.open
+		menuOn(waiting, result.current.panel.wrap).props.onClose()
+
+		await waitFor(() => expect(readSpaceFeed.mock.calls.length).toBe(reads + 1))
+		expect(closeMission).toHaveBeenCalledWith("m-waiting")
+	})
+
+	it("reads the feed again once a row menu reopens a mission", async () => {
+		reopenMission.mockResolvedValue(DONE.mission)
+		const { result } = renderSidebarMissions()
+		await waitFor(() =>
+			expect(result.current.panel.earlierToday).toHaveLength(1),
+		)
+		const reads = readSpaceFeed.mock.calls.length
+
+		const [done] = result.current.panel.earlierToday
+		menuOn(done, result.current.panel.wrap).props.onReopen()
+
+		await waitFor(() => expect(readSpaceFeed.mock.calls.length).toBe(reads + 1))
+		expect(reopenMission).toHaveBeenCalledWith("m-done")
 	})
 })

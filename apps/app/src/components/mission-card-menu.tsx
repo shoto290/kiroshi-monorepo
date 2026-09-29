@@ -3,7 +3,7 @@ import { useMemo } from "react"
 import type { MissionCardWrap } from "@workspace/ui/components/mission-card"
 import { MissionMenu } from "@workspace/ui/components/mission-menu"
 
-import type { ConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
+import type { ConversationController } from "@/lib/conversations/conversation-controller"
 import { openInBrowser } from "@/lib/links/use-external-links"
 import {
 	type MissionActionsPort,
@@ -17,9 +17,15 @@ const OPEN_SHORTCUT = "↵"
 
 const CLOSE_SHORTCUT = "⌘⌫"
 
+type StoppableThread = Pick<ConversationController, "stop">
+
+export type StoppableRuntimes = {
+	heldFor: (conversationId: string) => StoppableThread | null
+}
+
 type MissionCardMenusInput = {
 	missions: Mission[]
-	runtimes: Pick<ConversationRuntimes, "heldFor">
+	runtimes: StoppableRuntimes
 	onOpenMission: OpenMission
 	onChanged: () => void
 }
