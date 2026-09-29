@@ -24,7 +24,6 @@ import {
 	ContextMenuSubTrigger,
 } from "@workspace/ui/components/ui/context-menu"
 import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
-import { mergeRefs } from "@workspace/ui/lib/utils"
 
 type MissionCopyKind =
 	| "issue_id"
@@ -163,7 +162,7 @@ const MissionMenuContent = ({
 				</ContextMenuItem>
 			) : (
 				<ContextMenuItem onClick={() => onClose()}>
-					<Icons.Check aria-hidden="true" className={ICON_CLASS} />
+					<Icons.Close aria-hidden="true" className={ICON_CLASS} />
 					{t("missions.menu.close")}
 					<ContextMenuShortcut>{closeShortcut}</ContextMenuShortcut>
 				</ContextMenuItem>
@@ -208,7 +207,7 @@ const MissionMenu = ({ children, ...props }: MissionMenuProps) => {
 						surface: {
 							...surface,
 							onKeyDown: alsoClosingFromKeyboard(surface.onKeyDown),
-							ref: mergeRefs(ref),
+							ref,
 						},
 					})
 				}

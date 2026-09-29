@@ -648,7 +648,7 @@ const chat = {
 			messageAgent: "Écrire à l’agent",
 			stopAgent: "Arrêter l’agent",
 			answer: "Répondre à la question",
-			close: "Fermer la mission",
+			close: "Fermer",
 			reopen: "Rouvrir",
 			copied: "{{kind}} copié",
 			failed: {

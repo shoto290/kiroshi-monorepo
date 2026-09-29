@@ -597,7 +597,7 @@ describe("WorkspaceBody mission menu", () => {
 	const SUMMARY = "Shipped behind the flag"
 	const PULL_REQUEST = "https://github.com/acme/app/pull/12"
 	const OPEN_ENTRY = /^Open mission/
-	const CLOSE_ENTRY = /^Close mission/
+	const CLOSE_ENTRY = /^Close/
 
 	let layout: FakeLayout
 
@@ -688,7 +688,7 @@ describe("WorkspaceBody mission menu", () => {
 				"Open mission↵",
 				"Copy",
 				"Answer the question",
-				"Close mission⌘⌫",
+				"Close⌘⌫",
 			])
 			fireEvent.keyDown(document.activeElement ?? document.body, {
 				key: "Escape",

@@ -416,6 +416,7 @@ const SHOWN_EVENT_KINDS: Record<ShownEventKind, true> = {
 	checks_failed: true,
 	failed: true,
 	closed: true,
+	dismissed: true,
 	reopened: true,
 }
 

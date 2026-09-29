@@ -40,7 +40,7 @@ const AGENT_RUNNING_ENTRIES = [
 	...OPEN_ENTRIES,
 	"Message the agent",
 	"Stop the agent",
-	"Close mission⌘⌫",
+	"Close⌘⌫",
 ]
 
 const CLOSED_ENTRIES = [...OPEN_ENTRIES, "Reopen"]
@@ -48,8 +48,8 @@ const CLOSED_ENTRIES = [...OPEN_ENTRIES, "Reopen"]
 const ENTRIES_WITHOUT_A_PULL_REQUEST: Record<MissionState, string[]> = {
 	working: AGENT_RUNNING_ENTRIES,
 	waiting_bot: AGENT_RUNNING_ENTRIES,
-	waiting_human: [...OPEN_ENTRIES, "Answer the question", "Close mission⌘⌫"],
-	ready_to_merge: [...OPEN_ENTRIES, "Close mission⌘⌫"],
+	waiting_human: [...OPEN_ENTRIES, "Answer the question", "Close⌘⌫"],
+	ready_to_merge: [...OPEN_ENTRIES, "Close⌘⌫"],
 	failed: CLOSED_ENTRIES,
 	done: CLOSED_ENTRIES,
 	closed: CLOSED_ENTRIES,
@@ -150,7 +150,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything a person can do to one mission, in one menu. It wraps a `MissionCard` in either density: a right click on the card opens it, and the card draws no button of its own for it. Only the entries that apply to the mission's state are drawn, never a greyed one: Open mission always, Open PR when there's a pull request, the Copy branch, Message the agent and Stop the agent while the agent runs, Answer the question while the mission waits on the person, then Close mission on an open mission or Reopen on a done, failed or closed one. Close mission calls `onClose` at once, with no popover and no submenu. The component calls nothing on its own: every entry calls the callback it was given.",
+					"Everything a person can do to one mission, in one menu. It wraps a `MissionCard` in either density: a right click on the card opens it, and the card draws no button of its own for it. Only the entries that apply to the mission's state are drawn, never a greyed one: Open mission always, Open PR when there's a pull request, the Copy branch, Message the agent and Stop the agent while the agent runs, Answer the question while the mission waits on the person, then Close on an open mission or Reopen on a done, failed or closed one. Close calls `onClose` at once, with no popover and no submenu. The component calls nothing on its own: every entry calls the callback it was given.",
 			},
 		},
 	},
@@ -199,7 +199,7 @@ export const Working = meta.story(
 		state: "working",
 		hasPullRequest: true,
 		story:
-			"A mission the agent is working on, with a pull request. Check that a right click on the row and on the card both open the list Open mission, Open PR, Copy, Message the agent, Stop the agent and Close mission, and that Open mission and Close mission carry their shortcut. Pick `WorkingWithoutAPullRequest` for the same mission before its pull request.",
+			"A mission the agent is working on, with a pull request. Check that a right click on the row and on the card both open the list Open mission, Open PR, Copy, Message the agent, Stop the agent and Close, and that Open mission and Close carry their shortcut. Pick `WorkingWithoutAPullRequest` for the same mission before its pull request.",
 	}),
 )
 
@@ -235,7 +235,7 @@ export const ReadyToMerge = meta.story(
 		state: "ready_to_merge",
 		hasPullRequest: true,
 		story:
-			"A mission ready to merge. Check that no agent entry and no Merge entry is drawn, and that Close mission is still there.",
+			"A mission ready to merge. Check that no agent entry and no Merge entry is drawn, and that Close is still there.",
 	}),
 )
 
@@ -244,7 +244,7 @@ export const Failed = meta.story(
 		state: "failed",
 		hasPullRequest: true,
 		story:
-			"A mission closed as failed. Check that Reopen takes the place of Close mission and that no Relaunch or Re-run entry is drawn.",
+			"A mission closed as failed. Check that Reopen takes the place of Close and that no Relaunch or Re-run entry is drawn.",
 	}),
 )
 
@@ -253,7 +253,7 @@ export const Done = meta.story(
 		state: "done",
 		hasPullRequest: true,
 		story:
-			"A mission closed as done, with its pull request. Check that Reopen takes the place of Close mission and that no Pin, Hide, Mark done or Delete worktree entry is drawn. Pick `DoneWithoutAPullRequest` for a mission closed with no pull request.",
+			"A mission closed as done, with its pull request. Check that Reopen takes the place of Close and that no Pin, Hide, Mark done or Delete worktree entry is drawn. Pick `DoneWithoutAPullRequest` for a mission closed with no pull request.",
 	}),
 )
 
@@ -262,7 +262,7 @@ export const Closed = meta.story(
 		state: "closed",
 		hasPullRequest: true,
 		story:
-			"A mission the person closed, neither done nor failed. Check that Reopen takes the place of Close mission, as on a done mission.",
+			"A mission the person closed, neither done nor failed. Check that Reopen takes the place of Close, as on a done mission.",
 	}),
 )
 
@@ -341,16 +341,18 @@ export const CloseAtOnce = meta.story({
 		docs: {
 			description: {
 				story:
-					"Close mission chosen from the menu. Check that `onClose` is called with no argument at once, and that no submenu and no popover opens.",
+					"Close chosen from the menu. Check that it carries the neutral X mark of the closed pill rather than a check mark, that `onClose` is called with no argument at once, and that no submenu and no popover opens.",
 			},
 		},
 	},
 	play: async ({ args, canvasElement }) => {
 		openByRightClick(cardSurfaceIn(canvasElement))
 		const close = (await openMenu()).getByRole("menuitem", {
-			name: /^Close mission/,
+			name: /^Close/,
 		})
 		await expect(close).not.toHaveAttribute("aria-haspopup")
+		await expect(close.querySelector("svg")).toHaveClass("lucide-x")
+		await expect(close.querySelector("svg")).not.toHaveClass("lucide-check")
 		fireEvent.click(close)
 
 		await expect(args.onClose).toHaveBeenCalledTimes(1)

@@ -1236,16 +1236,6 @@ export const CardPullRequestOpensAlone = meta.story({
 	},
 })
 
-type PillOffsetCheck = {
-	withPill: HTMLElement
-	withoutPill: HTMLElement
-	objectiveSlot: string
-}
-
-const objectiveOffsetIn = (surface: HTMLElement, objectiveSlot: string) =>
-	slotIn(surface, objectiveSlot).getBoundingClientRect().top -
-	surface.getBoundingClientRect().top
-
 const expectNoMenuButtonIn = async (surface: HTMLElement) => {
 	await expect(slotsIn(surface, "mission-menu")).toHaveLength(0)
 	await expect(
@@ -1253,17 +1243,31 @@ const expectNoMenuButtonIn = async (surface: HTMLElement) => {
 	).toBeNull()
 }
 
-const expectSameObjectiveOffset = async ({
-	withPill,
-	withoutPill,
-	objectiveSlot,
-}: PillOffsetCheck) => {
-	await expect(slotsIn(withoutPill, "mission-state-pill")).toHaveLength(0)
-	await expect(objectiveOffsetIn(withoutPill, objectiveSlot)).toBe(
-		objectiveOffsetIn(withPill, objectiveSlot),
+const BARE = { tools: [], timestamp: "" }
+
+const TIMED = { tools: [] }
+
+const expectObjectiveAtTopPadding = async (surface: HTMLElement) => {
+	const objectiveTop = slotIn(
+		surface,
+		"mission-objective",
+	).getBoundingClientRect().top
+	const paddingEdge =
+		surface.getBoundingClientRect().top +
+		Number.parseFloat(getComputedStyle(surface).borderTopWidth) +
+		Number.parseFloat(getComputedStyle(surface).paddingTop)
+
+	await expect(Math.abs(objectiveTop - paddingEdge)).toBeLessThanOrEqual(0.5)
+}
+
+const expectTitleRowOnOneLine = async (surface: HTMLElement) => {
+	const row = slotIn(surface, "mission-title-row")
+	const timestamp = slotIn(surface, "mission-timestamp")
+
+	await expect(timestamp).toBeVisible()
+	await expect(row.getBoundingClientRect().height).toBe(
+		timestamp.getBoundingClientRect().height,
 	)
-	await expectNoMenuButtonIn(withPill)
-	await expectNoMenuButtonIn(withoutPill)
 }
 
 export const RowWithAndWithoutPill = meta.story({
@@ -1272,7 +1276,7 @@ export const RowWithAndWithoutPill = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row whose state carries a word beside a row whose state carries none. Check that the objective sits at the same distance from the top edge of both rows, and that neither draws a menu button: the menu opens on a right click. " +
+					"A row with a state word, a row with no tool, no state word and no time, and a row with only its time. Check that no row draws a title row, that the bare row draws no time, that the timed row keeps its time, and that no row draws a menu button: the menu opens on a right click. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -1280,18 +1284,36 @@ export const RowWithAndWithoutPill = meta.story({
 	render: (args) => (
 		<Panel>
 			<MissionCard {...args} {...WAITING_HUMAN_MISSION} />
-			<MissionCard {...args} {...WAITING_BOT_MISSION} />
+			<MissionCard
+				{...args}
+				{...WAITING_BOT_MISSION}
+				{...BARE}
+				id="mission-bare"
+			/>
+			<MissionCard
+				{...args}
+				{...WAITING_BOT_MISSION}
+				{...TIMED}
+				id="mission-timed"
+			/>
 		</Panel>
 	),
 	play: async ({ canvasElement }) => {
-		const [withPill, withoutPill] = slotsIn(canvasElement, "mission-card-row")
+		const rows = slotsIn(canvasElement, "mission-card-row")
+		const [withPill, bare, timed] = rows
 
 		await expect(within(withPill).getByText("Blocked on you")).toBeVisible()
-		await expectSameObjectiveOffset({
-			withPill,
-			withoutPill,
-			objectiveSlot: "roster-row-name",
-		})
+		await expect(slotsIn(bare, "mission-state-pill")).toHaveLength(0)
+		await expect(
+			slotsIn(bare, "roster-row-timestamp").map((slot) => slot.textContent),
+		).not.toContain(WAITING_BOT_MISSION.timestamp)
+		await expect(
+			within(timed).getByText(WAITING_BOT_MISSION.timestamp),
+		).toBeVisible()
+		for (const row of rows) {
+			await expect(slotsIn(row, "mission-title-row")).toHaveLength(0)
+			await expectNoMenuButtonIn(row)
+		}
 	},
 })
 
@@ -1300,7 +1322,7 @@ export const CardWithAndWithoutPill = meta.story({
 		docs: {
 			description: {
 				story:
-					"A card with a state pill beside a card with none. Check that the objective sits at the same distance from the top edge of both bubbles, and that neither draws a menu button: the menu opens on a right click. " +
+					"A card with a state pill, a card with no tool, no pill and no time, and a card with only its time. Check that the bare card draws no title row and starts its objective at the bubble's top padding, that the timed card keeps its title row on one line, and that no card draws a menu button: the menu opens on a right click. " +
 					MOUNTED_BY_THE_TURN,
 			},
 		},
@@ -1308,20 +1330,31 @@ export const CardWithAndWithoutPill = meta.story({
 	render: (args) => (
 		<div className="flex w-md flex-col gap-4">
 			<MissionCard {...args} {...cardIn("waiting_human")} />
-			<MissionCard {...args} {...cardIn("waiting_bot")} timestamp="" />
+			<MissionCard
+				{...args}
+				{...cardIn("waiting_bot")}
+				{...BARE}
+				id="mission-bare"
+			/>
+			<MissionCard
+				{...args}
+				{...cardIn("waiting_bot")}
+				{...TIMED}
+				id="mission-timed"
+			/>
 		</div>
 	),
 	play: async ({ canvasElement }) => {
-		const [withPill, withoutPill] = slotsIn(
-			canvasElement,
-			"message-bubble-content",
-		)
+		const surfaces = slotsIn(canvasElement, "message-bubble-content")
+		const [withPill, bare, timed] = surfaces
 
 		await expect(slotIn(withPill, "mission-state-pill")).toBeVisible()
-		await expectSameObjectiveOffset({
-			withPill,
-			withoutPill,
-			objectiveSlot: "mission-objective",
-		})
+		await expect(slotsIn(bare, "mission-title-row")).toHaveLength(0)
+		await expectObjectiveAtTopPadding(bare)
+		await expect(slotsIn(timed, "mission-state-pill")).toHaveLength(0)
+		await expectTitleRowOnOneLine(timed)
+		for (const surface of surfaces) {
+			await expectNoMenuButtonIn(surface)
+		}
 	},
 })

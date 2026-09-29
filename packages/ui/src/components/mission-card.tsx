@@ -1,6 +1,6 @@
 "use client"
 
-import type { HTMLAttributes, ReactElement, ReactNode } from "react"
+import type { HTMLAttributes, ReactElement, ReactNode, Ref } from "react"
 import { useTranslation } from "react-i18next"
 
 import type { BotBadge } from "@workspace/ui/components/bot-badge"
@@ -42,7 +42,7 @@ import { cn } from "@workspace/ui/lib/utils"
 type MissionCardDensity = "row" | "card"
 
 type MissionCardSurface = HTMLAttributes<HTMLElement> & {
-	ref?: (element: HTMLElement | null) => void
+	ref?: Ref<HTMLDivElement & HTMLLIElement>
 }
 
 type MissionCardProps = Omit<MissionCardModel, "author"> & {
@@ -78,23 +78,27 @@ type MissionTitleRowProps = Pick<
 	"state" | "tools" | "timestamp"
 >
 
-const MissionTitleRow = ({ state, tools, timestamp }: MissionTitleRowProps) => (
-	<span
-		className="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1"
-		data-slot="mission-title-row"
-	>
-		{tools.map((tool) => (
-			<MissionToolMark key={tool} tool={tool} />
-		))}
-		<MissionStatePill state={state} />
+const hasTitleRow = ({ state, tools, timestamp }: MissionTitleRowProps) =>
+	tools.length > 0 || hasStatePill(state) || timestamp !== ""
+
+const MissionTitleRow = ({ state, tools, timestamp }: MissionTitleRowProps) =>
+	hasTitleRow({ state, tools, timestamp }) ? (
 		<span
-			className="ms-auto shrink-0 text-[11px] text-muted-foreground leading-5 tabular-nums"
-			data-slot="mission-timestamp"
+			className="flex flex-wrap items-center gap-x-2 gap-y-1"
+			data-slot="mission-title-row"
 		>
-			{timestamp}
+			{tools.map((tool) => (
+				<MissionToolMark key={tool} tool={tool} />
+			))}
+			<MissionStatePill state={state} />
+			<span
+				className="ms-auto shrink-0 text-[11px] text-muted-foreground leading-5 tabular-nums"
+				data-slot="mission-timestamp"
+			>
+				{timestamp}
+			</span>
 		</span>
-	</span>
-)
+	) : null
 
 const liveActivityOf = ({
 	isWorking,
