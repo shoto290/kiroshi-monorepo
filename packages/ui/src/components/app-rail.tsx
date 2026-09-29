@@ -22,7 +22,7 @@ type AppRailCounts = Partial<Record<AppRailEntry, number>>
 type AppRailDots = Partial<Record<AppRailEntry, boolean>>
 
 const RAIL =
-	"flex w-13 shrink-0 flex-col justify-between gap-1 px-2 pt-1.75 pb-1"
+	"flex w-13 shrink-0 flex-col justify-between gap-1 px-2 pt-1.75 pb-[calc(var(--shell-inset)-var(--spacing))]"
 
 const RAIL_PANELS = "flex flex-col gap-1.75"
 

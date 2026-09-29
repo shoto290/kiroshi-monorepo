@@ -7,6 +7,7 @@ import {
 	FRAME_POLL,
 	settled,
 	slotIn,
+	tokenLengthOf,
 } from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import {
@@ -17,6 +18,7 @@ import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-b
 import { Icons } from "@workspace/ui/components/icons"
 import { PinnedMessages } from "@workspace/ui/components/pinned-messages"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
+import type { ReplyQuote } from "@workspace/ui/components/prompt-reply"
 import type { RosterBot } from "@workspace/ui/components/roster"
 import {
 	SIDEBAR_DEFAULT_WIDTH,
@@ -54,8 +56,9 @@ const ROSTER: AppSidebarBot[] = [
 
 const SIDEBAR = <AppSidebar bots={ROSTER} selectedBotId="atlas" />
 
-const chat = (leading?: ReactNode) => (
+const chat = (leading?: ReactNode, reply?: ReplyQuote) => (
 	<ThreadLayout
+		reply={reply}
 		header={
 			<AppHeader
 				leading={
@@ -82,6 +85,14 @@ const chat = (leading?: ReactNode) => (
 )
 
 const CHAT = chat()
+
+const CHAT_WITH_REPLY = chat(undefined, {
+	author: "Skippy",
+	excerpt: ANSWER,
+	from: "assistant",
+	onJump: fn(),
+	onDismiss: fn(),
+})
 
 const CHAT_WITH_TRIGGER = chat(
 	<SidebarTrigger aria-label="Toggle sidebar">
@@ -127,12 +138,39 @@ const paintFor = (value: string) =>
 		swatch.style.backgroundColor = value
 	})
 
+const shellInset = () => Number.parseFloat(tokenLengthOf("--shell-inset"))
+
 const expectCardDetached = async (card: HTMLElement, leadingEdge: number) => {
 	const edges = card.getBoundingClientRect()
 	await expect(edges.left - leadingEdge).toBe(0)
-	await expect(window.innerWidth - edges.right).toBe(SHELL_GUTTER)
+	await expect(window.innerWidth - edges.right).toBe(shellInset())
 	await expect(edges.top).toBe(SHELL_TITLE_BAR_HEIGHT)
-	await expect(window.innerHeight - edges.bottom).toBe(SHELL_GUTTER)
+	await expect(window.innerHeight - edges.bottom).toBe(shellInset())
+}
+
+const YOU_AVATAR_INSET = 13
+
+const COMPOSER_INSET_IN_CARD = YOU_AVATAR_INSET - SHELL_GUTTER
+
+const expectCardAndComposerOnShellInset = async (root: HTMLElement) => {
+	const avatar = slotIn(root, "app-rail-avatar").getBoundingClientRect()
+	const card = root.querySelector<HTMLElement>("[data-content-card]")
+	if (!card) throw new Error("No content card rendered")
+	const cardEdges = card.getBoundingClientRect()
+	const quotes = root.querySelectorAll<HTMLElement>(
+		'[data-slot="chat-layout"] [data-slot="message-quote"]',
+	)
+	const composer = quotes[quotes.length - 1]
+	if (!composer) throw new Error("No composer rendered")
+	const edges = composer.getBoundingClientRect()
+	const avatarInset = window.innerHeight - avatar.bottom
+
+	await expect(avatarInset).toBe(YOU_AVATAR_INSET)
+	await expect(avatar.left).toBe(YOU_AVATAR_INSET)
+	await expect(window.innerHeight - cardEdges.bottom).toBe(shellInset())
+	await expect(window.innerWidth - cardEdges.right).toBe(shellInset())
+	await expect(cardEdges.bottom - edges.bottom).toBe(COMPOSER_INSET_IN_CARD)
+	await expect(cardEdges.right - edges.right).toBe(COMPOSER_INSET_IN_CARD)
 }
 
 const meta = preview.meta({
@@ -181,6 +219,23 @@ export const ConversationOpenDark = meta.story({
 		await expect(getComputedStyle(layout).backgroundColor).toBe(
 			getComputedStyle(card).backgroundColor,
 		)
+		await expect(
+			canvas
+				.getByRole("complementary", { name: SIDEBAR_LABEL })
+				.getBoundingClientRect().bottom,
+		).toBe(card.getBoundingClientRect().bottom)
+		await expectCardAndComposerOnShellInset(canvasElement)
+	},
+})
+
+export const ComposerWithReplyOnShellInset = meta.story({
+	tags: ["test-only"],
+	args: {
+		sidebar: SIDEBAR,
+		children: CHAT_WITH_REPLY,
+	},
+	play: async ({ canvasElement }) => {
+		await expectCardAndComposerOnShellInset(canvasElement)
 	},
 })
 
@@ -317,7 +372,7 @@ export const Collapsed = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas, userEvent }) => {
+	play: async ({ canvas, canvasElement, userEvent }) => {
 		const main = canvas.getByRole("main")
 		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 		const mainHeight = main.getBoundingClientRect().height
@@ -325,6 +380,7 @@ export const Collapsed = meta.story({
 
 		await expect(stateOf(sidebar)).toBe("collapsed")
 		await expectCardDetached(main, sidebar.getBoundingClientRect().right)
+		await expectCardAndComposerOnShellInset(canvasElement)
 
 		await toggleSidebar(userEvent)
 		await expect(stateOf(sidebar)).toBe("expanded")
@@ -363,6 +419,7 @@ export const OffCanvas = meta.story({
 			main,
 			slotIn(canvasElement, "app-rail").getBoundingClientRect().right,
 		)
+		await expectCardAndComposerOnShellInset(canvasElement)
 
 		await userEvent.click(trigger)
 
@@ -710,7 +767,10 @@ const expectSidebarFillingHost = async (
 		.getBoundingClientRect()
 
 	await expect(sidebar.top).toBe(host.top + SHELL_TITLE_BAR_HEIGHT)
-	await expect(sidebar.bottom).toBe(host.bottom - SHELL_GUTTER)
+	await expect(sidebar.bottom).toBe(host.bottom - shellInset())
+	await expect(sidebar.bottom).toBe(
+		canvas.getByRole("main").getBoundingClientRect().bottom,
+	)
 }
 
 export const BoxedHost = meta.story({
@@ -735,7 +795,7 @@ export const BoxedHost = meta.story({
 		await expect(host.bottom).toBeLessThan(window.innerHeight)
 		await expectSidebarFillingHost(canvas, canvasElement)
 		await expect(canvas.getByRole("main").getBoundingClientRect().bottom).toBe(
-			host.bottom - SHELL_GUTTER,
+			host.bottom - shellInset(),
 		)
 		await expect(composer.getBoundingClientRect().bottom).toBeLessThan(
 			host.bottom,
@@ -770,7 +830,7 @@ export const TallHost = meta.story({
 		await expect(host.height).toBeGreaterThan(window.innerHeight)
 		await expectSidebarFillingHost(canvas, canvasElement)
 		await expect(canvas.getByRole("main").getBoundingClientRect().bottom).toBe(
-			host.bottom - SHELL_GUTTER,
+			host.bottom - shellInset(),
 		)
 
 		await toggleSidebar(userEvent)
