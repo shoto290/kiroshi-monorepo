@@ -12,10 +12,14 @@ import { createElement } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { AppHeader } from "@workspace/ui/components/app-header"
+import { MissionHeader } from "@workspace/ui/components/mission-header"
 import { NoticeSurface } from "@workspace/ui/components/notice-surface"
 import "@workspace/ui/lib/i18n"
 
-import { titleBarWindowControls } from "@/components/window-caption-controls"
+import {
+	titleBarDragRegion,
+	titleBarWindowControls,
+} from "@/components/window-caption-controls"
 import {
 	closeWindow,
 	declareMaximizeButton,
@@ -60,6 +64,32 @@ const renderHeader = () => {
 		}),
 	)
 }
+
+const renderMissionHeader = () =>
+	render(
+		createElement(MissionHeader, {
+			bot: { name: "Ada Martin", seed: "bot-ada-martin" },
+			objective: "Ship the title bar",
+			ticket: {
+				externalId: "OPE-438",
+				title: "Window controls",
+				platform: "linear",
+				url: "https://linear.example/OPE-438",
+			},
+			tools: [],
+			state: "waiting_human",
+			isWorking: false,
+			openedAt: 0,
+			now: 0,
+			onBack: vi.fn(),
+			dragRegion: titleBarDragRegion(),
+			windowControls: titleBarWindowControls(),
+		}),
+	)
+
+const isDragBlocking = (element: HTMLElement) =>
+	element.tagName === "BUTTON" &&
+	!element.hasAttribute("data-tauri-drag-region")
 
 const reportedMaximized = (isMaximized: boolean) => {
 	const [watch] = vi.mocked(watchWindowMaximized).mock.calls.at(-1) as [
@@ -185,5 +215,30 @@ describe("title bar window controls", () => {
 		expect(
 			await screen.findAllByText("Couldn’t tell whether Kiroshi is maximized."),
 		).toBeTruthy()
+	})
+
+	it("drags the window from the mission header on Windows", () => {
+		renderMissionHeader()
+		const header = screen.getByRole("banner")
+		const buttons = [
+			"Back to the conversation",
+			"Minimize",
+			"Maximize",
+			"Close",
+		]
+
+		expect(header.getAttribute("data-tauri-drag-region")).toBe("deep")
+		for (const name of buttons) {
+			expect(isDragBlocking(screen.getByRole("button", { name }))).toBe(true)
+		}
+	})
+
+	it("leaves the mission header without a drag region off Windows", () => {
+		vi.mocked(hasCaptionWindowControls).mockReturnValue(false)
+		renderMissionHeader()
+
+		expect(
+			screen.getByRole("banner").hasAttribute("data-tauri-drag-region"),
+		).toBe(false)
 	})
 })

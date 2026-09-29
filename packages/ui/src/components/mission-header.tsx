@@ -47,6 +47,7 @@ type MissionHeaderProps = {
 	pullRequest?: MissionPullRequest
 	onBack: () => void
 	windowControls?: ReactNode
+	dragRegion?: "deep"
 	className?: string
 }
 
@@ -72,6 +73,7 @@ const MissionHeader = ({
 	pullRequest,
 	onBack,
 	windowControls,
+	dragRegion,
 	className,
 }: MissionHeaderProps) => {
 	const { t } = useTranslation("chat")
@@ -85,6 +87,7 @@ const MissionHeader = ({
 			data-slot="mission-header"
 		>
 			<AppHeader
+				data-tauri-drag-region={dragRegion}
 				leading={
 					<>
 						<Button
