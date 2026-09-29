@@ -99,12 +99,9 @@ export const watchWindowMaximized = ({
 	return current.onResized(readMaximized)
 }
 
-export type MaximizeButtonBounds = {
-	x: number
-	y: number
-	width: number
-	height: number
-}
+export type MaximizeButtonBounds = NonNullable<
+	Parameters<typeof commands.windowDeclareMaximizeButton>[0]
+>
 
 export const declareMaximizeButton = async (
 	bounds: MaximizeButtonBounds | null,
