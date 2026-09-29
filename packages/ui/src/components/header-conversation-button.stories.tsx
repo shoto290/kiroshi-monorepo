@@ -88,9 +88,27 @@ export const Crowded = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the room is full. Check that the room still draws one 24px Hive icon, two companions and a `+3` cell, so the leading slot never widens with the room and it is the name that gives up room as the row fills. Pick `Default` for the usual pair. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
+					"Reach for this when the room is full. Check that the room still draws one 24px Hive icon, two companions and a `+3` cell, so the leading slot never widens with the room and it is the name that gives up room as the row fills. The `+3` cell keeps a companion's size and its own slot under the first companion, even though the button sizes the icons it holds. Pick `Default` for the usual pair. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
 			},
 		},
+	},
+	play: async ({ canvas }) => {
+		const hive = slotIn(canvas.getByRole("button"), "conversation-avatar")
+		const [first, second] = slotsIn(hive, "conversation-avatar-member")
+		const counter = slotIn(hive, "conversation-avatar-overflow")
+		const cell = counter.getBoundingClientRect()
+		const drawn = (
+			counter.querySelector("path") as Element
+		).getBoundingClientRect()
+		const above = first.getBoundingClientRect()
+
+		await expect(hive).toHaveAccessibleName("+3")
+		for (const member of [first, second]) {
+			const box = member.getBoundingClientRect()
+			await expect(cell.width).toBeCloseTo(box.width, 1)
+			await expect(cell.height).toBeCloseTo(box.height, 1)
+		}
+		await expect(drawn.top).toBeGreaterThanOrEqual(above.bottom)
 	},
 })
 
