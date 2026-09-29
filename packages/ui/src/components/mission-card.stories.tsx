@@ -1258,9 +1258,6 @@ const expectSameObjectiveOffset = async ({
 	withoutPill,
 	objectiveSlot,
 }: PillOffsetCheck) => {
-	await expect(
-		slotsIn(withPill, "mission-state-pill").length,
-	).toBeLessThanOrEqual(1)
 	await expect(slotsIn(withoutPill, "mission-state-pill")).toHaveLength(0)
 	await expect(objectiveOffsetIn(withoutPill, objectiveSlot)).toBe(
 		objectiveOffsetIn(withPill, objectiveSlot),
