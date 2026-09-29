@@ -5,7 +5,6 @@ import type { BotSettingsValue } from "@workspace/ui/components/bot-settings"
 import {
 	BOT_NAMES,
 	newBotIdentity,
-	PLACEHOLDER_ANIMAL,
 	toRosterBots,
 	toSettingsValue,
 } from "./bot-settings"
@@ -321,7 +320,7 @@ describe("createRosterController", () => {
 				title: "Reviewer",
 				instructions: "Answer briefly.",
 				model: "haiku",
-				identity: { animal: PLACEHOLDER_ANIMAL, blot: "blue" },
+				identity: { blot: "blue" },
 			}),
 		)
 		expect(held(controller, id).name).toBe("Nyx")
@@ -395,7 +394,7 @@ describe("createRosterController", () => {
 		const value = toSettingsValue(held(controller, "default"))
 		controller.describe("default", {
 			...value,
-			identity: { animal: PLACEHOLDER_ANIMAL, blot: "yellow" },
+			identity: { blot: "yellow" },
 		})
 		await vi.waitFor(async () =>
 			expect((await reloaded(store)).bots[0].avatarImagePath).toBeNull(),
@@ -1314,7 +1313,7 @@ describe("createRosterController on conversations", () => {
 			"default",
 			edited(value, {
 				name: "Nyx",
-				identity: { animal: PLACEHOLDER_ANIMAL, blot: "blue" },
+				identity: { blot: "blue" },
 			}),
 		)
 

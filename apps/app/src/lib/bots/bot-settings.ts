@@ -119,7 +119,6 @@ export const newBotIdentity = (bots: Bot[]): BotIdentity => ({
 
 export const toSettingsValue = (bot: Bot): BotSettingsValue => ({
 	identity: {
-		animal: PLACEHOLDER_ANIMAL,
 		blot: bot.avatarBlot ?? undefined,
 		image: avatarSrc(bot.avatarImagePath),
 	},

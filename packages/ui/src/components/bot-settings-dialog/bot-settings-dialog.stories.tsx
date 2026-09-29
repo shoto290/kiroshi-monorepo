@@ -50,7 +50,7 @@ const MODELS: BotModelOption[] = [
 ]
 
 const FILLED_BOT: BotSettingsValue = {
-	identity: { animal: "owl", blot: "blue" },
+	identity: { blot: "blue" },
 	name: "Nest Keeper",
 	title: "Repository archivist",
 	instructions:
@@ -63,7 +63,7 @@ const FILLED_BOT: BotSettingsValue = {
 }
 
 const NEW_BOT: BotSettingsValue = {
-	identity: { animal: "cat" },
+	identity: {},
 	name: "",
 	title: "",
 	instructions: "",

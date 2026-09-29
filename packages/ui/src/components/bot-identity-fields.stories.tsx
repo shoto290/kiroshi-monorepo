@@ -19,7 +19,7 @@ import type { BotIdentity } from "@workspace/ui/components/bot-settings"
 
 const BOT_ID = "bot-7"
 
-const IDENTITY: BotIdentity = { animal: "owl", blot: "blue" }
+const IDENTITY: BotIdentity = { blot: "blue" }
 
 const FieldsHost = (props: BotIdentityFieldsProps) => {
 	const [identity, setIdentity] = useState(props.identity)
@@ -126,7 +126,6 @@ export const PicksABlot = meta.story({
 		await userEvent.click(canvas.getByRole("radio", { name: "Red" }))
 
 		await expect(args.onIdentityChange).toHaveBeenCalledWith({
-			animal: "owl",
 			blot: "red",
 		})
 		await expect(canvas.getByRole("radio", { name: "Red" })).toBeChecked()
@@ -146,7 +145,6 @@ export const TakesTheBlotOff = meta.story({
 		await userEvent.click(canvas.getByRole("radio", { name: "No colour" }))
 
 		await expect(args.onIdentityChange).toHaveBeenCalledWith({
-			animal: "owl",
 			blot: undefined,
 		})
 		await expect(
@@ -202,7 +200,6 @@ export const RemovesThePicture = meta.story({
 		)
 
 		await expect(args.onIdentityChange).toHaveBeenCalledWith({
-			animal: "owl",
 			blot: "blue",
 		})
 		await expect(field.querySelector("img")).toBeNull()

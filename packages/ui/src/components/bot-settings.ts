@@ -3,18 +3,7 @@ import {
 	type BotAvatarBlot,
 } from "@workspace/ui/components/companion-colour"
 
-type BotIdentityAnimal =
-	| "rabbit"
-	| "cat"
-	| "bear"
-	| "chick"
-	| "dog"
-	| "mouse"
-	| "owl"
-	| "koala"
-
 type BotIdentity = {
-	animal: BotIdentityAnimal
 	blot?: BotAvatarBlot
 	image?: string
 }
