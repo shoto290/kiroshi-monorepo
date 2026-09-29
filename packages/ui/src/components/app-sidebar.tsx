@@ -2115,7 +2115,7 @@ const AppSidebarBase = ({
 				</SidebarHeader>
 				{isRosterOpen ? rosterContent : null}
 				{isMissionsOpen ? missionsContent : null}
-				{isRosterOpen || isMissionsOpen ? null : <SidebarContent />}
+				{isRosterOpen || isMissionsOpen || <SidebarContent />}
 				{footer || spaces.length > 1 ? (
 					<SidebarFooter className={FOOTER_INSET}>
 						<SpaceDots
