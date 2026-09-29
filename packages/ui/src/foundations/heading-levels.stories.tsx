@@ -18,6 +18,8 @@ const TYPE_PROPERTIES = [
 	"lineHeight",
 ] as const
 
+const HEADING_TAGS = ["H1", "H2", "H3", "H4", "H5", "H6"]
+
 const typeOf = (element: Element) => {
 	const style = getComputedStyle(element)
 	return TYPE_PROPERTIES.map((property) => style[property])
@@ -26,10 +28,9 @@ const typeOf = (element: Element) => {
 export const HeadingFontOnTheTopTwoLevelsOnly = meta.story({
 	play: async ({ canvas }) => {
 		const headings = canvas.getAllByRole("heading")
-		const levels = ["H1", "H2", "H3", "H4", "H5", "H6"]
 		await expect(headings.map(({ tagName }) => tagName)).toEqual([
-			...levels,
-			...levels,
+			...HEADING_TAGS,
+			...HEADING_TAGS,
 		])
 		for (const heading of headings) {
 			if (["H1", "H2"].includes(heading.tagName)) {
@@ -39,8 +40,8 @@ export const HeadingFontOnTheTopTwoLevelsOnly = meta.story({
 				await expect(getComputedStyle(heading).fontWeight).toBe("400")
 			}
 		}
-		const light = headings.slice(0, levels.length)
-		const dark = headings.slice(levels.length)
+		const light = headings.slice(0, HEADING_TAGS.length)
+		const dark = headings.slice(HEADING_TAGS.length)
 		await expect(dark.map(typeOf)).toEqual(light.map(typeOf))
 	},
 })
