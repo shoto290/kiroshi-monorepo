@@ -55,7 +55,6 @@ import {
 	SectionBranch,
 } from "@workspace/ui/components/roster-menu-items"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
-import { SidebarResizeHandle } from "@workspace/ui/components/sidebar-resize"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"
 import {
 	SpaceDots,
@@ -80,7 +79,6 @@ import {
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuItem,
-	useSidebar,
 } from "@workspace/ui/components/ui/sidebar"
 import type { UserChipIdentity } from "@workspace/ui/components/user-chip"
 import { useOverlayScrollbars } from "@workspace/ui/hooks/use-overlay-scrollbars"
@@ -105,13 +103,12 @@ const WINDOW_CONTROLS_INSET = "pl-[78px]"
 
 const NO_WINDOW_CONTROLS_INSET = "pl-2.5"
 
-const HEADER = "px-2 py-0 group-data-[collapsible=icon]:px-0"
+const HEADER = "px-2 py-0"
 
-const HEADER_ROW =
-	"flex h-8 items-center justify-between ps-2 pe-0.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+const HEADER_ROW = "flex h-8 items-center justify-between ps-2 pe-0.5"
 
 const HEADER_TITLE =
-	"min-w-0 truncate font-semibold text-foreground text-reading leading-4.5 tracking-[-0.01em] group-data-[collapsible=icon]:hidden"
+	"min-w-0 truncate font-semibold text-foreground text-reading leading-4.5 tracking-[-0.01em]"
 
 const HEADER_ACTIONS = "flex items-center gap-0.5"
 
@@ -119,8 +116,7 @@ const HEADER_ACTION = "rounded-md text-muted-foreground [&_svg]:stroke-2!"
 
 const ROW_AVATAR_SIZE = 40
 
-const ROW_ITEM =
-	"flex flex-col gap-1 group-data-[collapsible=icon]:items-center"
+const ROW_ITEM = "flex flex-col gap-1"
 
 const rowButtonOf = (row: HTMLElement | null) =>
 	row?.querySelector<HTMLElement>('[data-slot="sidebar-menu-button"]') ?? null
@@ -132,26 +128,24 @@ const sidebarRegionOf = (row: HTMLElement | null) => {
 	return region
 }
 
-const FOOTER_INSET =
-	"px-2 py-0 not-has-[*:not(:empty)]:hidden group-data-[collapsible=icon]:px-0"
+const FOOTER_INSET = "px-2 py-0 not-has-[*:not(:empty)]:hidden"
 
-const EMPTY_COPY =
-	"px-3 py-4 text-center text-sidebar-foreground/70 text-sm group-data-[collapsible=icon]:hidden"
+const EMPTY_COPY = "px-3 py-4 text-center text-sidebar-foreground/70 text-sm"
 
 const ROSTER_SURFACE = "min-h-10 flex-1"
 
 const SECTION_GROUP = "px-0 py-0"
 
-const SECTION_PAD = "px-[4.5px] pb-[4.5px] group-data-[collapsible=icon]:p-0"
+const SECTION_PAD = "px-[4.5px] pb-[4.5px]"
 
 const SECTION_CARD =
-	"rounded-xl transition-colors duration-200 ease-out motion-reduce:transition-none [@media(hover:hover)]:has-[[data-slot=roster-section-trigger]:hover]:bg-sidebar-accent/70 group-data-[collapsible=icon]:bg-transparent"
+	"rounded-xl transition-colors duration-200 ease-out motion-reduce:transition-none [@media(hover:hover)]:has-[[data-slot=roster-section-trigger]:hover]:bg-sidebar-accent/70"
 
 const SECTION_CARD_OPEN =
 	"bg-sidebar-accent/50 group-data-[landing]/roster-drop:bg-sidebar-accent"
 
 const SECTION_LABEL =
-	"mb-0 h-auto px-0 font-semibold text-sidebar-foreground text-xs normal-case tracking-normal group-data-[collapsible=icon]:hidden"
+	"mb-0 h-auto px-0 font-semibold text-sidebar-foreground text-xs normal-case tracking-normal"
 
 const SECTION_TRIGGER =
 	"flex w-full min-w-0 select-none items-center gap-1.5 rounded-xl px-[10.5px] py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
@@ -162,7 +156,7 @@ const SECTION_CHEVRON =
 	"size-3.5 shrink-0 text-sidebar-foreground/50 transition-transform duration-150 ease-out motion-reduce:transition-none"
 
 const SECTION_BODY =
-	"grid transition-[grid-template-rows,visibility] duration-200 ease-out motion-reduce:transition-none group-data-[collapsible=icon]:visible group-data-[collapsible=icon]:grid-rows-[1fr]"
+	"grid transition-[grid-template-rows,visibility] duration-200 ease-out motion-reduce:transition-none"
 
 const SECTION_BODY_OPEN = "visible grid-rows-[1fr]"
 
@@ -174,7 +168,7 @@ const SECTION_FIELD =
 	"w-full min-w-0 border-none bg-transparent px-[10.5px] py-2.5 text-sidebar-foreground text-xs outline-none"
 
 const SECTION_DROP =
-	"flex items-center justify-center gap-2 rounded-xl border border-sidebar-border border-dashed px-3 py-3 text-center text-muted-foreground text-xs group-data-[collapsible=icon]:hidden"
+	"flex items-center justify-center gap-2 rounded-xl border border-sidebar-border border-dashed px-3 py-3 text-center text-muted-foreground text-xs"
 
 const SECTION_DROP_AVATAR = "block opacity-40"
 
@@ -192,7 +186,7 @@ const INSERTION_LINE =
 const PINNED_ZONE_STACK = "flex flex-col gap-1.5"
 
 const ZONE_SEPARATOR =
-	"mx-1.5 my-1 block h-px shrink-0 rounded-full bg-sidebar-border group-data-[collapsible=icon]:hidden"
+	"mx-1.5 my-1 block h-px shrink-0 rounded-full bg-sidebar-border"
 
 const INSERTION_ABOVE = "-top-0.5"
 
@@ -203,7 +197,7 @@ const LIFTED_BOT =
 
 const DROP_AVATAR_SIZE = 28
 
-const CONTENT_INSET = "px-2 py-0 group-data-[collapsible=icon]:px-0"
+const CONTENT_INSET = "px-2 py-0"
 
 type SidebarSearchButtonProps = { onOpenSearch: () => void }
 
@@ -214,7 +208,7 @@ const SidebarSearchButton = ({ onOpenSearch }: SidebarSearchButtonProps) => {
 	return (
 		<TooltipButton
 			aria-label={label}
-			className={cn(HEADER_ACTION, "group-data-[collapsible=icon]:hidden")}
+			className={HEADER_ACTION}
 			onClick={onOpenSearch}
 			size="icon-sm"
 			tooltip={
@@ -243,7 +237,7 @@ const CAROUSEL_SWIPEABLE = "overflow-x-auto"
 const CAROUSEL_HELD = "overflow-x-hidden"
 
 const CAROUSEL_PANEL =
-	"flex w-full flex-none snap-start snap-always flex-col gap-1 overflow-y-auto overscroll-y-contain px-2 py-0 group-data-[collapsible=icon]:px-0"
+	"flex w-full flex-none snap-start snap-always flex-col gap-1 overflow-y-auto overscroll-y-contain px-2 py-0"
 
 type AppSidebarStatus = "idle" | "working"
 
@@ -420,24 +414,12 @@ const spaceIdsOfBot = ({
 		.map(([spaceId]) => spaceId)
 }
 
-const useRosterBadgePlacement = (badge?: BotBadge) => {
-	const { state } = useSidebar()
-	const isCollapsed = state === "collapsed"
-
-	return {
-		avatarBadge: isCollapsed ? badge : undefined,
-		rowBadge: isCollapsed ? undefined : badge,
-	}
-}
-
 interface BotRowAvatarProps {
 	bot: AppSidebarBot
-	badge?: BotBadge
 }
 
-const BotRowAvatar = ({ bot, badge }: BotRowAvatarProps) => (
+const BotRowAvatar = ({ bot }: BotRowAvatarProps) => (
 	<BotIdentityAvatar
-		badge={badge}
 		blot={bot.blot}
 		image={bot.image}
 		kind={poseOf(bot)}
@@ -521,7 +503,6 @@ const BotRosterRow = ({
 }: BotRosterRowProps) => {
 	const { t } = useTranslation("bots")
 	const working = isBusy(bot)
-	const { avatarBadge, rowBadge } = useRosterBadgePlacement(bot.badge)
 	const rowRef = useRef<HTMLElement | null>(null)
 
 	const focusAfterClose = useRef<HTMLElement | null>(null)
@@ -547,10 +528,10 @@ const BotRosterRow = ({
 				<ContextMenuTrigger>
 					<SidebarListRow
 						{...lift.handlersFor(bot.id)}
-						badge={rowBadge}
+						badge={bot.badge}
 						isActive={isSelected}
 						isWorking={working}
-						media={<BotRowAvatar badge={avatarBadge} bot={bot} />}
+						media={<BotRowAvatar bot={bot} />}
 						name={bot.name}
 						onSelect={() => {
 							if (lift.hasJustDropped()) return
@@ -631,9 +612,6 @@ const ConversationRosterRow = ({
 	onCreateSectionFor,
 }: ConversationRosterRowProps) => {
 	const { t } = useTranslation("bots")
-	const { avatarBadge, rowBadge } = useRosterBadgePlacement(
-		badgeOf(conversation),
-	)
 
 	return (
 		<SidebarMenuItem
@@ -647,12 +625,11 @@ const ConversationRosterRow = ({
 				<ContextMenuTrigger>
 					<SidebarListRow
 						{...lift.handlersFor(conversation.id)}
-						badge={rowBadge}
+						badge={badgeOf(conversation)}
 						isActive={isSelected}
 						isWorking={Boolean(workingBotOf(conversation))}
 						media={
 							<AvatarGroup
-								badge={avatarBadge}
 								participants={heldBotsOf(conversation)}
 								size={ROW_AVATAR_SIZE}
 							/>
@@ -1186,8 +1163,6 @@ const BotRoster = ({
 	onPinRoster,
 }: BotRosterProps) => {
 	const { t } = useTranslation("bots")
-	const { isMobile, state } = useSidebar()
-
 	const known = new Set(sections.map((section) => section.id))
 
 	const activeBotId = selectedConversationId ? undefined : selectedBotId
@@ -1374,7 +1349,7 @@ const BotRoster = ({
 	}
 
 	const rosterLift = useRosterLift({
-		isEnabled: isMobile || state === "expanded",
+		isEnabled: true,
 		isSameLanding,
 		landingAt,
 		onLand: land,
@@ -2132,7 +2107,6 @@ const AppSidebarBase = ({
 						/>
 					</SidebarFooter>
 				) : null}
-				<SidebarResizeHandle side="left" />
 			</Sidebar>
 			<span className="sr-only" role="status">
 				{announcementFor(t, selectedBot, selectedConversation)}

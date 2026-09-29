@@ -1,13 +1,7 @@
 "use client"
 
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu"
-import {
-	cloneElement,
-	type KeyboardEvent,
-	type KeyboardEventHandler,
-	type ReactElement,
-	useRef,
-} from "react"
+import { cloneElement, type ReactElement, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
@@ -18,7 +12,6 @@ import {
 	ContextMenuContent,
 	ContextMenuItem,
 	ContextMenuSeparator,
-	ContextMenuShortcut,
 	ContextMenuSub,
 	ContextMenuSubContent,
 	ContextMenuSubTrigger,
@@ -47,8 +40,6 @@ type MissionMenuProps = MissionMenuActions & {
 	hasPullRequest: boolean
 	hasBranch: boolean
 	hasWorkspacePath: boolean
-	openShortcut: string
-	closeShortcut: string
 	children: ReactElement<MissionCardProps>
 }
 
@@ -86,8 +77,6 @@ const MissionMenuContent = ({
 	hasPullRequest,
 	hasBranch,
 	hasWorkspacePath,
-	openShortcut,
-	closeShortcut,
 	returnsFocus,
 	onOpen,
 	onOpenPullRequest,
@@ -109,7 +98,6 @@ const MissionMenuContent = ({
 			<ContextMenuItem onClick={onOpen}>
 				<Icons.ArrowRight aria-hidden="true" className={ICON_CLASS} />
 				{t("missions.menu.open")}
-				<ContextMenuShortcut>{openShortcut}</ContextMenuShortcut>
 			</ContextMenuItem>
 			{hasPullRequest ? (
 				<ContextMenuItem onClick={onOpenPullRequest}>
@@ -164,31 +152,14 @@ const MissionMenuContent = ({
 				<ContextMenuItem onClick={() => onClose()}>
 					<Icons.Close aria-hidden="true" className={ICON_CLASS} />
 					{t("missions.menu.close")}
-					<ContextMenuShortcut>{closeShortcut}</ContextMenuShortcut>
 				</ContextMenuItem>
 			)}
 		</ContextMenuContent>
 	)
 }
 
-const isCloseKey = (event: KeyboardEvent<HTMLElement>) =>
-	event.key === "Backspace" && event.metaKey
-
 const MissionMenu = ({ children, ...props }: MissionMenuProps) => {
 	const isLeavingCard = useRef(false)
-
-	const closeFromKeyboard = (event: KeyboardEvent<HTMLElement>) => {
-		if (!isCloseKey(event) || isClosedState(props.state)) return
-		event.preventDefault()
-		props.onClose()
-	}
-
-	const alsoClosingFromKeyboard =
-		(onKeyDown: KeyboardEventHandler<HTMLElement> | undefined) =>
-		(event: KeyboardEvent<HTMLElement>) => {
-			onKeyDown?.(event)
-			closeFromKeyboard(event)
-		}
 
 	const leavingCard = (action: () => void) => () => {
 		isLeavingCard.current = true
@@ -202,14 +173,7 @@ const MissionMenu = ({ children, ...props }: MissionMenuProps) => {
 	return (
 		<ContextMenu onOpenChange={staysOnCardWhenOpened}>
 			<ContextMenuPrimitive.Trigger
-				render={(surface) =>
-					cloneElement(children, {
-						surface: {
-							...surface,
-							onKeyDown: alsoClosingFromKeyboard(surface.onKeyDown),
-						},
-					})
-				}
+				render={(surface) => cloneElement(children, { surface })}
 			/>
 			<MissionMenuContent
 				{...props}

@@ -13,10 +13,6 @@ import {
 import type { Mission } from "@/lib/missions/mission-contract"
 import { missionsTransport } from "@/lib/missions/missions-transport"
 
-const OPEN_SHORTCUT = "↵"
-
-const CLOSE_SHORTCUT = "⌘⌫"
-
 type StoppableThread = Pick<ConversationController, "stop">
 
 export type StoppableRuntimes = {
@@ -63,11 +59,9 @@ export const useMissionCardMenus = ({
 			return (
 				<MissionMenu
 					{...missionActionsOf(mission, port)}
-					closeShortcut={CLOSE_SHORTCUT}
 					hasBranch={mission.branch !== null}
 					hasPullRequest={mission.pullRequestUrl !== null}
 					hasWorkspacePath={mission.workspacePath !== null}
-					openShortcut={OPEN_SHORTCUT}
 					state={card.props.state}
 				>
 					{card}

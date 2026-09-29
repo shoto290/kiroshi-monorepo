@@ -1,8 +1,7 @@
-import { expect, fn, waitFor } from "storybook/test"
+import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
-	FRAME_POLL,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
@@ -25,9 +24,8 @@ const SINGLE_LINE_HEIGHT = 24
 const FOOTER_INSET =
 	"group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0"
 
-const renderShell = (defaultOpen: boolean) => (args: UserChipProps) => (
+const renderShell = (args: UserChipProps) => (
 	<WorkspaceShell
-		defaultOpen={defaultOpen}
 		sidebar={
 			<Sidebar aria-label="Workspace" collapsible="icon" role="complementary">
 				<SidebarContent />
@@ -47,11 +45,6 @@ const avatarIn = (canvasElement: HTMLElement) =>
 const panelIn = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "sidebar-container")[0]
 
-const horizontalCentreOf = (element: HTMLElement) => {
-	const box = element.getBoundingClientRect()
-	return box.left + box.width / 2
-}
-
 const avatarInsets = (chip: HTMLElement, avatar: HTMLElement) => {
 	const chipBox = chip.getBoundingClientRect()
 	const box = avatar.getBoundingClientRect()
@@ -68,13 +61,13 @@ const uniqueCount = (values: number[]) => new Set(values).size
 const meta = preview.meta({
 	title: "Navigation/UserChip",
 	component: UserChip,
-	render: renderShell(true),
+	render: renderShell,
 	parameters: {
 		layout: "fullscreen",
 		docs: {
 			description: {
 				component:
-					"The reader's own row, pinned under a sidebar list — the way into their settings and nothing else, so activating it fires one event and the host decides what opens. It draws the picture the reader uploaded, or the initials of their display name when there is none, and it reads `You` when the host has no name to give. The row follows the panel: expanded it is the picture and the name clipped to one line, on the rail it is the picture alone, centred, with the name still the button's accessible name. Everything comes from props — it never reads an account and never opens anything itself.",
+					"The reader's own row, pinned under a sidebar list — the way into their settings and nothing else, so activating it fires one event and the host decides what opens. It draws the picture the reader uploaded, or the initials of their display name when there is none, and it reads `You` when the host has no name to give. The row is the picture and the name clipped to one line. Everything comes from props — it never reads an account and never opens anything itself.",
 			},
 		},
 	},
@@ -178,40 +171,5 @@ export const LongContent = meta.story({
 		await expect(chip.getBoundingClientRect().right).toBeLessThanOrEqual(
 			panel.getBoundingClientRect().right,
 		)
-	},
-})
-
-export const OnRail = meta.story({
-	render: renderShell(false),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same row once the panel collapses to its rail, which is how a host restores a remembered choice through `defaultOpen`. Check that the target is a square the same inset on all four edges rather than a band across the rail — the name is gone, so the room it took goes with it — that the picture is left alone and centred on the rail, that the name is drawn nowhere yet still names the row — so the way into the settings survives the collapse — and that nothing is clipped against either edge. Pick `Default` for the expanded panel. The app assembles it at `apps/app/src/App.tsx:935`.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const chip = canvas.getByRole("button", { name: NAME })
-		const avatar = avatarIn(canvasElement)
-
-		await expect(chip).toHaveAttribute("aria-label", NAME)
-		await expect(canvas.getByText(NAME)).toHaveAttribute("aria-hidden", "true")
-
-		const chipBox = chip.getBoundingClientRect()
-		await expect(chipBox.width).toBeCloseTo(chipBox.height, 0)
-		await expect(uniqueCount(avatarInsets(chip, avatar))).toBe(1)
-
-		await waitFor(async () => {
-			await expect(horizontalCentreOf(avatar)).toBeCloseTo(
-				horizontalCentreOf(chip),
-				0,
-			)
-		}, FRAME_POLL)
-
-		const panelBox = panelIn(canvasElement).getBoundingClientRect()
-		const avatarBox = avatar.getBoundingClientRect()
-		await expect(avatarBox.left).toBeGreaterThanOrEqual(panelBox.left)
-		await expect(avatarBox.right).toBeLessThanOrEqual(panelBox.right)
 	},
 })

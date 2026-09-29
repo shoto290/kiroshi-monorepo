@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react"
 
-import { spaceRankOf } from "@workspace/ui/hooks/use-space-shortcut"
-
 const NEXT = 1
 
 const PREVIOUS = -1
@@ -15,7 +13,6 @@ export type SearchKeys = {
 	onOpen: () => void
 	onMove: (by: number) => void
 	onEnter: () => void
-	onRank: (rank: number) => void
 }
 
 type SearchKeyPress = (keys: SearchKeys) => void
@@ -50,11 +47,6 @@ const pressOf = (
 
 	if (!isOpen) {
 		return undefined
-	}
-
-	const rank = spaceRankOf(event)
-	if (rank !== 0) {
-		return ({ onRank }) => onRank(rank)
 	}
 
 	return keepsItsOwnKeys(event.target) ? undefined : PRESS_BY_KEY.get(event.key)

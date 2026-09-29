@@ -597,10 +597,8 @@ const expectPanelDivider = async (panel: HTMLElement) => {
 const stateOf = (panel: HTMLElement) =>
 	panel.closest<HTMLElement>('[data-slot="sidebar"]')?.dataset.state
 
-const renderShell = (defaultOpen: boolean) => (args: AppSidebarProps) => (
-	<WorkspaceShell defaultOpen={defaultOpen} sidebar={<AppSidebar {...args} />}>
-		{null}
-	</WorkspaceShell>
+const renderShell = (args: AppSidebarProps) => (
+	<WorkspaceShell sidebar={<AppSidebar {...args} />}>{null}</WorkspaceShell>
 )
 
 const renderTintedShell = (args: AppSidebarProps) => (
@@ -637,13 +635,13 @@ const tokenPaintsIn = (host: HTMLElement, className = "") =>
 const meta = preview.meta({
 	title: "Navigation/AppSidebar",
 	component: AppSidebar,
-	render: renderShell(true),
+	render: renderShell,
 	parameters: {
 		layout: "fullscreen",
 		docs: {
 			description: {
 				component:
-					"The roster panel of an agent app, mounted whole: the animated sidebar shell around every companion the reader owns. Its pinned region carries the space switcher, the search button and the create menu, and it clears the window controls when `insetWindowControls` says a transparent title bar sits over it, and the open state comes from the `WorkspaceShell` above it, so Cmd/Ctrl+B and whatever trigger the page mounts drive the panel and the column beside it together. A row is the companion avatar, its name, an optional title badge and the time of its last message, over one clipped line of that message. A companion at rest holds the pose it was given in its settings, drawn as a still frame; a companion that is running holds its work pose, animates, and wears an activity dot. A companion wearing a picture its reader uploaded shows that instead, and it never moves — the dot is what says it is working. Under the list it pins the reader's own chip beside a slot the host fills, and at rest that slot draws nothing, so the resting row is the chip alone. Settings, duplicate and delete live behind a right-click on the row — there is no actions button to reveal — and selection and running state are props, so a host maps its store onto `botsBySpaceId` and `selectedBotId` and nothing here polls the transport.",
+					"The roster panel of an agent app, mounted whole: the animated sidebar shell around every companion the reader owns. Its pinned region carries the space switcher, the search button and the create menu, and it clears the window controls when `insetWindowControls` says a transparent title bar sits over it, and the `WorkspaceShell` above it keeps it expanded at one fixed width: no collapse, no trigger, no resize edge. A row is the companion avatar, its name, an optional title badge and the time of its last message, over one clipped line of that message. A companion at rest holds the pose it was given in its settings, drawn as a still frame; a companion that is running holds its work pose, animates, and wears an activity dot. A companion wearing a picture its reader uploaded shows that instead, and it never moves — the dot is what says it is working. Under the list it pins the reader's own chip beside a slot the host fills, and at rest that slot draws nothing, so the resting row is the chip alone. Settings, duplicate and delete live behind a right-click on the row — there is no actions button to reveal — and selection and running state are props, so a host maps its store onto `botsBySpaceId` and `selectedBotId` and nothing here polls the transport.",
 			},
 		},
 	},
@@ -1249,7 +1247,7 @@ export const Badges = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three rows carrying the badge a host derived from their chat — one asking for the reader, one done, one that failed — over a fourth with nothing to say. Check the badge sits at the trailing edge of the row, under the timestamp and level with the preview line, rather than on the avatar it used to crowd: the marks stack into one column the eye can run down, next to the times it is already reading. Check a row without one keeps its name, its preview and its timestamp on exactly the columns the rest of the list holds — the dot is out of the flow, so it moves nothing — that the row heights are untouched, and that the three read apart by colour and by the pulse on attention rather than by position alone. The badge is drawn and not spoken here: the row is named by its own text and the news is in the message line under it. Pick `BadgesOnRail` for the one place the mark still rides the avatar, `Working` for the running rows that carry no badge of their own.",
+					"Three rows carrying the badge a host derived from their chat — one asking for the reader, one done, one that failed — over a fourth with nothing to say. Check the badge sits at the trailing edge of the row, under the timestamp and level with the preview line, rather than on the avatar it used to crowd: the marks stack into one column the eye can run down, next to the times it is already reading. Check a row without one keeps its name, its preview and its timestamp on exactly the columns the rest of the list holds — the dot is out of the flow, so it moves nothing — that the row heights are untouched, and that the three read apart by colour and by the pulse on attention rather than by position alone. The badge is drawn and not spoken here: the row is named by its own text and the news is in the message line under it. Pick `Working` for the running rows that carry no badge of their own.",
 			},
 		},
 	},
@@ -1276,45 +1274,6 @@ export const Badges = meta.story({
 				0,
 			)
 			await expect(centerOf(dot)).toBeCloseTo(centerOf(preview), 0)
-		}
-	},
-})
-
-export const BadgesOnRail = meta.story({
-	tags: ["test-only"],
-	args: { botsBySpaceId: inHome(BADGED_ROSTER), selectedBotId: "beacon" },
-	render: renderShell(false),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same three badges once the panel is down to its icon rail, where the avatar is all that is left of a row. This is the one case where the mark rides the avatar: there is no trailing edge left to hang it on, no timestamp and no preview line, so it falls back onto the corner of the square. Check every badge is still drawn and still inside the rail rather than clipped against its trailing edge — a reader who collapses the panel is the one who most needs to be told a companion wants them — and that a row with nothing waiting still draws no dot. Pick `Badges` for the open panel, where the mark moves out to the row's edge, `Collapsed` for the rail without any.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const panel = canvas.getByRole("complementary", { name: "Conversations" })
-		const rail = railWidth()
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
-		}, FRAME_POLL)
-
-		const rows = rowsIn(canvasElement)
-		await expect(rows.map(badgeIn)).toEqual([
-			"attention",
-			"done",
-			"failed",
-			undefined,
-		])
-
-		const panelBox = panel.getBoundingClientRect()
-		for (const row of rows.slice(0, 3)) {
-			const dot = slotIn(row, "bot-activity-dot")
-			await expect(slotIn(row, "bot-identity-avatar").contains(dot)).toBe(true)
-
-			const dotBox = dot.getBoundingClientRect()
-			await expect(dotBox.right).toBeLessThanOrEqual(panelBox.right)
-			await expect(dotBox.left).toBeGreaterThanOrEqual(panelBox.left)
 		}
 	},
 })
@@ -1821,33 +1780,6 @@ export const MissionStripWithChatBadge = meta.story({
 	},
 })
 
-export const MissionStripOnRail = meta.story({
-	tags: ["test-only"],
-	args: {
-		botsBySpaceId: inHome(MISSION_STATE_ROSTER),
-		selectedBotId: "beacon",
-	},
-	render: renderShell(false),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same four missions once the panel is down to its icon rail. Check no strip is drawn at all: the rail is the avatar and nothing else, and a strip squeezed onto it would have nowhere to put its title. The mission is not lost, it is deferred to the open panel — what a collapsed reader still needs is the companion asking for them, and that is the badge dot the rail keeps on the avatar. Pick `MissionStripStates` for the open panel, `BadgesOnRail` for the mark the rail does keep.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const panel = canvas.getByRole("complementary", { name: "Conversations" })
-		const rail = railWidth()
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
-		}, FRAME_POLL)
-
-		await expect(slotsIn(canvasElement, "bot-mission-strip")).toHaveLength(0)
-		await expect(uniqueCount(rowHeights(rowsIn(canvasElement)))).toBe(1)
-	},
-})
-
 export const LongContent = meta.story({
 	tags: ["test-only"],
 	args: {
@@ -2043,56 +1975,6 @@ export const RowContextMenu = meta.story({
 	},
 })
 
-export const Collapsed = meta.story({
-	tags: ["test-only"],
-	render: renderShell(false),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The panel opened on its icon rail, which is how a host restores a remembered choice through `defaultOpen`. Check that the rail is one avatar wide with the avatars sitting centred in it and nothing clipped against either edge, that an avatar keeps the size the row asks for and fits whole inside the row rather than being cut by it, that hovering a row names it in a hint beside the rail — the rail hides the label, so the pointer needs the name back, and the row keeps `aria-label` for the readers who never hover — that the create button rides down with it while no search button does, Cmd/Ctrl+K being the only way to search from the rail, and that the names, badges and timestamps are gone from the picture and from the accessibility tree — each row keeps its name through `aria-label` instead. A row is still one button and one only, and right-clicking it still reaches its actions. Pick `Toggle` to watch the panel travel between the two widths.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		const panel = canvas.getByRole("complementary", { name: "Conversations" })
-		const rail = railWidth()
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
-		}, FRAME_POLL)
-
-		await expect(querySearchButtonIn(canvasElement)).toBeNull()
-
-		const create = canvas.getByRole("button", { name: CREATE })
-		await userEvent.tab()
-		await userEvent.tab()
-		await tabAcrossRail(userEvent)
-		await userEvent.tab()
-		await expect(create).toHaveFocus()
-
-		const row = rowsIn(canvasElement)[0]
-		await userEvent.tab()
-		await expect(rowButton(row)).toHaveFocus()
-		await expect(rowButton(row).matches(":focus-visible")).toBe(true)
-		await expect(rowButton(row)).toHaveAccessibleName("Atlas")
-		await expect(within(row).getAllByRole("button")).toHaveLength(1)
-
-		const panelBox = panel.getBoundingClientRect()
-		const avatarBox = avatarDrawingIn(row).getBoundingClientRect()
-		await expect(avatarBox.left).toBeGreaterThanOrEqual(panelBox.left)
-		await expect(avatarBox.right).toBeLessThanOrEqual(panelBox.right)
-		await expectAvatarDrawnAtCallSiteSize(row)
-		await expectAvatarWholeInRow(row)
-
-		await expect(
-			slotIn(row, "roster-row-preview").closest("[aria-hidden='true']"),
-		).not.toBeNull()
-
-		await userEvent.hover(rowButton(row))
-		await expect(await screen.findByRole("tooltip")).toHaveTextContent("Atlas")
-	},
-})
-
 export const SpaceTinted = meta.story({
 	tags: ["test-only"],
 	render: renderTintedShell,
@@ -2119,49 +2001,20 @@ export const SpaceTinted = meta.story({
 	},
 })
 
-export const Toggle = meta.story({
+export const NoCollapseNorResize = meta.story({
 	tags: ["test-only"],
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The collapse itself, driven from Cmd/Ctrl+B — the panel carries no trigger of its own, so the shortcut and whatever control the page mounts are the two ways in. Check that one press takes the panel to the rail and back, that focus stays exactly where it was instead of falling back to the page, and that the rows fold down to the icon square the rail leaves them and come back to the height they had. Pick `Collapsed` for the resting rail.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
+	play: async ({ canvas, userEvent }) => {
 		const panel = canvas.getByRole("complementary", { name: "Conversations" })
-		const row = rowsIn(canvasElement)[0]
-		const button = rowButton(row)
-		const preview = slotIn(row, "roster-row-preview")
-		const rowHeight = row.getBoundingClientRect().height
-		const rail = railWidth()
-
-		await expect(stateOf(panel)).toBe("expanded")
-		await userEvent.tab()
-		await userEvent.tab()
-		await tabAcrossRail(userEvent)
-		await userEvent.tab()
-		await userEvent.tab()
-		await userEvent.tab()
-		await expect(button).toHaveFocus()
+		const width = panel.getBoundingClientRect().width
 
 		await userEvent.keyboard("{Meta>}b{/Meta}")
-		await expect(stateOf(panel)).toBe("collapsed")
-		await expect(button).toHaveFocus()
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
-		}, FRAME_POLL)
-
 		await userEvent.keyboard("{Control>}b{/Control}")
+
 		await expect(stateOf(panel)).toBe("expanded")
-		await expect(button).toHaveFocus()
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeGreaterThan(rail)
-			await expect(row.getBoundingClientRect().height).toBe(rowHeight)
-			const label = preview.closest("[aria-hidden]")
-			await expect(label && getComputedStyle(label).opacity).toBe("1")
-		}, FRAME_POLL)
+		await expect(panel.getBoundingClientRect().width).toBe(width)
+		await expect(
+			canvas.queryByRole("separator", { name: /resize/i }),
+		).toBeNull()
 	},
 })
 
@@ -2173,7 +2026,7 @@ export const Narrow = meta.story({
 		docs: {
 			description: {
 				story:
-					"The roster in a window just wide enough to keep two columns, one notch above the width where the panel becomes a drawer. Check that it is still a column at its full width rather than the icon rail — a breakpoint that collapsed it early would fail here — and that the rows keep their columns at that width. Pick `Roster` for a full window, `Layout/WorkspaceShell` `OffCanvas` for the drawer a narrower window gets instead.",
+					"The roster in a window just wide enough to keep two columns, one notch above the width where the panel becomes a drawer. Check that it is still a column at its full width rather than the icon rail — a breakpoint that collapsed it early would fail here — and that the rows keep their columns at that width. Pick `Roster` for a full window.",
 			},
 		},
 	},
@@ -2417,7 +2270,6 @@ export const DragRegion = meta.story({
 	tags: ["test-only"],
 	render: (args: AppSidebarProps) => (
 		<WorkspaceShell
-			defaultOpen
 			sidebar={<AppSidebar {...args} data-tauri-drag-region="deep" />}
 		>
 			{null}
@@ -2557,7 +2409,6 @@ const LiveSpaces = (args: AppSidebarProps) => {
 
 	return (
 		<WorkspaceShell
-			defaultOpen
 			sidebar={
 				<AppSidebar
 					{...args}
@@ -2650,7 +2501,7 @@ export const FiveSpaces = meta.story({
 		docs: {
 			description: {
 				story:
-					"Five spaces with the second one open, each with its own roster — the everyday case, and the one that exercises all four ways in. Check the dot strip is centred in the pinned region with only the open dot filled and full size, that pressing a dot reports its id, that the row is three panels wide however many spaces there are, so one swipe reaches one space, that landing on it reports it and only it, and that Cmd and a digit reaches a space directly while a digit past the last one is left alone. Pick `NineSpaces` for the strip at its widest, `SpacesOnRail` for the same panel collapsed, `SpaceScrolling` for the gesture itself against a host that follows it, `SpacesWithoutRosters` for the same spaces before a host hands its rosters over.",
+					"Five spaces with the second one open, each with its own roster — the everyday case, and the one that exercises all four ways in. Check the dot strip is centred in the pinned region with only the open dot filled and full size, that pressing a dot reports its id, that the row is three panels wide however many spaces there are, so one swipe reaches one space, that landing on it reports it and only it, and that Cmd and a digit reaches a space directly while a digit past the last one is left alone. Pick `NineSpaces` for the strip at its widest, `SpaceScrolling` for the gesture itself against a host that follows it, `SpacesWithoutRosters` for the same spaces before a host hands its rosters over.",
 			},
 		},
 	},
@@ -2909,7 +2760,6 @@ const LiveMemberships = (args: AppSidebarProps) => {
 
 	return (
 		<WorkspaceShell
-			defaultOpen
 			sidebar={
 				<AppSidebar
 					{...args}
@@ -3263,49 +3113,6 @@ export const MissionSpaceRing = meta.story({
 		).toBe("attention")
 
 		await expect(slotsIn(canvasElement, "bot-activity-dot")).toHaveLength(0)
-	},
-})
-
-export const SpacesOnRail = meta.story({
-	render: renderShell(false),
-	args: {
-		spaces: FIVE_SPACES,
-		selectedSpaceId: "vocca",
-		botsBySpaceId: FIVE_ROSTERS,
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same navigation once the panel is collapsed to its icon column. The switcher lives in the title bar, so it keeps its swatch and its name whatever the panel does. Check the create button sits inside the collapsed column without clipping against either edge, and that the dot strip is gone: a column one avatar wide is too narrow to hold nine targets, and the switcher above already says where the reader is. Pick `FiveSpaces` for the expanded panel.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const panel = slotIn(canvasElement, "sidebar-container")
-		const rail = railWidth()
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
-		}, FRAME_POLL)
-
-		const switcher = canvas.getByRole("button", {
-			name: "Change space, Vocca open",
-		})
-		await expect(
-			slotIn(switcher, "space-switcher-name").checkVisibility(),
-		).toBe(true)
-		await expect(slotIn(switcher, "space-dot").checkVisibility()).toBe(true)
-
-		const panelBox = panel.getBoundingClientRect()
-		const create = canvas
-			.getByRole("button", { name: CREATE })
-			.getBoundingClientRect()
-		await expect(create.left).toBeGreaterThanOrEqual(panelBox.left)
-		await expect(create.right).toBeLessThanOrEqual(panelBox.right)
-
-		await expect(
-			slotsIn(canvasElement, "space-dots")[0]?.checkVisibility(),
-		).toBe(false)
 	},
 })
 
@@ -3927,7 +3734,7 @@ export const WindowControlsReserved = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this in a desktop window whose title bar is transparent, so the OS paints its close, minimise and zoom buttons over the top of the window. Check that the 34px title bar holds a gutter wide enough that the space switcher starts past those buttons, 8px after the last one as the reference draws it, and that the rail and the panel below are untouched: the reserve is owed by the title bar alone. Pick `NoWindowControlsReserve` in a browser tab or on a host that draws its own title bar, `WindowControlsReservedOnRail` for the same window with the panel collapsed.",
+					"Reach for this in a desktop window whose title bar is transparent, so the OS paints its close, minimise and zoom buttons over the top of the window. Check that the 34px title bar holds a gutter wide enough that the space switcher starts past those buttons, 8px after the last one as the reference draws it, and that the rail and the panel below are untouched: the reserve is owed by the title bar alone. Pick `NoWindowControlsReserve` in a browser tab or on a host that draws its own title bar.",
 			},
 		},
 	},
@@ -3964,41 +3771,6 @@ export const NoWindowControlsReserve = meta.story({
 			slotIn(titleBar, "space-switcher").getBoundingClientRect().left -
 				titleBar.getBoundingClientRect().left,
 		).toBeLessThan(WINDOW_CONTROLS_END)
-	},
-})
-export const WindowControlsReservedOnRail = meta.story({
-	tags: ["test-only"],
-	args: { ...RESERVE_ARGS, insetWindowControls: true },
-	render: renderShell(false),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The reserved title bar with the panel collapsed to its icon column. The title bar spans the window and belongs to neither, so collapsing the panel takes nothing from it. Check that the switcher still stands past the window controls with its name, and that the first row still starts below the title bar. Pick `Collapsed` for the same column with nothing owed.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const panel = canvas.getByRole("complementary", { name: "Conversations" })
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeCloseTo(
-				railWidth(),
-				0,
-			)
-		}, FRAME_POLL)
-
-		const titleBar = titleBarIn(canvasElement)
-		const switcher = slotIn(titleBar, "space-switcher")
-		await expect(
-			switcher.getBoundingClientRect().left -
-				titleBar.getBoundingClientRect().left,
-		).toBe(WINDOW_CONTROLS_RESERVE)
-		await expect(
-			slotIn(switcher, "space-switcher-name").checkVisibility(),
-		).toBe(true)
-		await expect(
-			rowsIn(canvasElement)[0].getBoundingClientRect().top,
-		).toBeGreaterThanOrEqual(titleBar.getBoundingClientRect().bottom)
 	},
 })
 const SECTIONS: AppSidebarSection[] = [
@@ -4052,7 +3824,6 @@ const LiveSections = (args: AppSidebarProps) => {
 
 	return (
 		<WorkspaceShell
-			defaultOpen
 			sidebar={
 				<AppSidebar
 					{...args}
@@ -5211,47 +4982,6 @@ export const DragSectionToPlace = meta.story({
 	},
 })
 
-export const CollapsedSections = meta.story({
-	tags: ["test-only"],
-	args: sectionArgs(),
-	render: renderShell(false),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The sectioned roster on the icon rail. There is no room for a header a reader could read, so the headers go from the picture and from the accessibility tree entirely rather than shrinking into an unreadable stub, and the invitation under an empty section goes with them. The companions stay in exactly the order the sections gave them, so collapsing never reshuffles the rail. Nothing lifts here either: with no header to read and no zone to aim at there is nowhere to drop a companion, so a press that moves on the rail is a press that moves nothing. Check the rail holds the same six avatars in the same order as `Sections`, that no header is reachable by Tab, and that the create button is still the first stop.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		await waitFor(async () => {
-			await expect(
-				canvas
-					.getByRole("complementary", { name: "Conversations" })
-					.getBoundingClientRect().width,
-			).toBeCloseTo(railWidth(), 0)
-		}, FRAME_POLL)
-
-		await expect(rowNames(canvasElement)).toEqual(GROUPED_ORDER)
-		for (const header of sectionHeadersIn(canvasElement)) {
-			await expect(header).not.toBeVisible()
-		}
-		await expect(canvas.queryByRole("button", { name: "Research" })).toBeNull()
-		await expect(canvas.getByText("Drop a companion here")).not.toBeVisible()
-
-		await userEvent.tab()
-		await userEvent.tab()
-		await tabAcrossRail(userEvent)
-		await userEvent.tab()
-		await expect(canvas.getByRole("button", { name: CREATE })).toHaveFocus()
-		await userEvent.tab()
-		await expect(rowButton(rowsIn(canvasElement)[0])).toHaveFocus()
-
-		lift(rowButton(rowsIn(canvasElement)[0]))
-		await expect(liftedBot()).toBeNull()
-	},
-})
-
 const SECTIONS_IN_VIEW_ONLY = { vocca: SECTIONS }
 
 export const SectionsPerSpace = meta.story({
@@ -5690,7 +5420,7 @@ export const ConversationMissionStrips = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission belongs to the conversation it was opened from, so a room carrying open missions wears the strips its companions would otherwise wear alone. Check the strips sit under the room row, in the same lane and the same shapes a companion row gives them, and that the room draws one per open mission whichever of its companions runs it. Check the room whose mission waits on the reader is drawn first even though it spoke longest ago, exactly as a waiting companion row is raised, that it measures 108px for its two missions while the rows with none keep their 52px, and that the avatar stack stays centred on the row part. Pick `MissionStripStates` for the strip on a companion row, `ConversationMissionStripsOnRail` for the rail that drops it.",
+					"A mission belongs to the conversation it was opened from, so a room carrying open missions wears the strips its companions would otherwise wear alone. Check the strips sit under the room row, in the same lane and the same shapes a companion row gives them, and that the room draws one per open mission whichever of its companions runs it. Check the room whose mission waits on the reader is drawn first even though it spoke longest ago, exactly as a waiting companion row is raised, that it measures 108px for its two missions while the rows with none keep their 52px, and that the avatar stack stays centred on the row part. Pick `MissionStripStates` for the strip on a companion row.",
 			},
 		},
 	},
@@ -5717,29 +5447,6 @@ export const ConversationMissionStrips = meta.story({
 		)
 		await expectAvatarCentredOnRowPart(rows[0], "conversation-avatar")
 		await expectAlignedRows(rows)
-	},
-})
-
-export const ConversationMissionStripsOnRail = meta.story({
-	tags: ["test-only"],
-	args: MISSION_CONVERSATION_ARGS,
-	render: renderShell(false),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same room once the panel is down to its icon rail. Check no strip is drawn there either: the rail is the avatar stack and nothing else, and a room defers its missions to the open panel exactly as a companion does. Pick `ConversationMissionStrips` for the open panel, `MissionStripOnRail` for the companion row that drops them too.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const panel = canvas.getByRole("complementary", { name: "Conversations" })
-		const rail = railWidth()
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
-		}, FRAME_POLL)
-
-		await expect(slotsIn(canvasElement, "bot-mission-strip")).toHaveLength(0)
 	},
 })
 
@@ -5985,7 +5692,7 @@ export const WithSearch = meta.story({
 		docs: {
 			description: {
 				story:
-					"The search button in the pinned header, a ghost icon button 2px before the create menu and drawn like it, the two held tight as one group apart from the space switcher, so the header reads as one row of controls and the roster starts straight under it with no search row in between. Check the button is named Search, sits left of the create menu, wears the same focus ring as the create menu under the keyboard, and shows a hint carrying its name and the Cmd/Ctrl+K chord on focus. Pressing it reports and nothing else: the palette it opens is the host's to mount. Pick `NoSearch` for the panel of a host that passes no `onOpenSearch` and gets no button, `Collapsed` for the rail, where Cmd/Ctrl+K is the only way in.",
+					"The search button in the pinned header, a ghost icon button 2px before the create menu and drawn like it, the two held tight as one group apart from the space switcher, so the header reads as one row of controls and the roster starts straight under it with no search row in between. Check the button is named Search, sits left of the create menu, wears the same focus ring as the create menu under the keyboard, and shows a hint carrying its name and the Cmd/Ctrl+K chord on focus. Pressing it reports and nothing else: the palette it opens is the host's to mount. Pick `NoSearch` for the panel of a host that passes no `onOpenSearch` and gets no button.",
 			},
 		},
 	},

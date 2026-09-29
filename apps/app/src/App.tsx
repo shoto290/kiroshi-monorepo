@@ -10,7 +10,7 @@ import { WorkspaceBody } from "@/components/workspace-body"
 import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
 import { SessionApplicationsContext } from "@/lib/applications/use-session-application"
 import { ConversationSeatingContext } from "@/lib/conversations/use-conversation-seating"
-import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
+import { hasOverlayWindowControls } from "@/lib/host"
 import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
 import { useCompanionSelectGuard } from "@/lib/sidebar/companion-select"
 import { useApplicationScopes } from "@/lib/workspace/use-application-scopes"
@@ -86,11 +86,7 @@ export function App() {
 	return (
 		<>
 			<WorkspaceShell
-				defaultOpen
 				spaceTint={scopes.selectedSpace?.colour}
-				width={preferences.sidebarWidth ?? undefined}
-				onWidthChange={overlay.changeSidebarWidth}
-				isResizable={isSidebarResizable()}
 				sidebar={
 					<AppSidebar
 						data-tauri-drag-region="deep"

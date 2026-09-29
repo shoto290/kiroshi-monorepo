@@ -26,21 +26,17 @@ type MissionMenuStoryArgs = Omit<MissionMenuProps, "children">
 
 const MENU_LABEL = "Mission actions"
 
-const OPEN_SHORTCUT = "↵"
-
-const CLOSE_SHORTCUT = "⌘⌫"
-
 const PANEL_WIDTH = {
 	"--sidebar-width": `${ROUTINES_PANEL_WIDTH}px`,
 } as CSSProperties
 
-const OPEN_ENTRIES = ["Open mission↵", "Copy"]
+const OPEN_ENTRIES = ["Open mission", "Copy"]
 
 const AGENT_RUNNING_ENTRIES = [
 	...OPEN_ENTRIES,
 	"Message the agent",
 	"Stop the agent",
-	"Close⌘⌫",
+	"Close",
 ]
 
 const CLOSED_ENTRIES = [...OPEN_ENTRIES, "Reopen"]
@@ -48,8 +44,8 @@ const CLOSED_ENTRIES = [...OPEN_ENTRIES, "Reopen"]
 const ENTRIES_WITHOUT_A_PULL_REQUEST: Record<MissionState, string[]> = {
 	working: AGENT_RUNNING_ENTRIES,
 	waiting_bot: AGENT_RUNNING_ENTRIES,
-	waiting_human: [...OPEN_ENTRIES, "Answer the question", "Close⌘⌫"],
-	ready_to_merge: [...OPEN_ENTRIES, "Close⌘⌫"],
+	waiting_human: [...OPEN_ENTRIES, "Answer the question", "Close"],
+	ready_to_merge: [...OPEN_ENTRIES, "Close"],
 	failed: CLOSED_ENTRIES,
 	done: CLOSED_ENTRIES,
 	closed: CLOSED_ENTRIES,
@@ -159,8 +155,6 @@ const meta = preview.meta({
 		hasPullRequest: true,
 		hasBranch: true,
 		hasWorkspacePath: true,
-		openShortcut: OPEN_SHORTCUT,
-		closeShortcut: CLOSE_SHORTCUT,
 		onOpen: fn(),
 		onOpenPullRequest: fn(),
 		onCopy: fn(),
@@ -199,7 +193,7 @@ export const Working = meta.story(
 		state: "working",
 		hasPullRequest: true,
 		story:
-			"A mission the agent is working on, with a pull request. Check that a right click on the row and on the card both open the list Open mission, Open PR, Copy, Message the agent, Stop the agent and Close, and that Open mission and Close carry their shortcut. Pick `WorkingWithoutAPullRequest` for the same mission before its pull request.",
+			"A mission the agent is working on, with a pull request. Check that a right click on the row and on the card both open the list Open mission, Open PR, Copy, Message the agent, Stop the agent and Close, and that no entry carries a shortcut. Pick `WorkingWithoutAPullRequest` for the same mission before its pull request.",
 	}),
 )
 
@@ -365,31 +359,8 @@ export const CloseAtOnce = meta.story({
 	},
 })
 
-export const CloseFromTheKeyboard = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Cmd+Backspace pressed while the card's open button has focus. Check that `onClose` is called with no argument at once, with no menu and no popover.",
-			},
-		},
-	},
-	play: async ({ args, canvasElement, userEvent }) => {
-		within(cardSurfaceIn(canvasElement))
-			.getByRole("button", { name: /^Open the mission/ })
-			.focus()
-
-		await userEvent.keyboard("{Meta>}{Backspace}{/Meta}")
-
-		await expect(args.onClose).toHaveBeenCalledTimes(1)
-		await expect(args.onClose).toHaveBeenCalledWith()
-		await expectNothingLeftOpen()
-	},
-})
-
-export const NoCloseFromTheKeyboardOnAClosedMission = meta.story({
+export const NoCloseFromTheKeyboard = meta.story({
 	tags: ["test-only"],
-	args: { state: "closed" },
 	play: async ({ args, canvasElement, userEvent }) => {
 		within(cardSurfaceIn(canvasElement))
 			.getByRole("button", { name: /^Open the mission/ })
@@ -398,6 +369,7 @@ export const NoCloseFromTheKeyboardOnAClosedMission = meta.story({
 		await userEvent.keyboard("{Meta>}{Backspace}{/Meta}")
 
 		await expect(args.onClose).not.toHaveBeenCalled()
+		await expectNothingLeftOpen()
 	},
 })
 

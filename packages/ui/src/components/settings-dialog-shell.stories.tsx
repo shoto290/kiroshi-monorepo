@@ -295,13 +295,14 @@ export const RailIconsOnly = meta.story({
 	},
 })
 
-export const ChordIgnoredWithoutShortcut = meta.story({
+export const ChordIgnored = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"The settings chord over a shell that was not given the chord, as the space, profile and conversation dialogs are, with a skill holding unsaved work. Check that nothing is asked, nothing is reported and the skill page stays on screen.",
+					"The settings chord over an open shell with a skill holding unsaved work: the chord only opens the reader's settings from the workspace and never closes a dialog. Check that nothing is asked, nothing is reported and the skill page stays on screen.",
 			},
 		},
 	},
@@ -311,26 +312,6 @@ export const ChordIgnoredWithoutShortcut = meta.story({
 
 		await expect(screen.queryByRole("alertdialog")).toBe(null)
 		await expect(body).toBeVisible()
-		await expect(args.onClose).not.toHaveBeenCalled()
-	},
-})
-
-export const ChordAsksWithShortcut = meta.story({
-	args: { hasSettingsShortcut: true },
-	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-		docs: {
-			description: {
-				story:
-					"The settings chord over a shell given the chord, as the companion dialog is, with a skill holding unsaved work. Check that the chord asks the leave question like the close button and reports no close.",
-			},
-		},
-	},
-	play: async ({ args, userEvent }) => {
-		await typeIntoFirstSkill(userEvent)
-		await userEvent.keyboard("{Meta>},{/Meta}")
-
-		await confirmationIn()
 		await expect(args.onClose).not.toHaveBeenCalled()
 	},
 })

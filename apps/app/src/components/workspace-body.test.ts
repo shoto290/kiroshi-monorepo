@@ -680,16 +680,16 @@ describe("WorkspaceBody mission menu", () => {
 
 	const noticeTitled = (title: string) => screen.findAllByText(title)
 
-	it("wraps the Activity panel card and the transcript card in the same menu with its two shortcuts", async () => {
+	it("wraps the Activity panel card and the transcript card in the same menu, with no shortcut hint", async () => {
 		await seed()
 
 		for (const card of [panelCardIn("Waiting on you"), transcriptCard()]) {
 			await openMenuOf(card)
 			expect(menuEntries()).toEqual([
-				"Open mission↵",
+				"Open mission",
 				"Copy",
 				"Answer the question",
-				"Close⌘⌫",
+				"Close",
 			])
 			fireEvent.keyDown(document.activeElement ?? document.body, {
 				key: "Escape",
@@ -918,7 +918,7 @@ describe("WorkspaceBody mission menu", () => {
 		await noticeTitled("Couldn’t reopen the mission")
 	})
 
-	it("closes the mission at once on Cmd+Backspace from a focused card", async () => {
+	it("leaves the mission open on Cmd+Backspace from a focused card", async () => {
 		await seed()
 		const open = within(transcriptCard()).getByRole("button", {
 			name: `Open the mission: ${OBJECTIVE}`,
@@ -928,6 +928,6 @@ describe("WorkspaceBody mission menu", () => {
 		fireEvent.keyDown(open, { key: "Backspace", metaKey: true })
 		await settle()
 
-		expect(closeMission).toHaveBeenCalledWith("m-1")
+		expect(closeMission).not.toHaveBeenCalled()
 	})
 })

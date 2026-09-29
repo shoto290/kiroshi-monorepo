@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react"
 
+import { isTypingTarget } from "@workspace/ui/lib/typing-target"
+
 export const SPACE_RANK_LIMIT = 9
 
 export const spaceRankOf = ({ key, metaKey }: KeyboardEvent) => {
@@ -27,7 +29,7 @@ export const useSpaceShortcut = ({
 
 		const pick = (event: KeyboardEvent) => {
 			const rank = spaceRankOf(event)
-			if (rank === 0 || rank > count) return
+			if (rank === 0 || rank > count || isTypingTarget(event.target)) return
 			event.preventDefault()
 			reach.current(rank)
 		}

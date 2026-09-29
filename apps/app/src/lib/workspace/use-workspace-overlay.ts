@@ -1,11 +1,10 @@
 import { useCallback, useMemo } from "react"
 
-import { useSettingsShortcut } from "@workspace/ui/hooks/use-settings-shortcut"
-
 import type { ApplicationScopes } from "./use-application-scopes"
 import type { RosterLines } from "./use-roster-lines"
 import type { RosterView } from "./use-roster-view"
 import type { WorkspaceCore } from "./use-workspace-core"
+import { useWorkspaceShortcuts } from "./use-workspace-shortcuts"
 
 import {
 	useSearch,
@@ -13,7 +12,6 @@ import {
 	useSearchNavigation,
 } from "../search/use-search"
 import { useTheme } from "../theme/use-theme"
-import type { ColorScheme } from "../user/preferences-contract"
 import { toUserSettingsValue } from "../user/user-settings"
 
 type WorkspaceOverlayInput = {
@@ -38,12 +36,11 @@ export const useWorkspaceOverlay = ({
 		spaces,
 		user,
 	} = core
-	const { now } = rosterLines
+	const { now, sidebarActions, startConversation } = rosterLines
 	const {
 		conversationRosters,
 		isEditing,
 		isEditingConversation,
-		selected,
 		selectedBotId,
 		selectedConversationId,
 		settingsBotId,
@@ -105,13 +102,6 @@ export const useWorkspaceOverlay = ({
 		[preferences],
 	)
 
-	const changeSidebarWidth = useCallback(
-		(sidebarWidth: number) => {
-			void user.controller.setSidebarWidth(sidebarWidth)
-		},
-		[user.controller],
-	)
-
 	const activityPanel = useMemo(
 		() => ({
 			isOpen: preferences.activityPanelOpen,
@@ -123,26 +113,16 @@ export const useWorkspaceOverlay = ({
 		[preferences.activityPanelOpen, user.controller, openedRoutine],
 	)
 
-	const changeColorScheme = useCallback(
-		(colorScheme: ColorScheme) => {
-			void user.controller.setColorScheme(colorScheme)
-		},
-		[user.controller],
-	)
+	useTheme({ colorScheme: preferences.colorScheme })
 
-	useTheme({
-		colorScheme: preferences.colorScheme,
-		onColorSchemeChange: changeColorScheme,
-	})
-
-	useSettingsShortcut({
-		isEnabled: Boolean(selected) && !isEditing && !search.isOpen,
-		onToggle: toggleSettings,
+	useWorkspaceShortcuts({
+		isEnabled: !isOverlayOpen,
+		onOpenUserSettings: sidebarActions.onOpenUserSettings,
+		onStartConversation: startConversation,
 	})
 
 	return {
 		activityPanel,
-		changeSidebarWidth,
 		isOverlayOpen,
 		isThreadConversationSettingsOpen,
 		isThreadSettingsOpen,

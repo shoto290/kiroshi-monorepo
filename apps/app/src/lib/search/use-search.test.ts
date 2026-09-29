@@ -244,41 +244,16 @@ it("opens no palette on the chord while another dialog is open", () => {
 	expect(result.current.isOpen).toBe(false)
 })
 
-it("opens the chat of another space on its rank chord", async () => {
+it("ignores a rank chord while the palette is open", async () => {
 	const { navigation, trace } = aNavigation()
 	const result = await searchedOn(aPort(), navigation)
 
-	act(() => press("1", { metaKey: true }))
+	for (const rank of ["1", "2", "3", "9"]) {
+		act(() => press(rank, { metaKey: true }))
+	}
 
-	expect(trace).toEqual([`conversation:${A_ROOM.id}`, `space:${WORK}`])
-	expect(result.current.isOpen).toBe(false)
-})
-
-it("opens the mission of another space on its rank chord", async () => {
-	const { navigation, trace } = aNavigation()
-	await searchedOn(aPort(), navigation)
-
-	act(() => press("2", { metaKey: true }))
-
-	expect(trace).toEqual([
-		`bot:${A_BOT.id}`,
-		`space:${WORK}`,
-		`mission:${A_MISSION.id}:${A_BOT.id}`,
-	])
-})
-
-it("opens the routine of another space on its rank chord", async () => {
-	const { navigation, trace } = aNavigation()
-	await searchedOn(aPort(), navigation)
-
-	act(() => press("3", { metaKey: true }))
-
-	expect(trace).toEqual([
-		`conversation:${A_ROOM.id}`,
-		`space:${WORK}`,
-		"activity",
-		`routine:${A_ROUTINE.id}:${A_ROOM.id}`,
-	])
+	expect(trace).toEqual([])
+	expect(result.current.isOpen).toBe(true)
 })
 
 it("opens the active result on Enter and moves it with the arrows", async () => {
@@ -305,15 +280,6 @@ it("leaves Enter to a control that is neither the query input nor the body", asy
 
 	expect(trace).toEqual([])
 	expect(result.current.isOpen).toBe(true)
-})
-
-it("opens the result of a rank chord whatever the focused control", async () => {
-	const { navigation, trace } = aNavigation()
-	await searchedOn(aPort(), navigation)
-
-	act(() => pressOnControl("1", { metaKey: true }))
-
-	expect(trace).toEqual([`conversation:${A_ROOM.id}`, `space:${WORK}`])
 })
 
 it("moves and opens the active result after the See all button changed the tab", async () => {
@@ -404,12 +370,10 @@ it("walks three resting rows per kind on the All tab and no more", async () => {
 
 	expect(result.current.palette.activeResultId).toBe(`routine-${A_ROUTINE.id}`)
 
-	act(() => press("6", { metaKey: true }))
-
-	expect(trace).toEqual([])
-	expect(result.current.isOpen).toBe(true)
-
-	act(() => press("3", { metaKey: true }))
+	act(() => press("ArrowDown"))
+	act(() => press("ArrowDown"))
+	act(() => press("ArrowDown"))
+	act(() => press("Enter"))
 
 	expect(trace).toEqual(["conversation:c-recent-3", `space:${WORK}`])
 })
@@ -418,7 +382,10 @@ it("opens a resting mission the way a mission hit opens", async () => {
 	const { navigation, trace } = aNavigation()
 	await restingOn({ tab: "all", navigation })
 
-	act(() => press("4", { metaKey: true }))
+	act(() => press("ArrowDown"))
+	act(() => press("ArrowDown"))
+	act(() => press("ArrowDown"))
+	act(() => press("Enter"))
 
 	expect(trace).toEqual([
 		`bot:${A_BOT.id}`,
@@ -448,7 +415,7 @@ it("walks every resting row of the tab of that kind", async () => {
 
 	expect(result.current.palette.activeResultId).toBe("chat-c-recent-4")
 
-	act(() => press("4", { metaKey: true }))
+	act(() => press("Enter"))
 
 	expect(trace).toEqual(["conversation:c-recent-4", `space:${WORK}`])
 })
@@ -461,7 +428,6 @@ it("walks nothing on a resting tab that admits no resting kind", async () => {
 
 	act(() => press("ArrowDown"))
 	act(() => press("Enter"))
-	act(() => press("1", { metaKey: true }))
 
 	expect(trace).toEqual([])
 	expect(result.current.palette.activeResultId).toBeUndefined()
