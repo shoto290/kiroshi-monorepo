@@ -22,7 +22,7 @@ mod macos {
 	use objc2_foundation::NSPoint;
 	use tauri::{WebviewWindow, WindowEvent};
 
-	const LEADING_INSET: f64 = 17.5;
+	const LEADING_INSET: f64 = 13.0;
 	const HEADER_BOX_HEIGHT: f64 = 47.0;
 	const CONTROL_DIAMETER: f64 = 12.0;
 
