@@ -13,13 +13,13 @@ import { ConversationSeatingContext } from "@/lib/conversations/use-conversation
 import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
 import { useCompanionSelectGuard } from "@/lib/sidebar/companion-select"
-import { useSidebarTab } from "@/lib/user/use-sidebar-tab"
 import { useApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import { useRosterLines } from "@/lib/workspace/use-roster-lines"
 import { useRosterLists } from "@/lib/workspace/use-roster-lists"
 import { useRosterView } from "@/lib/workspace/use-roster-view"
 import { useSettingsPanels } from "@/lib/workspace/use-settings-panels"
 import { useSidebarMissions } from "@/lib/workspace/use-sidebar-missions"
+import { useSidebarPanelSwitch } from "@/lib/workspace/use-sidebar-panel-switch"
 import { useSpaceLoading } from "@/lib/workspace/use-space-loading"
 import { useSpaceSections } from "@/lib/workspace/use-space-sections"
 import { useWorkspaceCore } from "@/lib/workspace/use-workspace-core"
@@ -47,7 +47,7 @@ export function App() {
 		waitingMissionCount: sidebarMissions.waitingCount,
 	})
 	const overlay = useWorkspaceOverlay({ core, rosterLines, rosterView, scopes })
-	const sidebarTab = useSidebarTab(core.user)
+	const sidebarTab = useSidebarPanelSwitch({ core, sidebarMissions })
 	const companionMenu = useCompanionMenuLookup({
 		actions: rosterLines.sidebarActions,
 		conversationRosters: core.roster.state.conversationRosters,
@@ -138,6 +138,7 @@ export function App() {
 										isConversationSettingsOpen={
 											overlay.isThreadConversationSettingsOpen
 										}
+										isMissionsPanelOpen={sidebarTab.openTab === "missions"}
 										isOverlayOpen={overlay.isOverlayOpen}
 										isSettingsOpen={overlay.isThreadSettingsOpen}
 										landings={core.messageLandings}

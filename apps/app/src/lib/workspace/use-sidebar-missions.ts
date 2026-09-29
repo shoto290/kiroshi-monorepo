@@ -17,10 +17,11 @@ import {
 } from "../missions/use-live-missions"
 import { useSpaceMissionsFailure } from "../missions/use-mission-failure-notices"
 import { useSpaceMissions } from "../missions/use-space-missions"
+import type { ShownMemory } from "../sidebar/shown-memory"
 
 type SidebarMissionsCore = {
 	conversationRuntimes: MissionSpeakingRuntimes
-	openedMission: Pick<OpenedMissionController, "open">
+	openedMission: Pick<OpenedMissionController, "open" | "leave">
 	roster: {
 		state: {
 			rosters: Record<string, Bot[]>
@@ -28,6 +29,7 @@ type SidebarMissionsCore = {
 		}
 		controller: Pick<RosterController, "select" | "selectConversation">
 	}
+	shownMemory: Pick<ShownMemory, "lastMissionIn">
 	spaces: { state: { selectedSpaceId: string | null } }
 }
 
@@ -38,6 +40,7 @@ type SidebarMissionsInput = {
 
 export type SidebarMissions = {
 	panel: MissionsPanelProps
+	showLastMission: () => void
 	waitingCount: number
 }
 
@@ -58,26 +61,28 @@ const listedConversationIdsOf = (
 		),
 	)
 
-const missionsOf = ({
+const entriesOf = ({
 	waitingOnYou,
 	inProgress,
 	earlierToday,
-}: SpaceMissionGroups) =>
-	[...waitingOnYou, ...inProgress, ...earlierToday].map(
-		({ mission }) => mission,
-	)
+}: SpaceMissionGroups) => [...waitingOnYou, ...inProgress, ...earlierToday]
 
 export const useSidebarMissions = ({
 	core,
 	rosterLines,
 }: SidebarMissionsInput): SidebarMissions => {
-	const { conversationRuntimes, openedMission, roster, spaces } = core
+	const { conversationRuntimes, openedMission, roster, shownMemory, spaces } =
+		core
 	const { now } = rosterLines
 	const spaceId = spaces.state.selectedSpaceId
 	const feed = useSpaceMissions(spaceId)
 	useSpaceMissionsFailure(feed.hasFailed, feed.reload)
 
-	const missions = useMemo(() => missionsOf(feed), [feed])
+	const entries = useMemo(() => entriesOf(feed), [feed])
+	const missions = useMemo(
+		() => entries.map(({ mission }) => mission),
+		[entries],
+	)
 	const liveMissionIds = useLiveMissions(conversationRuntimes, missions, now)
 	const faces = useMemo(
 		() => facesOf(roster.state.rosters),
@@ -100,15 +105,27 @@ export const useSidebarMissions = ({
 				mission.botId,
 				listedConversationIds,
 			)
+			openedMission.open({ missionId, rowId })
 			if (rowId === conversationId) {
 				roster.controller.selectConversation(rowId)
 			} else {
 				roster.controller.select(rowId)
 			}
-			openedMission.open({ missionId, rowId })
 		},
 		[missions, listedConversationIds, roster.controller, openedMission],
 	)
+
+	const showLastMission = useCallback(() => {
+		const lastMissionId =
+			spaceId === null ? null : shownMemory.lastMissionIn(spaceId)
+		const shown =
+			entries.find(({ mission }) => mission.id === lastMissionId) ?? entries[0]
+		if (!shown) {
+			openedMission.leave()
+			return
+		}
+		openMission(shown.mission.id, shown.conversationId)
+	}, [spaceId, shownMemory, entries, openedMission, openMission])
 
 	const panel = useMemo(
 		() => ({
@@ -123,5 +140,5 @@ export const useSidebarMissions = ({
 		[feed, faces, liveMissionIds, now, openMission],
 	)
 
-	return { panel, waitingCount: feed.waitingCount }
+	return { panel, showLastMission, waitingCount: feed.waitingCount }
 }
