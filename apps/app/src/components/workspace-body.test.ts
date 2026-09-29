@@ -810,20 +810,42 @@ describe("WorkspaceBody mission menu", () => {
 		expect(stopped).toHaveBeenCalledTimes(1)
 	})
 
-	it("closes the mission at once and moves it to the closed group", async () => {
-		const { mission } = await seed()
-		const closed: Mission = { ...mission, state: "done", closedAt: Date.now() }
-		closeMission.mockImplementation(async () => {
-			listMissions.mockResolvedValue({ open: [], done: [closed] })
-			return closed
-		})
+	it.each(["Activity panel", "thread"] as const)(
+		"closes the mission at once from the $0 card into the closed group with the closed pill",
+		async (place) => {
+			const { mission } = await seed()
+			const closed: Mission = {
+				...mission,
+				state: "closed",
+				closedAt: Date.now(),
+			}
+			closeMission.mockImplementation(async () => {
+				listMissions.mockResolvedValue({ open: [], done: [closed] })
+				return closed
+			})
 
-		await choose(panelCardIn("Waiting on you"), CLOSE_ENTRY)
+			await choose(
+				place === "thread" ? transcriptCard() : panelCardIn("Waiting on you"),
+				CLOSE_ENTRY,
+			)
 
-		expect(closeMission).toHaveBeenCalledWith("m-1")
-		expect(panelGroup("Waiting on you")).toBeNull()
-		expect(panelCardIn("Earlier today")).toBeTruthy()
-		expect(within(transcriptCard()).getByText("Completed")).toBeTruthy()
+			expect(closeMission.mock.calls).toEqual([["m-1"]])
+			expect(panelGroup("Waiting on you")).toBeNull()
+			const panelCard = panelCardIn("Earlier today")
+			for (const card of [panelCard, transcriptCard()]) {
+				expect(within(card).getByText("Closed")).toBeTruthy()
+				expect(within(card).queryByText("Completed")).toBeNull()
+				expect(within(card).queryByText("Blocked")).toBeNull()
+			}
+		},
+	)
+
+	it("offers Reopen on a mission the person closed", async () => {
+		await seed({ state: "closed", closedAt: Date.now() })
+
+		await choose(transcriptCard(), "Reopen")
+
+		expect(reopenMission).toHaveBeenCalledWith("m-1")
 	})
 
 	it("reopens the mission and moves it back to the open groups", async () => {
@@ -842,17 +864,27 @@ describe("WorkspaceBody mission menu", () => {
 		expect(within(transcriptCard()).queryByText("Completed")).toBeNull()
 	})
 
-	it("shows the close and the reopen as by you in the mission thread", async () => {
+	it("shows the close and the reopen of the person as by you in the mission thread", async () => {
 		const { mission } = await seed()
 		readMission.mockResolvedValue({
 			mission,
 			events: [
-				{
-					...eventOf("closed", A_MINUTE, { summary: SUMMARY }),
-					source: "person",
-				},
+				{ ...eventOf("dismissed", A_MINUTE), source: "person" },
 				{ ...eventOf("reopened", 2 * A_MINUTE), source: "person" },
 			],
+		})
+
+		await choose(panelCardIn("Waiting on you"), OPEN_ENTRY)
+
+		expect(screen.getByText("Closed by you")).toBeTruthy()
+		expect(screen.getByText("Mission reopened by You")).toBeTruthy()
+	})
+
+	it("keeps the close of the companion on its own line", async () => {
+		const { mission } = await seed()
+		readMission.mockResolvedValue({
+			mission,
+			events: [eventOf("closed", A_MINUTE, { summary: SUMMARY })],
 		})
 
 		await choose(panelCardIn("Waiting on you"), OPEN_ENTRY)
@@ -860,8 +892,8 @@ describe("WorkspaceBody mission menu", () => {
 		const closeLine = screen
 			.getByText(SUMMARY)
 			.closest('[data-slot="mission-authored-event"]')
-		expect(closeLine?.textContent).toMatch(/^YouClosed/)
-		expect(screen.getByText("Mission reopened by You")).toBeTruthy()
+		expect(closeLine?.textContent).toMatch(/^NyxClosed/)
+		expect(screen.queryByText("Closed by you")).toBeNull()
 	})
 
 	it("raises a failure notice naming the close or the reopen that was refused", async () => {
