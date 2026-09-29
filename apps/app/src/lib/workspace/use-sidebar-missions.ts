@@ -5,8 +5,10 @@ import type { MissionsPanelProps } from "@workspace/ui/components/missions-panel
 import type { RosterController } from "../bots/roster-controller"
 import { faceOfBot } from "../chat/thread-contract"
 import type { Bot } from "../conversations/store-contract"
-import type { SpaceMissionGroups } from "../missions/missions-model"
-import { toMissionsPanel } from "../missions/missions-model"
+import {
+	type SpaceMissionGroups,
+	toMissionsPanel,
+} from "../missions/missions-model"
 import type { OpenedMissionController } from "../missions/opened-mission-controller"
 import {
 	type MissionSpeakingRuntimes,

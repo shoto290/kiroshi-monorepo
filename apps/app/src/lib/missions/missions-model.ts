@@ -608,7 +608,7 @@ type MissionsPanelRowsRead = {
 	now: number
 }
 
-export type MissionsPanelRead = MissionsPanelRowsRead & {
+type MissionsPanelRead = MissionsPanelRowsRead & {
 	groups: SpaceMissionGroups
 }
 

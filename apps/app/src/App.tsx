@@ -44,7 +44,7 @@ export function App() {
 		drivers,
 		rosterLines,
 		rosterView,
-		sidebarMissions,
+		waitingMissionCount: sidebarMissions.waitingCount,
 	})
 	const overlay = useWorkspaceOverlay({ core, rosterLines, rosterView, scopes })
 	const sidebarTab = useSidebarTab(core.user)
