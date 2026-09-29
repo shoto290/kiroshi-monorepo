@@ -4,6 +4,7 @@ import {
 	type MissionChanged,
 	type MissionClosing,
 	type MissionDetail,
+	type MissionInSpace,
 	type MissionOnBoard,
 	type MissionOutcome,
 	PERSON_SOURCE,
@@ -15,6 +16,8 @@ export const MISSION_CHANGED_EVENT = "mission://changed"
 
 export const missionsTransport = {
 	board: () => invoke<MissionOnBoard[]>("mission_board"),
+	spaceFeed: (spaceId: string, closedSince: number) =>
+		invoke<MissionInSpace[]>("mission_space_feed", { spaceId, closedSince }),
 	unreported: () => invoke<MissionOnBoard[]>("mission_unreported"),
 	reported: (missionId: string, turnId: string | null) =>
 		invoke<Mission>("mission_reported", { missionId, turnId }),

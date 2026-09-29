@@ -22,6 +22,7 @@ import type {
 	Mission,
 	MissionChanged,
 	MissionEvent,
+	MissionInSpace,
 	MissionOnBoard,
 	MissionState,
 } from "./mission-contract"
@@ -92,6 +93,63 @@ export const withMissionChange = (
 	{ lastActivityAt, isAgentRunning }: MissionChanged,
 ): Mission => ({ ...mission, lastActivityAt, isAgentRunning })
 
+export const withMissionMove = (
+	mission: Mission,
+	changed: MissionChanged,
+): Mission => {
+	const touched = withMissionChange(mission, changed)
+	return changed.stateSeq < mission.stateSeq
+		? touched
+		: { ...touched, state: changed.state, stateSeq: changed.stateSeq }
+}
+
+type SpaceMissionGroup = "waitingOnYou" | "inProgress" | "earlierToday"
+
+const SPACE_GROUP_BY_STATE: Record<MissionState, SpaceMissionGroup> = {
+	waiting_human: "waitingOnYou",
+	working: "inProgress",
+	waiting_bot: "inProgress",
+	ready_to_merge: "inProgress",
+	done: "earlierToday",
+	failed: "earlierToday",
+}
+
+export type SpaceMissionGroups = Record<SpaceMissionGroup, MissionInSpace[]>
+
+export type SpaceMissionsRead = {
+	entries: MissionInSpace[]
+	closedSince: number
+}
+
+const lastMovedAt = ({ mission }: MissionInSpace): number =>
+	Math.max(mission.openedAt, mission.lastActivityAt ?? 0, mission.closedAt ?? 0)
+
+const isShownInSpace = (
+	{ mission }: MissionInSpace,
+	closedSince: number,
+): boolean =>
+	SPACE_GROUP_BY_STATE[mission.state] !== "earlierToday" ||
+	mission.closedAt === null ||
+	mission.closedAt >= closedSince
+
+export const toSpaceMissionGroups = ({
+	entries,
+	closedSince,
+}: SpaceMissionsRead): SpaceMissionGroups => {
+	const groups: SpaceMissionGroups = {
+		waitingOnYou: [],
+		inProgress: [],
+		earlierToday: [],
+	}
+	const shown = entries
+		.filter((entry) => isShownInSpace(entry, closedSince))
+		.sort((one, other) => lastMovedAt(other) - lastMovedAt(one))
+	for (const entry of shown) {
+		groups[SPACE_GROUP_BY_STATE[entry.mission.state]].push(entry)
+	}
+	return groups
+}
+
 const WAITING_ON_READER: MissionState = "waiting_human"
 
 const shownStateOf = (
@@ -106,7 +164,7 @@ const TIME_OF_DAY: Intl.DateTimeFormatOptions = {
 	hourCycle: "h23",
 }
 
-const startOfLocalDay = (now: number): number => {
+export const startOfLocalDay = (now: number): number => {
 	const day = new Date(now)
 	day.setHours(0, 0, 0, 0)
 	return day.getTime()

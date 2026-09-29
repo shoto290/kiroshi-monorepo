@@ -283,6 +283,14 @@ pub struct MissionOnBoard {
 	pub bot: Bot,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MissionInSpace {
+	pub mission: Mission,
+	pub conversation_id: String,
+	pub conversation_title: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum MissionError {

@@ -6,8 +6,8 @@ use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::contract::{
 	ConversationMissions, HookedMission, Mission, MissionAnswer, MissionClosing, MissionDetail,
-	MissionDraft, MissionEntry, MissionError, MissionEventKind, MissionNote, MissionOnBoard,
-	MissionOpened, MissionState, MissionWatch, MissionWatching,
+	MissionDraft, MissionEntry, MissionError, MissionEventKind, MissionInSpace, MissionNote,
+	MissionOnBoard, MissionOpened, MissionState, MissionWatch, MissionWatching,
 };
 use super::checkout;
 use super::hook;
@@ -379,6 +379,16 @@ pub async fn mission_board<R: Runtime>(
 ) -> Result<Vec<MissionOnBoard>, MissionError> {
 	let database = ready(&state)?;
 	with_their_bots(&app, database, database.missions().still_open().await?).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn mission_space_feed(
+	state: State<'_, db::DatabaseState>,
+	space_id: String,
+	closed_since: i64,
+) -> Result<Vec<MissionInSpace>, MissionError> {
+	ready(&state)?.missions().of_space(space_id, closed_since).await
 }
 
 #[tauri::command]
