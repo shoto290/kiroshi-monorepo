@@ -6,8 +6,11 @@ import { Icons } from "@workspace/ui/components/icons"
 import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
+type MaximizeState = "idle" | "hover" | "pressed"
+
 type WindowControlsProps = {
 	maximized: boolean
+	maximizeState?: MaximizeState
 	onMinimize: () => void
 	onToggleMaximize: () => void
 	onClose: () => void
@@ -21,8 +24,15 @@ const CAPTION_BUTTON =
 const CLOSE_BUTTON =
 	"hover:bg-window-close hover:text-white dark:hover:bg-window-close"
 
+const FORCED_MAXIMIZE: Record<MaximizeState, string> = {
+	idle: "hover:bg-transparent hover:text-inherit dark:hover:bg-transparent active:scale-none!",
+	hover: "bg-muted text-foreground dark:bg-muted/50 active:scale-none!",
+	pressed: "bg-muted text-foreground dark:bg-muted/50 scale-100",
+}
+
 const WindowControls = ({
 	maximized,
+	maximizeState,
 	onMinimize,
 	onToggleMaximize,
 	onClose,
@@ -44,7 +54,10 @@ const WindowControls = ({
 				aria-label={t(
 					maximized ? "windowControls.restore" : "windowControls.maximize",
 				)}
-				className={CAPTION_BUTTON}
+				className={cn(
+					CAPTION_BUTTON,
+					maximizeState && FORCED_MAXIMIZE[maximizeState],
+				)}
 				onClick={onToggleMaximize}
 				variant="ghost"
 			>
