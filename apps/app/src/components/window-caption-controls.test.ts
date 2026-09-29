@@ -119,16 +119,24 @@ const reportedFocus = (isFocused: boolean) => {
 	act(() => report(isFocused))
 }
 
-const FORCED_CLASS: Record<MaximizeButtonState, string> = {
-	idle: "hover:bg-transparent",
-	hover: "active:scale-none!",
-	pressed: "scale-100",
+const MAXIMIZE_STATES: MaximizeButtonState[] = ["idle", "hover", "pressed"]
+
+const carriesState: Record<
+	MaximizeButtonState,
+	(classes: DOMTokenList) => boolean
+> = {
+	idle: (classes) => classes.contains("hover:bg-transparent"),
+	hover: (classes) =>
+		classes.contains("bg-muted") && !classes.contains("scale-100"),
+	pressed: (classes) => classes.contains("scale-100"),
 }
 
-const maximizeShows = (state: MaximizeButtonState) =>
-	screen
-		.getByRole("button", { name: "Maximize" })
-		.classList.contains(FORCED_CLASS[state])
+const maximizeShows = (state: MaximizeButtonState) => {
+	const { classList } = screen.getByRole("button", { name: "Maximize" })
+	return MAXIMIZE_STATES.every(
+		(candidate) => carriesState[candidate](classList) === (candidate === state),
+	)
+}
 
 const POINTER_FAILURE =
 	"The maximize button can’t show hover or press feedback."
@@ -271,6 +279,7 @@ describe("title bar window controls", () => {
 	it("returns the maximize button to idle when the window loses focus", () => {
 		renderHeader()
 		reportedPointer("hover")
+		expect(maximizeShows("hover")).toBe(true)
 
 		reportedFocus(true)
 		expect(maximizeShows("hover")).toBe(true)
