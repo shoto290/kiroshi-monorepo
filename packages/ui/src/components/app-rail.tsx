@@ -1,6 +1,6 @@
 "use client"
 
-import type { ComponentProps, CSSProperties, ReactNode } from "react"
+import type { ComponentProps, ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
@@ -22,7 +22,7 @@ type AppRailCounts = Partial<Record<AppRailEntry, number>>
 type AppRailDots = Partial<Record<AppRailEntry, boolean>>
 
 const RAIL =
-	"flex w-13 shrink-0 flex-col justify-between gap-1 px-2 pt-1.75 pb-[calc(var(--shell-inset)-var(--spacing)-(var(--spacing)*9-var(--rail-avatar-size))/2)]"
+	"flex w-13 shrink-0 flex-col justify-between gap-1 px-2 pt-1.75 pb-[calc(var(--shell-inset)-var(--spacing))]"
 
 const RAIL_PANELS = "flex flex-col gap-1.75"
 
@@ -41,12 +41,6 @@ const RAIL_AVATAR =
 	"grid size-full place-items-center bg-rail-avatar font-medium text-foreground text-xs/4 uppercase"
 
 const AVATAR_SIZE = 26
-
-type RailStyle = CSSProperties & { "--rail-avatar-size": string }
-
-const RAIL_STYLE: RailStyle = {
-	"--rail-avatar-size": `${AVATAR_SIZE}px`,
-}
 
 const COUNT_CEILING = 99
 
@@ -154,7 +148,6 @@ const AppRail = ({
 	onOpenSpaceSettings,
 	onOpenYou,
 	className,
-	style,
 	...props
 }: AppRailProps) => {
 	const { t } = useTranslation("bots")
@@ -174,7 +167,6 @@ const AppRail = ({
 			aria-label={t("rail.label")}
 			className={cn(RAIL, className)}
 			data-slot="app-rail"
-			style={{ ...RAIL_STYLE, ...style }}
 		>
 			<ul className={RAIL_PANELS}>
 				<RailItem

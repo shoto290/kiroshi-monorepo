@@ -11,7 +11,7 @@ import { SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 
 const SIDEBAR_INSIDE_SHELL =
-	"**:data-[slot=sidebar-container]:absolute **:data-[slot=sidebar-container]:top-8.5 **:data-[slot=sidebar-container]:bottom-1 **:data-[slot=sidebar-container]:h-auto"
+	"**:data-[slot=sidebar-container]:absolute **:data-[slot=sidebar-container]:top-8.5 **:data-[slot=sidebar-container]:bottom-(--shell-inset) **:data-[slot=sidebar-container]:h-auto"
 
 const TITLE_BAR_AND_GUTTER = "pt-8.5 pe-1 pb-1"
 

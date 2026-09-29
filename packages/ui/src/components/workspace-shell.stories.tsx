@@ -219,6 +219,11 @@ export const ConversationOpenDark = meta.story({
 		await expect(getComputedStyle(layout).backgroundColor).toBe(
 			getComputedStyle(card).backgroundColor,
 		)
+		await expect(
+			canvas
+				.getByRole("complementary", { name: SIDEBAR_LABEL })
+				.getBoundingClientRect().bottom,
+		).toBe(card.getBoundingClientRect().bottom)
 		await expectCardAndComposerOnShellInset(canvasElement)
 	},
 })
@@ -762,7 +767,10 @@ const expectSidebarFillingHost = async (
 		.getBoundingClientRect()
 
 	await expect(sidebar.top).toBe(host.top + SHELL_TITLE_BAR_HEIGHT)
-	await expect(sidebar.bottom).toBe(host.bottom - SHELL_GUTTER)
+	await expect(sidebar.bottom).toBe(host.bottom - shellInset())
+	await expect(sidebar.bottom).toBe(
+		canvas.getByRole("main").getBoundingClientRect().bottom,
+	)
 }
 
 export const BoxedHost = meta.story({
