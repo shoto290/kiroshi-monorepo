@@ -835,12 +835,11 @@ fn a_chat_past_the_fold_bound_survives_a_dead_host_with_nothing_lost_or_doubled(
 	);
 }
 
-fn an_identity(name: &str, model: &str, animal: &str, blot: Value) -> Value {
+fn an_identity(name: &str, model: &str, blot: Value) -> Value {
 	json!({
 		"name": name,
 		"title": "Reviewer",
 		"model": model,
-		"avatarAnimal": animal,
 		"avatarBlot": blot,
 		"avatarImagePath": null,
 		"instructions": "Answer with the file you would touch.",
@@ -857,7 +856,7 @@ fn a_bot_created_over_ipc_is_listed_described_and_deleted_with_its_chat() {
 	let created = call(
 		&window,
 		"conversation_create_bot",
-		json!({ "identity": an_identity("Nyx", "sonnet", "owl", json!("red")) }),
+		json!({ "identity": an_identity("Nyx", "sonnet", json!("red")) }),
 	)
 	.expect("the bot is created");
 	let id = created["id"].as_str().expect("the bot holds an id").to_owned();
@@ -865,7 +864,7 @@ fn a_bot_created_over_ipc_is_listed_described_and_deleted_with_its_chat() {
 	assert_eq!(created["name"], json!("Nyx"));
 	assert_eq!(created["title"], json!("Reviewer"));
 	assert_eq!(created["model"], json!("sonnet"));
-	assert_eq!(created["avatarAnimal"], json!("owl"));
+	assert_eq!(created.get("avatarAnimal"), None, "a bot still crossed with an animal");
 	assert_eq!(created["avatarBlot"], json!("red"));
 	assert_eq!(created["avatarImagePath"], json!(null));
 	assert_eq!(created["instructions"], json!("Answer with the file you would touch."));
@@ -892,12 +891,12 @@ fn a_bot_created_over_ipc_is_listed_described_and_deleted_with_its_chat() {
 	let updated = call(
 		&window,
 		"conversation_update_bot",
-		json!({ "id": id, "identity": an_identity("Ada", "opus", "koala", Value::Null) }),
+		json!({ "id": id, "identity": an_identity("Ada", "opus", Value::Null) }),
 	)
 	.expect("the bot is updated");
 	assert_eq!(updated["name"], json!("Ada"));
 	assert_eq!(updated["model"], json!("opus"), "a bot was not moved between models");
-	assert_eq!(updated["avatarAnimal"], json!("koala"));
+	assert_eq!(updated.get("avatarAnimal"), None, "an edited bot still crossed with an animal");
 	assert_eq!(updated["avatarBlot"], json!(null), "a mark taken off a bot was kept");
 	assert_eq!(updated["createdAt"], created["createdAt"], "an update moved the moment");
 
@@ -924,23 +923,17 @@ fn a_bot_created_over_ipc_is_listed_described_and_deleted_with_its_chat() {
 }
 
 #[test]
-fn a_face_outside_the_closed_vocabulary_is_refused_before_it_is_written() {
+fn a_blot_outside_the_closed_vocabulary_is_refused_before_it_is_written() {
 	let home = Home::new();
 	let app = home.app();
 	let window = window(&app);
 
-	let animal = call(
-		&window,
-		"conversation_create_bot",
-		json!({ "identity": an_identity("Nyx", "sonnet", "dragon", json!("red")) }),
-	);
 	let blot = call(
 		&window,
 		"conversation_create_bot",
-		json!({ "identity": an_identity("Nyx", "sonnet", "owl", json!("chartreuse")) }),
+		json!({ "identity": an_identity("Nyx", "sonnet", json!("chartreuse")) }),
 	);
 
-	assert!(animal.is_err(), "an animal the engine cannot draw was accepted: {animal:?}");
 	assert!(blot.is_err(), "a colour outside the palette was accepted: {blot:?}");
 	assert_eq!(
 		call(&window, "conversation_bots", json!({})),
@@ -958,7 +951,7 @@ fn a_model_label_outside_the_offered_aliases_is_stored_and_read_back_whole() {
 	let created = call(
 		&window,
 		"conversation_create_bot",
-		json!({ "identity": an_identity("Nyx", "claude-opus-4-1-20250805", "owl", json!("red")) }),
+		json!({ "identity": an_identity("Nyx", "claude-opus-4-1-20250805", json!("red")) }),
 	)
 	.expect("a bot on a label the host does not know");
 	let id = created["id"].as_str().expect("the bot holds an id").to_owned();
@@ -974,7 +967,7 @@ fn a_model_label_outside_the_offered_aliases_is_stored_and_read_back_whole() {
 		call(
 			&window,
 			"conversation_update_bot",
-			json!({ "id": id, "identity": an_identity("Nyx", "fable", "owl", json!("red")) })
+			json!({ "id": id, "identity": an_identity("Nyx", "fable", json!("red")) })
 		)
 		.map(|bot| bot["model"].clone()),
 		Ok(json!("fable"))
@@ -986,7 +979,7 @@ fn the_tools_a_bot_denies_are_written_to_its_agent_file_and_read_back_from_it() 
 	let home = Home::new();
 	let app = home.app();
 	let window = window(&app);
-	let mut held_back = an_identity("Nyx", "sonnet", "owl", json!("red"));
+	let mut held_back = an_identity("Nyx", "sonnet", json!("red"));
 	held_back["deniedTools"] = json!(["Bash", "Edit", "NotebookEdit", "Write"]);
 
 	let created = call(&window, "conversation_create_bot", json!({ "identity": held_back }))
@@ -1001,7 +994,7 @@ fn the_tools_a_bot_denies_are_written_to_its_agent_file_and_read_back_from_it() 
 		"the file the session is promoted onto denies nothing"
 	);
 
-	let mut one_tool = an_identity("Nyx", "sonnet", "owl", json!("red"));
+	let mut one_tool = an_identity("Nyx", "sonnet", json!("red"));
 	one_tool["deniedTools"] = json!(["WebFetch"]);
 	let updated =
 		call(&window, "conversation_update_bot", json!({ "id": id, "identity": one_tool }))
@@ -1016,7 +1009,7 @@ fn the_rules_a_bot_is_given_are_written_to_its_settings_file_and_read_back_from_
 	let home = Home::new();
 	let app = home.app();
 	let window = window(&app);
-	let mut ruled = an_identity("Nyx", "sonnet", "owl", json!("red"));
+	let mut ruled = an_identity("Nyx", "sonnet", json!("red"));
 	ruled["permissions"] = json!({
 		"defaultMode": "plan",
 		"allow": ["Read"],
@@ -1066,7 +1059,7 @@ fn the_rules_the_panel_reads_are_the_stored_ones_and_never_the_file_it_writes() 
 	let home = Home::new();
 	let app = home.app();
 	let window = window(&app);
-	let mut held_back = an_identity("Nyx", "sonnet", "owl", json!("red"));
+	let mut held_back = an_identity("Nyx", "sonnet", json!("red"));
 	held_back["deniedTools"] = json!(["Bash", "Edit", "NotebookEdit", "Write"]);
 	held_back["permissions"] = json!({
 		"defaultMode": "auto",
@@ -1102,7 +1095,7 @@ fn a_write_naming_a_bot_that_is_gone_crosses_as_an_unknown_bot() {
 	let created = call(
 		&window,
 		"conversation_create_bot",
-		json!({ "identity": an_identity("Nyx", "sonnet", "cat", Value::Null) }),
+		json!({ "identity": an_identity("Nyx", "sonnet", Value::Null) }),
 	)
 	.expect("the bot is created");
 	let id = created["id"].as_str().expect("the bot holds an id").to_owned();
@@ -1116,7 +1109,7 @@ fn a_write_naming_a_bot_that_is_gone_crosses_as_an_unknown_bot() {
 		call(
 			&window,
 			"conversation_update_bot",
-			json!({ "id": id, "identity": an_identity("Ada", "sonnet", "cat", Value::Null) })
+			json!({ "id": id, "identity": an_identity("Ada", "sonnet", Value::Null) })
 		),
 		Err(json!({ "kind": "unknownBot", "id": id }))
 	);
@@ -1160,7 +1153,7 @@ fn a_bot(window: &WebviewWindow<MockRuntime>, name: &str) -> String {
 	call(
 		window,
 		"conversation_create_bot",
-		json!({ "identity": an_identity(name, "sonnet", "owl", json!("red")) }),
+		json!({ "identity": an_identity(name, "sonnet", json!("red")) }),
 	)
 	.expect("the bot is created")["id"]
 		.as_str()
@@ -1209,9 +1202,9 @@ fn an_uploaded_picture_is_stored_squared_beside_the_database_and_crosses_as_a_pa
 	);
 	assert_eq!(wearing(&window, &id), json!(recorded), "the list answers another path");
 	assert_eq!(
-		worn["avatarAnimal"],
-		json!("owl"),
-		"an uploaded picture took the animal the bot falls back to with it"
+		worn["avatarBlot"],
+		json!("red"),
+		"an uploaded picture took the blot the bot falls back to with it"
 	);
 }
 
@@ -1349,7 +1342,7 @@ fn an_identity_written_without_a_path_takes_the_picture_off_and_one_written_with
 		.expect("a path")
 		.to_owned();
 
-	let mut echoed = an_identity("Nyx", "sonnet", "owl", json!("red"));
+	let mut echoed = an_identity("Nyx", "sonnet", json!("red"));
 	echoed["avatarImagePath"] = json!(worn);
 	let unchanged =
 		call(&window, "conversation_update_bot", json!({ "id": id, "identity": echoed }))
@@ -1361,7 +1354,7 @@ fn an_identity_written_without_a_path_takes_the_picture_off_and_one_written_with
 	let bare = call(
 		&window,
 		"conversation_update_bot",
-		json!({ "id": id, "identity": an_identity("Nyx", "sonnet", "owl", json!("red")) }),
+		json!({ "id": id, "identity": an_identity("Nyx", "sonnet", json!("red")) }),
 	)
 	.expect("the bot is updated");
 
@@ -1384,7 +1377,7 @@ fn a_recorded_path_outside_the_avatar_directory_is_refused_rather_than_read() {
 		avatar_dir(&app).join("..").join("elsewhere.png").to_string_lossy().into_owned(),
 		"/etc/passwd".to_owned(),
 	] {
-		let mut identity = an_identity("Nyx", "sonnet", "owl", json!("red"));
+		let mut identity = an_identity("Nyx", "sonnet", json!("red"));
 		identity["avatarImagePath"] = json!(escaping);
 		let updated =
 			call(&window, "conversation_update_bot", json!({ "id": id, "identity": identity }))
@@ -1907,7 +1900,7 @@ fn a_duplicated_bot_carries_the_bundle_and_none_of_the_transcript() {
 	let source = call(
 		&window,
 		"conversation_create_bot",
-		json!({ "identity": an_identity("Nyx", "sonnet", "owl", json!("red")) }),
+		json!({ "identity": an_identity("Nyx", "sonnet", json!("red")) }),
 	)
 	.expect("the bot is created");
 	let source_id = source["id"].as_str().expect("the bot holds an id").to_owned();
@@ -1960,7 +1953,7 @@ fn a_duplicated_bot_carries_the_bundle_and_none_of_the_transcript() {
 	assert_eq!(duplicate["name"], json!("Nyx copy"));
 	assert_eq!(duplicate["title"], source["title"]);
 	assert_eq!(duplicate["model"], source["model"]);
-	assert_eq!(duplicate["avatarAnimal"], source["avatarAnimal"]);
+	assert_eq!(duplicate.get("avatarAnimal"), None, "a duplicate still crossed with an animal");
 	assert_eq!(duplicate["avatarBlot"], source["avatarBlot"]);
 	assert_eq!(duplicate["avatarImagePath"], source["avatarImagePath"]);
 	assert_eq!(duplicate["instructions"], source["instructions"]);
@@ -2217,7 +2210,7 @@ fn a_duplicate_only_dodges_the_names_the_space_it_lands_in_already_carries() {
 		&window,
 		"conversation_create_bot",
 		json!({
-			"identity": an_identity("Nyx copy", "sonnet", "owl", json!("red")),
+			"identity": an_identity("Nyx copy", "sonnet", json!("red")),
 			"spaceId": away,
 		}),
 	)
@@ -2711,7 +2704,7 @@ fn a_bot_in(window: &WebviewWindow<MockRuntime>, space_id: &str, name: &str) -> 
 	call(
 		window,
 		"conversation_create_bot",
-		json!({ "identity": an_identity(name, "sonnet", "owl", Value::Null), "spaceId": space_id }),
+		json!({ "identity": an_identity(name, "sonnet", Value::Null), "spaceId": space_id }),
 	)
 	.expect("the bot is created")["id"]
 		.as_str()

@@ -237,7 +237,6 @@ fn an_identity(instructions: Option<&str>) -> Value {
 		"name": NAME,
 		"title": "",
 		"model": "sonnet",
-		"avatarAnimal": "cat",
 		"avatarBlot": Value::Null,
 		"avatarImagePath": Value::Null,
 		"instructions": instructions.unwrap_or_default(),

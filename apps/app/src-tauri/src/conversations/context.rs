@@ -594,7 +594,6 @@ mod tests {
 	use super::*;
 	use crate::db::connection::temp_dir;
 	use crate::db::open;
-	use crate::db::repositories::conversations::AvatarAnimal;
 	use crate::db::repositories::messages::{
 		MessageState, NewAssistantMessage, NewTurn, NewUserMessage, TerminalState,
 	};
@@ -758,7 +757,6 @@ mod tests {
 			joined_at: 1,
 			left_at: None,
 			name: name.to_owned(),
-			avatar_animal: AvatarAnimal::Cat,
 			avatar_blot: None,
 			avatar_image_path: None,
 			is_deleted: false,

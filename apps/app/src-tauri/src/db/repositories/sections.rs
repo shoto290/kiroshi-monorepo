@@ -279,7 +279,7 @@ mod tests {
 	use super::*;
 	use crate::db::connection::temp_dir;
 	use crate::db::open;
-	use crate::db::repositories::conversations::{AvatarAnimal, Bot, BotIdentity};
+	use crate::db::repositories::conversations::{Bot, BotIdentity};
 	use crate::db::Database;
 
 	fn an_identity(name: &str) -> BotIdentity {
@@ -287,7 +287,6 @@ mod tests {
 			name: name.to_owned(),
 			title: String::new(),
 			model: "sonnet".to_owned(),
-			avatar_animal: AvatarAnimal::Cat,
 			avatar_blot: None,
 			avatar_image_path: None,
 			instructions: String::new(),

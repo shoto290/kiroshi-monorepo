@@ -173,7 +173,7 @@ mod tests {
 	use std::path::PathBuf;
 
 	use super::*;
-	use crate::db::repositories::conversations::{AvatarAnimal, BotIdentity};
+	use crate::db::repositories::conversations::BotIdentity;
 	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
 	use tauri::{App, Manager};
 
@@ -203,7 +203,6 @@ mod tests {
 			name: name.to_owned(),
 			title: String::new(),
 			model: "sonnet".to_owned(),
-			avatar_animal: AvatarAnimal::Owl,
 			avatar_blot: None,
 			avatar_image_path: None,
 			instructions: "Answer briefly.".to_owned(),

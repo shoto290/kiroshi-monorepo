@@ -3,47 +3,6 @@ use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, 
 use super::super::messages::stored_as_text;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AvatarAnimal {
-	Cat,
-	Rabbit,
-	Bear,
-	Chick,
-	Dog,
-	Mouse,
-	Owl,
-	Koala,
-}
-
-impl AvatarAnimal {
-	fn as_sql(self) -> &'static str {
-		match self {
-			AvatarAnimal::Cat => "cat",
-			AvatarAnimal::Rabbit => "rabbit",
-			AvatarAnimal::Bear => "bear",
-			AvatarAnimal::Chick => "chick",
-			AvatarAnimal::Dog => "dog",
-			AvatarAnimal::Mouse => "mouse",
-			AvatarAnimal::Owl => "owl",
-			AvatarAnimal::Koala => "koala",
-		}
-	}
-
-	fn parse(text: &str) -> Option<Self> {
-		match text {
-			"cat" => Some(AvatarAnimal::Cat),
-			"rabbit" => Some(AvatarAnimal::Rabbit),
-			"bear" => Some(AvatarAnimal::Bear),
-			"chick" => Some(AvatarAnimal::Chick),
-			"dog" => Some(AvatarAnimal::Dog),
-			"mouse" => Some(AvatarAnimal::Mouse),
-			"owl" => Some(AvatarAnimal::Owl),
-			"koala" => Some(AvatarAnimal::Koala),
-			_ => None,
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AvatarBlot {
 	Red,
 	Yellow,
@@ -88,7 +47,4 @@ impl AvatarBlot {
 	}
 }
 
-stored_as_text!(AvatarAnimal);
 stored_as_text!(AvatarBlot);
-
-pub(super) const DEFAULT_BOT_ANIMAL: AvatarAnimal = AvatarAnimal::Cat;

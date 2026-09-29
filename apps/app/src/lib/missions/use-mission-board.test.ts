@@ -10,7 +10,6 @@ import { aMission } from "./mission-fixtures"
 import { missionsTransport } from "./missions-transport"
 import { useMissionBoard } from "./use-mission-board"
 
-import { PLACEHOLDER_ANIMAL } from "@/lib/bots/bot-settings"
 import type { Bot } from "@/lib/conversations/store-contract"
 
 vi.mock("./missions-transport", () => ({
@@ -28,7 +27,6 @@ const BOT: Bot = {
 	name: "Atlas",
 	title: "",
 	model: "sonnet",
-	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: "blue",
 	avatarImagePath: null,
 	instructions: "",

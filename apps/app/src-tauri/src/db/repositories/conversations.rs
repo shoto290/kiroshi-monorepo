@@ -14,7 +14,7 @@ use crate::db::{Access, DatabaseError};
 mod avatar;
 mod bots;
 
-pub use avatar::{AvatarAnimal, AvatarBlot};
+pub use avatar::AvatarBlot;
 pub use bots::{Bot, BotIdentity};
 
 use bots::{
@@ -102,7 +102,6 @@ pub struct Seat {
 	pub joined_at: i64,
 	pub left_at: Option<i64>,
 	pub name: String,
-	pub avatar_animal: AvatarAnimal,
 	pub avatar_blot: Option<AvatarBlot>,
 	pub avatar_image_path: Option<String>,
 	pub is_deleted: bool,
@@ -469,7 +468,7 @@ const CONVERSATION_COLUMNS: &str = "SELECT id, space_id, section_id, pin_positio
 	FROM conversations";
 
 const SEAT_COLUMNS: &str = "SELECT seat.conversation_id, seat.bot_id, seat.role, seat.joined_at,
-		seat.left_at, bots.name, bots.avatar_animal, bots.avatar_color, bots.avatar_image_path,
+		seat.left_at, bots.name, bots.avatar_color, bots.avatar_image_path,
 		bots.deleted_at
 	FROM conversation_participants AS seat
 	JOIN bots ON bots.id = seat.bot_id";
@@ -922,7 +921,6 @@ fn seated(row: &Row<'_>) -> rusqlite::Result<Seat> {
 		joined_at: row.get("joined_at")?,
 		left_at: row.get("left_at")?,
 		name: row.get("name")?,
-		avatar_animal: row.get("avatar_animal")?,
 		avatar_blot: row.get("avatar_color")?,
 		avatar_image_path: row.get("avatar_image_path")?,
 		is_deleted: row.get::<_, Option<i64>>("deleted_at")?.is_some(),
@@ -937,7 +935,6 @@ fn now() -> i64 {
 mod tests {
 	use std::fs;
 
-	use super::avatar::DEFAULT_BOT_ANIMAL;
 	use super::*;
 	use crate::db::connection::temp_dir;
 	use crate::db::repositories::messages::{
@@ -950,7 +947,6 @@ mod tests {
 			name: name.to_owned(),
 			title: String::new(),
 			model: DEFAULT_BOT_MODEL.to_owned(),
-			avatar_animal: DEFAULT_BOT_ANIMAL,
 			avatar_blot: None,
 			avatar_image_path: None,
 			instructions: String::new(),

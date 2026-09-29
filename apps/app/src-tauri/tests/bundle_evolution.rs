@@ -200,7 +200,6 @@ fn an_identity() -> Value {
 		"name": NAME,
 		"title": "",
 		"model": "sonnet",
-		"avatarAnimal": "cat",
 		"avatarBlot": Value::Null,
 		"avatarImagePath": Value::Null,
 		"instructions": BRIEF,

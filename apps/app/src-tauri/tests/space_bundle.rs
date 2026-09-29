@@ -177,7 +177,6 @@ fn an_identity(name: &str) -> Value {
 		"name": name,
 		"title": "",
 		"model": "sonnet",
-		"avatarAnimal": "cat",
 		"avatarBlot": Value::Null,
 		"avatarImagePath": Value::Null,
 		"instructions": format!("{name} answers briefly."),

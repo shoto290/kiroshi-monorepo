@@ -13,7 +13,6 @@ import {
 	FALLBACK_MODELS,
 	modelOptionsFor,
 	newBotIdentity,
-	PLACEHOLDER_ANIMAL,
 	toIdentity,
 	toRosterBots,
 	toSettingsValue,
@@ -120,7 +119,6 @@ describe("toIdentity", () => {
 		expect(
 			toIdentity({ ...value, identity: { blot: "yellow" } }, stored),
 		).toMatchObject({
-			avatarAnimal: PLACEHOLDER_ANIMAL,
 			avatarBlot: "yellow",
 			avatarImagePath: null,
 		})
@@ -248,14 +246,13 @@ describe("newBotIdentity", () => {
 	const rosterCarrying = (names: readonly string[]): Bot[] =>
 		names.map((name, index) => bot({ id: `b-${index}`, name }))
 
-	it("names a companion before it is named and gives it the placeholder animal", () => {
+	it("names a companion before it is named", () => {
 		const created = newBotIdentity([bot({ avatarBlot: "red" })])
 
 		expect(BOT_NAMES).toContain(created.name)
 		expect(created).toMatchObject({
 			title: "",
 			instructions: "",
-			avatarAnimal: PLACEHOLDER_ANIMAL,
 			avatarImagePath: null,
 		})
 	})

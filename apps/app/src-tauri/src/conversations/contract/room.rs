@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use super::bot::{AvatarAnimal, AvatarBlot};
+use super::bot::AvatarBlot;
 use crate::avatars;
 use crate::db::repositories::{conversations, runtime_context};
 
@@ -62,7 +62,6 @@ pub struct Participant {
 	pub joined_at: i64,
 	pub left_at: Option<i64>,
 	pub name: String,
-	pub avatar_animal: AvatarAnimal,
 	pub avatar_blot: Option<AvatarBlot>,
 	pub avatar_image_path: Option<String>,
 	pub is_deleted: bool,
@@ -76,7 +75,6 @@ impl Participant {
 			joined_at: seat.joined_at,
 			left_at: seat.left_at,
 			name: seat.name,
-			avatar_animal: seat.avatar_animal.into(),
 			avatar_blot: seat.avatar_blot.map(Into::into),
 			avatar_image_path: drawable_avatar(seat.avatar_image_path.as_deref(), avatars),
 			is_deleted: seat.is_deleted,
@@ -231,7 +229,6 @@ mod tests {
 							joined_at: 1,
 							left_at: None,
 							name: "Nyx".into(),
-							avatar_animal: conversations::AvatarAnimal::Owl,
 							avatar_blot: None,
 							avatar_image_path: None,
 							is_deleted: false,
@@ -242,7 +239,6 @@ mod tests {
 							joined_at: 2,
 							left_at: Some(3),
 							name: "Ada".into(),
-							avatar_animal: conversations::AvatarAnimal::Cat,
 							avatar_blot: Some(conversations::AvatarBlot::Blue),
 							avatar_image_path: None,
 							is_deleted: true,
@@ -267,7 +263,6 @@ mod tests {
 						"joinedAt": 1,
 						"leftAt": null,
 						"name": "Nyx",
-						"avatarAnimal": "owl",
 						"avatarBlot": null,
 						"avatarImagePath": null,
 						"isDeleted": false
@@ -278,7 +273,6 @@ mod tests {
 						"joinedAt": 2,
 						"leftAt": 3,
 						"name": "Ada",
-						"avatarAnimal": "cat",
 						"avatarBlot": "blue",
 						"avatarImagePath": null,
 						"isDeleted": true

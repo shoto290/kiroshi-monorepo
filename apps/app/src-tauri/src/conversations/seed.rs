@@ -5,7 +5,7 @@ use std::path::Path;
 use tauri::{AppHandle, Runtime};
 
 use super::commands::create_bundled_bot;
-use super::contract::{AvatarAnimal, BotIdentity, TranscriptStoreError};
+use super::contract::{BotIdentity, TranscriptStoreError};
 use crate::avatars;
 use crate::bundles;
 use crate::bundles::shoto;
@@ -185,7 +185,6 @@ fn identity(picture: &Path) -> BotIdentity {
 		name: shoto::NAME.to_owned(),
 		title: String::new(),
 		model: DEFAULT_BOT_MODEL.to_owned(),
-		avatar_animal: AvatarAnimal::Cat,
 		avatar_blot: None,
 		avatar_image_path: Some(picture.to_string_lossy().into_owned()),
 		instructions: shoto::persona(),

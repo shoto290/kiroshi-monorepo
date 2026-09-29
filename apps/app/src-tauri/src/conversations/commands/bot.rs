@@ -3,7 +3,7 @@ use std::path::Path;
 use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::super::contract::{
-	AvatarAnimal, AvatarBlot, Bot, BotDraft, BotIdentity, SuggestedBot, TranscriptStoreError,
+	AvatarBlot, Bot, BotDraft, BotIdentity, SuggestedBot, TranscriptStoreError,
 };
 use super::super::seed;
 use crate::agent::contract::AgentCommand;
@@ -241,14 +241,12 @@ fn drafted_identity(
 	if name.is_empty() {
 		return Err(TranscriptStoreError::NamelessBot);
 	}
-	let animals: Vec<AvatarAnimal> = worn.iter().map(|bot| bot.avatar_animal.into()).collect();
 	let blots: Vec<AvatarBlot> =
 		worn.iter().filter_map(|bot| bot.avatar_blot.map(Into::into)).collect();
 	Ok(BotIdentity {
 		name: name.to_owned(),
 		title: draft.job.trim().to_owned(),
 		model: DEFAULT_BOT_MODEL.to_owned(),
-		avatar_animal: unworn(AvatarAnimal::ALL, &animals, worn.len()),
 		avatar_blot: Some(unworn(AvatarBlot::ALL, &blots, worn.len())),
 		avatar_image_path: None,
 		instructions: draft.description.trim().to_owned(),
@@ -429,7 +427,6 @@ fn duplicated_identity(source: Bot, taken: &[String]) -> BotIdentity {
 		name: unshared_name(format!("{}{DUPLICATE_SUFFIX}", source.name), taken),
 		title: source.title,
 		model: source.model,
-		avatar_animal: source.avatar_animal,
 		avatar_blot: source.avatar_blot,
 		avatar_image_path: source.avatar_image_path,
 		instructions: source.instructions,
@@ -600,7 +597,7 @@ mod tests {
 	use std::path::PathBuf;
 
 	use super::*;
-	use crate::db::repositories::conversations::{AvatarAnimal, AvatarBlot as StoredBlot};
+	use crate::db::repositories::conversations::AvatarBlot as StoredBlot;
 	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
 	use tauri::App;
 
@@ -612,7 +609,6 @@ mod tests {
 			name: "Bean".to_owned(),
 			title: String::new(),
 			model: "sonnet".to_owned(),
-			avatar_animal: AvatarAnimal::Owl,
 			avatar_blot: None,
 			avatar_image_path: None,
 			instructions: "Answer briefly.".to_owned(),
@@ -631,8 +627,8 @@ mod tests {
 		}
 	}
 
-	fn wearing(animal: AvatarAnimal, blot: Option<StoredBlot>) -> StoredBot {
-		StoredBot { avatar_animal: animal, avatar_blot: blot, ..a_bot() }
+	fn wearing(blot: Option<StoredBlot>) -> StoredBot {
+		StoredBot { avatar_blot: blot, ..a_bot() }
 	}
 
 	fn a_host(name: &str) -> App<MockRuntime> {
@@ -677,7 +673,6 @@ mod tests {
 				name: "Quill".to_owned(),
 				title: "a writing partner".to_owned(),
 				model: DEFAULT_BOT_MODEL.to_owned(),
-				avatar_animal: contract::AvatarAnimal::Rabbit,
 				avatar_blot: Some(contract::AvatarBlot::Red),
 				avatar_image_path: None,
 				instructions: "Write well.".to_owned(),
@@ -697,39 +692,29 @@ mod tests {
 	}
 
 	#[test]
-	fn a_draft_wears_the_first_face_and_blot_no_bot_of_the_space_wears() {
+	fn a_draft_wears_the_first_blot_no_bot_of_the_space_wears() {
 		use crate::conversations::contract;
 
-		let worn = [
-			wearing(AvatarAnimal::Cat, Some(StoredBlot::Red)),
-			wearing(AvatarAnimal::Rabbit, None),
-			wearing(AvatarAnimal::Dog, Some(StoredBlot::Green)),
-		];
+		let worn =
+			[wearing(Some(StoredBlot::Red)), wearing(None), wearing(Some(StoredBlot::Green))];
 
 		let identity = drafted_identity(a_draft("Quill", "", ""), &worn).expect("it is named");
 
-		assert_eq!(identity.avatar_animal, contract::AvatarAnimal::Bear);
 		assert_eq!(identity.avatar_blot, Some(contract::AvatarBlot::Yellow));
 	}
 
 	#[test]
-	fn a_draft_wraps_on_the_crowd_of_the_space_when_every_face_and_blot_is_worn() {
+	fn a_draft_wraps_on_the_crowd_of_the_space_when_every_blot_is_worn() {
 		use crate::conversations::contract;
 
-		let mut worn: Vec<StoredBot> = contract::AvatarAnimal::ALL
-			.iter()
-			.copied()
-			.zip(contract::AvatarBlot::ALL.iter().copied())
-			.map(|(animal, blot)| wearing(animal.into(), Some(blot.into())))
-			.collect();
+		let mut worn: Vec<StoredBot> =
+			contract::AvatarBlot::ALL.iter().map(|&blot| wearing(Some(blot.into()))).collect();
 
 		let eighth = drafted_identity(a_draft("Quill", "", ""), &worn).expect("it is named");
-		worn.push(wearing(AvatarAnimal::Rabbit, Some(StoredBlot::Red)));
+		worn.push(wearing(Some(StoredBlot::Red)));
 		let ninth = drafted_identity(a_draft("Quill", "", ""), &worn).expect("it is named");
 
-		assert_eq!(eighth.avatar_animal, contract::AvatarAnimal::Rabbit);
 		assert_eq!(eighth.avatar_blot, Some(contract::AvatarBlot::Red));
-		assert_eq!(ninth.avatar_animal, contract::AvatarAnimal::Cat);
 		assert_eq!(ninth.avatar_blot, Some(contract::AvatarBlot::Yellow));
 	}
 
@@ -861,7 +846,7 @@ mod tests {
 
 	#[test]
 	fn a_duplicate_is_the_source_under_a_name_that_says_where_it_came_from() {
-		use crate::conversations::contract::{AvatarAnimal, AvatarBlot};
+		use crate::conversations::contract::AvatarBlot;
 
 		let source = Bot {
 			id: "b1".to_owned(),
@@ -870,7 +855,6 @@ mod tests {
 			name: "Bean".to_owned(),
 			title: "Bakes".to_owned(),
 			model: "opus".to_owned(),
-			avatar_animal: AvatarAnimal::Owl,
 			avatar_blot: Some(AvatarBlot::Cyan),
 			avatar_image_path: Some("/pictures/bean.png".to_owned()),
 			instructions: "Answer briefly.".to_owned(),
@@ -888,7 +872,6 @@ mod tests {
 				name: "Bean copy".to_owned(),
 				title: source.title,
 				model: source.model,
-				avatar_animal: source.avatar_animal,
 				avatar_blot: source.avatar_blot,
 				avatar_image_path: source.avatar_image_path,
 				instructions: source.instructions,
