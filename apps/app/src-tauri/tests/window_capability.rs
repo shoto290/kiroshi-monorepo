@@ -64,13 +64,15 @@ fn commands_called_on(source: &str, receiver: &str) -> Vec<String> {
 }
 
 fn commands_called_by_the_front(source: &str) -> BTreeSet<String> {
-	let mut commands: BTreeSet<String> =
-		WINDOW_COMMANDS_OF_THE_DRAG_REGION.iter().map(ToString::to_string).collect();
-	for handle in window_handles(source) {
-		commands.extend(commands_called_on(source, handle));
-	}
-	commands.extend(commands_called_on(source, HANDLE_FACTORY));
-	commands
+	let called_on_a_window = window_handles(source)
+		.into_iter()
+		.chain([HANDLE_FACTORY])
+		.flat_map(|receiver| commands_called_on(source, receiver));
+	WINDOW_COMMANDS_OF_THE_DRAG_REGION
+		.iter()
+		.map(ToString::to_string)
+		.chain(called_on_a_window)
+		.collect()
 }
 
 fn named_permissions(capability: &str) -> Vec<String> {
