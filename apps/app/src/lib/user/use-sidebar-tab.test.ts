@@ -74,6 +74,23 @@ describe("the sidebar tab the reader opens", () => {
 		expect(result.current.sidebarTab.openTab).toBe("conversations")
 	})
 
+	it.each(["companions", "applications"] as const)(
+		"opens Conversations when %s is stored",
+		async (sidebarTab) => {
+			aHost({ ...STORED, sidebarTab })
+			const { result } = await mountSidebarTab()
+
+			expect(result.current.sidebarTab.openTab).toBe("conversations")
+		},
+	)
+
+	it("opens Missions when Missions is stored", async () => {
+		aHost({ ...STORED, sidebarTab: "missions" })
+		const { result } = await mountSidebarTab()
+
+		expect(result.current.sidebarTab.openTab).toBe("missions")
+	})
+
 	it("opens Missions again after a remount once Missions was selected", async () => {
 		const host = aHost()
 		const first = await mountSidebarTab()
@@ -92,13 +109,13 @@ describe("the sidebar tab the reader opens", () => {
 		aRefusingHost()
 		const { result } = await mountSidebarTab()
 
-		act(() => result.current.sidebarTab.openSidebarTab("applications"))
+		act(() => result.current.sidebarTab.openSidebarTab("missions"))
 
 		await waitFor(() =>
 			expect(result.current.user.state.preferences.sidebarTab).toBe(
 				"conversations",
 			),
 		)
-		expect(result.current.sidebarTab.openTab).toBe("applications")
+		expect(result.current.sidebarTab.openTab).toBe("missions")
 	})
 })
