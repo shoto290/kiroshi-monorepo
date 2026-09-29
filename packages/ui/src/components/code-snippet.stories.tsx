@@ -22,7 +22,7 @@ const SAMPLES: Record<CodeSnippetLanguage, string> = {
 	text: `Nest synced. 2 files written, 0 skipped.`,
 	tsx: `const NestCard = () => <article className="nest-card" />`,
 	typescript: `export const nestTint = (name: TintName) => TINTS[name]`,
-	yaml: `nest:\n  tint: sky\n  nests: 12`,
+	yaml: `nest:\n  tint: sky\n  spaces: 12`,
 }
 
 const A11Y_SCROLL_FOCUS_AWAITING_DESIGN_DECISION = {
@@ -32,7 +32,7 @@ const A11Y_SCROLL_FOCUS_AWAITING_DESIGN_DECISION = {
 }
 
 const LONG_LINE =
-	"bun run nest:sync --workspace packages/ui --tint sky --nests home,work,lab --out packages/ui/src/components/nest/generated/nest-manifest.ts --verbose"
+	"bun run nest:sync --workspace packages/ui --tint sky --spaces home,work,lab --out packages/ui/src/components/nest/generated/nest-manifest.ts --verbose"
 
 const meta = preview.meta({
 	title: "Conversation/Markdown/CodeSnippet",
