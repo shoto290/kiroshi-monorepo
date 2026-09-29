@@ -6,9 +6,11 @@ import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	expectFont,
 	FRAME_POLL,
+	probedStyleOf,
 	slotIn,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
+import { THEME_CLASS_NAMES } from "@workspace/storybook/themed-docs-container"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { Icons } from "@workspace/ui/components/icons"
 import {
@@ -78,6 +80,44 @@ const THREAD = (
 		<AssistantTurn copyText={ANSWER}>{ANSWER}</AssistantTurn>
 	</ThreadLayout>
 )
+
+const THEMES = Object.values(THEME_CLASS_NAMES)
+
+const THEME_CLASSES = THEMES.filter(Boolean)
+
+const cardPaintBeside = (panel: HTMLElement) =>
+	probedStyleOf("bg-card", "backgroundColor", panel.parentElement ?? panel)
+
+const cardSurfaceIn = async (panel: HTMLElement, themeClass: string) => {
+	const root = document.documentElement
+	root.classList.remove(...THEME_CLASSES)
+	if (themeClass) root.classList.add(themeClass)
+	const painted = getComputedStyle(panel).backgroundColor
+	await expect(painted).toBe(cardPaintBeside(panel))
+	return painted
+}
+
+const expectCardSurfaceInEveryTheme = async (panel: HTMLElement) => {
+	const root = document.documentElement
+	const themeAtStart = root.className
+	const painted = new Set<string>()
+	try {
+		for (const themeClass of THEMES) {
+			painted.add(await cardSurfaceIn(panel, themeClass))
+		}
+	} finally {
+		root.className = themeAtStart
+	}
+	await expect(painted.size).toBe(THEMES.length)
+}
+
+const expectChatDivider = async (panel: HTMLElement) => {
+	const edge = getComputedStyle(panel)
+	await expect(edge.borderInlineStartWidth).toBe("1px")
+	await expect(edge.borderInlineStartColor).toBe(
+		probedStyleOf("border-shell-divider", "borderTopColor", panel),
+	)
+}
 
 const FORMS: Record<string, RoutineFormModel> = {
 	[MORNING_DIGEST.id]: SCHEDULED_FORM,
@@ -316,6 +356,8 @@ export const Default = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		const panel = canvas.getByRole("complementary", { name: "Activity" })
 		await expect(panel).toBeVisible()
+		await expectCardSurfaceInEveryTheme(panel)
+		await expectChatDivider(panel)
 		await expect(
 			within(panel).getByRole("button", { name: "Close activity" }),
 		).toBeVisible()
@@ -1168,12 +1210,9 @@ const cardsIn = (canvasElement: HTMLElement) =>
 const panelSurfaceIn = (panel: HTMLElement) =>
 	panel.querySelector<HTMLElement>('[data-slot="sidebar-inner"]') ?? panel
 
-const expectPanelOnShellSurface = async (panel: HTMLElement) => {
-	const surface = panelSurfaceIn(panel)
-	const painted = getComputedStyle(surface)
-
-	await expect(paintOf(surface)).toBe(TRANSPARENT)
-	await expect(painted.borderInlineStartWidth).toBe("0px")
+const expectPanelOnCardSurface = async (panel: HTMLElement) => {
+	await expect(paintOf(panelSurfaceIn(panel))).toBe(cardPaintBeside(panel))
+	await expectChatDivider(panel)
 	await expect(paintOf(panel.parentElement as HTMLElement)).toBe(shellPaint())
 }
 
@@ -1223,7 +1262,7 @@ const expectShellSurfaceAround = async (canvasElement: HTMLElement) => {
 	const panel = activityPanelIn(canvasElement)
 	const [, threadCard] = cardsIn(canvasElement)
 
-	await expectPanelOnShellSurface(panel)
+	await expectPanelOnCardSurface(panel)
 	const shellCard = await expectThreadInsideShellCard(canvasElement)
 	await expect(tokenPaintsIn(panel)).toEqual(
 		tokenPaintsIn(document.body, "on-shell"),
@@ -1240,7 +1279,7 @@ const expectShellSurfaceAround = async (canvasElement: HTMLElement) => {
 }
 
 const OPEN_ON_SHELL_SURFACE =
-	"The panel open inside the shell card: the shell card is the only frame, the thread yields its own, and the panel sits beside the thread on the shell surface up to the card's trailing border. Check that the panel paints no background and no border of its own, that the missions and the routines read against the shell surface, and that the thread and the panel meet with no gap. Pick `OnShellSurfaceClosed` for the panel gone from the document. `apps/app/src/App.tsx:935` is the shell, and `apps/app/src/components/thread-routines.tsx:107` the panel inside it."
+	"The panel open inside the shell card: the shell card is the only frame, the thread yields its own, and the panel sits beside the thread on the card surface up to the card's trailing border, the same surface the Conversations panel paints opposite. Check that the panel paints the card background, that a shell divider draws the edge facing the thread, and that the thread and the panel meet with no gap. Pick `OnShellSurfaceClosed` for the panel gone from the document. `apps/app/src/App.tsx:935` is the shell, and `apps/app/src/components/thread-routines.tsx:107` the panel inside it."
 
 const CLOSED_ON_SHELL_SURFACE =
 	"The panel closed, which is what most of a session looks like: the thread fills the shell card, which keeps its radius, border and background, 34px under the top of the window for the title bar and 4px off the trailing and bottom edges. Check the thread draws no frame of its own inside it. Pick `OnShellSurfaceOpen` for the panel holding room beside the card. `apps/app/src/App.tsx:935` is the shell, and `apps/app/src/components/thread-routines.tsx:107` the panel inside it."
@@ -1314,7 +1353,7 @@ export const OnShellSurfaceTinted = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel open in a space that carries a colour, which is the only state where the panel could betray the surface it sits on. Check that the panel is washed with exactly the tint the shell wears behind it and not with the untinted surface, so a panel that stops resolving the tint of the space in view reads as a plain grey column beside a coloured one. Check too that the eight tokens the panel redeclares — sidebar, sidebar-accent, sidebar-border, accent, border, input, muted and secondary — read tinted inside it and untinted outside the shell, since a row, a rule or a field that keeps the untinted value is the way a tint leaks. `Navigation/AppSidebar` `SpaceTinted` reads the same pair on the roster panel opposite. Pick `OnShellSurfaceOpen` for the untinted surface. `apps/app/src/App.tsx:935` mounts the same panel inside the workspace shell, through `apps/app/src/components/thread-routines.tsx:107`.",
+					"The panel open in a space that carries a colour, which is the only state where the panel could betray the surface it sits on. Check that the panel keeps the card surface the Conversations panel paints, while the shell behind it wears the tint of the space. Check too that the eight tokens the panel redeclares — sidebar, sidebar-accent, sidebar-border, accent, border, input, muted and secondary — read tinted inside it and untinted outside the shell, since a row, a rule or a field that keeps the untinted value is the way a tint leaks. `Navigation/AppSidebar` `SpaceTinted` reads the same pair on the roster panel opposite. Pick `OnShellSurfaceOpen` for the untinted surface. `apps/app/src/App.tsx:935` mounts the same panel inside the workspace shell, through `apps/app/src/components/thread-routines.tsx:107`.",
 			},
 		},
 	},
@@ -1327,7 +1366,9 @@ export const OnShellSurfaceTinted = meta.story({
 		const activity = activityPanelIn(canvasElement)
 		const shell = canvas.getByRole("main").parentElement as HTMLElement
 
-		await expect(paintOf(panelSurfaceIn(activity))).toBe(TRANSPARENT)
+		await expect(paintOf(panelSurfaceIn(activity))).toBe(
+			cardPaintBeside(activity),
+		)
 		await expect(tokenPaintsIn(activity)).toEqual(
 			tokenPaintsIn(shell, "on-shell"),
 		)
