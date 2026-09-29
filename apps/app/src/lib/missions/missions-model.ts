@@ -575,6 +575,11 @@ export const missionsIn = (
 ): MissionsByRow =>
 	spaceId === null ? NO_MISSIONS : (missions[spaceId] ?? NO_MISSIONS)
 
+export const isAnyMissionWaiting = (missions: MissionsByRow): boolean =>
+	Object.values(missions).some((held) =>
+		held.some((mission) => mission.state === CHIP_STATE_OF.waiting_human),
+	)
+
 export const withMissions = <Row extends MissionCarrier & { id: string }>(
 	rows: Row[],
 	missions: MissionsByRow,

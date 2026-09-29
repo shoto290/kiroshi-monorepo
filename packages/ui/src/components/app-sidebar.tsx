@@ -1830,6 +1830,8 @@ interface AppSidebarProps
 	insetWindowControls?: boolean
 	railCounts?: AppRailCounts
 	railDots?: AppRailDots
+	openPanel?: AppRailPanel
+	onOpenPanelChange?: (panel: AppRailPanel) => void
 	"data-tauri-drag-region"?: string
 }
 
@@ -1875,13 +1877,20 @@ const AppSidebarBase = ({
 	insetWindowControls = false,
 	railCounts,
 	railDots,
+	openPanel: controlledPanel,
+	onOpenPanelChange,
 	"data-tauri-drag-region": dragRegion,
 	...panel
 }: AppSidebarProps) => {
 	probeRender("AppSidebar")
 	const { t } = useTranslation("bots")
 	const createLabel = t("roster.create")
-	const [openPanel, setOpenPanel] = useState<AppRailPanel>("conversations")
+	const [ownPanel, setOwnPanel] = useState<AppRailPanel>("conversations")
+	const openPanel = controlledPanel ?? ownPanel
+	const setOpenPanel = (next: AppRailPanel) => {
+		setOwnPanel(next)
+		onOpenPanelChange?.(next)
+	}
 	const isRosterOpen = openPanel === "conversations"
 	const [naming, setNaming] = useState<SectionNaming | null>(null)
 	const nameLooseSection = () => setNaming({ rowId: null })

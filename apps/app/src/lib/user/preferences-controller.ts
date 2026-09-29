@@ -17,6 +17,7 @@ import {
 } from "./preferences-queue"
 
 import { createStore } from "../store"
+import type { SidebarTab } from "@/lib/bindings"
 
 type NotificationField = Extract<keyof UserPreferences, `notify${string}`>
 
@@ -48,6 +49,7 @@ export type UserController = {
 	setColorScheme: (colorScheme: ColorScheme) => Promise<void>
 	setLanguage: (language: Language | null) => Promise<void>
 	setSidebarWidth: (sidebarWidth: number) => Promise<void>
+	setSidebarTab: (sidebarTab: SidebarTab) => Promise<void>
 	setActivityPanelOpen: (activityPanelOpen: boolean) => Promise<void>
 	markFirstRunDone: () => Promise<void>
 	setLastBot: (opened: LastBotOpened) => Promise<void>
@@ -200,6 +202,17 @@ export const createUserController = (): UserController => {
 		setLanguage: (language: Language | null) => changeMirrored({ language }),
 
 		setSidebarWidth: (sidebarWidth: number) => changeMirrored({ sidebarWidth }),
+
+		setSidebarTab: (sidebarTab: SidebarTab) => {
+			const held = current().preferences
+			if (held.sidebarTab === sidebarTab) {
+				return Promise.resolve()
+			}
+			show({ ...held, sidebarTab })
+			return changePreferences((record) => ({ ...record, sidebarTab }))
+				.then(apply)
+				.catch(restore)
+		},
 
 		setActivityPanelOpen: (activityPanelOpen: boolean) =>
 			changeMirrored({ activityPanelOpen }),
