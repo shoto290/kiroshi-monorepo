@@ -21,10 +21,13 @@ export const dropAreaAt = (x: number, y: number) =>
 		?.closest(`[${DROP_AREA_ATTRIBUTE}]`)
 		?.getAttribute(DROP_AREA_ATTRIBUTE) ?? null
 
-interface Point {
+export interface Point {
 	x: number
 	y: number
 }
+
+export const hasTravelledPastLiftThreshold = (from: Point, to: Point) =>
+	Math.hypot(to.x - from.x, to.y - from.y) >= LIFT_THRESHOLD
 
 interface Press extends Point {
 	id: string
@@ -105,11 +108,7 @@ export const useRosterLift = <Landing>({
 			if (!pressed) return
 			at.current = { x: event.clientX, y: event.clientY }
 			if (!pressed.isLifted) {
-				const travelled = Math.hypot(
-					event.clientX - pressed.x,
-					event.clientY - pressed.y,
-				)
-				if (travelled < LIFT_THRESHOLD) return
+				if (!hasTravelledPastLiftThreshold(pressed, at.current)) return
 				pressed.isLifted = true
 				capturePointer(event.currentTarget, event.pointerId)
 			}

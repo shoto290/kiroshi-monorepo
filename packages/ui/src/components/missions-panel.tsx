@@ -13,6 +13,7 @@ import {
 	type MissionCardWrap,
 	wrapCard,
 } from "@workspace/ui/components/mission-card"
+import { useWindowDragPress } from "@workspace/ui/hooks/use-window-drag-press"
 
 type MissionsPanelMission = MissionCardModel & { conversationId: string }
 
@@ -22,11 +23,12 @@ type MissionsPanelProps = {
 	onOpen: (missionId: string, conversationId: string) => void
 	openMissionId?: string | null
 	wrap?: MissionCardWrap
+	onDragWindow?: () => void
 }
 
 type MissionsPanelRowsProps = Pick<
 	MissionsPanelProps,
-	"onOpen" | "openMissionId" | "wrap"
+	"onOpen" | "openMissionId" | "wrap" | "onDragWindow"
 > & {
 	missions: MissionsPanelMission[]
 }
@@ -36,20 +38,28 @@ const MissionsPanelRows = ({
 	onOpen,
 	openMissionId,
 	wrap,
-}: MissionsPanelRowsProps) =>
-	missions.map(({ conversationId, ...mission }) => (
+	onDragWindow,
+}: MissionsPanelRowsProps) => {
+	const windowDrag = useWindowDragPress(onDragWindow)
+
+	return missions.map(({ conversationId, ...mission }) => (
 		<Fragment key={mission.id}>
 			{wrapCard(
 				<MissionCard
 					{...mission}
 					density="row"
 					isActive={mission.id === openMissionId}
-					onOpen={(missionId) => onOpen(missionId, conversationId)}
+					onOpen={(missionId) => {
+						if (windowDrag.hasJustDragged()) return
+						onOpen(missionId, conversationId)
+					}}
+					rowPress={windowDrag.handlers}
 				/>,
 				wrap,
 			)}
 		</Fragment>
 	))
+}
 
 const MissionsPanelEmpty = () => {
 	const { t } = useTranslation("chat")

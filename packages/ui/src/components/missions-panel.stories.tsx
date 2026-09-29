@@ -237,6 +237,62 @@ export const OpeningAMission = meta.story({
 	},
 })
 
+const POINTER = {
+	button: 0,
+	isPrimary: true,
+	pointerId: 1,
+	pointerType: "mouse",
+}
+
+const pressAndMove = (row: HTMLElement, distance: number) => {
+	const box = row.getBoundingClientRect()
+	const clientX = Math.round(box.left + box.width / 2)
+	const clientY = Math.round(box.top + box.height / 2)
+	fireEvent.pointerDown(row, { ...POINTER, clientX, clientY })
+	fireEvent.pointerMove(row, {
+		...POINTER,
+		clientX,
+		clientY: clientY + distance,
+	})
+	fireEvent.pointerUp(row, { ...POINTER, clientX, clientY: clientY + distance })
+	fireEvent.click(row)
+}
+
+const firstRowButton = (canvasElement: HTMLElement) =>
+	slotIn(slotIn(canvasElement, "mission-card-row"), "sidebar-menu-button")
+
+export const DraggingTheWindowFromARow = meta.story({
+	tags: ["test-only"],
+	args: { onDragWindow: fn(), wrap: withMissionMenu },
+	parameters: {
+		a11y: mergeA11y(
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_FLOATING_FOCUS_GUARDS,
+		),
+		docs: {
+			description: {
+				story:
+					"A row pressed and moved past the roster lift threshold carries the window instead of opening the mission, while a press that stays put is still the plain click that opens it, and a right click still opens the mission menu. Check a still press opens once, a moved press calls the window drag once and opens nothing, and the menu opens on the row.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement }) => {
+		const row = firstRowButton(canvasElement)
+
+		pressAndMove(row, 1)
+		await expect(args.onOpen).toHaveBeenCalledTimes(1)
+		await expect(args.onDragWindow).not.toHaveBeenCalled()
+
+		pressAndMove(row, 12)
+		await expect(args.onDragWindow).toHaveBeenCalledTimes(1)
+		await expect(args.onOpen).toHaveBeenCalledTimes(1)
+
+		fireEvent.contextMenu(row, { clientX: 40, clientY: 20 })
+		await shown(await screen.findByRole("menu", { name: "Mission actions" }))
+		await expect(args.onDragWindow).toHaveBeenCalledTimes(1)
+	},
+})
+
 export const LongTitle = meta.story({
 	tags: ["test-only"],
 	args: { open: SPACE_LONG_TITLE_MISSIONS, earlierToday: NO_SPACE_MISSIONS },
