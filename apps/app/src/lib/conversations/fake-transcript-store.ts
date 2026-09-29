@@ -53,7 +53,7 @@ import {
 } from "./transcript-contract"
 
 import type { AgentCommand } from "@/lib/agent/contract"
-import { deniesChanges, PLACEHOLDER_ANIMAL } from "../bots/bot-settings"
+import { deniesChanges } from "../bots/bot-settings"
 import { UNDONE_TITLE_PREFIX } from "../bots/history-runs"
 import { messageUri } from "../links/message-uri"
 
@@ -67,7 +67,6 @@ const DEFAULT_BOT: Bot = {
 	name: "Claude",
 	title: "",
 	model: "sonnet",
-	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: null,
 	avatarImagePath: null,
 	instructions: "",
@@ -667,7 +666,6 @@ export const createFakeTranscriptStore = (
 							joinedAt: seat.joinedAt,
 							leftAt: seat.leftAt,
 							name: bot.name,
-							avatarAnimal: PLACEHOLDER_ANIMAL,
 							avatarBlot: bot.avatarBlot,
 							avatarImagePath: bot.avatarImagePath,
 							isDeleted: !bots.has(seat.botId),
@@ -1141,7 +1139,6 @@ export const createFakeTranscriptStore = (
 					name,
 					title: draft.job.trim(),
 					model: "sonnet",
-					avatarAnimal: PLACEHOLDER_ANIMAL,
 					avatarBlot: unworn<AvatarBlot>(
 						BLOT_TINTS,
 						worn.map((bot) => bot.avatarBlot),
@@ -1172,7 +1169,6 @@ export const createFakeTranscriptStore = (
 			return mint(
 				{
 					...source,
-					avatarAnimal: PLACEHOLDER_ANIMAL,
 					name: unsharedName(`${source.name} copy`, destination),
 					sectionId: isIn(botId, destination) ? source.sectionId : null,
 					pinPosition: null,

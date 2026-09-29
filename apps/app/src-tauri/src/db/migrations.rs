@@ -50,6 +50,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 41, statements: BOTS_WITHOUT_WORKING_DIR },
 	Migration { version: 42, statements: MISSION_REOPENED },
 	Migration { version: 43, statements: MISSION_DISMISSED },
+	Migration { version: 44, statements: BOTS_WITHOUT_ANIMAL },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -1039,6 +1040,10 @@ BEGIN
 END;
 ";
 
+const BOTS_WITHOUT_ANIMAL: &str = "
+ALTER TABLE bots DROP COLUMN avatar_animal;
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -1136,6 +1141,7 @@ mod tests {
 	const BOTS_WITHOUT_WORKING_DIR_STEP: u32 = 41;
 	const MISSION_REOPENED_STEP: u32 = 42;
 	const MISSION_DISMISSED_STEP: u32 = 43;
+	const BOTS_WITHOUT_ANIMAL_STEP: u32 = 44;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -1707,6 +1713,107 @@ mod tests {
 	}
 
 	#[test]
+	fn a_bot_that_wore_an_animal_keeps_every_other_value_once_the_column_leaves() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(BOTS_WITHOUT_ANIMAL_STEP))
+			.expect("the shipped schema");
+		assert_eq!(version(&connection).expect("version"), MISSION_DISMISSED_STEP);
+		connection
+			.execute_batch(
+				"INSERT INTO bots (id, name, model, created_at, instructions, memory, title,
+					avatar_animal, avatar_image_path, commands, avatar_color, denied_tools,
+					permissions, deleted_at)
+				VALUES ('b1', 'Nyx', 'opus', 1, 'answer briefly', 'they use bun', 'Reviewer',
+					'koala', '/pictures/koala.png', '[\"ship\"]', 'orange', '[\"Bash\"]',
+					'{}', 7),
+					('b2', 'Ada', 'sonnet', 2, '', '', '', 'owl', NULL, '[]', NULL, '[]',
+					NULL, NULL);
+				INSERT INTO bot_spaces (bot_id, space_id, joined_at) VALUES ('b1', 'personal', 1);",
+			)
+			.expect("the bots this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(version(&connection).expect("version"), BOTS_WITHOUT_ANIMAL_STEP);
+		let kept = connection
+			.prepare(
+				"SELECT id, name, model, created_at, instructions, memory, title,
+					avatar_image_path, commands, avatar_color, denied_tools, permissions,
+					deleted_at
+					FROM bots ORDER BY id",
+			)
+			.expect("the kept columns are all there")
+			.query_map([], |row| {
+				(0..13).map(|column| row.get::<_, rusqlite::types::Value>(column)).collect()
+			})
+			.expect("query")
+			.collect::<Result<Vec<Vec<rusqlite::types::Value>>, _>>()
+			.expect("the bots read back");
+		let text = |value: &str| rusqlite::types::Value::Text(value.to_owned());
+		let integer = rusqlite::types::Value::Integer;
+		let null = rusqlite::types::Value::Null;
+		assert_eq!(
+			kept,
+			vec![
+				vec![
+					text("b1"),
+					text("Nyx"),
+					text("opus"),
+					integer(1),
+					text("answer briefly"),
+					text("they use bun"),
+					text("Reviewer"),
+					text("/pictures/koala.png"),
+					text("[\"ship\"]"),
+					text("orange"),
+					text("[\"Bash\"]"),
+					text("{}"),
+					integer(7),
+				],
+				vec![
+					text("b2"),
+					text("Ada"),
+					text("sonnet"),
+					integer(2),
+					text(""),
+					text(""),
+					text(""),
+					null.clone(),
+					text("[]"),
+					null.clone(),
+					text("[]"),
+					null.clone(),
+					null,
+				],
+			],
+		);
+		assert_eq!(bot_spaces_of(&connection), vec![("b1".to_owned(), "personal".to_owned())]);
+		assert!(
+			connection.prepare("SELECT avatar_animal FROM bots").is_err(),
+			"the bots table still carries avatar_animal"
+		);
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn a_fresh_file_ends_on_the_step_that_took_the_animal_off_every_bot() {
+		let dir = temp_dir();
+		let connection = migrated(&dir);
+
+		assert_eq!(version(&connection).expect("version"), BOTS_WITHOUT_ANIMAL_STEP);
+		assert!(
+			connection.prepare("SELECT avatar_animal FROM bots").is_err(),
+			"a fresh bots table carries avatar_animal"
+		);
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
 	fn a_mission_stored_before_the_progress_step_carries_the_url_its_github_note_named() {
 		let dir = temp_dir();
 		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
@@ -2076,9 +2183,10 @@ mod tests {
 			)
 			.expect("a bot written by the older build");
 
-		apply(&mut connection).expect("the file comes up to this build");
+		apply_each(&mut connection, shipped_before(BOTS_WITHOUT_ANIMAL_STEP))
+			.expect("the file comes up to the last build that stored an animal");
 
-		assert_eq!(version(&connection).expect("version"), latest_version());
+		assert_eq!(version(&connection).expect("version"), MISSION_DISMISSED_STEP);
 		assert_eq!(
 			connection
 				.query_row(
@@ -2126,9 +2234,10 @@ mod tests {
 			))
 			.expect("the install this build upgrades from");
 
-		apply(&mut connection).expect("the file comes up to this build");
+		apply_each(&mut connection, shipped_before(BOTS_WITHOUT_ANIMAL_STEP))
+			.expect("the file comes up to the last build that stored an animal");
 
-		assert_eq!(version(&connection).expect("version"), latest_version());
+		assert_eq!(version(&connection).expect("version"), MISSION_DISMISSED_STEP);
 		assert_eq!(
 			transcript_of(&connection, "c1"),
 			vec!["hello".to_owned(), "hi there".to_owned()],
@@ -2584,7 +2693,8 @@ mod tests {
 			)
 			.expect("bots of the older build");
 
-		apply(&mut connection).expect("the file comes up to this build");
+		apply_each(&mut connection, shipped_before(BOTS_WITHOUT_ANIMAL_STEP))
+			.expect("the file comes up to the last build that stored an animal");
 
 		let kept = connection
 			.prepare(
@@ -2652,7 +2762,7 @@ mod tests {
 			0,
 			"a membership outlived its rebuilt bot"
 		);
-		assert_eq!(version(&connection).expect("version"), latest_version());
+		assert_eq!(version(&connection).expect("version"), MISSION_DISMISSED_STEP);
 
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");
@@ -2993,8 +3103,8 @@ mod tests {
 		apply(&mut connection).expect("the schema installs");
 		write(
 			&connection,
-			"INSERT INTO bots (id, name, model, created_at, title, avatar_animal)
-				VALUES ('b1', 'First', 'sonnet', 1, 'Reviewer', 'owl')",
+			"INSERT INTO bots (id, name, model, created_at, title, avatar_image_path)
+				VALUES ('b1', 'First', 'sonnet', 1, 'Reviewer', '/pictures/owl.png')",
 		)
 		.expect("a bot written between the two runs");
 
@@ -3002,29 +3112,15 @@ mod tests {
 
 		assert_eq!(version(&connection).expect("version"), latest_version());
 		assert_eq!(
-			identity_of(&connection, "b1"),
-			("Reviewer".to_owned(), "owl".to_owned(), None),
+			connection
+				.query_row(
+					"SELECT title, avatar_image_path FROM bots WHERE id = 'b1'",
+					[],
+					|row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
+				)
+				.expect("query"),
+			("Reviewer".to_owned(), Some("/pictures/owl.png".to_owned())),
 			"a second run rewrote a row it had nothing to do with"
-		);
-
-		drop(connection);
-		fs::remove_dir_all(&dir).expect("cleanup");
-	}
-
-	#[test]
-	fn a_face_the_avatar_engine_cannot_draw_is_refused() {
-		let dir = temp_dir();
-		let connection = migrated(&dir);
-
-		for animal in ["cat", "rabbit", "bear", "chick", "dog", "mouse", "owl", "koala"] {
-			assert!(
-				write(&connection, &a_bot_shown_as(animal, animal)).is_ok(),
-				"the engine draws {animal} and the file refused it"
-			);
-		}
-		assert!(
-			write(&connection, &a_bot_shown_as("dragon", "unknown-animal")).is_err(),
-			"an animal the engine cannot draw was stored"
 		);
 
 		drop(connection);
@@ -3275,9 +3371,10 @@ mod tests {
 			))
 			.expect("the install this build upgrades from");
 
-		apply(&mut connection).expect("the file comes up to this build");
+		apply_each(&mut connection, shipped_before(BOTS_WITHOUT_ANIMAL_STEP))
+			.expect("the file comes up to the last build that stored an animal");
 
-		assert_eq!(version(&connection).expect("version"), latest_version());
+		assert_eq!(version(&connection).expect("version"), MISSION_DISMISSED_STEP);
 		assert_eq!(blot_of(&connection, "default"), None, "the step marked a bot nobody marked");
 		assert_eq!(
 			transcript_of(&connection, "c1"),
@@ -3369,13 +3466,6 @@ mod tests {
 		connection
 			.query_row("SELECT avatar_color FROM bots WHERE id = ?1", [id], |row| row.get(0))
 			.expect("query")
-	}
-
-	fn a_bot_shown_as(animal: &str, id: &str) -> String {
-		format!(
-			"INSERT INTO bots (id, name, model, created_at, avatar_animal)
-				VALUES ('{id}', 'A bot', 'sonnet', 1, '{animal}')"
-		)
 	}
 
 	type StoredIdentity = (String, String, Option<String>);

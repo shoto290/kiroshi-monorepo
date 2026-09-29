@@ -340,9 +340,7 @@ mod tests {
 
 	use super::*;
 	use crate::db::connection::temp_dir;
-	use crate::db::repositories::conversations::{
-		AvatarAnimal, Bot, BotIdentity, ConversationDraft,
-	};
+	use crate::db::repositories::conversations::{Bot, BotIdentity, ConversationDraft};
 	use crate::db::repositories::messages::{MessagePageQuery, NewAssistantMessage, NewTurn};
 	use crate::db::{count_of, open, Database};
 
@@ -351,7 +349,6 @@ mod tests {
 			name: name.to_owned(),
 			title: String::new(),
 			model: "sonnet".to_owned(),
-			avatar_animal: AvatarAnimal::Cat,
 			avatar_blot: None,
 			avatar_image_path: None,
 			instructions: String::new(),

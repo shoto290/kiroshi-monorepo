@@ -17,15 +17,12 @@ import {
 } from "./roster-conversations"
 import type { Bot, Conversation, Participant } from "./store-contract"
 
-import { PLACEHOLDER_ANIMAL } from "@/lib/bots/bot-settings"
-
 const participant = (fields: Partial<Participant> = {}): Participant => ({
 	botId: "b-1",
 	role: "assistant",
 	joinedAt: 1,
 	leftAt: null,
 	name: "Chef",
-	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: "cyan",
 	avatarImagePath: null,
 	isDeleted: false,
@@ -277,7 +274,6 @@ const bot = (fields: Partial<Bot> = {}): Bot => ({
 	name: "Chef",
 	title: "",
 	model: "sonnet",
-	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: "cyan",
 	avatarImagePath: null,
 	instructions: "",

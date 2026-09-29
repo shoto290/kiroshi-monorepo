@@ -6,62 +6,9 @@ use super::room::drawable_avatar;
 use crate::bundles;
 use crate::db::repositories::conversations;
 
-macro_rules! avatar_palette {
-	($name:ident { $($variant:ident),+ $(,)? }) => {
-		#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
-		#[serde(rename_all = "camelCase")]
-		pub enum $name {
-			$($variant),+
-		}
-
-		impl $name {
-			pub const ALL: &'static [$name] = &[$($name::$variant),+];
-		}
-	};
-}
-
-avatar_palette!(AvatarAnimal {
-	Rabbit,
-	Cat,
-	Bear,
-	Chick,
-	Dog,
-	Mouse,
-	Owl,
-	Koala,
-});
-
-impl From<conversations::AvatarAnimal> for AvatarAnimal {
-	fn from(animal: conversations::AvatarAnimal) -> Self {
-		match animal {
-			conversations::AvatarAnimal::Cat => AvatarAnimal::Cat,
-			conversations::AvatarAnimal::Rabbit => AvatarAnimal::Rabbit,
-			conversations::AvatarAnimal::Bear => AvatarAnimal::Bear,
-			conversations::AvatarAnimal::Chick => AvatarAnimal::Chick,
-			conversations::AvatarAnimal::Dog => AvatarAnimal::Dog,
-			conversations::AvatarAnimal::Mouse => AvatarAnimal::Mouse,
-			conversations::AvatarAnimal::Owl => AvatarAnimal::Owl,
-			conversations::AvatarAnimal::Koala => AvatarAnimal::Koala,
-		}
-	}
-}
-
-impl From<AvatarAnimal> for conversations::AvatarAnimal {
-	fn from(animal: AvatarAnimal) -> Self {
-		match animal {
-			AvatarAnimal::Cat => conversations::AvatarAnimal::Cat,
-			AvatarAnimal::Rabbit => conversations::AvatarAnimal::Rabbit,
-			AvatarAnimal::Bear => conversations::AvatarAnimal::Bear,
-			AvatarAnimal::Chick => conversations::AvatarAnimal::Chick,
-			AvatarAnimal::Dog => conversations::AvatarAnimal::Dog,
-			AvatarAnimal::Mouse => conversations::AvatarAnimal::Mouse,
-			AvatarAnimal::Owl => conversations::AvatarAnimal::Owl,
-			AvatarAnimal::Koala => conversations::AvatarAnimal::Koala,
-		}
-	}
-}
-
-avatar_palette!(AvatarBlot {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum AvatarBlot {
 	Red,
 	Yellow,
 	Green,
@@ -70,7 +17,20 @@ avatar_palette!(AvatarBlot {
 	Purple,
 	Pink,
 	Orange,
-});
+}
+
+impl AvatarBlot {
+	pub const ALL: &'static [AvatarBlot] = &[
+		AvatarBlot::Red,
+		AvatarBlot::Yellow,
+		AvatarBlot::Green,
+		AvatarBlot::Cyan,
+		AvatarBlot::Blue,
+		AvatarBlot::Purple,
+		AvatarBlot::Pink,
+		AvatarBlot::Orange,
+	];
+}
 
 impl From<conversations::AvatarBlot> for AvatarBlot {
 	fn from(blot: conversations::AvatarBlot) -> Self {
@@ -111,7 +71,6 @@ pub struct Bot {
 	pub name: String,
 	pub title: String,
 	pub model: String,
-	pub avatar_animal: AvatarAnimal,
 	pub avatar_blot: Option<AvatarBlot>,
 	pub avatar_image_path: Option<String>,
 	pub instructions: String,
@@ -155,7 +114,6 @@ impl Bot {
 			name: bot.name,
 			title: bot.title,
 			model,
-			avatar_animal: bot.avatar_animal.into(),
 			avatar_blot,
 			avatar_image_path,
 			instructions,
@@ -175,7 +133,6 @@ pub struct BotIdentity {
 	pub name: String,
 	pub title: String,
 	pub model: String,
-	pub avatar_animal: AvatarAnimal,
 	pub avatar_blot: Option<AvatarBlot>,
 	pub avatar_image_path: Option<String>,
 	pub instructions: String,
@@ -196,7 +153,6 @@ impl From<BotIdentity> for conversations::BotIdentity {
 			name: identity.name,
 			title: identity.title,
 			model: identity.model,
-			avatar_animal: identity.avatar_animal.into(),
 			avatar_blot: identity.avatar_blot.map(Into::into),
 			avatar_image_path: identity.avatar_image_path,
 			instructions: identity.instructions,
@@ -387,7 +343,6 @@ mod tests {
 				name: "Claude".into(),
 				title: "Reviewer".into(),
 				model: "opus".into(),
-				avatar_animal: AvatarAnimal::Owl,
 				avatar_blot: Some(AvatarBlot::Red),
 				avatar_image_path: Some("/pictures/owl.png".into()),
 				instructions: "Answer briefly.".into(),
@@ -410,7 +365,6 @@ mod tests {
 				"name": "Claude",
 				"title": "Reviewer",
 				"model": "opus",
-				"avatarAnimal": "owl",
 				"avatarBlot": "red",
 				"avatarImagePath": "/pictures/owl.png",
 				"instructions": "Answer briefly.",
@@ -440,7 +394,6 @@ mod tests {
 				name: "Claude".into(),
 				title: String::new(),
 				model: "sonnet".into(),
-				avatar_animal: AvatarAnimal::Cat,
 				avatar_blot: None,
 				avatar_image_path: None,
 				instructions: String::new(),
@@ -452,7 +405,6 @@ mod tests {
 				"name": "Claude",
 				"title": "",
 				"model": "sonnet",
-				"avatarAnimal": "cat",
 				"avatarBlot": null,
 				"avatarImagePath": null,
 				"instructions": "",
@@ -469,19 +421,7 @@ mod tests {
 	}
 
 	#[test]
-	fn every_face_crosses_as_one_word_and_nothing_else_parses() {
-		for (animal, wire) in [
-			(AvatarAnimal::Cat, "cat"),
-			(AvatarAnimal::Rabbit, "rabbit"),
-			(AvatarAnimal::Bear, "bear"),
-			(AvatarAnimal::Chick, "chick"),
-			(AvatarAnimal::Dog, "dog"),
-			(AvatarAnimal::Mouse, "mouse"),
-			(AvatarAnimal::Owl, "owl"),
-			(AvatarAnimal::Koala, "koala"),
-		] {
-			assert_crosses_as(animal, json!(wire));
-		}
+	fn every_blot_crosses_as_one_word_and_nothing_else_parses() {
 		for (blot, wire) in [
 			(AvatarBlot::Red, "red"),
 			(AvatarBlot::Yellow, "yellow"),
@@ -496,10 +436,6 @@ mod tests {
 		}
 		assert_crosses_as(None::<AvatarBlot>, json!(null));
 		assert!(
-			serde_json::from_value::<AvatarAnimal>(json!("dragon")).is_err(),
-			"an animal the avatar engine cannot draw parsed at the boundary"
-		);
-		assert!(
 			serde_json::from_value::<AvatarBlot>(json!("chartreuse")).is_err(),
 			"a colour outside the palette parsed at the boundary"
 		);
@@ -512,7 +448,6 @@ mod tests {
 			"title": "",
 			"description": "Reads a diff.",
 			"model": "sonnet",
-			"avatarAnimal": "cat",
 			"avatarPose": "idle",
 			"avatarImagePath": null,
 			"instructions": "",
@@ -534,7 +469,6 @@ mod tests {
 			name: "Nyx".into(),
 			title: String::new(),
 			model: model.to_owned(),
-			avatar_animal: conversations::AvatarAnimal::Owl,
 			avatar_blot: None,
 			avatar_image_path: None,
 			instructions: String::new(),

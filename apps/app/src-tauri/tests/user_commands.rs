@@ -268,7 +268,6 @@ fn a_bot_write_leaves_the_record_its_own_picture() {
 			"name": "Ada",
 			"title": "",
 			"model": "sonnet",
-			"avatarAnimal": "owl",
 			"avatarBlot": null,
 			"avatarImagePath": null,
 			"instructions": "",

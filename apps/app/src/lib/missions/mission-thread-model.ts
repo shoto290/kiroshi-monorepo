@@ -2,7 +2,6 @@ import type { MissionBot } from "@workspace/ui/components/mission"
 
 import type { Mission } from "./mission-contract"
 
-import { PLACEHOLDER_ANIMAL } from "@/lib/bots/bot-settings"
 import type { ThreadFace } from "@/lib/chat/thread-contract"
 import type { Bot, Conversation } from "@/lib/conversations/store-contract"
 
@@ -35,7 +34,6 @@ export const toMissionConversation = ({
 			joinedAt: mission.openedAt,
 			leftAt: null,
 			name: bot.name,
-			avatarAnimal: PLACEHOLDER_ANIMAL,
 			avatarBlot: bot.avatarBlot,
 			avatarImagePath: bot.avatarImagePath,
 			isDeleted: false,

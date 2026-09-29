@@ -22,7 +22,6 @@ import {
 	useSidebarMissions,
 } from "./use-sidebar-missions"
 
-import { PLACEHOLDER_ANIMAL } from "@/lib/bots/bot-settings"
 import type { Bot, Conversation } from "@/lib/conversations/store-contract"
 import { createFakeThreadRuntimes } from "@/lib/missions/fake-thread-runtimes"
 import type {
@@ -60,7 +59,6 @@ const BOT: Bot = {
 	name: "Atlas",
 	title: "",
 	model: "sonnet",
-	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: "blue",
 	avatarImagePath: null,
 	instructions: "",

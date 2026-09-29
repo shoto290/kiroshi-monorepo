@@ -11,7 +11,6 @@ import {
 	startNotificationSource,
 } from "./notification-source"
 
-import { PLACEHOLDER_ANIMAL } from "@/lib/bots/bot-settings"
 import type { PermissionRequest, QuestionRequest } from "../agent/contract"
 import { type ChatState, initialChatState } from "../chat/chat-state"
 import { createSpokenWords } from "../conversations/spoken-words"
@@ -97,7 +96,6 @@ const seatOf = (botId: string, name: string): Participant => ({
 	joinedAt: 0,
 	leftAt: null,
 	name,
-	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: null,
 	avatarImagePath: null,
 	isDeleted: false,

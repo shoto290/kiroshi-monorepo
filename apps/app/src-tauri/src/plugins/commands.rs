@@ -345,7 +345,7 @@ mod tests {
 	use std::fs;
 
 	use super::*;
-	use crate::db::repositories::conversations::{AvatarAnimal, BotIdentity};
+	use crate::db::repositories::conversations::BotIdentity;
 	use crate::db::DatabaseError;
 	use crate::environment::contract::EnvScope;
 	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
@@ -391,7 +391,6 @@ mod tests {
 			name: "Bean".to_owned(),
 			title: String::new(),
 			model: "sonnet".to_owned(),
-			avatar_animal: AvatarAnimal::Owl,
 			avatar_blot: None,
 			avatar_image_path: None,
 			instructions: "Answer briefly.".to_owned(),

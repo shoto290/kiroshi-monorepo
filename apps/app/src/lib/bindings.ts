@@ -329,8 +329,6 @@ export type AuthPosture = "authRequired" | "noAuth";
 
 export type AuthorizationWithheld = "servedOverNoUrl" | "loopbackAddress" | "ownAuthorizationHeader" | "unexpandedPlaceholder";
 
-export type AvatarAnimal = "rabbit" | "cat" | "bear" | "chick" | "dog" | "mouse" | "owl" | "koala";
-
 export type AvatarBlot = "red" | "yellow" | "green" | "cyan" | "blue" | "purple" | "pink" | "orange";
 
 export type AvatarRejection = { kind: "unknownFormat" } | { kind: "tooLarge"; bytes: number; limit: number } | { kind: "undecodable"; detail: string } | { kind: "unwritable"; detail: string };
@@ -342,7 +340,6 @@ export type Bot = {
 	name: string,
 	title: string,
 	model: string,
-	avatarAnimal: AvatarAnimal,
 	avatarBlot: AvatarBlot | null,
 	avatarImagePath: string | null,
 	instructions: string,
@@ -380,7 +377,6 @@ export type BotIdentity = {
 	name: string,
 	title: string,
 	model: string,
-	avatarAnimal: AvatarAnimal,
 	avatarBlot: AvatarBlot | null,
 	avatarImagePath: string | null,
 	instructions: string,
@@ -825,7 +821,6 @@ export type Participant = {
 	joinedAt: number,
 	leftAt: number | null,
 	name: string,
-	avatarAnimal: AvatarAnimal,
 	avatarBlot: AvatarBlot | null,
 	avatarImagePath: string | null,
 	isDeleted: boolean,

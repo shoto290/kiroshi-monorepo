@@ -2,7 +2,7 @@ use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
 use uuid::Uuid;
 
 use super::super::{bot_spaces, sections};
-use super::avatar::{AvatarAnimal, AvatarBlot, DEFAULT_BOT_ANIMAL};
+use super::avatar::AvatarBlot;
 use super::{
 	ensure_chat_in, now, refuse_if_untouched, space_of, unserializable, write_transaction,
 	ConversationError, CHAT_KIND, DEFAULT_BOT_ID, DEFAULT_BOT_MODEL, DEFAULT_BOT_NAME,
@@ -17,7 +17,6 @@ pub struct Bot {
 	pub name: String,
 	pub title: String,
 	pub model: String,
-	pub avatar_animal: AvatarAnimal,
 	pub avatar_blot: Option<AvatarBlot>,
 	pub avatar_image_path: Option<String>,
 	pub instructions: String,
@@ -32,7 +31,6 @@ pub struct BotIdentity {
 	pub name: String,
 	pub title: String,
 	pub model: String,
-	pub avatar_animal: AvatarAnimal,
 	pub avatar_blot: Option<AvatarBlot>,
 	pub avatar_image_path: Option<String>,
 	pub instructions: String,
@@ -45,7 +43,6 @@ impl From<Bot> for BotIdentity {
 			name: bot.name,
 			title: bot.title,
 			model: bot.model,
-			avatar_animal: bot.avatar_animal,
 			avatar_blot: bot.avatar_blot,
 			avatar_image_path: bot.avatar_image_path,
 			instructions: bot.instructions,
@@ -56,7 +53,7 @@ impl From<Bot> for BotIdentity {
 
 pub(super) const BOT_COLUMNS: &str = "SELECT bots.id, membership.section_id,
 		membership.pin_position, bots.name, bots.title, bots.model,
-		bots.avatar_animal, bots.avatar_color,
+		bots.avatar_color,
 		bots.avatar_image_path, bots.instructions, bots.memory,
 		bots.denied_tools, bots.permissions, bots.created_at
 	FROM bots JOIN bot_spaces AS membership ON membership.bot_id = bots.id";
@@ -160,15 +157,14 @@ pub(super) fn created_bot(
 	let transaction = write_transaction(connection)?;
 	let id = Uuid::new_v4().to_string();
 	transaction.execute(
-		"INSERT INTO bots (id, name, title, model, avatar_animal,
+		"INSERT INTO bots (id, name, title, model,
 				avatar_color, avatar_image_path, instructions, denied_tools, created_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
 		params![
 			id,
 			identity.name,
 			identity.title,
 			identity.model,
-			identity.avatar_animal,
 			identity.avatar_blot,
 			identity.avatar_image_path,
 			identity.instructions,
@@ -192,15 +188,14 @@ pub(super) fn updated_bot(
 	let transaction = write_transaction(connection)?;
 	let written = transaction.execute(
 		"UPDATE bots SET name = ?2, title = ?3, model = ?4,
-				avatar_animal = ?5, avatar_color = ?6, avatar_image_path = ?7,
-				instructions = ?8, denied_tools = ?9
+				avatar_color = ?5, avatar_image_path = ?6,
+				instructions = ?7, denied_tools = ?8
 			WHERE id = ?1",
 		params![
 			id,
 			identity.name,
 			identity.title,
 			identity.model,
-			identity.avatar_animal,
 			identity.avatar_blot,
 			identity.avatar_image_path,
 			identity.instructions,
@@ -326,9 +321,9 @@ fn only_space_of(connection: &Connection, bot_id: &str) -> Result<String, Conver
 
 pub(super) fn seed_default_bot(transaction: &Transaction<'_>) -> Result<Bot, ConversationError> {
 	transaction.execute(
-		"INSERT OR IGNORE INTO bots (id, name, model, avatar_animal, created_at)
-			VALUES (?1, ?2, ?3, ?4, ?5)",
-		params![DEFAULT_BOT_ID, DEFAULT_BOT_NAME, DEFAULT_BOT_MODEL, DEFAULT_BOT_ANIMAL, now()],
+		"INSERT OR IGNORE INTO bots (id, name, model, created_at)
+			VALUES (?1, ?2, ?3, ?4)",
+		params![DEFAULT_BOT_ID, DEFAULT_BOT_NAME, DEFAULT_BOT_MODEL, now()],
 	)?;
 	bot_spaces::join(transaction, DEFAULT_BOT_ID, &space_of(transaction, None)?, None, None)?;
 	stored_bot(transaction, DEFAULT_BOT_ID)
@@ -342,7 +337,6 @@ pub(super) fn bot(row: &Row<'_>) -> rusqlite::Result<Bot> {
 		name: row.get("name")?,
 		title: row.get("title")?,
 		model: row.get("model")?,
-		avatar_animal: row.get("avatar_animal")?,
 		avatar_blot: row.get("avatar_color")?,
 		avatar_image_path: row.get("avatar_image_path")?,
 		instructions: row.get("instructions")?,
@@ -464,7 +458,6 @@ mod tests {
 			title: "Reviewer".to_owned(),
 			model: "haiku".to_owned(),
 			denied_tools: vec!["Bash".to_owned(), "Write".to_owned()],
-			avatar_animal: AvatarAnimal::Owl,
 			avatar_blot: Some(AvatarBlot::Red),
 			avatar_image_path: Some("/pictures/owl.png".to_owned()),
 			instructions: "Answer briefly.".to_owned(),
@@ -481,7 +474,6 @@ mod tests {
 		assert_eq!(listed[0].name, described.name);
 		assert_eq!(listed[0].title, described.title);
 		assert_eq!(listed[0].model, "haiku");
-		assert_eq!(listed[0].avatar_animal, AvatarAnimal::Owl);
 		assert_eq!(listed[0].avatar_blot, Some(AvatarBlot::Red));
 		assert_eq!(listed[0].avatar_image_path.as_deref(), Some("/pictures/owl.png"));
 		assert_eq!(listed[0].instructions, described.instructions);
@@ -600,7 +592,6 @@ mod tests {
 					title: "Reviewer".to_owned(),
 					model: "opus".to_owned(),
 					denied_tools: vec!["Bash".to_owned()],
-					avatar_animal: AvatarAnimal::Koala,
 					avatar_blot: Some(AvatarBlot::Orange),
 					avatar_image_path: Some("/pictures/koala.png".to_owned()),
 					instructions: "answer at length".to_owned(),
@@ -611,7 +602,6 @@ mod tests {
 
 		assert_eq!(updated.name, "Ada");
 		assert_eq!(updated.title, "Reviewer");
-		assert_eq!(updated.avatar_animal, AvatarAnimal::Koala);
 		assert_eq!(updated.avatar_blot, Some(AvatarBlot::Orange));
 		assert_eq!(updated.model, "opus", "an update left the bot on its old model");
 		assert_eq!(

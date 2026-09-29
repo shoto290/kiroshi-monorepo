@@ -10,7 +10,7 @@ use kiroshi_app::agent::redact;
 use kiroshi_app::agent::session::{Bundle, EventSink, Session, SessionOptions};
 use kiroshi_app::agent::sidecar::{self, Sidecar, SidecarOptions};
 use kiroshi_app::bundles;
-use kiroshi_app::db::repositories::conversations::{AvatarAnimal, Bot};
+use kiroshi_app::db::repositories::conversations::Bot;
 use kiroshi_app::environment::connection;
 use kiroshi_app::environment::contract::{ConnectionKind, EnvOwner, ResolvedEnv, API_KEY};
 use kiroshi_app::environment::store;
@@ -77,7 +77,6 @@ fn probe_bot(id: &str, instructions: &str, model: &str) -> Bot {
 		name: PROBE_NAME.to_owned(),
 		title: String::new(),
 		model: model.to_owned(),
-		avatar_animal: AvatarAnimal::Owl,
 		avatar_blot: None,
 		avatar_image_path: None,
 		instructions: instructions.to_owned(),

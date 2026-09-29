@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest"
 
 import type { PermissionRequest } from "@/lib/agent/contract"
-import { PLACEHOLDER_ANIMAL } from "@/lib/bots/bot-settings"
 import type { ChatController } from "@/lib/chat/chat-controller"
 import { type ChatState, initialChatState } from "@/lib/chat/chat-state"
 import {
@@ -45,7 +44,6 @@ const participant = (fields: Partial<Participant> = {}): Participant => ({
 	joinedAt: 1,
 	leftAt: null,
 	name: "Nyx",
-	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: "green",
 	avatarImagePath: null,
 	isDeleted: false,

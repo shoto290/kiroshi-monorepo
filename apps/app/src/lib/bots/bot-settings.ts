@@ -11,10 +11,7 @@ import {
 import { rosterTimestamp } from "./roster-timestamp"
 
 import { avatarSrc } from "../host"
-import type {
-	AvatarAnimal,
-	BotPermissions as HostBotPermissions,
-} from "@/lib/bindings"
+import type { BotPermissions as HostBotPermissions } from "@/lib/bindings"
 import type { SidebarActivity } from "../chat/screen-model"
 import type {
 	AvatarBlot,
@@ -47,8 +44,6 @@ export const modelOptionsFor = (
 	const values = isOffered ? offered : [...offered, model]
 	return values.map((value) => ({ label: value, value }))
 }
-
-export const PLACEHOLDER_ANIMAL: AvatarAnimal = "cat"
 
 export const BOT_NAMES = [
 	"Bean",
@@ -108,7 +103,6 @@ export const newBotIdentity = (bots: Bot[]): BotIdentity => ({
 	name: nextName(bots),
 	title: "",
 	model: NEW_BOT_MODEL,
-	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: nextBlot(bots),
 	avatarImagePath: null,
 	instructions: "",
@@ -139,7 +133,6 @@ export const toIdentity = (
 	name: value.name,
 	title: value.title,
 	model: value.model,
-	avatarAnimal: PLACEHOLDER_ANIMAL,
 	avatarBlot: value.identity.blot ?? null,
 	avatarImagePath: value.identity.image ? bot.avatarImagePath : null,
 	instructions: value.instructions,

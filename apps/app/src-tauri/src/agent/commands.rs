@@ -1086,7 +1086,6 @@ mod tests {
 			name: "Bean".to_owned(),
 			title: String::new(),
 			model: "sonnet".to_owned(),
-			avatar_animal: crate::db::repositories::conversations::AvatarAnimal::Owl,
 			avatar_blot: None,
 			avatar_image_path: None,
 			instructions: "Answer briefly.".to_owned(),

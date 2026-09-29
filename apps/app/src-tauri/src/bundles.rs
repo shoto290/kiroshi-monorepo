@@ -912,7 +912,7 @@ fn color_value(blot: Option<AvatarBlot>) -> String {
 mod tests {
 	use super::front::parts;
 	use super::*;
-	use crate::db::repositories::conversations::{AvatarAnimal, Bot};
+	use crate::db::repositories::conversations::Bot;
 
 	pub(super) fn a_bot(name: &str, instructions: &str) -> Bot {
 		Bot {
@@ -922,7 +922,6 @@ mod tests {
 			name: name.to_owned(),
 			title: String::new(),
 			model: "sonnet".to_owned(),
-			avatar_animal: AvatarAnimal::Owl,
 			avatar_blot: None,
 			avatar_image_path: None,
 			instructions: instructions.to_owned(),

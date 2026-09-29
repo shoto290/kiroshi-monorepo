@@ -168,7 +168,6 @@ fn a_bot_in(window: &WebviewWindow<MockRuntime>, space_id: &str) -> String {
 		"name": "Stranger",
 		"title": "",
 		"model": "sonnet",
-		"avatarAnimal": "cat",
 		"avatarBlot": null,
 		"avatarImagePath": null,
 		"instructions": "",
