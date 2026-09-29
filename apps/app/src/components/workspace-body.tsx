@@ -37,6 +37,7 @@ type WorkspaceBodyProps = {
 	isOverlayOpen: boolean
 	onToggleSettings: () => void
 	isConversationSettingsOpen: boolean
+	isMissionsPanelOpen: boolean
 	onOpenConversationSettings: (conversationId: string) => void
 	missions: OpenedMissionController
 	onboarding?: Onboarding
@@ -121,7 +122,7 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 		)
 	}
 
-	const thread = threadOf(props)
+	const thread = props.isMissionsPanelOpen ? null : threadOf(props)
 
 	if (!thread) {
 		return (

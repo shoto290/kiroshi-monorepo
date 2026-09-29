@@ -413,7 +413,7 @@ export const startNotificationSource = ({
 
 		roster.select(mission.botId)
 		spaces.select(spaceId)
-		missions.open({ missionId, rowId: mission.botId })
+		missions.open({ missionId, rowId: mission.botId, spaceId })
 	}
 
 	const windowRaised = (): Promise<void> => {

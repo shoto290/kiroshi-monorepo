@@ -10,6 +10,7 @@ import {
 	spacePlugin as spacePluginScope,
 	USER_PLUGIN,
 } from "../conversations/plugin-scope"
+import type { OpenedMissionController } from "../missions/opened-mission-controller"
 import type { PluginController } from "../plugins/plugin-controller"
 import type { CollapsedSectionsController } from "../sections/collapsed-sections-controller"
 import { newSectionFor } from "../sections/section-space"
@@ -50,6 +51,7 @@ export type SidebarActionsSource = {
 	attachments: AttachmentsController
 	collapsedSections: CollapsedSectionsController
 	drafts: DraftsController
+	openedMission: Pick<OpenedMissionController, "leave">
 	roster: RosterController
 	runtimes: ConversationRuntimes
 	sections: SectionsController
@@ -63,6 +65,7 @@ export const useSidebarActions = ({
 	attachments,
 	collapsedSections,
 	drafts,
+	openedMission,
 	roster,
 	runtimes,
 	sections,
@@ -144,14 +147,21 @@ export const useSidebarActions = ({
 			onReorderSpaces: (ids) => {
 				void spaces.reorder(ids)
 			},
-			onSelectBot: roster.select,
-			onSelectConversation: roster.selectConversation,
+			onSelectBot: (id) => {
+				openedMission.leave()
+				roster.select(id)
+			},
+			onSelectConversation: (id) => {
+				openedMission.leave()
+				roster.selectConversation(id)
+			},
 			onSelectSpace: spaces.select,
 		}),
 		[
 			attachments,
 			collapsedSections,
 			drafts,
+			openedMission,
 			roster,
 			runtimes,
 			sections,

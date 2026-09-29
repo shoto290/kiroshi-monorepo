@@ -8,6 +8,7 @@ import {
 export type OpenedMission = {
 	missionId: string
 	rowId: string
+	spaceId?: string
 	landing?: MissionLanding
 }
 

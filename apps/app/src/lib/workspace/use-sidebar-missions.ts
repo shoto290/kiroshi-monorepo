@@ -10,7 +10,11 @@ import type { RosterController } from "../bots/roster-controller"
 import { faceOfBot } from "../chat/thread-contract"
 import type { Bot, Conversation } from "../conversations/store-contract"
 import type { MissionLanding } from "../missions/mission-actions"
-import { missionRowIdOf, toMissionsPanel } from "../missions/missions-model"
+import {
+	missionRowIdOf,
+	type SpaceMissionGroups,
+	toMissionsPanel,
+} from "../missions/missions-model"
 import type { OpenedMissionController } from "../missions/opened-mission-controller"
 import {
 	type MissionSpeakingRuntimes,
@@ -18,12 +22,13 @@ import {
 } from "../missions/use-live-missions"
 import { useSpaceMissionsFailure } from "../missions/use-mission-failure-notices"
 import { useSpaceMissions } from "../missions/use-space-missions"
+import type { ShownMemory } from "../sidebar/shown-memory"
 
 type SidebarMissionsCore = {
 	conversationRuntimes: MissionSpeakingRuntimes & StoppableRuntimes
 	openedMission: Pick<
 		OpenedMissionController,
-		"open" | "getState" | "subscribe"
+		"open" | "leave" | "getState" | "subscribe"
 	>
 	roster: {
 		state: {
@@ -32,6 +37,7 @@ type SidebarMissionsCore = {
 		}
 		controller: Pick<RosterController, "select" | "selectConversation">
 	}
+	shownMemory: Pick<ShownMemory, "lastMissionIn">
 	spaces: { state: { selectedSpaceId: string | null } }
 }
 
@@ -41,7 +47,9 @@ type SidebarMissionsInput = {
 }
 
 export type SidebarMissions = {
+	loadedSpaceId: string | null
 	panel: MissionsPanelProps
+	showLastMission: () => void
 	waitingCount: number
 }
 
@@ -62,20 +70,24 @@ const listedConversationIdsOf = (
 		),
 	)
 
+const entriesOf = ({
+	waitingOnYou,
+	inProgress,
+	earlierToday,
+}: SpaceMissionGroups) => [...waitingOnYou, ...inProgress, ...earlierToday]
+
 export const useSidebarMissions = ({
 	core,
 	rosterLines,
 }: SidebarMissionsInput): SidebarMissions => {
-	const { conversationRuntimes, openedMission, roster, spaces } = core
+	const { conversationRuntimes, openedMission, roster, shownMemory, spaces } =
+		core
 	const { now } = rosterLines
 	const spaceId = spaces.state.selectedSpaceId
 	const feed = useSpaceMissions(spaceId)
 	useSpaceMissionsFailure(feed.hasFailed, feed.reload)
 
-	const entries = useMemo(
-		() => [...feed.waitingOnYou, ...feed.inProgress, ...feed.earlierToday],
-		[feed],
-	)
+	const entries = useMemo(() => entriesOf(feed), [feed])
 	const missions = useMemo(
 		() => entries.map(({ mission }) => mission),
 		[entries],
@@ -107,14 +119,19 @@ export const useSidebarMissions = ({
 				mission.botId,
 				listedConversationIds,
 			)
+			openedMission.open({
+				missionId,
+				rowId,
+				spaceId: spaceId ?? undefined,
+				landing,
+			})
 			if (rowId === conversationId) {
 				roster.controller.selectConversation(rowId)
 			} else {
 				roster.controller.select(rowId)
 			}
-			openedMission.open({ missionId, rowId, landing })
 		},
-		[entries, listedConversationIds, roster.controller, openedMission],
+		[entries, listedConversationIds, roster.controller, openedMission, spaceId],
 	)
 
 	const wrap = useMissionCardMenus({
@@ -123,6 +140,18 @@ export const useSidebarMissions = ({
 		onOpenMission: openMission,
 		onChanged: feed.reload,
 	})
+
+	const showLastMission = useCallback(() => {
+		const lastMissionId =
+			spaceId === null ? null : shownMemory.lastMissionIn(spaceId)
+		const shown =
+			entries.find(({ mission }) => mission.id === lastMissionId) ?? entries[0]
+		if (!shown) {
+			openedMission.leave()
+			return
+		}
+		openMission(shown.mission.id)
+	}, [spaceId, shownMemory, entries, openedMission, openMission])
 
 	const panel = useMemo(
 		() => ({
@@ -139,5 +168,10 @@ export const useSidebarMissions = ({
 		[feed, faces, liveMissionIds, now, openMission, opened, wrap],
 	)
 
-	return { panel, waitingCount: feed.waitingCount }
+	return {
+		loadedSpaceId: feed.hasLoaded ? spaceId : null,
+		panel,
+		showLastMission,
+		waitingCount: feed.waitingCount,
+	}
 }

@@ -23,7 +23,8 @@ mod macos {
 	use tauri::{WebviewWindow, WindowEvent};
 
 	const LEADING_INSET: f64 = 12.0;
-	const HEADER_BOX_HEIGHT: f64 = 47.0;
+	// Mirrors TITLE_BAR (h-8.5) in packages/ui/src/components/app-sidebar.tsx.
+	const TITLE_BAR_HEIGHT: f64 = 34.0;
 	const CONTROL_DIAMETER: f64 = 14.0;
 
 	pub fn center_in_header(window: &WebviewWindow) {
@@ -69,7 +70,7 @@ mod macos {
 	}
 
 	fn frame_top(measured_height: f64) -> f64 {
-		(HEADER_BOX_HEIGHT - CONTROL_DIAMETER) / 2.0 - visible_inset(measured_height)
+		(TITLE_BAR_HEIGHT - CONTROL_DIAMETER) / 2.0 - visible_inset(measured_height)
 	}
 
 	fn fit_titlebar(ns_window: &NSWindow, titlebar: &NSView, height: f64) -> f64 {
@@ -95,5 +96,24 @@ mod macos {
 
 	fn titlebar_of(control: &NSButton) -> Option<Retained<NSView>> {
 		unsafe { control.superview()?.superview() }
+	}
+
+	#[cfg(test)]
+	mod tests {
+		use super::frame_top;
+
+		fn centre(measured_height: f64) -> f64 {
+			frame_top(measured_height) + measured_height / 2.0
+		}
+
+		#[test]
+		fn centres_a_button_measured_at_the_visible_diameter_on_the_title_bar() {
+			assert_eq!(centre(14.0), 17.0);
+		}
+
+		#[test]
+		fn centres_a_button_measured_with_padding_on_the_title_bar() {
+			assert_eq!(centre(16.0), 17.0);
+		}
 	}
 }
