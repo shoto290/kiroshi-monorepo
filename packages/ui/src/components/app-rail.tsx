@@ -26,8 +26,6 @@ const RAIL =
 
 const NAVIGATION_ROW_GAP = "gap-0.5"
 
-const RAIL_PANELS = `flex flex-col ${NAVIGATION_ROW_GAP}`
-
 const RAIL_GROUP = `flex flex-col ${NAVIGATION_ROW_GAP}`
 
 const RAIL_SLOT = "flex empty:hidden"
@@ -174,7 +172,7 @@ const AppRail = ({
 			className={cn(RAIL, className)}
 			data-slot="app-rail"
 		>
-			<ul className={RAIL_PANELS}>
+			<ul className={RAIL_GROUP}>
 				<RailItem
 					{...panelEntry("conversations")}
 					onPress={onSelectConversations}
