@@ -48,7 +48,7 @@ type SidebarMissionsInput = {
 
 export type SidebarMissions = {
 	loadedSpaceId: string | null
-	panel: MissionsPanelProps
+	panelsBySpaceId: Record<string, MissionsPanelProps>
 	showLastMission: () => void
 	waitingCount: number
 }
@@ -153,8 +153,9 @@ export const useSidebarMissions = ({
 		openMission(shown.mission.id)
 	}, [spaceId, shownMemory, entries, openedMission, openMission])
 
-	const panel = useMemo(
-		() => ({
+	const panelsBySpaceId = useMemo(() => {
+		if (spaceId === null) return {}
+		const panel = {
 			...toMissionsPanel({
 				groups: feed,
 				faceOf: (botId) => faces.get(botId),
@@ -164,13 +165,13 @@ export const useSidebarMissions = ({
 			onOpen: (missionId: string) => openMission(missionId),
 			openMissionId: opened?.missionId ?? null,
 			wrap,
-		}),
-		[feed, faces, liveMissionIds, now, openMission, opened, wrap],
-	)
+		}
+		return { [spaceId]: panel }
+	}, [spaceId, feed, faces, liveMissionIds, now, openMission, opened, wrap])
 
 	return {
 		loadedSpaceId: feed.hasLoaded ? spaceId : null,
-		panel,
+		panelsBySpaceId,
 		showLastMission,
 		waitingCount: feed.waitingCount,
 	}

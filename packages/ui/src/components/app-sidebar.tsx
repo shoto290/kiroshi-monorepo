@@ -1639,14 +1639,14 @@ const isFlushWithPanel = (row: HTMLDivElement) => {
 }
 
 interface SpacePanelProps {
-	spaceId: string
+	scrollKey: string
 	isInView: boolean
 	scrolls: Map<string, number>
 	children: ReactNode
 }
 
 const SpacePanel = ({
-	spaceId,
+	scrollKey,
 	isInView,
 	scrolls,
 	children,
@@ -1660,11 +1660,11 @@ const SpacePanel = ({
 			data-slot="space-panel"
 			inert={!isInView}
 			onScroll={(event) => {
-				scrolls.set(spaceId, event.currentTarget.scrollTop)
+				scrolls.set(scrollKey, event.currentTarget.scrollTop)
 			}}
 			ref={(node) => {
 				panel.current = node
-				if (node) node.scrollTop = scrolls.get(spaceId) ?? 0
+				if (node) node.scrollTop = scrolls.get(scrollKey) ?? 0
 			}}
 		>
 			{children}
@@ -1673,6 +1673,7 @@ const SpacePanel = ({
 }
 
 interface SpaceCarouselProps {
+	list: AppRailPanel
 	spaces: Space[]
 	selectedSpaceId?: string
 	isSwipeEnabled: boolean
@@ -1681,6 +1682,7 @@ interface SpaceCarouselProps {
 }
 
 const SpaceCarousel = ({
+	list,
 	spaces,
 	selectedSpaceId,
 	isSwipeEnabled,
@@ -1754,16 +1756,19 @@ const SpaceCarousel = ({
 			onScroll={follow}
 			ref={viewport}
 		>
-			{nearby.map((space) => (
-				<SpacePanel
-					isInView={space.id === selectedSpaceId}
-					key={space.id}
-					scrolls={scrolls}
-					spaceId={space.id}
-				>
-					{renderSpace(space)}
-				</SpacePanel>
-			))}
+			{nearby.map((space) => {
+				const scrollKey = `${list}:${space.id}`
+				return (
+					<SpacePanel
+						isInView={space.id === selectedSpaceId}
+						key={scrollKey}
+						scrollKey={scrollKey}
+						scrolls={scrolls}
+					>
+						{renderSpace(space)}
+					</SpacePanel>
+				)
+			})}
 		</div>
 	)
 }
@@ -1832,7 +1837,7 @@ interface AppSidebarProps
 	user?: UserChipIdentity
 	onOpenUserSettings?: () => void
 	onOpenSearch?: () => void
-	missions?: MissionsPanelProps
+	missionsBySpaceId?: Record<string, MissionsPanelProps>
 	onSearchMissions?: () => void
 	insetWindowControls?: boolean
 	railCounts?: AppRailCounts
@@ -1881,7 +1886,7 @@ const AppSidebarBase = ({
 	user,
 	onOpenUserSettings,
 	onOpenSearch,
-	missions,
+	missionsBySpaceId,
 	onSearchMissions,
 	insetWindowControls = false,
 	railCounts,
@@ -1962,35 +1967,45 @@ const AppSidebarBase = ({
 		onRank: selectRank,
 	})
 
-	const rosterContent = (
-		<SidebarContent
-			className={hasRosterPerSpace ? CAROUSEL_CONTENT : CONTENT_INSET}
-		>
-			{hasRosterPerSpace ? (
-				<SpaceCarousel
-					isSwipeEnabled={isSpaceSwitchingEnabled && spaces.length > 1}
-					onSelectSpace={onSelectSpace}
-					renderSpace={(space) => (
-						<BotRoster
-							{...actions}
-							bots={rosterOf(space.id)}
-							collapsedSectionIds={collapsedSectionIds}
-							haveBotsFailedToLoad={haveBotsFailedToLoad}
-							conversations={roomsOf(space.id)}
-							membershipsOf={membershipsOf}
-							naming={space.id === selectedSpaceId ? naming : null}
-							onNaming={setNaming}
-							sections={sectionsOf(space.id)}
-							selectedBotId={selectedId}
-							selectedConversationId={selectedConversationId}
-							spaceId={space.id}
-							spaces={spaces}
-						/>
-					)}
-					selectedSpaceId={selectedSpaceId}
-					spaces={spaces}
-				/>
-			) : (
+	const rosterOfSpace = (space: Space) => (
+		<BotRoster
+			{...actions}
+			bots={rosterOf(space.id)}
+			collapsedSectionIds={collapsedSectionIds}
+			haveBotsFailedToLoad={haveBotsFailedToLoad}
+			conversations={roomsOf(space.id)}
+			membershipsOf={membershipsOf}
+			naming={space.id === selectedSpaceId ? naming : null}
+			onNaming={setNaming}
+			sections={sectionsOf(space.id)}
+			selectedBotId={selectedId}
+			selectedConversationId={selectedConversationId}
+			spaceId={space.id}
+			spaces={spaces}
+		/>
+	)
+
+	const missionsOfSpace = (space: Space) => {
+		const missions = missionsBySpaceId?.[space.id]
+		return missions ? <MissionsPanel {...missions} /> : null
+	}
+
+	const isListPerSpace = isRosterOpen ? hasRosterPerSpace : spaces.length > 0
+
+	const listContent = isListPerSpace ? (
+		<SidebarContent className={CAROUSEL_CONTENT}>
+			<SpaceCarousel
+				isSwipeEnabled={isSpaceSwitchingEnabled && spaces.length > 1}
+				list={openPanel}
+				onSelectSpace={onSelectSpace}
+				renderSpace={isRosterOpen ? rosterOfSpace : missionsOfSpace}
+				selectedSpaceId={selectedSpaceId}
+				spaces={spaces}
+			/>
+		</SidebarContent>
+	) : (
+		<SidebarContent className={CONTENT_INSET}>
+			{isRosterOpen ? (
 				<BotRoster
 					{...actions}
 					bots={roster}
@@ -2006,6 +2021,8 @@ const AppSidebarBase = ({
 					spaceId={selectedSpaceId}
 					spaces={spaces}
 				/>
+			) : (
+				<MissionsPanelEmpty />
 			)}
 		</SidebarContent>
 	)
@@ -2054,12 +2071,6 @@ const AppSidebarBase = ({
 			</TooltipButton>
 		</div>
 	) : null
-
-	const missionsContent = (
-		<SidebarContent className={CONTENT_INSET}>
-			{missions ? <MissionsPanel {...missions} /> : <MissionsPanelEmpty />}
-		</SidebarContent>
-	)
 
 	const panelName = t(`rail.${openPanel}`)
 
@@ -2111,9 +2122,7 @@ const AppSidebarBase = ({
 						{isMissionsOpen ? missionsActions : null}
 					</div>
 				</SidebarHeader>
-				{isRosterOpen ? rosterContent : null}
-				{isMissionsOpen ? missionsContent : null}
-				{isRosterOpen || isMissionsOpen || <SidebarContent />}
+				{listContent}
 				{footer || spaces.length > 1 ? (
 					<SidebarFooter className={FOOTER_INSET}>
 						<SpaceDots
