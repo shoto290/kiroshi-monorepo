@@ -286,7 +286,6 @@ export const AppScene = () => {
 			<WindowControls />
 			<RosterProvider bots={space.bots}>
 				<WorkspaceShell
-					defaultOpen
 					isLandmark={false}
 					sidebar={
 						<AppSidebar

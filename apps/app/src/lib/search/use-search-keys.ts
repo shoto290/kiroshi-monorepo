@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 
-import { spaceRankOf } from "@workspace/ui/hooks/use-space-shortcut"
+import { isTypingTarget } from "@workspace/ui/lib/typing-target"
 
 const NEXT = 1
 
@@ -15,7 +15,6 @@ export type SearchKeys = {
 	onOpen: () => void
 	onMove: (by: number) => void
 	onEnter: () => void
-	onRank: (rank: number) => void
 }
 
 type SearchKeyPress = (keys: SearchKeys) => void
@@ -45,16 +44,12 @@ const pressOf = (
 	isOpen: boolean,
 ): SearchKeyPress | undefined => {
 	if (isOpeningChord(event)) {
-		return isOpen ? KEEP_THE_CHORD : OPEN_PALETTE
+		if (isOpen) return KEEP_THE_CHORD
+		return isTypingTarget(event.target) ? undefined : OPEN_PALETTE
 	}
 
 	if (!isOpen) {
 		return undefined
-	}
-
-	const rank = spaceRankOf(event)
-	if (rank !== 0) {
-		return ({ onRank }) => onRank(rank)
 	}
 
 	return keepsItsOwnKeys(event.target) ? undefined : PRESS_BY_KEY.get(event.key)

@@ -56,6 +56,28 @@ describe("useSpaceShortcut mounted", () => {
 		expect(event.defaultPrevented).toBe(false)
 	})
 
+	it.each(["input", "textarea"])(
+		"hears nothing while typing in a %s",
+		(field) => {
+			const onRank = vi.fn()
+			renderHook(useSpaceShortcut, { initialProps: chordOn(onRank) })
+			const typing = document.createElement(field)
+			document.body.append(typing)
+
+			const event = new KeyboardEvent("keydown", {
+				bubbles: true,
+				cancelable: true,
+				key: "3",
+				metaKey: true,
+			})
+			typing.dispatchEvent(event)
+			typing.remove()
+
+			expect(onRank).not.toHaveBeenCalled()
+			expect(event.defaultPrevented).toBe(false)
+		},
+	)
+
 	it("stops listening once unmounted", () => {
 		const onRank = vi.fn()
 		const view = renderHook(useSpaceShortcut, {

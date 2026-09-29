@@ -45,7 +45,6 @@ const shownRows = (canvasElement: HTMLElement) =>
 
 const withMissionMenu: MissionCardWrap = (card) => (
 	<MissionMenu
-		closeShortcut="⌘⌫"
 		hasBranch={false}
 		hasPullRequest={false}
 		hasWorkspacePath={false}
@@ -57,7 +56,6 @@ const withMissionMenu: MissionCardWrap = (card) => (
 		onOpenPullRequest={fn()}
 		onReopen={fn()}
 		onStopAgent={fn()}
-		openShortcut="↵"
 		state={card.props.state}
 	>
 		{card}
@@ -325,6 +323,6 @@ export const RowMenu = meta.story({
 			within(menu)
 				.getAllByRole("menuitem")
 				.map((item) => item.textContent),
-		).toEqual(["Open mission↵", "Copy", "Answer the question", "Close⌘⌫"])
+		).toEqual(["Open mission", "Copy", "Answer the question", "Close"])
 	},
 })

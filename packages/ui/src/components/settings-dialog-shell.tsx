@@ -18,7 +18,6 @@ import {
 import { SETTINGS_HEADER_CLASS } from "@workspace/ui/components/settings-styles"
 import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
-import { useSettingsShortcut } from "@workspace/ui/hooks/use-settings-shortcut"
 import { useSettingsTab } from "@workspace/ui/hooks/use-settings-tab"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -45,7 +44,6 @@ type SettingsDialogShellProps = {
 	breadcrumb: string
 	pages?: SettingsPages
 	sessions?: SettingsSessions
-	hasSettingsShortcut?: boolean
 	rail: (iconsOnly: boolean) => ReactNode
 	children: ReactNode
 	className?: string
@@ -70,7 +68,6 @@ const SettingsDialogShell = ({
 	breadcrumb,
 	pages,
 	sessions = {},
-	hasSettingsShortcut = false,
 	rail,
 	children,
 	className,
@@ -90,11 +87,6 @@ const SettingsDialogShell = ({
 
 	const close = () =>
 		declared.some((session) => session.isUnsaved) ? setLeaving(true) : leave()
-
-	useSettingsShortcut({
-		isEnabled: open && hasSettingsShortcut,
-		onToggle: close,
-	})
 
 	return (
 		<Dialog onOpenChange={(next) => !next && close()} open={open}>

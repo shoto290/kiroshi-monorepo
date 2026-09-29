@@ -59,10 +59,7 @@ const panelEntriesIn = (canvasElement: HTMLElement) =>
 	).map((entry) => entry.getAttribute("aria-label"))
 
 const renderInSidebar = (openPanel: string) => () => (
-	<WorkspaceShell
-		defaultOpen
-		sidebar={<AppSidebar bots={[]} openPanel={openPanel} />}
-	>
+	<WorkspaceShell sidebar={<AppSidebar bots={[]} openPanel={openPanel} />}>
 		{null}
 	</WorkspaceShell>
 )

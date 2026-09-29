@@ -79,7 +79,7 @@ export type RosterController = {
 	selectConversation: (id: string) => void
 	create: () => Promise<void>
 	createFromDraft: (draft: BotDraft) => Promise<Bot>
-	createConversation: () => Promise<Conversation | null>
+	createConversation: (botIds?: string[]) => Promise<Conversation | null>
 	duplicate: (id: string, spaceId?: string) => Promise<Bot | null>
 	edit: (id: string) => void
 	setEditing: (isEditing: boolean) => void
@@ -715,7 +715,7 @@ export const createRosterController = (
 				return written
 			}),
 
-		createConversation: () =>
+		createConversation: (botIds = NOBODY_SEATED) =>
 			enqueue(async () => {
 				const spaceId = current().spaceId
 				if (spaceId === null) {
@@ -725,7 +725,7 @@ export const createRosterController = (
 					spaceId,
 					sectionId: null,
 					title: NO_TITLE,
-					botIds: NOBODY_SEATED,
+					botIds,
 				})
 				admitConversation(created, spaceId)
 				return created

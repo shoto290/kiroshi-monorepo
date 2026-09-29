@@ -34,10 +34,9 @@ const REVIEW: AppSidebarConversation = {
 const AVATARS =
 	'[data-slot="bot-identity-avatar"], [data-slot="conversation-avatar"]'
 
-const dotsInRoster = (isExpanded: boolean) => {
+const dotsInRoster = () => {
 	const { container } = render(
 		<WorkspaceShell
-			defaultOpen={isExpanded}
 			sidebar={<AppSidebar bots={[ATLAS]} conversations={[REVIEW]} />}
 		>
 			{null}
@@ -59,18 +58,11 @@ const onAvatars = (dots: HTMLElement[]) =>
 describe("AppSidebar roster badge placement mounted", () => {
 	afterEach(cleanup)
 
-	it("draws the companion and conversation dots outside the avatars while expanded", () => {
-		const dots = dotsInRoster(true)
+	it("draws the companion and conversation dots outside the avatars", () => {
+		const dots = dotsInRoster()
 
 		expect(badgesOf(dots)).toEqual([REVIEW.badge, ATLAS.badge])
 		expect(onAvatars(dots)).toEqual([false, false])
-	})
-
-	it("draws them back on the avatars once the panel collapses to its rail", () => {
-		const dots = dotsInRoster(false)
-
-		expect(badgesOf(dots)).toEqual([REVIEW.badge, ATLAS.badge])
-		expect(onAvatars(dots)).toEqual([true, true])
 	})
 })
 
@@ -102,7 +94,6 @@ const researchHeaderIn = (container: HTMLElement) => {
 
 const shellOnSpace = (selectedSpaceId: string) => (
 	<WorkspaceShell
-		defaultOpen
 		sidebar={
 			<AppSidebar
 				bots={[FILED]}
@@ -169,7 +160,6 @@ describe("AppSidebar merged roster order mounted", () => {
 	it("interleaves companions and conversations by their last activity", () => {
 		const { container } = render(
 			<WorkspaceShell
-				defaultOpen
 				sidebar={
 					<AppSidebar
 						bots={[BEACON, OLDER_ATLAS]}

@@ -156,7 +156,6 @@ export const useSearch = ({
 		onOpen: open,
 		onMove: (by) => controller.moveActive(by, visible.length),
 		onEnter: () => active?.onOpen(),
-		onRank: (rank) => visible[rank - 1]?.onOpen(),
 	})
 
 	return {

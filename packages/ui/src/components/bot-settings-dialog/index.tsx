@@ -111,7 +111,6 @@ const BotSettingsDialog = ({
 		<SettingsDialogShell
 			breadcrumb={t("dialog.breadcrumb")}
 			className={className}
-			hasSettingsShortcut
 			mark={
 				<BotIdentityAvatar
 					blot={value.identity.blot}

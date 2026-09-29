@@ -426,7 +426,7 @@ export const ClosingOverAnUnsavedSkill = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every way out taken over a skill with something typed into it. A skill is written on a press, so the dialog asks the question its editor asks rather than dropping the draft — on the settings chord as much as on Escape, since a chord that closed the dialog behind the question would be the one way out that loses the draft. Check that the chord raises the question, that refusing it leaves the skill open with what was typed still there, and that accepting the next one closes the dialog once.",
+					"Every way out taken over a skill with something typed into it. A skill is written on a press, so the dialog asks the question its editor asks rather than dropping the draft. Check that Escape raises the question, that refusing it leaves the skill open with what was typed still there, and that accepting the next one closes the dialog once.",
 			},
 		},
 	},
@@ -440,7 +440,7 @@ export const ClosingOverAnUnsavedSkill = meta.story({
 		const body = within(dialog).getByLabelText("Body")
 		await userEvent.type(body, "!")
 
-		await userEvent.keyboard("{Meta>},{/Meta}")
+		await userEvent.keyboard("{Escape}")
 
 		const asked = await screen.findByRole("alertdialog")
 		await waitFor(() => expect(asked).toBeVisible())

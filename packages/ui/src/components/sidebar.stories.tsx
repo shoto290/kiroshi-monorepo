@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { expect, screen, waitFor } from "storybook/test"
+import { expect, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { FRAME_POLL } from "@workspace/storybook/story-utils"
@@ -27,17 +27,6 @@ const SURFACE = "p-4 text-muted-foreground text-sm"
 
 const stateOf = (panel: HTMLElement) =>
 	panel.closest<HTMLElement>('[data-slot="sidebar"]')?.dataset.state
-
-const railWidth = (panel: HTMLElement) => {
-	const shell = panel.closest<HTMLElement>('[data-slot="sidebar-wrapper"]')
-	if (!shell) throw new Error("no sidebar wrapper to read the rail width from")
-	const probe = document.createElement("div")
-	probe.style.width = "var(--sidebar-width-icon)"
-	shell.append(probe)
-	const width = probe.getBoundingClientRect().width
-	probe.remove()
-	return width
-}
 
 interface PanelProps {
 	label: string
@@ -107,7 +96,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					'The collapsible side panel as the shadcn registry ships it: a provider owning the open state and the Cmd/Ctrl+B shortcut, a panel that reserves its own room in the row, and an inset taking whatever room is left. `collapsible="icon"` is the mode this app runs in — collapsing narrows the panel to an icon rail rather than sliding it off the canvas — and on a window too narrow for two columns the panel becomes a drawer instead. Every slot is a plain box: header, content, footer, group, menu. A row with an icon and a label is not one of them, so `SidebarMenuRow` composes it beside the registry, and `NestedSidebarProvider` composes the second provider a trailing panel needs, which is how the activity panel sits opposite this one.',
+					"The collapsible side panel as the shadcn registry ships it: a provider owning the open state and the Cmd/Ctrl+B shortcut, a panel that reserves its own room in the row, and an inset taking whatever room is left. The `WorkspaceShell` of the app pins it expanded at one fixed width, so the app never collapses it; on a window too narrow for two columns the panel becomes a drawer instead. Every slot is a plain box: header, content, footer, group, menu. A row with an icon and a label is not one of them, so `SidebarMenuRow` composes it beside the registry, and `NestedSidebarProvider` composes the second provider a trailing panel needs, which is how the activity panel sits opposite this one.",
 			},
 		},
 	},
@@ -118,7 +107,7 @@ export const Expanded = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel open, which is where a reader starts. Check that the group label and every row label read in full, that the selected row is marked by more than its background — it carries `data-active` and `aria-current` — and that the inset starts where the panel ends rather than running under it. Pick `Collapsed` for the icon rail. The app assembles it at `apps/app/src/App.tsx:935`.",
+					"The panel open, which is where a reader starts. Check that the group label and every row label read in full, that the selected row is marked by more than its background — it carries `data-active` and `aria-current` — and that the inset starts where the panel ends rather than running under it. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -144,60 +133,12 @@ export const Expanded = meta.story({
 	},
 })
 
-export const Collapsed = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same panel after the trigger takes it down to the icon rail. Check that the panel is exactly one rail wide, that each row keeps its icon and loses its label without losing its accessible name — the label is the row's `aria-label` on the rail — and that the trigger stays reachable so the rail is never a dead end. Pick `Expanded` for the open panel, `RightSide` for the trailing edge. The app assembles it at `apps/app/src/App.tsx:935`.",
-			},
-		},
-	},
-	render: () => (
-		<SidebarProvider defaultOpen={false}>
-			<Panel label="Workspace" />
-			<SidebarInset>
-				<p className={SURFACE}>Whatever screen the shell hands the room to.</p>
-			</SidebarInset>
-		</SidebarProvider>
-	),
-	play: async ({ canvas, userEvent }) => {
-		const panel = canvas.getByRole("complementary", { name: "Workspace" })
-		const rail = railWidth(panel)
-
-		await expect(stateOf(panel)).toBe("collapsed")
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
-		}, FRAME_POLL)
-
-		const row = canvas.getByRole("button", { name: SESSIONS[0] })
-		await expect(row).toHaveAttribute("aria-label", SESSIONS[0])
-		await expect(canvas.getByText(SESSIONS[0])).toHaveAttribute(
-			"aria-hidden",
-			"true",
-		)
-
-		await userEvent.hover(row)
-		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
-			SESSIONS[0],
-		)
-
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Toggle Workspace" }),
-		)
-		await expect(stateOf(panel)).toBe("expanded")
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeGreaterThan(rail)
-		}, FRAME_POLL)
-	},
-})
-
 export const RightSide = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A panel on the trailing edge, which is what an activity panel is. Check that it holds the trailing end of the row rather than the leading one, that the inset sits between the two panels, and that each panel answers only its own trigger: two providers, two open states, so collapsing one leaves the other exactly where it was. Cmd/Ctrl+B belongs to the outer provider alone — the registry hangs that shortcut on the window, so a second registry provider nested inside would answer the same press. `NestedSidebarProvider` is the composed provider that drops the shortcut and keeps the handler, so the trailing panel holds its state and its width across the press. Pick `Expanded` for the single panel. The routines panel hangs on the trailing edge under `apps/app/src/components/thread-screen.tsx:1368`.",
+					"A panel on the trailing edge, which is what an activity panel is. Check that it holds the trailing end of the row rather than the leading one, that the inset sits between the two panels, and that each panel answers only its own trigger: two providers, two open states, so collapsing one leaves the other exactly where it was. Pick `Expanded` for the single panel. The routines panel hangs on the trailing edge under `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
@@ -223,18 +164,6 @@ export const RightSide = meta.story({
 		)
 		await waitFor(async () => {
 			await expect(activity.getBoundingClientRect().width).toBe(activityWidth)
-		}, FRAME_POLL)
-
-		const workspaceWidth = workspace.getBoundingClientRect().width
-		await userEvent.keyboard("{Meta>}b{/Meta}")
-
-		await expect(stateOf(workspace)).toBe("collapsed")
-		await expect(stateOf(activity)).toBe("expanded")
-		await expect(activity.getBoundingClientRect().width).toBe(activityWidth)
-		await waitFor(async () => {
-			await expect(workspace.getBoundingClientRect().width).toBeLessThan(
-				workspaceWidth,
-			)
 		}, FRAME_POLL)
 	},
 })
