@@ -11,7 +11,7 @@ import {
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_FLOATING_FOCUS_GUARDS,
-	expectFont,
+	expectHeadingFont,
 	opaque,
 } from "@workspace/storybook/story-utils"
 import { DialogSurface } from "@workspace/ui/components/dialog-surface"
@@ -205,10 +205,7 @@ export const Default = meta.story({
 		const notice = await screen.findByRole("dialog")
 		await expect(notice).toHaveAccessibleName(SAVED.title)
 		await expect(notice).toHaveAccessibleDescription(SAVED.description)
-		await expectFont(
-			within(notice).getByRole("heading", { level: 2 }),
-			"font-heading",
-		)
+		await expectHeadingFont(within(notice).getByRole("heading", { level: 2 }))
 
 		await opaque(notice)
 		await atTopCentre(notice)

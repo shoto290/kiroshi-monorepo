@@ -23,7 +23,7 @@ const FONT_WEIGHTS = [
 
 const FONT_FAMILIES = [
 	{ className: "font-sans", token: "--font-sans" },
-	{ className: "font-heading", token: "--font-heading" },
+	{ className: "font-heading font-semibold", token: "--font-heading" },
 ]
 
 const HEADING_LEVELS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const
@@ -90,9 +90,11 @@ export const FontWeights = () => (
 export const HeadingLevels = () => (
 	<div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-foreground">
 		{HEADING_LEVELS.map((Level) => (
-			<Level key={Level} className="font-semibold text-base">
+			<Level key={Level} className="text-base">
 				{Level}:{" "}
-				{Level === "h1" || Level === "h2" ? "font-heading" : "font-sans"}
+				{Level === "h1" || Level === "h2"
+					? "font-heading font-semibold"
+					: "font-sans"}
 			</Level>
 		))}
 	</div>

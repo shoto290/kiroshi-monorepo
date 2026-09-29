@@ -144,7 +144,7 @@ const NoticeList = () => {
 			<ToastContent>
 				<NoticeMark type={notice.type} />
 				<div className="flex min-w-0 flex-1 flex-col gap-1">
-					<ToastTitle className="break-words" />
+					<ToastTitle className="break-words font-semibold" />
 					<ToastDescription className="text-pretty break-words" />
 				</div>
 				<ToastAction />

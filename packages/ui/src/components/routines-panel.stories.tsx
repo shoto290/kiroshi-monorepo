@@ -5,6 +5,7 @@ import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	expectFont,
+	expectHeadingFont,
 	FRAME_POLL,
 	probedStyleOf,
 	slotIn,
@@ -364,9 +365,8 @@ export const Default = meta.story({
 		await expect(
 			canvas.queryByRole("button", { name: "Toggle activity" }),
 		).not.toBeInTheDocument()
-		await expectFont(
+		await expectHeadingFont(
 			within(panel).getByRole("heading", { level: 2, name: "Activity" }),
-			"font-heading",
 		)
 
 		const waiting = canvas.getByRole("heading", { name: "Waiting on you" })

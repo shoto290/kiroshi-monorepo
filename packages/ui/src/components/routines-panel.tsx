@@ -450,7 +450,7 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 							<Icons.Previous aria-hidden="true" />
 						</Button>
 					) : null}
-					<h2 className="flex-1 font-medium text-sm">
+					<h2 className="flex-1 text-sm">
 						{t(heading?.title ?? "activity.panel.title")}
 					</h2>
 					{isShowingRoutines && form?.canCreate ? (

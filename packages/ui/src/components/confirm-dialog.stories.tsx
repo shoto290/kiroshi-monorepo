@@ -3,7 +3,7 @@ import { expect, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-	expectFont,
+	expectHeadingFont,
 } from "@workspace/storybook/story-utils"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { buttonVariants } from "@workspace/ui/components/ui/button"
@@ -72,10 +72,7 @@ export const Confirming = meta.story({
 		const popup = await confirmation()
 
 		await expect(popup).toHaveTextContent("Delete Release notes?")
-		await expectFont(
-			within(popup).getByRole("heading", { level: 2 }),
-			"font-heading",
-		)
+		await expectHeadingFont(within(popup).getByRole("heading", { level: 2 }))
 
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))

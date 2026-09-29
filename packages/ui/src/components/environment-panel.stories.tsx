@@ -1,7 +1,10 @@
 import { expect, fn, screen, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
+import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	expectHeadingFont,
+} from "@workspace/storybook/story-utils"
 import {
 	BOT_ENVIRONMENT,
 	LONG_ENVIRONMENT_ENTRY,
@@ -121,6 +124,7 @@ export const Empty = meta.story({
 		await userEvent.click(canvas.getByRole("button", { name: "Add secret" }))
 
 		const write = await screen.findByRole("dialog")
+		await expectHeadingFont(within(write).getByRole("heading", { level: 2 }))
 		await expect(within(write).getByLabelText("Value")).toHaveValue("")
 	},
 })

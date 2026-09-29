@@ -1,6 +1,7 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { expectHeadingFont } from "@workspace/storybook/story-utils"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
@@ -53,9 +54,9 @@ export const Default = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByRole("heading", { name: "Nest Keeper" }),
-		).toBeVisible()
+		const title = canvas.getByRole("heading", { name: "Nest Keeper" })
+		await expect(title).toBeVisible()
+		await expectHeadingFont(title)
 		await expect(canvas.queryByRole("button")).toBeNull()
 	},
 })

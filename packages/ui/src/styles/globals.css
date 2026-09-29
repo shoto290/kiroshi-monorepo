@@ -4,7 +4,6 @@
 @import "shadcn/tailwind.css";
 @import "overlayscrollbars/overlayscrollbars.css";
 @import "@fontsource-variable/geist";
-@import "@fontsource-variable/geist-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -180,7 +179,7 @@
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
 	--font-sans: "Geist Variable", sans-serif;
-	--font-heading: "Geist Mono Variable", monospace;
+	--font-heading: "Geist Variable", sans-serif;
 }
 
 @layer components {
@@ -211,7 +210,7 @@
 	}
 	h1,
 	h2 {
-		@apply font-heading;
+		@apply font-heading font-semibold;
 	}
 	[data-slot$="-description"] {
 		text-wrap: pretty;

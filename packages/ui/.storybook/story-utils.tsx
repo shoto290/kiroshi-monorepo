@@ -113,8 +113,15 @@ const fontFamilyOf = (utility: FontUtility) => {
 }
 
 export const expectFont = async (element: Element, utility: FontUtility) => {
-	await expect(fontFamilyOf("font-heading")).not.toBe(fontFamilyOf("font-sans"))
 	await expect(getComputedStyle(element).fontFamily).toBe(fontFamilyOf(utility))
+}
+
+export const expectHeadingFont = async (element: Element) => {
+	await expect(fontFamilyOf("font-heading")).toBe(fontFamilyOf("font-sans"))
+	await expect(getComputedStyle(element).fontFamily).toMatch(
+		/^"Geist Variable"/,
+	)
+	await expect(getComputedStyle(element).fontWeight).toBe("600")
 }
 
 export const hasOverlayScrollbars = (element: HTMLElement) =>

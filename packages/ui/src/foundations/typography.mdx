@@ -13,11 +13,11 @@ import {
 
 ## Fonts
 
-Two families, self-hosted through `@fontsource-variable/geist` and `@fontsource-variable/geist-mono`, imported at the top of `src/styles/globals.css`. They are bound in the `@theme inline` block: `font-sans` is the default everywhere. Every `h1` and `h2` renders in `font-heading` through a base style in `src/styles/globals.css`, so a Base UI Title part, which draws an `h2`, needs no class for it; `h3` to `h6` stay in `font-sans`. Inside the markdown typeset each level keeps its own family.
+One family, Geist Sans, self-hosted through `@fontsource-variable/geist` and imported at the top of `src/styles/globals.css`. It is bound in the `@theme inline` block: `font-sans` is the default everywhere, and `font-heading` resolves to the same stack, so the weight makes the heading. Every `h1` and `h2` renders in `font-heading` at `font-semibold` (600) through a base style in `src/styles/globals.css`, so a Base UI Title part, which draws an `h2`, needs no class for it unless a vendored primitive sets its own weight; `h3` to `h6` stay in `font-sans` at their own weight. Inside the markdown typeset each level keeps its own weight.
 
 ```css
 --font-sans: "Geist Variable", sans-serif;
---font-heading: "Geist Mono Variable", monospace;
+--font-heading: "Geist Variable", sans-serif;
 ```
 
 <FontSample />
@@ -32,6 +32,6 @@ No custom type scale is declared — the system uses the Tailwind v4 default sca
 
 ## Weights
 
-Both Geist variable families cover the full 100–900 axis. These four are the ones the system uses in practice.
+Geist Variable covers the full 100–900 axis. These four are the ones the system uses in practice.
 
 <FontWeights />

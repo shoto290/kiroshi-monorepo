@@ -82,9 +82,7 @@ const ConfirmDialog = ({
 					)}
 				>
 					<div className="flex flex-col gap-1">
-						<AlertDialog.Title className="font-medium text-base">
-							{title}
-						</AlertDialog.Title>
+						<AlertDialog.Title className="text-base">{title}</AlertDialog.Title>
 						<AlertDialog.Description className="text-pretty text-muted-foreground text-sm">
 							{description}
 						</AlertDialog.Description>
