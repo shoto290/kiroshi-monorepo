@@ -7,6 +7,7 @@ import {
 	FRAME_POLL,
 	settled,
 	slotIn,
+	tokenLengthOf,
 } from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import {
@@ -137,18 +138,25 @@ const paintFor = (value: string) =>
 		swatch.style.backgroundColor = value
 	})
 
+const shellInset = () => Number.parseFloat(tokenLengthOf("--shell-inset"))
+
 const expectCardDetached = async (card: HTMLElement, leadingEdge: number) => {
 	const edges = card.getBoundingClientRect()
 	await expect(edges.left - leadingEdge).toBe(0)
-	await expect(window.innerWidth - edges.right).toBe(SHELL_GUTTER)
+	await expect(window.innerWidth - edges.right).toBe(shellInset())
 	await expect(edges.top).toBe(SHELL_TITLE_BAR_HEIGHT)
-	await expect(window.innerHeight - edges.bottom).toBe(SHELL_GUTTER)
+	await expect(window.innerHeight - edges.bottom).toBe(shellInset())
 }
 
 const YOU_AVATAR_INSET = 13
 
-const expectComposerOnShellInset = async (root: HTMLElement) => {
+const COMPOSER_INSET_IN_CARD = YOU_AVATAR_INSET - SHELL_GUTTER
+
+const expectCardAndComposerOnShellInset = async (root: HTMLElement) => {
 	const avatar = slotIn(root, "app-rail-avatar").getBoundingClientRect()
+	const card = root.querySelector<HTMLElement>("[data-content-card]")
+	if (!card) throw new Error("No content card rendered")
+	const cardEdges = card.getBoundingClientRect()
 	const quotes = root.querySelectorAll<HTMLElement>(
 		'[data-slot="chat-layout"] [data-slot="message-quote"]',
 	)
@@ -159,8 +167,10 @@ const expectComposerOnShellInset = async (root: HTMLElement) => {
 
 	await expect(avatarInset).toBe(YOU_AVATAR_INSET)
 	await expect(avatar.left).toBe(YOU_AVATAR_INSET)
-	await expect(window.innerHeight - edges.bottom).toBe(avatarInset)
-	await expect(window.innerWidth - edges.right).toBe(avatarInset)
+	await expect(window.innerHeight - cardEdges.bottom).toBe(shellInset())
+	await expect(window.innerWidth - cardEdges.right).toBe(shellInset())
+	await expect(cardEdges.bottom - edges.bottom).toBe(COMPOSER_INSET_IN_CARD)
+	await expect(cardEdges.right - edges.right).toBe(COMPOSER_INSET_IN_CARD)
 }
 
 const meta = preview.meta({
@@ -209,7 +219,7 @@ export const ConversationOpenDark = meta.story({
 		await expect(getComputedStyle(layout).backgroundColor).toBe(
 			getComputedStyle(card).backgroundColor,
 		)
-		await expectComposerOnShellInset(canvasElement)
+		await expectCardAndComposerOnShellInset(canvasElement)
 	},
 })
 
@@ -220,7 +230,7 @@ export const ComposerWithReplyOnShellInset = meta.story({
 		children: CHAT_WITH_REPLY,
 	},
 	play: async ({ canvasElement }) => {
-		await expectComposerOnShellInset(canvasElement)
+		await expectCardAndComposerOnShellInset(canvasElement)
 	},
 })
 
@@ -365,7 +375,7 @@ export const Collapsed = meta.story({
 
 		await expect(stateOf(sidebar)).toBe("collapsed")
 		await expectCardDetached(main, sidebar.getBoundingClientRect().right)
-		await expectComposerOnShellInset(canvasElement)
+		await expectCardAndComposerOnShellInset(canvasElement)
 
 		await toggleSidebar(userEvent)
 		await expect(stateOf(sidebar)).toBe("expanded")
@@ -404,7 +414,7 @@ export const OffCanvas = meta.story({
 			main,
 			slotIn(canvasElement, "app-rail").getBoundingClientRect().right,
 		)
-		await expectComposerOnShellInset(canvasElement)
+		await expectCardAndComposerOnShellInset(canvasElement)
 
 		await userEvent.click(trigger)
 
@@ -777,7 +787,7 @@ export const BoxedHost = meta.story({
 		await expect(host.bottom).toBeLessThan(window.innerHeight)
 		await expectSidebarFillingHost(canvas, canvasElement)
 		await expect(canvas.getByRole("main").getBoundingClientRect().bottom).toBe(
-			host.bottom - SHELL_GUTTER,
+			host.bottom - shellInset(),
 		)
 		await expect(composer.getBoundingClientRect().bottom).toBeLessThan(
 			host.bottom,
@@ -812,7 +822,7 @@ export const TallHost = meta.story({
 		await expect(host.height).toBeGreaterThan(window.innerHeight)
 		await expectSidebarFillingHost(canvas, canvasElement)
 		await expect(canvas.getByRole("main").getBoundingClientRect().bottom).toBe(
-			host.bottom - SHELL_GUTTER,
+			host.bottom - shellInset(),
 		)
 
 		await toggleSidebar(userEvent)

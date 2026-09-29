@@ -10,6 +10,7 @@ import {
 	probedStyleOf,
 	slotIn,
 	slotsIn,
+	tokenLengthOf,
 } from "@workspace/storybook/story-utils"
 import { THEME_CLASS_NAMES } from "@workspace/storybook/themed-docs-container"
 import { AppHeader } from "@workspace/ui/components/app-header"
@@ -64,7 +65,6 @@ import {
 	SidebarTrigger,
 } from "@workspace/ui/components/ui/sidebar"
 import {
-	SHELL_GUTTER,
 	SHELL_TITLE_BAR_HEIGHT,
 	WorkspaceShell,
 } from "@workspace/ui/components/workspace-shell"
@@ -1309,6 +1309,8 @@ export const OnShellSurfaceOpenDark = meta.story({
 	},
 })
 
+const shellInset = () => Number.parseFloat(tokenLengthOf("--shell-inset"))
+
 const expectShellSurfaceWithoutPanel = async (canvasElement: HTMLElement) => {
 	await expect(
 		within(canvasElement).queryByRole("complementary", { name: "Activity" }),
@@ -1316,9 +1318,10 @@ const expectShellSurfaceWithoutPanel = async (canvasElement: HTMLElement) => {
 	const shellCard = await expectThreadInsideShellCard(canvasElement)
 
 	const edges = shellCard.getBoundingClientRect()
-	await expect(window.innerWidth - edges.right).toBe(SHELL_GUTTER)
+	const inset = shellInset()
+	await expect(window.innerWidth - edges.right).toBe(inset)
 	await expect(edges.top).toBe(SHELL_TITLE_BAR_HEIGHT)
-	await expect(window.innerHeight - edges.bottom).toBe(SHELL_GUTTER)
+	await expect(window.innerHeight - edges.bottom).toBe(inset)
 }
 
 export const OnShellSurfaceClosed = meta.story({

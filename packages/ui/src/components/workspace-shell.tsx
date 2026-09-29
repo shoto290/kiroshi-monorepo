@@ -15,11 +15,14 @@ const SIDEBAR_INSIDE_SHELL =
 
 const TITLE_BAR_AND_GUTTER = "pt-8.5 pe-1 pb-1"
 
+const CARD_ON_SHELL_INSET =
+	"*:data-content-card:me-[calc(var(--shell-inset)-var(--spacing))] *:data-content-card:mb-[calc(var(--shell-inset)-var(--spacing))]"
+
 const SHELL_TITLE_BAR_HEIGHT = 34
 
 const SHELL_GUTTER = 4
 
-const SHELL = `surface-shell relative h-svh ${TITLE_BAR_AND_GUTTER} min-h-full max-h-full min-w-0 overflow-hidden ${SIDEBAR_INSIDE_SHELL} data-[resizing=true]:cursor-col-resize data-[resizing=true]:select-none`
+const SHELL = `surface-shell relative h-svh ${TITLE_BAR_AND_GUTTER} ${CARD_ON_SHELL_INSET} min-h-full max-h-full min-w-0 overflow-hidden ${SIDEBAR_INSIDE_SHELL} data-[resizing=true]:cursor-col-resize data-[resizing=true]:select-none`
 
 type ShellStyle = CSSProperties & {
 	"--sidebar-width": string

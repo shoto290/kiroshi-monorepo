@@ -2400,8 +2400,9 @@ export const ConversationsPanel = meta.story({
 		const card = canvas.getByRole("main")
 		const edges = card.getBoundingClientRect()
 		await expect(edges.top).toBe(TITLE_BAR_HEIGHT)
-		await expect(window.innerWidth - edges.right).toBe(4)
-		await expect(window.innerHeight - edges.bottom).toBe(4)
+		const shellInset = Number.parseFloat(tokenLengthOf("--shell-inset"))
+		await expect(window.innerWidth - edges.right).toBe(shellInset)
+		await expect(window.innerHeight - edges.bottom).toBe(shellInset)
 		await expect(getComputedStyle(card).borderStartEndRadius).toBe(
 			SHELL_CARD_RADIUS,
 		)
