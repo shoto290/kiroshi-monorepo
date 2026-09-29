@@ -2496,7 +2496,7 @@ export const DragRegion = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel as a frameless desktop window mounts it: the column is what the window is carried by. Check that the attribute lands on the panel itself, that no row item and no drop area opts out of it, so the padding and the gaps between rows drag the window, and that nothing the reader presses carries it: a row, the create button and the chip are buttons, and a button with no drag region of its own is what stops the drag.",
+					"The panel as a frameless desktop window mounts it: the column is what the window is carried by. Check that the attribute lands on the panel itself, so the space between the rows drags the window, and that nothing the reader presses carries it — a row, the create button and the chip are buttons, and a button with no drag region of its own is what stops the drag.",
 			},
 		},
 	},
@@ -2506,16 +2506,8 @@ export const DragRegion = meta.story({
 			"deep",
 		)
 
-		const rows = rowsIn(canvasElement)
-		const dropAreas = slotsIn(canvasElement, "roster-drop-area")
-		await expect(rows.length).toBeGreaterThan(0)
-		await expect(dropAreas.length).toBeGreaterThan(0)
-		for (const surface of [...rows, ...dropAreas]) {
-			await expect(surface).not.toHaveAttribute("data-tauri-drag-region")
-		}
-
 		const pressable = [
-			rowButton(rows[0]),
+			rowButton(rowsIn(canvasElement)[0]),
 			canvas.getByRole("button", { name: CREATE }),
 			canvas.getByRole("button", { name: READER_NAME }),
 		]
@@ -4755,7 +4747,7 @@ export const DragBotToSection = meta.story({
 		docs: {
 			description: {
 				story:
-					"Filing a companion by hand. A press on a row that then moves lifts the companion: it is reduced to its avatar alone, which follows the pointer, while the row itself stays exactly where it stood — the roster is the host's to redraw, so nothing is torn out of the list on the strength of a gesture that has not landed yet. The area the companion would land in lightens under it, header and rows together, so the target is a whole section rather than a slot between two rows: a section is always ordered by last message, so a drop changes which group a companion belongs to and nothing else. Releasing reports the companion and the section, the same call the `Move to section` branch makes, and the click that a release would otherwise fire is swallowed so a drag never doubles as a selection. The row is a button, which is what keeps the gesture on the companion instead of on the frameless window the panel is mounted in, while the padding and the gaps around it still drag the window. Keyboard readers are not asked to drag: `MoveBotToSection` is the same move from the menu.",
+					'Filing a companion by hand. A press on a row that then moves lifts the companion: it is reduced to its avatar alone, which follows the pointer, while the row itself stays exactly where it stood — the roster is the host\'s to redraw, so nothing is torn out of the list on the strength of a gesture that has not landed yet. The area the companion would land in lightens under it, header and rows together, so the target is a whole section rather than a slot between two rows: a section is always ordered by last message, so a drop changes which group a companion belongs to and nothing else. Releasing reports the companion and the section, the same call the `Move to section` branch makes, and the click that a release would otherwise fire is swallowed so a drag never doubles as a selection. The row and every drop area carry `data-tauri-drag-region="false"`, which is what keeps the gesture on the companion instead of on the frameless window the panel is mounted in. Keyboard readers are not asked to drag: `MoveBotToSection` is the same move from the menu.',
 			},
 		},
 	},
@@ -4783,27 +4775,6 @@ export const DragBotToSection = meta.story({
 		await expect(args.onSelectBot).not.toHaveBeenCalled()
 		await expect(liftedBot()).toBeNull()
 		await expect(rowNames(canvasElement)).toEqual(GROUPED_ORDER)
-	},
-})
-
-export const DragBotLeavesTheWindow = meta.story({
-	tags: ["test-only"],
-	args: { ...sectionArgs(), onDragWindow: fn() },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A companion row moved past the lift threshold files the companion and never carries the window, even when the host wires a window drag for the mission rows. Check the row lifts and the window drag callback is never called.",
-			},
-		},
-	},
-	play: async ({ args, canvasElement }) => {
-		const handle = rowButton(rowFor(canvasElement, "Atlas"))
-
-		lift(handle)
-		await expect(liftedBot()).not.toBeNull()
-		dropOver(handle, dropAreaFor(canvasElement, "shipping"))
-		await expect(args.onDragWindow).not.toHaveBeenCalled()
 	},
 })
 

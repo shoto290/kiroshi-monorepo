@@ -542,6 +542,7 @@ const BotRosterRow = ({
 		<SidebarMenuItem
 			{...(isPinned ? dropArea(bot.id) : undefined)}
 			className={ROW_ITEM}
+			data-tauri-drag-region="false"
 			ref={mergeRefs<HTMLElement>(rowRef, slotRef)}
 		>
 			<InsertionLine edge={insertion} />
@@ -641,6 +642,7 @@ const ConversationRosterRow = ({
 		<SidebarMenuItem
 			{...(isPinned ? dropArea(conversation.id) : undefined)}
 			className={ROW_ITEM}
+			data-tauri-drag-region="false"
 			ref={slotRef}
 		>
 			<InsertionLine edge={insertion} />
@@ -842,6 +844,7 @@ const RosterDropArea = ({
 		)}
 		data-landing={isLanding || undefined}
 		data-slot="roster-drop-area"
+		data-tauri-drag-region="false"
 		ref={ref}
 	>
 		<InsertionLine edge={insertion} />
@@ -1831,7 +1834,6 @@ interface AppSidebarProps
 	onOpenSearch?: () => void
 	missions?: MissionsPanelProps
 	onSearchMissions?: () => void
-	onDragWindow?: () => void
 	insetWindowControls?: boolean
 	railCounts?: AppRailCounts
 	railDots?: AppRailDots
@@ -1881,7 +1883,6 @@ const AppSidebarBase = ({
 	onOpenSearch,
 	missions,
 	onSearchMissions,
-	onDragWindow,
 	insetWindowControls = false,
 	railCounts,
 	railDots,
@@ -2056,11 +2057,7 @@ const AppSidebarBase = ({
 
 	const missionsContent = (
 		<SidebarContent className={CONTENT_INSET}>
-			{missions ? (
-				<MissionsPanel {...missions} onDragWindow={onDragWindow} />
-			) : (
-				<MissionsPanelEmpty />
-			)}
+			{missions ? <MissionsPanel {...missions} /> : <MissionsPanelEmpty />}
 		</SidebarContent>
 	)
 

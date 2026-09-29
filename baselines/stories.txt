@@ -690,7 +690,6 @@ navigation-appsidebar--create-label
 navigation-appsidebar--create-menu
 navigation-appsidebar--drag-bot-into-an-empty-pinned-zone
 navigation-appsidebar--drag-bot-into-empty-section
-navigation-appsidebar--drag-bot-leaves-the-window
 navigation-appsidebar--drag-bot-nowhere
 navigation-appsidebar--drag-bot-out-of-section
 navigation-appsidebar--drag-bot-to-section
@@ -797,7 +796,6 @@ navigation-headeridentitybutton--long-content
 navigation-headeridentitybutton--variants
 navigation-headeridentitybutton--working
 navigation-missionspanel--default
-navigation-missionspanel--dragging-the-window-from-a-row
 navigation-missionspanel--earlier-today-unfolded
 navigation-missionspanel--empty
 navigation-missionspanel--long-title

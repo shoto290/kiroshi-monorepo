@@ -37,7 +37,6 @@ import {
 import { DOT_CLASS } from "@workspace/ui/components/row-anatomy"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
-import type { WindowDragPressHandlers } from "@workspace/ui/hooks/use-window-drag-press"
 import { cn } from "@workspace/ui/lib/utils"
 
 type MissionCardDensity = "row" | "card"
@@ -50,7 +49,6 @@ type MissionCardProps = Omit<MissionCardModel, "author"> & {
 	density: MissionCardDensity
 	onOpen: (missionId: string) => void
 	surface?: MissionCardSurface
-	rowPress?: WindowDragPressHandlers
 	isActive?: boolean
 	className?: string
 }
@@ -201,7 +199,6 @@ const RowDensity = ({
 	pullRequest,
 	lastActivity,
 	surface,
-	rowPress,
 	isActive,
 	onOpen,
 	className,
@@ -229,7 +226,6 @@ const RowDensity = ({
 			data-slot="mission-card-row"
 		>
 			<SidebarListRow
-				{...rowPress}
 				badge={BADGE_OF[state]}
 				data-opens={id}
 				detail={
