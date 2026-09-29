@@ -197,8 +197,8 @@
 	body {
 		@apply bg-background text-foreground;
 	}
-	html:has(> body > #root),
-	html:has(> body > #root) > body {
+	html[data-scroll-lock],
+	html[data-scroll-lock] > body {
 		overflow: hidden;
 		overscroll-behavior: none;
 	}
