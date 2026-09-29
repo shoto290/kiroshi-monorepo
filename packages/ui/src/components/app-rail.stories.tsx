@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react"
-import { expect, fn } from "storybook/test"
+import { expect, fn, screen, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { probedStyleOf, slotIn } from "@workspace/storybook/story-utils"
@@ -8,7 +8,12 @@ import {
 	type AppRailPanel,
 	type AppRailProps,
 } from "@workspace/ui/components/app-rail"
+import { AppSidebar } from "@workspace/ui/components/app-sidebar"
 import { blotTint } from "@workspace/ui/components/companion-colour"
+import {
+	SHELL_TITLE_BAR_HEIGHT,
+	WorkspaceShell,
+} from "@workspace/ui/components/workspace-shell"
 
 const READER = { name: "Ada Lovelace" }
 
@@ -17,9 +22,13 @@ const OPENING_PANEL: AppRailPanel = "conversations"
 const ENTRY_NAMES: Record<AppRailPanel, string> = {
 	conversations: "Conversations",
 	missions: "Missions",
-	companions: "Companions",
-	applications: "Applications",
 }
+
+const SPACE_SETTINGS = "Space settings"
+
+const RAIL_WIDTH = 52
+
+const REMOVED_PANEL = "companions"
 
 const PANELS = Object.keys(ENTRY_NAMES) as AppRailPanel[]
 
@@ -37,6 +46,24 @@ const entryNamed = (canvasElement: HTMLElement, name: string) => {
 	return entry
 }
 
+const panelEntriesIn = (canvasElement: HTMLElement) =>
+	Array.from(
+		slotIn(canvasElement, "app-rail").querySelectorAll<HTMLElement>(
+			'ul:first-of-type [data-slot="app-rail-item"]',
+		),
+	).map((entry) => entry.getAttribute("aria-label"))
+
+const renderInSidebar = (openPanel: string) => () => (
+	<WorkspaceShell
+		defaultOpen
+		sidebar={<AppSidebar bots={[]} openPanel={openPanel} />}
+	>
+		{null}
+	</WorkspaceShell>
+)
+
+const verticalCentreOf = (box: DOMRect) => box.top + box.height / 2
+
 const iconColourOf = (entry: HTMLElement) => getComputedStyle(entry).color
 
 const fillOf = (entry: HTMLElement) => getComputedStyle(entry).backgroundColor
@@ -48,6 +75,9 @@ const expectOnlySelected = async (
 	const selectedFill = probedStyleOf("bg-rail-item-selected", "backgroundColor")
 	const selectedInk = probedStyleOf("text-foreground", "color")
 	const idleInk = probedStyleOf("text-muted-foreground", "color")
+	await expect(panelEntriesIn(canvasElement)).toEqual(
+		PANELS.map((panel) => ENTRY_NAMES[panel]),
+	)
 	for (const panel of PANELS) {
 		const entry = entryNamed(canvasElement, ENTRY_NAMES[panel])
 		if (panel === selected) {
@@ -77,7 +107,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The column of icons down the left edge of the window: the four panels a reader moves between, then settings and the reader at the foot. The rail draws and reports; which panel is open, the count and the dot on each entry are props, and each entry reports its own press. An entry is a button named by its panel, the open one marked `aria-current`, and the news it carries is spoken in its name, so a dot or a count never rides on colour alone.",
+					"The column of icons down the left edge of the window: the two panels a reader moves between, Conversations then Missions, then the space settings gear and the reader at the foot. The rail draws and reports; which panel is open, the count and the dot on each entry are props, and each entry reports its own press. An entry is a button named by its panel, the open one marked `aria-current`, and the news it carries is spoken in its name, so a dot or a count never rides on colour alone.",
 			},
 		},
 	},
@@ -86,9 +116,7 @@ const meta = preview.meta({
 		user: READER,
 		onSelectConversations: fn(),
 		onSelectMissions: fn(),
-		onSelectCompanions: fn(),
-		onSelectApplications: fn(),
-		onOpenSettings: fn(),
+		onOpenSpaceSettings: fn(),
 		onOpenYou: fn(),
 	},
 })
@@ -99,7 +127,7 @@ export const ConversationsSelected = meta.story({
 		docs: {
 			description: {
 				story:
-					"The rail as the app opens it. Check the conversation bubble sits on the white 8% fill in the foreground colour while every other icon stays muted, and that the settings gear and the reader's initial hold the foot of the rail.",
+					"The rail as the app opens it. Check the conversation bubble sits on the white 8% fill in the foreground colour while Missions stays muted, that no other panel entry is drawn, and that the space settings gear and the reader's initial hold the foot of the rail.",
 			},
 		},
 	},
@@ -107,9 +135,82 @@ export const ConversationsSelected = meta.story({
 
 export const MissionsSelected = meta.story(selecting("missions"))
 
-export const CompanionsSelected = meta.story(selecting("companions"))
+export const RemovedPanelFallsBackToConversations = meta.story({
+	render: renderInSidebar(REMOVED_PANEL),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A stored panel that the rail no longer offers, the Companions panel a reader may have left open before it was removed. Check the sidebar opens the Conversations panel, marks Conversations current and draws no entry for the removed panel.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expectOnlySelected(canvasElement, "conversations")
+		await expect(
+			canvas.getByRole("complementary", { name: ENTRY_NAMES.conversations }),
+		).toBeVisible()
+		await expect(
+			within(slotIn(canvasElement, "app-rail")).queryByRole("button", {
+				name: "Companions",
+			}),
+		).toBeNull()
+	},
+})
 
-export const ApplicationsSelected = meta.story(selecting("applications"))
+export const SpaceSettingsGearHovered = meta.story({
+	args: { dots: { settings: true } },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The gear at the foot of the rail under the pointer, carrying a dot. Check the tooltip reads Space settings, that the name spoken for the gear is Space settings followed by the news it carries, and that a press opens the space settings.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const gear = entryNamed(canvasElement, `${SPACE_SETTINGS}, new activity`)
+		await userEvent.hover(gear)
+		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
+			SPACE_SETTINGS,
+		)
+		await userEvent.click(gear)
+		await expect(args.onOpenSpaceSettings).toHaveBeenCalledTimes(1)
+		await expect(args.onOpenYou).not.toHaveBeenCalled()
+	},
+})
+
+export const FirstTabLevelWithPanelTitle = meta.story({
+	render: renderInSidebar("conversations"),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The rail beside the panel it opens, under the title bar. Check the first tab is centred on the panel title row within 1px, that the air between the title bar and the first tab equals the air between the two tabs, and that the rail stays 52px wide under a 34px title bar.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const rail = slotIn(canvasElement, "app-rail")
+		const [first, second] = Array.from(
+			rail.querySelectorAll<HTMLElement>('[data-slot="app-rail-item"]'),
+		).map((entry) => entry.getBoundingClientRect())
+		const titleBar = slotIn(
+			canvasElement,
+			"app-title-bar",
+		).getBoundingClientRect()
+		const titleRow = within(slotIn(canvasElement, "sidebar-header"))
+			.getByRole("heading", { name: ENTRY_NAMES.conversations })
+			.parentElement?.getBoundingClientRect()
+		if (!titleRow) throw new Error("No panel title row")
+		await expect(
+			Math.abs(verticalCentreOf(first) - verticalCentreOf(titleRow)),
+		).toBeLessThanOrEqual(1)
+		await expect(first.top - titleBar.bottom).toBe(second.top - first.bottom)
+		await expect(rail.getBoundingClientRect().width).toBe(RAIL_WIDTH)
+		await expect(titleBar.height).toBe(SHELL_TITLE_BAR_HEIGHT)
+	},
+})
 
 export const WithDot = meta.story({
 	args: { dots: { conversations: true, missions: true } },
@@ -135,7 +236,7 @@ export const WithDot = meta.story({
 			),
 		).toBeVisible()
 		await expect(
-			entryNamed(canvasElement, "Companions").querySelector(
+			entryNamed(canvasElement, SPACE_SETTINGS).querySelector(
 				'[data-slot="app-rail-dot"]',
 			),
 		).toBeNull()
@@ -174,8 +275,8 @@ export const KeyboardReach = meta.story({
 		await expect(args.onSelectMissions).toHaveBeenCalledTimes(1)
 		await userEvent.click(entryNamed(canvasElement, READER.name))
 		await expect(args.onOpenYou).toHaveBeenCalledTimes(1)
-		await userEvent.click(entryNamed(canvasElement, "Settings"))
-		await expect(args.onOpenSettings).toHaveBeenCalledTimes(1)
+		await userEvent.click(entryNamed(canvasElement, SPACE_SETTINGS))
+		await expect(args.onOpenSpaceSettings).toHaveBeenCalledTimes(1)
 	},
 })
 
