@@ -49,6 +49,7 @@ export const useSpaceMissions = (spaceId: string | null): SpaceMissionsView => {
 
 	const reload = useCallback(() => {
 		reads.current += 1
+		setFailedSpaceId(null)
 		if (!spaceId) {
 			return
 		}

@@ -496,6 +496,13 @@ const toRowMission = ({
 	},
 })
 
+export const missionRowIdOf = (
+	conversationId: string,
+	botId: string,
+	listedConversationIds: ReadonlySet<string>,
+): string =>
+	listedConversationIds.has(conversationId) ? conversationId : botId
+
 export const missionsByRow = (
 	board: MissionOnBoard[],
 	listedConversations: { id: string }[],
@@ -511,9 +518,11 @@ export const missionsByRow = (
 		const state = CHIP_STATE_OF[shownStateOf(mission, waitingMissionIds)]
 		if (!state) continue
 
-		const rowId = listedConversationIds.has(mission.originConversationId)
-			? mission.originConversationId
-			: mission.botId
+		const rowId = missionRowIdOf(
+			mission.originConversationId,
+			mission.botId,
+			listedConversationIds,
+		)
 		open[rowId] = [...(open[rowId] ?? []), { state, mission }]
 	}
 

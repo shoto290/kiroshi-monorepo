@@ -10,7 +10,7 @@ import "@workspace/ui/lib/i18n"
 
 import { useSidebarMissions } from "./use-sidebar-missions"
 
-import type { Bot } from "@/lib/conversations/store-contract"
+import type { Bot, Conversation } from "@/lib/conversations/store-contract"
 import { createFakeThreadRuntimes } from "@/lib/missions/fake-thread-runtimes"
 import type {
 	MissionChanged,
@@ -56,6 +56,18 @@ const BOT: Bot = {
 
 const NOW = Date.now()
 
+const LISTED: Conversation = {
+	id: "c-2",
+	spaceId: "s-1",
+	sectionId: null,
+	pinPosition: null,
+	title: "Billing",
+	instructions: "",
+	createdAt: 1,
+	updatedAt: 1,
+	participants: [],
+}
+
 type EntrySeed = {
 	id: string
 	state: MissionState
@@ -97,6 +109,7 @@ const idsOf = (missions: MissionsPanelMission[]) =>
 	missions.map(({ id, conversationId }) => ({ id, conversationId }))
 
 const renderSidebarMissions = (spaceId: string | null = "s-1") => {
+	const select = vi.fn()
 	const selectConversation = vi.fn()
 	const open = vi.fn()
 	const { runtimes } = createFakeThreadRuntimes()
@@ -107,8 +120,11 @@ const renderSidebarMissions = (spaceId: string | null = "s-1") => {
 					conversationRuntimes: runtimes,
 					openedMission: { open },
 					roster: {
-						state: { rosters: { "s-1": [BOT], "s-2": [BOT] } },
-						controller: { selectConversation },
+						state: {
+							rosters: { "s-1": [BOT], "s-2": [BOT] },
+							conversationRosters: { "s-1": [LISTED] },
+						},
+						controller: { select, selectConversation },
 					},
 					spaces: { state: { selectedSpaceId } },
 				},
@@ -116,7 +132,7 @@ const renderSidebarMissions = (spaceId: string | null = "s-1") => {
 			}),
 		{ initialProps: { selectedSpaceId: spaceId } },
 	)
-	return { ...rendered, selectConversation, open }
+	return { ...rendered, select, selectConversation, open }
 }
 
 describe("useSidebarMissions", () => {
@@ -200,8 +216,8 @@ describe("useSidebarMissions", () => {
 		expect(readSpaceFeed).toHaveBeenLastCalledWith("s-2", expect.any(Number))
 	})
 
-	it("selects the mission conversation, then opens the mission thread", async () => {
-		const { result, selectConversation, open } = renderSidebarMissions()
+	it("selects a listed mission conversation, then opens the mission on it", async () => {
+		const { result, select, selectConversation, open } = renderSidebarMissions()
 		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
 
 		result.current.panel.onOpen("m-working", "c-2")
@@ -211,6 +227,24 @@ describe("useSidebarMissions", () => {
 		expect(selectConversation.mock.invocationCallOrder[0]).toBeLessThan(
 			open.mock.invocationCallOrder[0],
 		)
+		expect(select).not.toHaveBeenCalled()
+	})
+
+	it("selects the mission bot, then opens the mission on it, when its conversation is not listed", async () => {
+		const { result, select, selectConversation, open } = renderSidebarMissions()
+		await waitFor(() => expect(result.current.panel.open).toHaveLength(2))
+
+		result.current.panel.onOpen("m-waiting", "c-1")
+
+		expect(select).toHaveBeenCalledWith(BOT.id)
+		expect(open).toHaveBeenCalledWith({
+			missionId: "m-waiting",
+			rowId: BOT.id,
+		})
+		expect(select.mock.invocationCallOrder[0]).toBeLessThan(
+			open.mock.invocationCallOrder[0],
+		)
+		expect(selectConversation).not.toHaveBeenCalled()
 	})
 
 	it("raises one failure notice when the feed fails, whose retry reads again", async () => {
@@ -230,5 +264,38 @@ describe("useSidebarMissions", () => {
 		act(() => notice.mock.calls[0][0].action?.onPress())
 
 		await waitFor(() => expect(readSpaceFeed.mock.calls.length).toBe(reads + 1))
+	})
+
+	it("raises a new failure notice when a retry fails again", async () => {
+		readSpaceFeed.mockRejectedValue(new Error("offline"))
+		renderSidebarMissions()
+		await waitFor(() => expect(notice).toHaveBeenCalledTimes(1))
+
+		act(() => notice.mock.calls[0][0].action?.onPress())
+
+		await waitFor(() => expect(notice).toHaveBeenCalledTimes(2))
+	})
+
+	it("raises no notice on returning to a failed space until its new read fails", async () => {
+		readSpaceFeed.mockRejectedValue(new Error("offline"))
+		const { rerender } = renderSidebarMissions()
+		await waitFor(() => expect(notice).toHaveBeenCalledTimes(1))
+		let failRead: (reason: Error) => void = () => undefined
+		readSpaceFeed.mockImplementation(
+			() =>
+				new Promise((_, reject) => {
+					failRead = reject
+				}),
+		)
+
+		rerender({ selectedSpaceId: "s-2" })
+		rerender({ selectedSpaceId: "s-1" })
+
+		await waitFor(() =>
+			expect(readSpaceFeed).toHaveBeenLastCalledWith("s-1", expect.any(Number)),
+		)
+		expect(notice).toHaveBeenCalledTimes(1)
+		await act(async () => failRead(new Error("offline")))
+		await waitFor(() => expect(notice).toHaveBeenCalledTimes(2))
 	})
 })
