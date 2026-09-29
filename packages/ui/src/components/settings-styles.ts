@@ -1,12 +1,12 @@
 const FIELD_LABEL_CLASS = "font-medium text-foreground text-xs"
 
 const FIELD_CONTROL_CLASS =
-	"w-full rounded-xl border border-input bg-background px-3 py-2 text-foreground text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+	"w-full rounded-control border border-input bg-muted px-3 py-2 text-foreground text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
 
 const FIELD_CONTROL_INVALID_CLASS =
 	"border-destructive focus-visible:border-destructive focus-visible:ring-destructive/30"
 
-const FIELD_CONTROL_READONLY_CLASS = "cursor-default bg-muted"
+const FIELD_CONTROL_READONLY_CLASS = "cursor-default bg-transparent"
 
 const FIELD_OPTION_MARKS_CLASS =
 	"cursor-pointer rounded-xl text-muted-foreground hover:bg-muted has-[:checked]:bg-muted has-[:checked]:font-medium has-[:checked]:text-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"

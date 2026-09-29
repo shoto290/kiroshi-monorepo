@@ -76,7 +76,7 @@ const SettingsField = ({
 						FIELD_CONTROL_CLASS,
 						error && FIELD_CONTROL_INVALID_CLASS,
 						readOnly && FIELD_CONTROL_READONLY_CLASS,
-						"resize-none leading-relaxed",
+						"resize-none",
 						fill && "min-h-0 flex-1",
 					)}
 					id={id}

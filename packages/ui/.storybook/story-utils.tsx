@@ -144,6 +144,7 @@ type ProbedProperty =
 	| "color"
 	| "backgroundColor"
 	| "borderTopColor"
+	| "borderTopLeftRadius"
 	| "fontFamily"
 
 export const probedStyleOf = (
@@ -164,6 +165,42 @@ export const tokenStyleIn = (
 	className: string,
 	property: ProbedProperty,
 ) => probedStyleOf(className, property, element)
+
+const surfaceOf = (frame: HTMLElement) => frame.parentElement ?? document.body
+
+export const expectFieldFrame = async (
+	frame: HTMLElement,
+	outline: "border-input" | "border-border" = "border-input",
+) => {
+	const style = getComputedStyle(frame)
+	const surface = surfaceOf(frame)
+	await expect(style.backgroundColor).toBe(
+		probedStyleOf("bg-muted", "backgroundColor", surface),
+	)
+	await expect(style.borderTopWidth).toBe("1px")
+	await expect(style.borderTopColor).toBe(
+		probedStyleOf(outline, "borderTopColor", surface),
+	)
+}
+
+export const expectControlFrame = async (frame: HTMLElement) => {
+	await expectFieldFrame(frame)
+	await expect(getComputedStyle(frame).borderTopLeftRadius).toBe(
+		probedStyleOf("rounded-control", "borderTopLeftRadius", surfaceOf(frame)),
+	)
+}
+
+export const expectFocusRing = async (frame: HTMLElement) =>
+	waitFor(() =>
+		expect(getComputedStyle(frame).borderTopColor).toBe(
+			probedStyleOf("border-ring", "borderTopColor", surfaceOf(frame)),
+		),
+	)
+
+export const expectInvalidOutline = async (frame: HTMLElement) =>
+	expect(getComputedStyle(frame).borderTopColor).toBe(
+		probedStyleOf("border-destructive", "borderTopColor", surfaceOf(frame)),
+	)
 
 export const expectInverseAtRest = async (button: HTMLElement) => {
 	const style = getComputedStyle(button)

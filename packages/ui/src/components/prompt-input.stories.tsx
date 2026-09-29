@@ -3,6 +3,8 @@ import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	expectFieldFrame,
+	expectFocusRing,
 	expectInverseAtRest,
 	isInBrowserRunner,
 	realPointer,
@@ -619,5 +621,78 @@ export const FilesOnly = meta.story({
 		await expect(send).toBeEnabled()
 		await userEvent.click(send)
 		await expect(args.onSubmit).toHaveBeenCalledWith("")
+	},
+})
+
+const ARTBOARD_COMPOSER =
+	"The composer of artboard V1e, light and dark side by side: a `muted` fill and a 1px `border` outline around the pill, 8px of padding, the plus button leading and the send button trailing. "
+
+const composersIn = (canvasElement: HTMLElement) => [
+	...canvasElement.querySelectorAll<HTMLElement>('[data-slot="prompt-input"]'),
+]
+
+const expectArtboardComposer = async (composer: HTMLElement) => {
+	await expectFieldFrame(composer, "border-border")
+	await expect(getComputedStyle(composer).padding).toBe("8px")
+}
+
+export const ThemesAtRest = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { leading: leadingControls },
+	parameters: {
+		docs: { description: { story: `${ARTBOARD_COMPOSER}Empty.` } },
+	},
+	play: async ({ canvasElement }) => {
+		const composers = composersIn(canvasElement)
+		await expect(composers.length).toBe(2)
+		for (const composer of composers) await expectArtboardComposer(composer)
+	},
+})
+
+export const ThemesFilled = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { leading: leadingControls, value: DRAFT },
+	parameters: {
+		docs: { description: { story: `${ARTBOARD_COMPOSER}Holding a draft.` } },
+	},
+	play: async ({ canvasElement }) => {
+		for (const composer of composersIn(canvasElement))
+			await expectArtboardComposer(composer)
+	},
+})
+
+export const ThemesFocusVisible = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { leading: leadingControls, value: DRAFT },
+	parameters: {
+		docs: {
+			description: {
+				story: `${ARTBOARD_COMPOSER}Focus in the prompt keeps the existing \`ring\` outline and halo on the whole pill.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const composer of composersIn(canvasElement)) {
+			composer.querySelector("textarea")?.focus()
+			await expectFocusRing(composer)
+		}
+	},
+})
+
+export const ThemesDisabled = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { leading: leadingControls, value: DRAFT, disabled: true },
+	parameters: {
+		docs: {
+			description: {
+				story: `${ARTBOARD_COMPOSER}Disabled, the whole pill keeps its existing half opacity over the same fill.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const composer of composersIn(canvasElement)) {
+			await expectArtboardComposer(composer)
+			await expect(getComputedStyle(composer).opacity).toBe("0.5")
+		}
 	},
 })

@@ -3,6 +3,10 @@ import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	expectControlFrame,
+	expectFocusRing,
+} from "@workspace/storybook/story-utils"
+import {
 	ApplicationsSearchField,
 	type ApplicationsSearchFieldProps,
 } from "@workspace/ui/components/plugin-settings/applications-search-field"
@@ -104,5 +108,58 @@ export const LargestTextSize = meta.story({
 
 		await expect(shellOf(field).height).toBeGreaterThan(FIELD_HEIGHT)
 		await expectLineCentredInShell(field)
+	},
+})
+
+const ARTBOARD_SEARCH =
+	"The search field on the frame of the artboard V1e text field, light and dark side by side: a `muted` fill, a 1px `input` outline, the `radius-control` corner and 12px inline padding, held at the 36px height of the row it shares with a 36px button. "
+
+const shellsIn = (canvasElement: HTMLElement) => [
+	...canvasElement.querySelectorAll<HTMLElement>("label"),
+]
+
+const expectArtboardShell = async (shell: HTMLElement) => {
+	await expectControlFrame(shell)
+	await expect(getComputedStyle(shell).paddingInlineStart).toBe("12px")
+}
+
+export const ThemesAtRest = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		docs: { description: { story: `${ARTBOARD_SEARCH}Empty.` } },
+	},
+	play: async ({ canvasElement }) => {
+		const shells = shellsIn(canvasElement)
+		await expect(shells.length).toBe(2)
+		for (const shell of shells) await expectArtboardShell(shell)
+	},
+})
+
+export const ThemesFilled = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { value: "linear" },
+	parameters: {
+		docs: { description: { story: `${ARTBOARD_SEARCH}Holding a query.` } },
+	},
+	play: async ({ canvasElement }) => {
+		for (const shell of shellsIn(canvasElement))
+			await expectArtboardShell(shell)
+	},
+})
+
+export const ThemesFocusVisible = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		docs: {
+			description: {
+				story: `${ARTBOARD_SEARCH}Focus inside keeps the existing \`ring\` outline and halo on the shell.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const shell of shellsIn(canvasElement)) {
+			shell.querySelector("input")?.focus()
+			await expectFocusRing(shell)
+		}
 	},
 })

@@ -2,7 +2,12 @@ import { useState } from "react"
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotsIn } from "@workspace/storybook/story-utils"
+import {
+	expectControlFrame,
+	expectFocusRing,
+	expectInvalidOutline,
+	slotsIn,
+} from "@workspace/storybook/story-utils"
 import {
 	SettingsField,
 	type SettingsFieldProps,
@@ -358,5 +363,117 @@ export const WithError = meta.story({
 		await expect(message).toHaveTextContent("A skill needs a name.")
 		await expect(field).toHaveAttribute("aria-invalid", "true")
 		await expect(field).toHaveAccessibleDescription("A skill needs a name.")
+	},
+})
+
+const ARTBOARD_FIELD =
+	"The single-line text field of artboard V1e, light and dark side by side: a `muted` fill, a 1px `input` outline and the `radius-control` corner, the value at 14px / 20px inside 8px block and 12px inline padding, the placeholder in `muted-foreground`. "
+
+const namesIn = (canvasElement: HTMLElement) => [
+	...canvasElement.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+		"input, textarea",
+	),
+]
+
+const expectArtboardField = async (field: HTMLElement) => {
+	const style = getComputedStyle(field)
+	await expectControlFrame(field)
+	await expect(style.fontSize).toBe("14px")
+	await expect(style.lineHeight).toBe("20px")
+	await expect(style.paddingBlockStart).toBe("8px")
+	await expect(style.paddingInlineStart).toBe("12px")
+}
+
+export const ThemesAtRest = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { placeholder: "Nest Keeper", value: "" },
+	parameters: {
+		docs: { description: { story: `${ARTBOARD_FIELD}At rest, empty.` } },
+	},
+	play: async ({ canvasElement }) => {
+		const fields = namesIn(canvasElement)
+		await expect(fields.length).toBe(2)
+		for (const field of fields) await expectArtboardField(field)
+	},
+})
+
+export const ThemesFilled = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		docs: { description: { story: `${ARTBOARD_FIELD}Holding a value.` } },
+	},
+	play: async ({ canvasElement }) => {
+		for (const field of namesIn(canvasElement)) await expectArtboardField(field)
+	},
+})
+
+export const ThemesMultiline = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: {
+		label: "Instructions",
+		rows: 3,
+		value: "Answer in English.\nKeep replies short.",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story: `${ARTBOARD_FIELD}As a textarea, on the same frame and the same line height.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const field of namesIn(canvasElement)) await expectArtboardField(field)
+	},
+})
+
+export const ThemesFocusVisible = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		pseudo: { focusVisible: "input" },
+		docs: {
+			description: {
+				story: `${ARTBOARD_FIELD}Keyboard focus keeps the existing \`ring\` outline and its translucent halo on the frame.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const field of namesIn(canvasElement)) {
+			field.focus()
+			await expectFocusRing(field)
+		}
+	},
+})
+
+export const ThemesInvalid = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { error: "A skill needs a name.", value: "" },
+	parameters: {
+		docs: {
+			description: {
+				story: `${ARTBOARD_FIELD}Refused, the frame keeps the existing \`destructive\` outline.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const field of namesIn(canvasElement))
+			await expectInvalidOutline(field)
+	},
+})
+
+export const ThemesReadOnly = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { readOnly: true },
+	parameters: {
+		docs: {
+			description: {
+				story: `${ARTBOARD_FIELD}Read-only, the frame drops the \`muted\` fill and shows the surface behind it, so it reads apart from a field at rest.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const field of namesIn(canvasElement))
+			await expect(getComputedStyle(field).backgroundColor).toBe(
+				"rgba(0, 0, 0, 0)",
+			)
 	},
 })

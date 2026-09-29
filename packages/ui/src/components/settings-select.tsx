@@ -56,8 +56,10 @@ const SettingsSelect = ({
 					aria-invalid={error ? true : undefined}
 					className={cn(
 						FIELD_CONTROL_CLASS,
-						error && FIELD_CONTROL_INVALID_CLASS,
-						"flex items-center justify-between gap-2 pr-2.5 text-left hover:bg-muted",
+						error
+							? FIELD_CONTROL_INVALID_CLASS
+							: "hover:border-muted-foreground",
+						"flex items-center justify-between gap-2 pr-2.5 text-left",
 					)}
 					ref={ref}
 				>

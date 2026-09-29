@@ -165,7 +165,7 @@ const KeyField = ({ field, value, onValueChange }: KeyFieldProps) => {
 			>
 				{field.name}
 			</label>
-			<div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background ps-3 pe-1 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/30">
+			<div className="flex h-9 items-center gap-2 rounded-control border border-input bg-background ps-3 pe-1 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/30">
 				<input
 					aria-describedby={field.description ? descriptionId : undefined}
 					autoComplete="off"
