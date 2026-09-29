@@ -69,7 +69,8 @@ const ROUTINES_PANEL_WIDTH = 320
 const PANEL_SHELL =
 	"surface-shell h-full min-h-0 min-w-0 flex-1 overflow-hidden"
 
-const PANEL_SURFACE = "relative on-shell min-h-0 bg-transparent"
+const PANEL_SURFACE =
+	"relative on-shell min-h-0 border-s border-shell-divider bg-card"
 
 const PANEL_BODY = "gap-4 px-2 pt-1 pb-2"
 
