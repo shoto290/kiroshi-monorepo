@@ -108,7 +108,7 @@ export function App() {
 						onOpenPanelChange={sidebarTab.openSidebarTab}
 						collapsedSectionIds={collapsedSectionIds}
 						sectionsBySpaceId={core.sections.state.sections}
-						footer={rosterLines.updateBadge}
+						updateBadge={rosterLines.updateBadge}
 						isSpaceSwitchingEnabled={!overlay.isOverlayOpen}
 						onOpenSearch={overlay.search.open}
 						{...rosterLines.sidebarActions}

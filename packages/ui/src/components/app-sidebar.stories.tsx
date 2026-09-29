@@ -46,7 +46,6 @@ import {
 	COMPANION_SILHOUETTE_SPACE,
 	silhouetteKey,
 } from "@workspace/ui/components/companion-silhouette"
-import { Icons } from "@workspace/ui/components/icons"
 import { OUTER } from "@workspace/ui/components/kiroshi-hexagon"
 import {
 	SPACE_EARLIER_TODAY_MISSIONS,
@@ -56,7 +55,6 @@ import type {
 	MissionsPanelMission,
 	MissionsPanelProps,
 } from "@workspace/ui/components/missions-panel"
-import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
 const LAST_MESSAGE =
@@ -277,19 +275,6 @@ const LONG_ROSTER: AppSidebarBot[] = [0, 1, 2].flatMap((pass) =>
 	ROSTER.map((bot) => ({ ...bot, id: `${bot.id}-${pass}` })),
 )
 
-const FOOTER_LABEL = "Workspace settings"
-
-const FOOTER_CONTENT = (
-	<TooltipButton
-		aria-label={FOOTER_LABEL}
-		size="icon-sm"
-		tooltip={FOOTER_LABEL}
-		variant="ghost"
-	>
-		<Icons.Settings aria-hidden="true" />
-	</TooltipButton>
-)
-
 const SPACES: Space[] = [
 	{ id: "perso", name: "Perso", colour: "blue" },
 	{ id: "vocca", name: "Vocca", colour: "green" },
@@ -313,6 +298,8 @@ const HOME = SPACES[0].id
 
 const HOME_SPACES: Space[] = [SPACES[0]]
 
+const HOME_AND_ONE_MORE: Space[] = SPACES.slice(0, 2)
+
 const inHome = <T,>(held: T[]): Record<string, T[]> => ({ [HOME]: held })
 
 const NO_ROOMS: AppSidebarConversation[] = []
@@ -325,7 +312,7 @@ const SPACES_BRANCH = "Spaces"
 
 const SilentSlot = () => null
 
-const SILENT_FOOTER_CONTENT = <SilentSlot />
+const IDLE_UPDATE_BADGE = <SilentSlot />
 
 const verticalCentreOf = (box: DOMRect) => box.top + box.height / 2
 
@@ -670,7 +657,7 @@ const meta = preview.meta({
 		selectedSpaceId: HOME,
 		selectedBotId: "beacon",
 		user: READER,
-		footer: SILENT_FOOTER_CONTENT,
+		updateBadge: IDLE_UPDATE_BADGE,
 		onSelectBot: fn(),
 		onCreateBot: fn(),
 		onCreateConversation: fn(),
@@ -2243,13 +2230,13 @@ export const Footer = meta.story({
 	args: {
 		botsBySpaceId: inHome(LONG_ROSTER),
 		selectedBotId: "beacon-0",
-		footer: FOOTER_CONTENT,
+		spaces: HOME_AND_ONE_MORE,
 	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The pinned region under the list, given a control by the host — the panel is handed a node and draws it, it knows nothing of what it is. Check that it sits under the last row rather than beside it, that its bottom edge is the bottom edge of the column, and that a roster three times too long for the window scrolls inside the space panel alone: the region stays exactly where it was and the column itself never scrolls. Pick `NoFooter` for the same list with the slot left out, `FooterWithoutBots` for the slot over an empty roster.",
+					"The pinned region under the list, drawn once there is more than one space. Check that it holds the space dots and nothing else, that it sits under the last row rather than beside it, that its bottom edge is the bottom edge of the column, and that a roster three times too long for the window scrolls inside the space panel alone: the region stays exactly where it was and the column itself never scrolls. Pick `NoFooter` for the same list in a single space.",
 			},
 		},
 	},
@@ -2259,8 +2246,8 @@ export const Footer = meta.story({
 		const footer = slotIn(canvasElement, "sidebar-footer")
 
 		await expect(
-			within(footer).getByRole("button", { name: FOOTER_LABEL }),
-		).toBeVisible()
+			Array.from(footer.children, (child) => child.getAttribute("data-slot")),
+		).toEqual(["space-dots"])
 		await expectFooterAtColumnBottom(canvasElement)
 
 		const footerTop = footer.getBoundingClientRect().top
@@ -2275,87 +2262,17 @@ export const Footer = meta.story({
 
 export const NoFooter = meta.story({
 	tags: ["test-only"],
-	args: { user: undefined, footer: undefined },
+	args: { user: undefined },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same column with neither a reader nor a slot, which the app never mounts and no other story here reproduces. Check that no pinned region is drawn at all, not an empty one, not a reserved strip, and that the list runs all the way to the bottom edge of the column, so a host that wants nothing under its roster pays nothing for the slot. Pick `IdleFooter` for the resting slot the app does pass, `Footer` for the same list with the slot filled.",
+					"The column in a single space, with no reader and the update badge at rest. Check that no pinned region is drawn at all, not an empty one, not a reserved strip, and that the list runs all the way to the bottom edge of the column. Pick `Footer` for the same list across two spaces.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		await expect(slotsIn(canvasElement, "sidebar-footer")).toHaveLength(0)
-		await expect(
-			bottomOf(slotIn(canvasElement, "sidebar-content")),
-		).toBeCloseTo(columnBottomOf(canvasElement), 0)
-	},
-})
-
-export const FooterWithoutBots = meta.story({
-	tags: ["test-only"],
-	args: { botsBySpaceId: inHome([]), footer: FOOTER_CONTENT },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The slot over a reader who owns no companion yet. Check that the pinned region stays against the bottom edge of the column instead of riding up under the empty copy — the list keeps the space it is not using, so the region reads as part of the column rather than as the end of a short list. Pick `Empty` for the same state without the slot.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		await expect(rowsIn(canvasElement)).toHaveLength(0)
-		await expectFooterAtColumnBottom(canvasElement)
-	},
-})
-
-export const FooterOnRail = meta.story({
-	tags: ["test-only"],
-	render: renderShell(false),
-	args: { footer: FOOTER_CONTENT },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The slot on the icon rail. Check that the pinned region drops its side padding and centres what it holds, exactly as the create button rides down in the header — a rail one avatar wide has no room for padding either side — and that nothing is clipped against either edge of the rail. Pick `Collapsed` for the rail without the slot.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const panel = slotIn(canvasElement, "sidebar-container")
-		const rail = railWidth()
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
-		}, FRAME_POLL)
-
-		const footer = slotIn(canvasElement, "sidebar-footer")
-		const style = getComputedStyle(footer)
-		await expect(style.paddingLeft).toBe("0px")
-		await expect(style.paddingRight).toBe("0px")
-
-		const panelBox = panel.getBoundingClientRect()
-		const buttonBox = within(footer)
-			.getByRole("button", { name: FOOTER_LABEL })
-			.getBoundingClientRect()
-		await expect(buttonBox.left).toBeGreaterThanOrEqual(panelBox.left)
-		await expect(buttonBox.right).toBeLessThanOrEqual(panelBox.right)
-		await expectFooterAtColumnBottom(canvasElement)
-	},
-})
-
-export const IdleFooter = meta.story({
-	tags: ["test-only"],
-	args: { footer: SILENT_FOOTER_CONTENT },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The state the app is in nearly all the time: the host pins a node under the list and that node draws nothing, since there is no update to install. Check that no pinned region is drawn for it and the list runs to the bottom of the column, with no gap held open for something that is not there. Pick `Footer` for the moment the control does draw.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		await expect(slotIn(canvasElement, "sidebar-footer")).not.toBeVisible()
 		await expect(
 			bottomOf(slotIn(canvasElement, "sidebar-content")),
 		).toBeCloseTo(columnBottomOf(canvasElement), 0)
