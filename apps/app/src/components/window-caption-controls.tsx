@@ -92,5 +92,5 @@ const WindowCaptionControls = () => {
 export const titleBarWindowControls = () =>
 	hasCaptionWindowControls() ? <WindowCaptionControls /> : undefined
 
-export const titleBarDragRegion = () =>
-	hasCaptionWindowControls() ? ("deep" as const) : undefined
+export const titleBarDragRegion = (): "deep" | undefined =>
+	hasCaptionWindowControls() ? "deep" : undefined
