@@ -7,6 +7,7 @@ import {
 	AppRail,
 	type AppRailPanel,
 	type AppRailProps,
+	NAVIGATION_ROW_GAP,
 } from "@workspace/ui/components/app-rail"
 import { AppSidebar } from "@workspace/ui/components/app-sidebar"
 import { blotTint } from "@workspace/ui/components/companion-colour"
@@ -100,8 +101,30 @@ const updateBadgeIn = (status: UpdateBadgeStatus) => ({
 		await expect(badgeBox.left).toBe(gearBox.left)
 		await expect(badgeBox.width).toBe(gearBox.width)
 		await expect(badgeBox.height).toBe(gearBox.height)
+		await expectListRowGapBetweenEntries(canvasElement)
 	},
 })
+
+const boxesInGroup = (group: Element) =>
+	Array.from(group.children)
+		.filter((item) => item.checkVisibility())
+		.map((item) =>
+			(item.firstElementChild as HTMLElement).getBoundingClientRect(),
+		)
+
+const expectListRowGapBetweenEntries = async (canvasElement: HTMLElement) => {
+	const listRowGap = Number.parseFloat(
+		probedStyleOf(NAVIGATION_ROW_GAP, "rowGap"),
+	)
+	const groups = slotIn(canvasElement, "app-rail").querySelectorAll("ul")
+	for (const group of groups) {
+		const boxes = boxesInGroup(group)
+		await expect(boxes.length).toBeGreaterThan(1)
+		for (const [index, box] of boxes.slice(1).entries()) {
+			await expect(box.top - boxes[index].bottom).toBe(listRowGap)
+		}
+	}
+}
 
 const verticalCentreOf = (box: DOMRect) => box.top + box.height / 2
 
@@ -167,6 +190,7 @@ export const ConversationsSelected = meta.story({
 	play: async ({ canvasElement }) => {
 		await expectOnlySelected(canvasElement, "conversations")
 		await expectBareBottomGroup(canvasElement)
+		await expectListRowGapBetweenEntries(canvasElement)
 	},
 	parameters: {
 		docs: {
@@ -231,13 +255,13 @@ export const FirstTabLevelWithPanelTitle = meta.story({
 		docs: {
 			description: {
 				story:
-					"The rail beside the panel it opens, under the title bar. Check the first tab is centred on the panel title row within 1px, that the air between the title bar and the first tab equals the air between the two tabs, and that the rail stays 52px wide under a 34px title bar.",
+					"The rail beside the panel it opens, under the title bar. Check the first tab is centred on the panel title row within 1px and that the rail stays 52px wide under a 34px title bar.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const rail = slotIn(canvasElement, "app-rail")
-		const [first, second] = Array.from(
+		const [first] = Array.from(
 			rail.querySelectorAll<HTMLElement>('[data-slot="app-rail-item"]'),
 		).map((entry) => entry.getBoundingClientRect())
 		const titleBar = slotIn(
@@ -251,7 +275,6 @@ export const FirstTabLevelWithPanelTitle = meta.story({
 		await expect(
 			Math.abs(verticalCentreOf(first) - verticalCentreOf(titleRow)),
 		).toBeLessThanOrEqual(1)
-		await expect(first.top - titleBar.bottom).toBe(second.top - first.bottom)
 		await expect(rail.getBoundingClientRect().width).toBe(RAIL_WIDTH)
 		await expect(titleBar.height).toBe(SHELL_TITLE_BAR_HEIGHT)
 	},
@@ -415,4 +438,7 @@ export const OnTintedSpace = meta.story({
 export const Dark = meta.story({
 	args: { dots: { conversations: true, missions: true } },
 	globals: { theme: "dark" },
+	play: async ({ canvasElement }) => {
+		await expectListRowGapBetweenEntries(canvasElement)
+	},
 })

@@ -146,6 +146,7 @@ type ProbedProperty =
 	| "borderTopColor"
 	| "borderTopLeftRadius"
 	| "fontFamily"
+	| "rowGap"
 
 export const probedStyleOf = (
 	className: string,

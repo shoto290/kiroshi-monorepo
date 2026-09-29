@@ -24,9 +24,9 @@ type AppRailDots = Partial<Record<AppRailEntry, boolean>>
 const RAIL =
 	"flex w-13 shrink-0 flex-col justify-between gap-1 px-2 pt-1.75 pb-[calc(var(--shell-inset)-var(--spacing))]"
 
-const RAIL_PANELS = "flex flex-col gap-1.75"
+const NAVIGATION_ROW_GAP = "gap-0.5"
 
-const RAIL_GROUP = "flex flex-col gap-1"
+const RAIL_GROUP = `flex flex-col ${NAVIGATION_ROW_GAP}`
 
 const RAIL_SLOT = "flex empty:hidden"
 
@@ -172,7 +172,7 @@ const AppRail = ({
 			className={cn(RAIL, className)}
 			data-slot="app-rail"
 		>
-			<ul className={RAIL_PANELS}>
+			<ul className={RAIL_GROUP}>
 				<RailItem
 					{...panelEntry("conversations")}
 					onPress={onSelectConversations}
@@ -215,4 +215,5 @@ export {
 	type AppRailEntry,
 	type AppRailPanel,
 	type AppRailProps,
+	NAVIGATION_ROW_GAP,
 }
