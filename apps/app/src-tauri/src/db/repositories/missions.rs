@@ -171,8 +171,21 @@ impl MissionsRepository {
 		closing: MissionClosing,
 	) -> Result<Mission, MissionError> {
 		self.access
-			.call_mut(move |connection| Ok(closed(connection, &mission_id, &closing)))
+			.call_mut(move |connection| Ok(closed(connection, &mission_id, &closing.entry())))
 			.await?
+	}
+
+	pub async fn dismiss(
+		&self,
+		mission_id: String,
+		source: String,
+	) -> Result<Mission, MissionError> {
+		let entry = MissionEntry {
+			kind: MissionEventKind::Dismissed,
+			source,
+			payload: serde_json::json!({}),
+		};
+		self.access.call_mut(move |connection| Ok(closed(connection, &mission_id, &entry))).await?
 	}
 
 	pub async fn reopen(
@@ -566,12 +579,12 @@ fn refuse_a_shut_mission(
 fn closed(
 	connection: &mut Connection,
 	mission_id: &str,
-	closing: &MissionClosing,
+	entry: &MissionEntry,
 ) -> Result<Mission, MissionError> {
 	let transaction = write_transaction(connection)?;
 	refuse_a_shut_mission(&transaction, mission_id)?;
 	let at = now();
-	record(&transaction, mission_id, &closing.entry(), "", at)?;
+	record(&transaction, mission_id, entry, "", at)?;
 	transaction.execute(CLOSE_MISSION, params![mission_id, at])?;
 	let stored = read(&transaction, mission_id)?;
 	transaction.commit()?;

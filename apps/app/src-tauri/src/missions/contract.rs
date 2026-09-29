@@ -21,10 +21,11 @@ pub enum MissionEventKind {
 	Closed,
 	Status,
 	Reopened,
+	Dismissed,
 }
 
 impl MissionEventKind {
-	pub const ALL: [MissionEventKind; 13] = [
+	pub const ALL: [MissionEventKind; 14] = [
 		MissionEventKind::Opened,
 		MissionEventKind::Note,
 		MissionEventKind::AgentAsked,
@@ -38,6 +39,7 @@ impl MissionEventKind {
 		MissionEventKind::Closed,
 		MissionEventKind::Status,
 		MissionEventKind::Reopened,
+		MissionEventKind::Dismissed,
 	];
 
 	pub fn state(self) -> Option<MissionState> {
@@ -52,6 +54,7 @@ impl MissionEventKind {
 			MissionEventKind::Ready => Some(MissionState::ReadyToMerge),
 			MissionEventKind::Failed => Some(MissionState::Failed),
 			MissionEventKind::Closed => Some(MissionState::Done),
+			MissionEventKind::Dismissed => Some(MissionState::Closed),
 			MissionEventKind::Note
 			| MissionEventKind::AgentStarted
 			| MissionEventKind::AgentStopped
@@ -60,7 +63,7 @@ impl MissionEventKind {
 	}
 
 	pub fn closes(self) -> bool {
-		matches!(self, MissionEventKind::Closed)
+		matches!(self, MissionEventKind::Closed | MissionEventKind::Dismissed)
 	}
 }
 
@@ -73,6 +76,7 @@ pub enum MissionState {
 	ReadyToMerge,
 	Failed,
 	Done,
+	Closed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]

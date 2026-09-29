@@ -1357,6 +1357,36 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn a_watched_mission_a_person_closed_stays_closed_when_its_pull_request_merges() {
+		let (database, dir) = planted().await;
+		let mission = an_armed_mission(&database).await;
+		let stub = Stub::holding(a_pull("open", "abc", false), "\"one\"").await;
+		let clock = Ticking::at(NOON);
+		let mut kept = Kept::default();
+		walked(&stub, &database, &mut kept, &clock).await;
+		database
+			.missions()
+			.dismiss(mission.id.clone(), "person".to_owned())
+			.await
+			.expect("the mission closes");
+
+		stub.answering(a_pull("closed", "abc", true), "\"two\"").await;
+		walked(&stub, &database, &mut kept, &clock).await;
+
+		assert!(
+			!from_github(&database, &mission.id)
+				.await
+				.iter()
+				.any(|(kind, _)| *kind == MissionEventKind::Closed),
+			"the merge closed a mission the person had closed"
+		);
+		assert_eq!(state_of(&database, &mission.id).await, (MissionState::Closed, true));
+
+		stub.stop.send_replace(true);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
 	async fn a_refusal_carrying_a_rate_limit_reset_stops_every_request_before_that_reset() {
 		let (database, dir) = planted().await;
 		let mission = an_armed_mission(&database).await;

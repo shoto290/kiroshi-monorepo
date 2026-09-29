@@ -117,7 +117,7 @@ export const commands = {
 	mcpOauthCancel: () => typedError<null, OauthError_Serialize>(__TAURI_INVOKE("mcp_oauth_cancel")),
 	mcpOauthDisconnect: (owner: EnvOwner, name: string, url: string) => typedError<Disconnected_Serialize, OauthError_Serialize>(__TAURI_INVOKE("mcp_oauth_disconnect", { owner, name, url })),
 	mcpApplicationStatus: (owner: EnvOwner) => typedError<ApplicationRow_Serialize[], EnvError>(__TAURI_INVOKE("mcp_application_status", { owner })),
-	missionClose: (missionId: string, closing: MissionClosing) => typedError<Mission, MissionError>(__TAURI_INVOKE("mission_close", { missionId, closing })),
+	missionClose: (missionId: string) => typedError<Mission, MissionError>(__TAURI_INVOKE("mission_close", { missionId })),
 	missionReopen: (missionId: string) => typedError<Mission, MissionError>(__TAURI_INVOKE("mission_reopen", { missionId })),
 	missionList: (conversationId: string) => typedError<ConversationMissions, MissionError>(__TAURI_INVOKE("mission_list", { conversationId })),
 	missionDetail: (missionId: string) => typedError<MissionDetail, MissionError>(__TAURI_INVOKE("mission_detail", { missionId })),
@@ -724,12 +724,6 @@ export type MissionActivity = {
 	target: string,
 };
 
-export type MissionClosing = {
-	source: string,
-	outcome: MissionOutcome,
-	summary: string,
-};
-
 export type MissionDetail = {
 	mission: Mission,
 	events: MissionEvent[],
@@ -762,7 +756,7 @@ export type MissionEvent = {
 	createdAt: number,
 };
 
-export type MissionEventKind = "opened" | "note" | "agent_asked" | "agent_started" | "agent_stopped" | "answered" | "escalated" | "ready" | "checks_failed" | "failed" | "closed" | "status" | "reopened";
+export type MissionEventKind = "opened" | "note" | "agent_asked" | "agent_started" | "agent_stopped" | "answered" | "escalated" | "ready" | "checks_failed" | "failed" | "closed" | "status" | "reopened" | "dismissed";
 
 export type MissionInSpace = {
 	mission: Mission,
@@ -780,9 +774,7 @@ export type MissionOnBoard = {
 	bot: Bot,
 };
 
-export type MissionOutcome = "done" | "failed";
-
-export type MissionState = "working" | "waiting_bot" | "waiting_human" | "ready_to_merge" | "failed" | "done";
+export type MissionState = "working" | "waiting_bot" | "waiting_human" | "ready_to_merge" | "failed" | "done" | "closed";
 
 export type MissionStatus = {
 	text: string,

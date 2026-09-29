@@ -215,9 +215,7 @@ pub async fn mission_escalate<R: Runtime>(
 	appended(&app, &state, mission_id, MissionEntry::of(MissionEventKind::Escalated, note)).await
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn mission_close<R: Runtime>(
+pub async fn mission_conclude<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	mission_id: String,
@@ -225,6 +223,18 @@ pub async fn mission_close<R: Runtime>(
 ) -> Result<Mission, MissionError> {
 	refuse_blank("source", &closing.source)?;
 	let written = ready(&state)?.missions().close(mission_id, closing).await?;
+	announce_change(&app, &written)?;
+	Ok(written)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn mission_close<R: Runtime>(
+	app: AppHandle<R>,
+	state: State<'_, db::DatabaseState>,
+	mission_id: String,
+) -> Result<Mission, MissionError> {
+	let written = ready(&state)?.missions().dismiss(mission_id, PERSON.to_owned()).await?;
 	announce_change(&app, &written)?;
 	Ok(written)
 }
@@ -534,7 +544,7 @@ mod tests {
 		mission_escalate(app.handle().clone(), app.state(), here.id.clone(), a_note())
 			.await
 			.expect("the mission is escalated");
-		mission_close(app.handle().clone(), app.state(), done.id, a_closing(MissionOutcome::Done))
+		mission_conclude(app.handle().clone(), app.state(), done.id, a_closing(MissionOutcome::Done))
 			.await
 			.expect("the mission is closed");
 
@@ -561,7 +571,7 @@ mod tests {
 		let app = a_host("unreported").await;
 		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
 		let open = a_mission(&app, a_draft("c1", "b1", "Ship it")).await;
-		mission_close(
+		mission_conclude(
 			app.handle().clone(),
 			app.state(),
 			opened.id.clone(),
@@ -627,7 +637,7 @@ mod tests {
 		let app = a_host("failed-close").await;
 		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
 
-		let closed = mission_close(
+		let closed = mission_conclude(
 			app.handle().clone(),
 			app.state(),
 			opened.id.clone(),
@@ -667,7 +677,7 @@ mod tests {
 		let app = a_host("done-close").await;
 		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
 
-		let closed = mission_close(
+		let closed = mission_conclude(
 			app.handle().clone(),
 			app.state(),
 			opened.id.clone(),
@@ -802,7 +812,7 @@ mod tests {
 	async fn an_answer_at_the_standing_seq_of_a_closed_mission_appends_nothing_and_says_nothing() {
 		let app = a_host("closed-answer").await;
 		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
-		let closed = mission_close(
+		let closed = mission_conclude(
 			app.handle().clone(),
 			app.state(),
 			opened.id.clone(),
@@ -1140,7 +1150,7 @@ mod tests {
 		app.manage(crate::routines::webhook::start(app.handle().clone()));
 		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
 		let done = a_mission(&app, a_draft("c1", "b1", "Old work")).await;
-		mission_close(
+		mission_conclude(
 			app.handle().clone(),
 			app.state(),
 			done.id.clone(),
@@ -1188,7 +1198,7 @@ mod tests {
 	async fn a_command_naming_a_mission_no_row_holds_refuses_and_writes_nothing() {
 		let app = a_host("unknown").await;
 
-		let refused = mission_close(
+		let refused = mission_conclude(
 			app.handle().clone(),
 			app.state(),
 			"x9".to_owned(),
