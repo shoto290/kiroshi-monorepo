@@ -10,11 +10,7 @@ import type { RosterController } from "../bots/roster-controller"
 import { faceOfBot } from "../chat/thread-contract"
 import type { Bot, Conversation } from "../conversations/store-contract"
 import type { MissionLanding } from "../missions/mission-actions"
-import {
-	missionRowIdOf,
-	type SpaceMissionGroups,
-	toMissionsPanel,
-} from "../missions/missions-model"
+import { missionRowIdOf, toMissionsPanel } from "../missions/missions-model"
 import type { OpenedMissionController } from "../missions/opened-mission-controller"
 import {
 	type MissionSpeakingRuntimes,
@@ -66,12 +62,6 @@ const listedConversationIdsOf = (
 		),
 	)
 
-const entriesOf = ({
-	waitingOnYou,
-	inProgress,
-	earlierToday,
-}: SpaceMissionGroups) => [...waitingOnYou, ...inProgress, ...earlierToday]
-
 export const useSidebarMissions = ({
 	core,
 	rosterLines,
@@ -82,7 +72,10 @@ export const useSidebarMissions = ({
 	const feed = useSpaceMissions(spaceId)
 	useSpaceMissionsFailure(feed.hasFailed, feed.reload)
 
-	const entries = useMemo(() => entriesOf(feed), [feed])
+	const entries = useMemo(
+		() => [...feed.waitingOnYou, ...feed.inProgress, ...feed.earlierToday],
+		[feed],
+	)
 	const missions = useMemo(
 		() => entries.map(({ mission }) => mission),
 		[entries],
