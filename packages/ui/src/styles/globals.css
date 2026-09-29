@@ -45,6 +45,7 @@
 	--accent: #f2f2f2;
 	--accent-foreground: #0a0a0a;
 	--destructive: oklch(0.577 0.245 27.325);
+	--window-close: #c42b1c;
 	--mark: rgb(116 144 194 / 40%);
 	--transcript-new-mark: rgb(116 144 194 / 40%);
 	--border: #e5e5e5;
@@ -94,6 +95,7 @@
 	--accent: #262626;
 	--accent-foreground: #f5f5f5;
 	--destructive: oklch(0.704 0.191 22.216);
+	--window-close: #c42b1c;
 	--mark: rgb(116 144 194 / 40%);
 	--transcript-new-mark: rgb(116 144 194 / 40%);
 	--border: #212224;
@@ -136,6 +138,7 @@
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
+	--color-window-close: var(--window-close);
 	--color-mark: var(--mark);
 	--color-transcript-new-mark: var(--transcript-new-mark);
 	--color-border: var(--border);

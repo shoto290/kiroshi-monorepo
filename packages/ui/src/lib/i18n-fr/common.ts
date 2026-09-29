@@ -24,6 +24,12 @@ const common = {
 		close: "Fermer la barre latérale",
 		resize: "Redimensionner la barre latérale",
 	},
+	windowControls: {
+		minimize: "Réduire",
+		maximize: "Agrandir",
+		restore: "Restaurer",
+		close: "Fermer",
+	},
 	notice: {
 		label: "Avis",
 		close: "Fermer l’avis",
