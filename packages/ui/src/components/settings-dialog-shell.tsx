@@ -106,7 +106,7 @@ const SettingsDialogShell = ({
 			>
 				<header className={SETTINGS_HEADER_CLASS}>
 					{mark}
-					<DialogTitle className="flex min-w-0 items-center gap-1.5 pr-0">
+					<DialogTitle className="flex min-w-0 items-center gap-1.5 pr-0 font-semibold">
 						<span className="truncate">{name}</span>
 						<Icons.Next
 							aria-hidden="true"

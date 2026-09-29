@@ -215,9 +215,7 @@ const HistoryChangePage = ({
 		>
 			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
 				<header className={HEAD_CLASS}>
-					<h2 className="truncate font-medium text-foreground text-sm/5">
-						{title}
-					</h2>
+					<h2 className="truncate text-foreground text-sm/5">{title}</h2>
 					<p className="text-muted-foreground text-xs/4">{meta}</p>
 				</header>
 

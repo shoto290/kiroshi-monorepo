@@ -98,7 +98,7 @@ const EnvironmentWriteDialog = ({
 	return (
 		<Dialog onOpenChange={(open) => (open ? undefined : onClose())} open>
 			<DialogSurface className="w-100">
-				<DialogTitle>
+				<DialogTitle className="font-semibold">
 					{isReplacing
 						? t("secrets.set.replace.title")
 						: t("secrets.set.add.title")}

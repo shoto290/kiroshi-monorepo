@@ -3,7 +3,7 @@ import { expect, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-	expectFont,
+	expectHeadingFont,
 	slotIn,
 } from "@workspace/storybook/story-utils"
 import {
@@ -86,7 +86,7 @@ export const Default = meta.story({
 			name: "Rewrote the instructions",
 		})
 		await expect(title).toBeVisible()
-		await expectFont(title, "font-heading")
+		await expectHeadingFont(title)
 		await expect(canvas.getByText("Nest Keeper · Today, 09:42")).toBeVisible()
 		await expect(canvas.getByText("1 line added, 1 line removed")).toBeVisible()
 		await expect(

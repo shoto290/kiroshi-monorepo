@@ -9,7 +9,10 @@ import {
 } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
+import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	expectHeadingFont,
+} from "@workspace/storybook/story-utils"
 import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import { Icons } from "@workspace/ui/components/icons"
 import type { SettingsPage } from "@workspace/ui/components/plugin-settings/settings-pages"
@@ -281,6 +284,7 @@ export const RailIconsOnly = meta.story({
 	},
 	play: async () => {
 		const dialog = await dialogIn()
+		await expectHeadingFont(within(dialog).getByRole("heading", { level: 2 }))
 		const general = within(dialog).getByRole("tab", { name: "General" })
 		const skills = within(dialog).getByRole("tab", { name: "Skills" })
 
