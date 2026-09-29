@@ -25,6 +25,7 @@ import {
 	type QuotedMessage,
 } from "@workspace/ui/components/message-quote"
 import type { MissionBot } from "@workspace/ui/components/mission"
+import type { MissionCardWrap } from "@workspace/ui/components/mission-card"
 import { MissionEventRow } from "@workspace/ui/components/mission-event-row"
 import { MissionHeader } from "@workspace/ui/components/mission-header"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
@@ -46,6 +47,7 @@ import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
 import { ApplicationInstallRow } from "@/components/application-install-row"
 import { FaceAvatar } from "@/components/face-avatar"
+import { useMissionCardMenus } from "@/components/mission-card-menu"
 import { type PromptHandle, ThreadComposer } from "@/components/thread-composer"
 import { botThreadMenu, conversationThreadMenu } from "@/components/thread-menu"
 import {
@@ -138,7 +140,11 @@ import {
 import { type SentInMount, useSentInMount } from "@/lib/chat/use-sent-in-mount"
 import { useSessionFailureNotice } from "@/lib/chat/use-session-failure-notice"
 import { useThreadJump } from "@/lib/chat/use-thread-jump"
-import { useComposerFocus, useThreadReply } from "@/lib/chat/use-thread-reply"
+import {
+	useComposerFocus,
+	useComposerRequest,
+	useThreadReply,
+} from "@/lib/chat/use-thread-reply"
 import {
 	type ThreadNaming,
 	useThreadNaming,
@@ -171,6 +177,7 @@ import {
 	useSeatMentioned,
 	useSuggestedBots,
 } from "@/lib/conversations/use-conversation-seating"
+import type { OpenMission } from "@/lib/missions/mission-actions"
 import type { Mission } from "@/lib/missions/mission-contract"
 import type { SummonedMissionState } from "@/lib/missions/mission-summons"
 import { toMissionFace } from "@/lib/missions/mission-thread-model"
@@ -882,33 +889,32 @@ const installRowsAfter = ({
 	})
 }
 
+const composerRequestOf = (seat: ThreadMission | null) =>
+	seat?.opening.landing === "composer" ? seat.opening : null
+
 type MissionCardRowsProps = {
 	placed: PlacedMission[]
 	authors: ThreadAuthors
 	faceOf: ThreadNaming["faceOf"]
 	liveMissionIds: LiveMissionIds
 	now: number
-	onOpen: (missionId: string) => void
+	onOpen: OpenMission
+	wrap: MissionCardWrap
 }
 
 type MissionCardRowRead = MissionCardRead & {
-	onOpen: (missionId: string) => void
+	onOpen: OpenMission
+	wrap: MissionCardWrap
 }
 
 const toMissionCardRow = ({
-	mission,
-	identity,
-	author,
-	isWorking,
-	now,
 	onOpen,
+	wrap,
+	...read
 }: MissionCardRowRead): TranscriptItem => ({
-	key: `mission-${mission.id}`,
+	key: `mission-${read.mission.id}`,
 	render: () => (
-		<MissionTurn
-			mission={toMissionCard({ mission, identity, author, isWorking, now })}
-			onOpen={onOpen}
-		/>
+		<MissionTurn mission={toMissionCard(read)} onOpen={onOpen} wrap={wrap} />
 	),
 })
 
@@ -919,6 +925,7 @@ const missionCardRowsAfter = ({
 	liveMissionIds,
 	now,
 	onOpen,
+	wrap,
 }: MissionCardRowsProps): RowsAfterRun =>
 	rowsPlacedAfter(placed, ({ mission }) => {
 		const identity = faceOf(mission.botId)
@@ -930,9 +937,11 @@ const missionCardRowsAfter = ({
 				mission,
 				identity,
 				author: authors.get(mission.botId),
+				state: mission.state,
 				isWorking: liveMissionIds.has(mission.id),
 				now,
 				onOpen,
+				wrap,
 			}),
 		]
 	})
@@ -1163,7 +1172,7 @@ type ThreadViewProps = {
 	readerName: string
 	onboarding?: Onboarding
 	signIn?: SignIn
-	onOpenMission: (missionId: string) => void
+	onOpenMission: OpenMission
 }
 
 const useThreadSeats = ({
@@ -1228,7 +1237,7 @@ const useThreadSeats = ({
 type ThreadSeats = ReturnType<typeof useThreadSeats>
 
 const useThreadAnnotations = (
-	{ runtimes, landings }: ThreadViewProps,
+	{ runtimes, landings, onOpenMission }: ThreadViewProps,
 	seats: ThreadSeats,
 ) => {
 	const {
@@ -1261,6 +1270,12 @@ const useThreadAnnotations = (
 		[missions.missions, missionSeat],
 	)
 	const liveMissionIds = useLiveMissions(runtimes, missionsInView, clock)
+	const wrapMissionCard = useMissionCardMenus({
+		missions: missions.missions,
+		runtimes,
+		onOpenMission,
+		onChanged: missions.reload,
+	})
 	const applications = useContext(ConversationApplicationsContext)
 	const sessionApplications = useContext(SessionApplicationsContext)
 	const installs = useConversationInstalls(state.conversationId)
@@ -1309,6 +1324,7 @@ const useThreadAnnotations = (
 		routinesScope,
 		sessionApplications,
 		toQuote,
+		wrapMissionCard,
 	}
 }
 
@@ -1357,6 +1373,7 @@ const useThreadActions = (
 		isOverlayOpen: facts.isOverlayOpen,
 		focusComposer,
 	})
+	useComposerRequest(composerRequestOf(missionSeat), focusComposer)
 
 	const { botController } = facts
 	const readDraft = useCallback(() => drafts.read(facts.id), [drafts, facts.id])
@@ -1471,6 +1488,7 @@ const threadRowsOf = (
 		repliedToRefusal,
 		sessionApplications,
 		toQuote,
+		wrapMissionCard,
 	} = annotations
 	const { asked, botController, holdReply, isSentInMount, retry, threadRuns } =
 		actions
@@ -1514,6 +1532,7 @@ const threadRowsOf = (
 				liveMissionIds,
 				now: clock,
 				onOpen: onOpenMission,
+				wrap: wrapMissionCard,
 				placed: placeMissions({
 					hasOlder: state.hasOlder,
 					missions: missions.missions,
@@ -1691,6 +1710,7 @@ function ThreadView(props: ThreadViewProps) {
 				missions={view.missions}
 				onOpenMission={onOpenMission}
 				runtimes={runtimes}
+				wrapMissionCard={view.wrapMissionCard}
 			>
 				{layout}
 			</ThreadRoutines>
@@ -1709,7 +1729,7 @@ type ThreadScreenProps = {
 	readerName: string
 	onboarding?: Onboarding
 	signIn?: SignIn
-	onOpenMission: (missionId: string) => void
+	onOpenMission: OpenMission
 }
 
 type ConversationThreadViewProps = Omit<ThreadScreenProps, "thread"> & {

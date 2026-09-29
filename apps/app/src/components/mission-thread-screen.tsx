@@ -12,8 +12,10 @@ import type { DraftsController } from "@/lib/chat/drafts-controller"
 import type { Thread } from "@/lib/chat/thread-contract"
 import type { ConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import type { Bot } from "@/lib/conversations/store-contract"
+import type { OpenMission } from "@/lib/missions/mission-actions"
 import type { Mission } from "@/lib/missions/mission-contract"
 import { toMissionConversation } from "@/lib/missions/mission-thread-model"
+import type { OpenedMission } from "@/lib/missions/opened-mission-controller"
 import { useMissionDetail } from "@/lib/missions/use-mission-detail"
 import { useMissionReadFailure } from "@/lib/missions/use-mission-failure-notices"
 import type { MessageLandingController } from "@/lib/search/message-landing-controller"
@@ -34,9 +36,10 @@ const MissionReadFailure = ({ onRetry }: MissionReadFailureProps) => {
 	)
 }
 
-type OpenedMissionProps = {
+type MissionThreadProps = {
 	activityPanel: ActivityPanel
 	mission: Mission
+	opening: OpenedMission
 	bot: Bot
 	bots: Bot[]
 	events: MissionEventModel[]
@@ -47,12 +50,13 @@ type OpenedMissionProps = {
 	landings: MessageLandingController
 	readerName: string
 	onLeave: () => void
-	onOpenMission: (missionId: string) => void
+	onOpenMission: OpenMission
 }
 
-const OpenedMission = ({
+const MissionThread = ({
 	activityPanel,
 	mission,
+	opening,
 	bot,
 	bots,
 	events,
@@ -64,7 +68,7 @@ const OpenedMission = ({
 	readerName,
 	onLeave,
 	onOpenMission,
-}: OpenedMissionProps) => {
+}: MissionThreadProps) => {
 	const now = useRosterClock()
 
 	useMissionReadFailure(hasFailedToRead)
@@ -76,9 +80,9 @@ const OpenedMission = ({
 			runtimes,
 			isSettingsOpen: false,
 			onOpenSettings: () => undefined,
-			mission: { mission, events, now, onLeave },
+			mission: { mission, events, now, opening, onLeave },
 		}),
-		[mission, bot, events, now, runtimes, onLeave],
+		[mission, bot, events, now, opening, runtimes, onLeave],
 	)
 
 	return (
@@ -98,7 +102,7 @@ const OpenedMission = ({
 
 type MissionThreadScreenProps = {
 	activityPanel: ActivityPanel
-	missionId: string
+	opening: OpenedMission
 	bots: Bot[]
 	runtimes: ConversationRuntimes
 	attachments: AttachmentsController
@@ -106,12 +110,12 @@ type MissionThreadScreenProps = {
 	landings: MessageLandingController
 	readerName: string
 	onLeave: () => void
-	onOpenMission: (missionId: string) => void
+	onOpenMission: OpenMission
 }
 
 export function MissionThreadScreen({
 	activityPanel,
-	missionId,
+	opening,
 	bots,
 	runtimes,
 	attachments,
@@ -121,7 +125,7 @@ export function MissionThreadScreen({
 	onLeave,
 	onOpenMission,
 }: MissionThreadScreenProps) {
-	const { read, hasFailedToRead, onRetry } = useMissionDetail(missionId)
+	const { read, hasFailedToRead, onRetry } = useMissionDetail(opening.missionId)
 
 	const bot = read
 		? bots.find(({ id }) => id === read.mission.botId)
@@ -132,7 +136,7 @@ export function MissionThreadScreen({
 	}
 
 	return (
-		<OpenedMission
+		<MissionThread
 			activityPanel={activityPanel}
 			attachments={attachments}
 			bot={bot}
@@ -144,6 +148,7 @@ export function MissionThreadScreen({
 			mission={read.mission}
 			onLeave={onLeave}
 			onOpenMission={onOpenMission}
+			opening={opening}
 			readerName={readerName}
 			runtimes={runtimes}
 		/>

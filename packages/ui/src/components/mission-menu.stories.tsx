@@ -27,7 +27,7 @@ const MENU_LABEL = "Mission actions"
 
 const OPEN_SHORTCUT = "↵"
 
-const CLOSE_SHORTCUT = "⌘W"
+const CLOSE_SHORTCUT = "⌘⌫"
 
 const SUMMARY = "Shipped behind the flag"
 
@@ -43,7 +43,7 @@ const AGENT_RUNNING_ENTRIES = [
 	...OPEN_ENTRIES,
 	"Message the agent",
 	"Stop the agent",
-	"Close mission⌘W",
+	"Close mission⌘⌫",
 ]
 
 const CLOSED_ENTRIES = [...OPEN_ENTRIES, "Reopen"]
@@ -51,8 +51,8 @@ const CLOSED_ENTRIES = [...OPEN_ENTRIES, "Reopen"]
 const ENTRIES_WITHOUT_A_PULL_REQUEST: Record<MissionState, string[]> = {
 	working: AGENT_RUNNING_ENTRIES,
 	waiting_bot: AGENT_RUNNING_ENTRIES,
-	waiting_human: [...OPEN_ENTRIES, "Answer the question", "Close mission⌘W"],
-	ready_to_merge: [...OPEN_ENTRIES, "Close mission⌘W"],
+	waiting_human: [...OPEN_ENTRIES, "Answer the question", "Close mission⌘⌫"],
+	ready_to_merge: [...OPEN_ENTRIES, "Close mission⌘⌫"],
 	failed: CLOSED_ENTRIES,
 	done: CLOSED_ENTRIES,
 }
@@ -461,6 +461,118 @@ export const ClosingWithoutASummary = meta.story({
 		)
 
 		await expect(args.onClose).toHaveBeenCalledWith("failed", "")
+	},
+})
+
+export const CloseFromTheKeyboard = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Cmd+Backspace pressed while the card's open button has focus. Check that the Close as done popover opens under the card with its summary field focused, and that confirming calls `onClose` with `done`.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const surface = cardSurfaceIn(canvasElement)
+		within(surface)
+			.getByRole("button", { name: /^Open the mission/ })
+			.focus()
+
+		await userEvent.keyboard("{Meta>}{Backspace}{/Meta}")
+
+		const popover = await shown(
+			await waitFor(() => {
+				const found = document.querySelector<HTMLElement>(
+					'[data-slot="mission-close-popover"]',
+				)
+				if (!found) throw new Error("the close popover isn't open")
+				return found
+			}, FRAME_POLL),
+		)
+		const panel = within(popover)
+		await expect(panel.getByText("Close as done")).toBeVisible()
+		await waitFor(
+			() => expect(panel.getByRole("textbox")).toHaveFocus(),
+			FRAME_POLL,
+		)
+
+		await userEvent.click(panel.getByRole("button", { name: "Close mission" }))
+
+		await expect(args.onClose).toHaveBeenCalledWith("done", "")
+	},
+})
+
+const COMPOSER_LABEL = "Composer"
+
+const COMPOSER_FOCUS_DELAY_MS = 60
+
+const WithComposer = (args: MissionMenuStoryArgs) => (
+	<div className="flex flex-col gap-4">
+		<Densities {...args} />
+		<input aria-label={COMPOSER_LABEL} />
+	</div>
+)
+
+type Clicking = {
+	click: (element: Element) => Promise<void>
+}
+
+type ComposerFocusCheck = {
+	canvasElement: HTMLElement
+	userEvent: Clicking
+	entry: string
+}
+
+const expectFocusLeftOnTheComposer = async ({
+	canvasElement,
+	userEvent,
+	entry,
+}: ComposerFocusCheck) => {
+	const composer = screen.getByRole("textbox", { name: COMPOSER_LABEL })
+	const focusComposerLater = () =>
+		window.setTimeout(() => composer.focus(), COMPOSER_FOCUS_DELAY_MS)
+
+	for (const surface of [rowIn(canvasElement), cardSurfaceIn(canvasElement)]) {
+		await userEvent.click(menuButtonIn(surface))
+		const item = (await openMenu()).getByRole("menuitem", { name: entry })
+		item.addEventListener("click", focusComposerLater)
+		await userEvent.click(item)
+		await waitFor(
+			() => expect(screen.queryByRole("menu")).toBeNull(),
+			FRAME_POLL,
+		)
+		await new Promise((resolve) =>
+			window.setTimeout(resolve, 4 * COMPOSER_FOCUS_DELAY_MS),
+		)
+
+		await expect(composer).toHaveFocus()
+	}
+}
+
+export const MessageTheAgentLeavesTheCard = meta.story({
+	tags: ["test-only"],
+	args: { state: "working" },
+	render: (args) => <WithComposer {...(args as MissionMenuStoryArgs)} />,
+	play: async ({ canvasElement, userEvent }) => {
+		await expectFocusLeftOnTheComposer({
+			canvasElement,
+			userEvent,
+			entry: "Message the agent",
+		})
+	},
+})
+
+export const AnswerTheQuestionLeavesTheCard = meta.story({
+	tags: ["test-only"],
+	args: { state: "waiting_human" },
+	render: (args) => <WithComposer {...(args as MissionMenuStoryArgs)} />,
+	play: async ({ canvasElement, userEvent }) => {
+		await expectFocusLeftOnTheComposer({
+			canvasElement,
+			userEvent,
+			entry: "Answer the question",
+		})
 	},
 })
 

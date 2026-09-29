@@ -4,6 +4,7 @@ import {
 	type ButtonHTMLAttributes,
 	type CSSProperties,
 	createContext,
+	Fragment,
 	type ReactNode,
 	type RefObject,
 	useContext,
@@ -23,7 +24,11 @@ import type {
 	MissionCardModel,
 	MissionState,
 } from "@workspace/ui/components/mission"
-import { MissionCard } from "@workspace/ui/components/mission-card"
+import {
+	MissionCard,
+	type MissionCardWrap,
+	wrapCard,
+} from "@workspace/ui/components/mission-card"
 import { NestedSidebarProvider } from "@workspace/ui/components/nested-sidebar-provider"
 import { Notice } from "@workspace/ui/components/notice"
 import {
@@ -126,6 +131,7 @@ type RoutinesPanelMissions = {
 	open: MissionCardModel[]
 	earlierToday: EarlierTodayRow[]
 	onOpen: (missionId: string) => void
+	wrap?: MissionCardWrap
 }
 
 type RoutinesPanelListProps = {
@@ -369,12 +375,16 @@ const RoutinesPanelBody = ({
 						title={t(`activity.missions.group.${key}`)}
 					>
 						{held.map((mission) => (
-							<MissionCard
-								{...mission}
-								density="row"
-								key={mission.id}
-								onOpen={missions.onOpen}
-							/>
+							<Fragment key={mission.id}>
+								{wrapCard(
+									<MissionCard
+										{...mission}
+										density="row"
+										onOpen={missions.onOpen}
+									/>,
+									missions.wrap,
+								)}
+							</Fragment>
 						))}
 					</ActivityGroup>
 				)
@@ -393,12 +403,16 @@ const RoutinesPanelBody = ({
 						row.kind === "run" ? (
 							<ReportedRunRow {...row} key={row.id} />
 						) : (
-							<MissionCard
-								{...row}
-								density="row"
-								key={row.id}
-								onOpen={missions.onOpen}
-							/>
+							<Fragment key={row.id}>
+								{wrapCard(
+									<MissionCard
+										{...row}
+										density="row"
+										onOpen={missions.onOpen}
+									/>,
+									missions.wrap,
+								)}
+							</Fragment>
 						),
 					)}
 				</ActivityGroup>

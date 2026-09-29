@@ -5,6 +5,8 @@ import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import {
 	cloneElement,
 	type FormEvent,
+	type KeyboardEvent,
+	type KeyboardEventHandler,
 	type ReactElement,
 	type RefObject,
 	useId,
@@ -70,7 +72,7 @@ type MissionMenuContentProps = Omit<
 	MissionMenuProps,
 	"children" | "onClose"
 > & {
-	isConfirmingClose: boolean
+	returnsFocus: () => boolean
 	onChooseClose: (outcome: MissionCloseOutcome) => void
 }
 
@@ -108,7 +110,7 @@ const MissionMenuContent = ({
 	hasWorkspacePath,
 	openShortcut,
 	closeShortcut,
-	isConfirmingClose,
+	returnsFocus,
 	onOpen,
 	onOpenTicket,
 	onOpenPullRequest,
@@ -125,7 +127,7 @@ const MissionMenuContent = ({
 		<ContextMenuContent
 			aria-label={t("missions.menu.label")}
 			className={STILL_UNDER_REDUCED_MOTION}
-			finalFocus={!isConfirmingClose}
+			finalFocus={returnsFocus}
 		>
 			<ContextMenuItem onClick={onOpen}>
 				<Icons.ArrowRight aria-hidden="true" className={ICON_CLASS} />
@@ -306,10 +308,14 @@ const MissionMenuButton = () => {
 	)
 }
 
+const isCloseKey = (event: KeyboardEvent<HTMLElement>) =>
+	event.key === "Backspace" && event.metaKey
+
 const MissionMenu = ({ children, onClose, ...props }: MissionMenuProps) => {
 	const cardRef = useRef<HTMLElement>(null)
 	const [outcome, setOutcome] = useState<MissionCloseOutcome>("done")
 	const [isConfirmingClose, setIsConfirmingClose] = useState(false)
+	const isLeavingCard = useRef(false)
 
 	const chooseClose = (chosen: MissionCloseOutcome) => {
 		setOutcome(chosen)
@@ -321,21 +327,49 @@ const MissionMenu = ({ children, onClose, ...props }: MissionMenuProps) => {
 		onClose(chosen, summary)
 	}
 
+	const closeFromKeyboard = (event: KeyboardEvent<HTMLElement>) => {
+		if (!isCloseKey(event) || isClosedState(props.state)) return
+		event.preventDefault()
+		chooseClose("done")
+	}
+
+	const alsoClosingFromKeyboard =
+		(onKeyDown: KeyboardEventHandler<HTMLElement> | undefined) =>
+		(event: KeyboardEvent<HTMLElement>) => {
+			onKeyDown?.(event)
+			closeFromKeyboard(event)
+		}
+
+	const leavingCard = (action: () => void) => () => {
+		isLeavingCard.current = true
+		action()
+	}
+
+	const staysOnCardWhenOpened = (isOpen: boolean) => {
+		if (isOpen) isLeavingCard.current = false
+	}
+
 	return (
 		<>
-			<ContextMenu>
+			<ContextMenu onOpenChange={staysOnCardWhenOpened}>
 				<ContextMenuPrimitive.Trigger
 					render={({ ref, ...surface }) =>
 						cloneElement(children, {
 							menu: <MissionMenuButton />,
-							surface: { ...surface, ref: mergeRefs(ref, cardRef) },
+							surface: {
+								...surface,
+								onKeyDown: alsoClosingFromKeyboard(surface.onKeyDown),
+								ref: mergeRefs(ref, cardRef),
+							},
 						})
 					}
 				/>
 				<MissionMenuContent
 					{...props}
-					isConfirmingClose={isConfirmingClose}
+					onAnswer={leavingCard(props.onAnswer)}
 					onChooseClose={chooseClose}
+					onMessageAgent={leavingCard(props.onMessageAgent)}
+					returnsFocus={() => !isConfirmingClose && !isLeavingCard.current}
 				/>
 			</ContextMenu>
 			<MissionClosePopover
@@ -353,5 +387,6 @@ export {
 	type MissionCloseOutcome,
 	type MissionCopyKind,
 	MissionMenu,
+	type MissionMenuActions,
 	type MissionMenuProps,
 }

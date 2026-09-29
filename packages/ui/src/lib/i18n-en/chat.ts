@@ -622,6 +622,15 @@ const chat = {
 				failed: "Close as failed",
 			},
 			reopen: "Reopen",
+			copied: "{{kind}} copied",
+			failed: {
+				openTicket: "Couldn’t open the ticket",
+				openPullRequest: "Couldn’t open the pull request",
+				copy: "Couldn’t copy to the clipboard",
+				stopAgent: "Couldn’t stop the agent",
+				close: "Couldn’t close the mission",
+				reopen: "Couldn’t reopen the mission",
+			},
 		},
 		close: {
 			summary: "Summary (optional)",

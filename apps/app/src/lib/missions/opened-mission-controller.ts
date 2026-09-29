@@ -1,3 +1,5 @@
+import type { MissionLanding } from "./mission-actions"
+
 import {
 	createOpenedController,
 	type OpenedController,
@@ -6,6 +8,7 @@ import {
 export type OpenedMission = {
 	missionId: string
 	rowId: string
+	landing?: MissionLanding
 }
 
 export type OpenedMissionController = OpenedController<OpenedMission>

@@ -30,6 +30,18 @@ export const externalUrlOf = (
 	return url.href
 }
 
+export const openInBrowser = async (href: string | null): Promise<void> => {
+	const url = externalUrlOf(href, window.location.href)
+	if (!url) {
+		throw new Error(`not an external address: ${href}`)
+	}
+	if (isDesktopHost()) {
+		await openUrl(url)
+		return
+	}
+	window.open(url, "_blank", "noopener,noreferrer")
+}
+
 const anchorOf = (target: EventTarget | null) =>
 	target instanceof Element ? target.closest("a[href]") : null
 

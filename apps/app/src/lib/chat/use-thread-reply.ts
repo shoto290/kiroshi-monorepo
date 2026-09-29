@@ -66,6 +66,17 @@ export function useThreadReply({
 	}
 }
 
+export function useComposerRequest(
+	request: object | null,
+	focusComposer: () => void,
+): void {
+	useEffect(() => {
+		if (request) {
+			focusComposer()
+		}
+	}, [request, focusComposer])
+}
+
 type ComposerFocusInput = {
 	botId: string | null
 	isPromptPending: boolean

@@ -13,16 +13,21 @@ import {
 	type MissionCardModel,
 	missionBadgeFor,
 } from "@workspace/ui/components/mission"
-import { MissionCard } from "@workspace/ui/components/mission-card"
+import {
+	MissionCard,
+	type MissionCardWrap,
+	wrapCard,
+} from "@workspace/ui/components/mission-card"
 import { TURN_AVATAR_SIZE } from "@workspace/ui/components/turn"
 import { cn } from "@workspace/ui/lib/utils"
 
 type MissionTurnProps = {
 	mission: MissionCardModel
 	onOpen: (missionId: string) => void
+	wrap?: MissionCardWrap
 }
 
-const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
+const MissionTurn = ({ mission, onOpen, wrap }: MissionTurnProps) => {
 	const { t } = useTranslation("chat")
 	const { author, ...card } = mission
 	const { identity } = card
@@ -58,12 +63,15 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 						working={card.isWorking}
 					/>
 				</span>
-				<MissionCard
-					{...card}
-					className="col-start-2 row-start-2 min-w-0"
-					density="card"
-					onOpen={onOpen}
-				/>
+				{wrapCard(
+					<MissionCard
+						{...card}
+						className="col-start-2 row-start-2 min-w-0"
+						density="card"
+						onOpen={onOpen}
+					/>,
+					wrap,
+				)}
 			</MessageContent>
 		</Message>
 	)

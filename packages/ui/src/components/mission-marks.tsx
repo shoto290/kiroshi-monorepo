@@ -47,6 +47,7 @@ type MissionSourceKind = "bot" | "reader" | "agent" | "github" | "unknown"
 const MISSION_SOURCE_KIND: Record<string, MissionSourceKind> = {
 	bot: "bot",
 	human: "reader",
+	person: "reader",
 	"agent-hook": "agent",
 	github: "github",
 }

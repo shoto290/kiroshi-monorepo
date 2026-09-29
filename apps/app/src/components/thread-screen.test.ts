@@ -1030,6 +1030,7 @@ const missionRoomOf = async ({
 				mission,
 				events,
 				now: 4 * A_MINUTE,
+				opening: { missionId: mission.id, rowId: room.thread.conversation.id },
 				onLeave: () => undefined,
 			},
 		},
@@ -1391,7 +1392,11 @@ describe("ThreadScreen", () => {
 		)
 		await settle()
 
-		fireEvent.click(within(missionCard()).getByRole("button"))
+		fireEvent.click(
+			within(missionCard()).getByRole("button", {
+				name: `Open the mission: ${SOLO_MISSION.objective}`,
+			}),
+		)
 
 		expect(openMission).toHaveBeenCalledWith(SOLO_MISSION.id)
 	})
