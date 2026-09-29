@@ -3,17 +3,13 @@ import type { MissionState } from "@/lib/bindings"
 export type {
 	ConversationMissions,
 	Mission,
-	MissionClosing,
 	MissionDetail,
 	MissionEvent,
 	MissionEventKind,
 	MissionInSpace,
 	MissionOnBoard,
-	MissionOutcome,
 	MissionState,
 } from "@/lib/bindings"
-
-export const PERSON_SOURCE = "person"
 
 export type MissionChanged = {
 	missionId: string

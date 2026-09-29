@@ -1,13 +1,10 @@
-import {
-	type ConversationMissions,
-	type Mission,
-	type MissionChanged,
-	type MissionClosing,
-	type MissionDetail,
-	type MissionInSpace,
-	type MissionOnBoard,
-	type MissionOutcome,
-	PERSON_SOURCE,
+import type {
+	ConversationMissions,
+	Mission,
+	MissionChanged,
+	MissionDetail,
+	MissionInSpace,
+	MissionOnBoard,
 } from "./mission-contract"
 
 import { invoke, listen } from "../host"
@@ -23,15 +20,7 @@ export const missionsTransport = {
 		invoke<Mission>("mission_reported", { missionId, turnId }),
 	answered: (missionId: string, seq: number) =>
 		invoke<Mission>("mission_answered", { missionId, seq }),
-	close: (missionId: string, outcome: MissionOutcome, summary: string) =>
-		invoke<Mission>("mission_close", {
-			missionId,
-			closing: {
-				source: PERSON_SOURCE,
-				outcome,
-				summary,
-			} satisfies MissionClosing,
-		}),
+	close: (missionId: string) => invoke<Mission>("mission_close", { missionId }),
 	reopen: (missionId: string) =>
 		invoke<Mission>("mission_reopen", { missionId }),
 	detail: (missionId: string) =>

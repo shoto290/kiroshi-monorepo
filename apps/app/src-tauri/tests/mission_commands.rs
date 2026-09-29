@@ -2,10 +2,12 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 
+use kiroshi_app::agent::host::Host;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::missions::commands::CHANGED_EVENT;
 use kiroshi_app::missions::contract::{MissionDraft, Ticket};
+use kiroshi_app::missions::host::MissionHost;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -99,15 +101,9 @@ fn reopening_a_closed_mission_brings_it_back_to_working_and_tells_the_front() {
 	let home = Home::new();
 	let window = window(&home.app);
 	let mission_id = a_mission(&home, &window);
-	let closed = call(
-		&window,
-		"mission_close",
-		json!({
-			"missionId": mission_id,
-			"closing": { "source": "person", "outcome": "done", "summary": "Settled by hand" },
-		}),
-	)
-	.expect("the mission closes");
+	let closed = call(&window, "mission_close", json!({ "missionId": mission_id }))
+		.expect("the mission closes");
+	assert_eq!(closed["state"], json!("closed"));
 	let changes = changes_of(&home);
 
 	let reopened =
@@ -217,15 +213,8 @@ fn a_moment() {
 }
 
 fn closed_at(window: &WebviewWindow<MockRuntime>, mission_id: &str) -> i64 {
-	let closed = call(
-		window,
-		"mission_close",
-		json!({
-			"missionId": mission_id,
-			"closing": { "source": "person", "outcome": "done", "summary": "Settled" },
-		}),
-	)
-	.expect("the mission closes");
+	let closed = call(window, "mission_close", json!({ "missionId": mission_id }))
+		.expect("the mission closes");
 	closed["closedAt"].as_i64().expect("the mission holds its closing time")
 }
 
@@ -277,4 +266,143 @@ fn the_space_feed_holds_the_open_and_recently_closed_missions_of_that_space_only
 			(json!(closed_later), json!(billing), json!("Billing")),
 		]
 	);
+}
+
+fn last_event(window: &WebviewWindow<MockRuntime>, mission_id: &str) -> (Value, Value) {
+	let detail = call(window, "mission_detail", json!({ "missionId": mission_id }))
+		.expect("the mission reads");
+	let last = detail["events"]
+		.as_array()
+		.and_then(|events| events.last())
+		.cloned()
+		.expect("the mission holds events");
+	(last["kind"].clone(), last["source"].clone())
+}
+
+fn bot_of(home: &Home, window: &WebviewWindow<MockRuntime>) -> MissionHost<MockRuntime> {
+	let chat = call(window, "conversation_main_chat", json!({ "botId": BOT })).expect("the chat");
+	let chat_id = chat["id"].as_str().expect("the chat holds an id").to_owned();
+	MissionHost::new(home.app.handle().clone(), chat_id, BOT.to_owned())
+}
+
+fn bot_close(
+	home: &Home,
+	window: &WebviewWindow<MockRuntime>,
+	mission_id: &str,
+	outcome: &str,
+) -> Result<Value, Value> {
+	let request = json!({
+		"subtype": "mission",
+		"operation": "close",
+		"payload": { "id": mission_id, "outcome": outcome, "summary": "Settled by the bot" },
+	});
+	tauri::async_runtime::block_on(bot_of(home, window).answer(request))
+}
+
+#[test]
+fn a_person_closing_a_working_mission_lands_it_in_closed_with_a_dismissed_event() {
+	let home = Home::new();
+	let window = window(&home.app);
+	let mission_id = a_mission(&home, &window);
+	let before = call(&window, "mission_detail", json!({ "missionId": mission_id }))
+		.expect("the mission reads");
+	assert_eq!(before["mission"]["state"], json!("working"));
+	let changes = changes_of(&home);
+
+	let closed = call(&window, "mission_close", json!({ "missionId": mission_id }))
+		.expect("the mission closes");
+
+	assert_eq!(closed["state"], json!("closed"));
+	assert!(closed["closedAt"].as_i64().is_some(), "the close set no closing time: {closed}");
+	assert!(
+		closed["stateSeq"].as_i64() > before["mission"]["stateSeq"].as_i64(),
+		"the close did not move the state seq: {closed}"
+	);
+	assert_eq!(last_event(&window, &mission_id), (json!("dismissed"), json!("person")));
+	assert_eq!(
+		changes.try_iter().map(|change| change["state"].clone()).collect::<Vec<_>>(),
+		vec![json!("closed")],
+		"the front was not told the mission closed"
+	);
+}
+
+#[test]
+fn closing_a_mission_already_closed_is_refused_as_a_bot_close_is() {
+	let home = Home::new();
+	let window = window(&home.app);
+	let mission_id = a_mission(&home, &window);
+	call(&window, "mission_close", json!({ "missionId": mission_id })).expect("the mission closes");
+
+	let again = call(&window, "mission_close", json!({ "missionId": mission_id }));
+	let by_the_bot = bot_close(&home, &window, &mission_id, "done");
+
+	assert_eq!(again, Err(json!({ "kind": "missionAlreadyClosed", "id": mission_id })));
+	assert_eq!(again, by_the_bot);
+	assert_eq!(last_event(&window, &mission_id), (json!("dismissed"), json!("person")));
+}
+
+#[test]
+fn a_bot_closing_on_done_or_failed_keeps_its_outcome() {
+	let home = Home::new();
+	let window = window(&home.app);
+	let chat = call(&window, "conversation_main_chat", json!({ "botId": BOT })).expect("the chat");
+	let chat_id = chat["id"].as_str().expect("the chat holds an id");
+	let done = opened_in(&home, chat_id, BOT, "done");
+	let failed = opened_in(&home, chat_id, BOT, "failed");
+
+	let settled = bot_close(&home, &window, &done, "done").expect("the bot closes on done");
+	let lost = bot_close(&home, &window, &failed, "failed").expect("the bot closes on failed");
+
+	assert_eq!((settled["state"].clone(), settled["closedAt"].is_i64()), (json!("done"), true));
+	assert_eq!((lost["state"].clone(), lost["closedAt"].is_i64()), (json!("failed"), true));
+	assert_eq!(last_event(&window, &done), (json!("closed"), json!("bot")));
+	assert_eq!(last_event(&window, &failed), (json!("failed"), json!("bot")));
+}
+
+#[test]
+fn a_closed_mission_is_listed_among_the_closed_ones_and_never_on_the_board() {
+	let home = Home::new();
+	let window = window(&home.app);
+	call(&window, "conversation_main_chat", json!({ "botId": BOT })).expect("the chat");
+	let crashes = a_room(&window, "personal", "Crashes", &[BOT]);
+	let still_open = opened_in(&home, &crashes, BOT, "open");
+	let dismissed = opened_in(&home, &crashes, BOT, "dismissed");
+	let closed_since = closed_at(&window, &dismissed);
+
+	let list = call(&window, "mission_list", json!({ "conversationId": crashes }))
+		.expect("the list reads");
+	let board = call(&window, "mission_board", json!({})).expect("the board reads");
+	let feed = call(
+		&window,
+		"mission_space_feed",
+		json!({ "spaceId": "personal", "closedSince": closed_since }),
+	)
+	.expect("the feed reads");
+	let detail = call(&window, "mission_detail", json!({ "missionId": dismissed }))
+		.expect("the mission reads");
+
+	let ids = |missions: &Value| {
+		missions
+			.as_array()
+			.expect("a list")
+			.iter()
+			.map(|mission| (mission["id"].clone(), mission["state"].clone()))
+			.collect::<Vec<_>>()
+	};
+	let nested = |entries: &Value| {
+		entries
+			.as_array()
+			.expect("a list")
+			.iter()
+			.map(|entry| (entry["mission"]["id"].clone(), entry["mission"]["state"].clone()))
+			.collect::<Vec<_>>()
+	};
+	assert_eq!(ids(&list["open"]), vec![(json!(still_open), json!("working"))]);
+	assert_eq!(ids(&list["done"]), vec![(json!(dismissed), json!("closed"))]);
+	assert_eq!(nested(&board), vec![(json!(still_open), json!("working"))]);
+	assert_eq!(
+		nested(&feed),
+		vec![(json!(still_open), json!("working")), (json!(dismissed), json!("closed"))]
+	);
+	assert_eq!(detail["mission"]["state"], json!("closed"));
 }

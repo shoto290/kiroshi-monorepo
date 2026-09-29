@@ -171,7 +171,17 @@ impl MissionsRepository {
 		closing: MissionClosing,
 	) -> Result<Mission, MissionError> {
 		self.access
-			.call_mut(move |connection| Ok(closed(connection, &mission_id, &closing)))
+			.call_mut(move |connection| Ok(closed(connection, &mission_id, &closing.entry())))
+			.await?
+	}
+
+	pub async fn dismiss(
+		&self,
+		mission_id: String,
+		source: String,
+	) -> Result<Mission, MissionError> {
+		self.access
+			.call_mut(move |connection| Ok(dismissed(connection, &mission_id, &source)))
 			.await?
 	}
 
@@ -566,16 +576,43 @@ fn refuse_a_shut_mission(
 fn closed(
 	connection: &mut Connection,
 	mission_id: &str,
-	closing: &MissionClosing,
+	entry: &MissionEntry,
 ) -> Result<Mission, MissionError> {
 	let transaction = write_transaction(connection)?;
-	refuse_a_shut_mission(&transaction, mission_id)?;
-	let at = now();
-	record(&transaction, mission_id, &closing.entry(), "", at)?;
-	transaction.execute(CLOSE_MISSION, params![mission_id, at])?;
+	shut(&transaction, mission_id, entry)?;
 	let stored = read(&transaction, mission_id)?;
 	transaction.commit()?;
 	Ok(stored)
+}
+
+fn dismissed(
+	connection: &mut Connection,
+	mission_id: &str,
+	source: &str,
+) -> Result<Mission, MissionError> {
+	let entry = MissionEntry {
+		kind: MissionEventKind::Dismissed,
+		source: source.to_owned(),
+		payload: serde_json::json!({}),
+	};
+	let transaction = write_transaction(connection)?;
+	let at = shut(&transaction, mission_id, &entry)?;
+	transaction.execute(REPORT_MISSION, params![mission_id, at, None::<&str>])?;
+	let stored = read(&transaction, mission_id)?;
+	transaction.commit()?;
+	Ok(stored)
+}
+
+fn shut(
+	transaction: &Transaction<'_>,
+	mission_id: &str,
+	entry: &MissionEntry,
+) -> Result<i64, MissionError> {
+	refuse_a_shut_mission(transaction, mission_id)?;
+	let at = now();
+	record(transaction, mission_id, entry, "", at)?;
+	transaction.execute(CLOSE_MISSION, params![mission_id, at])?;
+	Ok(at)
 }
 
 fn reopened(
@@ -2105,6 +2142,61 @@ mod tests {
 			last_event_of(&database, &reopened.id).await,
 			(MissionEventKind::Reopened, "person".to_owned()),
 		);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	async fn owing_a_report(database: &Database) -> Vec<String> {
+		database
+			.missions()
+			.closed_without_report()
+			.await
+			.expect("the missions owing a report read")
+			.into_iter()
+			.map(|mission| mission.id)
+			.collect()
+	}
+
+	#[tokio::test]
+	async fn a_mission_the_person_dismissed_owes_no_report_until_a_bot_closes_it_again() {
+		let (database, dir) = planted().await;
+		let opened = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix it"), a_key())
+			.await
+			.expect("the mission opens");
+
+		let dismissed = database
+			.missions()
+			.dismiss(opened.id.clone(), "person".to_owned())
+			.await
+			.expect("the mission closes");
+
+		assert_eq!(dismissed.state, MissionState::Closed);
+		assert_eq!(
+			(dismissed.reported_at, dismissed.reported_turn_id.clone()),
+			(dismissed.closed_at, None),
+			"the dismissal left a report owed"
+		);
+		assert_eq!(owing_a_report(&database).await, Vec::<String>::new());
+
+		for outcome in [MissionOutcome::Done, MissionOutcome::Failed] {
+			database
+				.missions()
+				.reopen(opened.id.clone(), "person".to_owned())
+				.await
+				.expect("the mission reopens");
+			let closing = MissionClosing { source: "bot".to_owned(), ..a_person_closing(outcome) };
+			let closed = database
+				.missions()
+				.close(opened.id.clone(), closing)
+				.await
+				.expect("the bot closes the mission");
+
+			assert_eq!(closed.reported_at, None, "the bot close on {outcome:?} owes no report");
+			assert_eq!(owing_a_report(&database).await, vec![opened.id.clone()]);
+		}
 
 		drop(database);
 		std::fs::remove_dir_all(&dir).expect("cleanup");

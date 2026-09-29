@@ -3,7 +3,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Runtime};
 
 use super::commands::{
-	mission_close, mission_escalate, mission_note, mission_open, mission_row, mission_status,
+	mission_conclude, mission_escalate, mission_note, mission_open, mission_row, mission_status,
 	mission_watch,
 };
 use super::contract::{
@@ -121,7 +121,7 @@ impl<R: Runtime> Host for MissionHost<R> {
 					outcome: asked.outcome,
 					summary: asked.summary,
 				};
-				Self::answered(mission_close(self.app.clone(), state, asked.id, closing).await?)
+				Self::answered(mission_conclude(self.app.clone(), state, asked.id, closing).await?)
 			}
 			Operation::Watch => {
 				let asked: Armed = Self::read(payload)?;
