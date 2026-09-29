@@ -22,9 +22,9 @@ mod macos {
 	use objc2_foundation::NSPoint;
 	use tauri::{WebviewWindow, WindowEvent};
 
-	const LEADING_INSET: f64 = 13.0;
+	const LEADING_INSET: f64 = 12.0;
 	const HEADER_BOX_HEIGHT: f64 = 47.0;
-	const CONTROL_DIAMETER: f64 = 12.0;
+	const CONTROL_DIAMETER: f64 = 14.0;
 
 	pub fn center_in_header(window: &WebviewWindow) {
 		place(window);
