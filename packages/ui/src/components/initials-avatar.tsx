@@ -115,4 +115,4 @@ const InitialsAvatar = ({
 	</AvatarFrame>
 )
 
-export { AvatarFrame, displayNameOf, InitialsAvatar }
+export { AvatarFrame, displayNameOf, InitialsAvatar, initialsOf }

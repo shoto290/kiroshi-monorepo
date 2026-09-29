@@ -6,13 +6,13 @@ import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	FRAME_POLL,
 	settled,
+	slotIn,
 } from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import {
 	AppSidebar,
 	type AppSidebarBot,
 } from "@workspace/ui/components/app-sidebar"
-import { CONTENT_CARD_GUTTER } from "@workspace/ui/components/content-card"
 import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { Icons } from "@workspace/ui/components/icons"
 import { PinnedMessages } from "@workspace/ui/components/pinned-messages"
@@ -27,7 +27,11 @@ import {
 import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import { AssistantTurn, UserTurn } from "@workspace/ui/components/turn"
 import { SidebarTrigger } from "@workspace/ui/components/ui/sidebar"
-import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
+import {
+	SHELL_GUTTER,
+	SHELL_TITLE_BAR_HEIGHT,
+	WorkspaceShell,
+} from "@workspace/ui/components/workspace-shell"
 
 const ANSWER =
 	"Two packages: `@workspace/ui` holds the design system, `app` holds the Tauri shell."
@@ -126,9 +130,9 @@ const paintFor = (value: string) =>
 const expectCardDetached = async (card: HTMLElement, leadingEdge: number) => {
 	const edges = card.getBoundingClientRect()
 	await expect(edges.left - leadingEdge).toBe(0)
-	await expect(window.innerWidth - edges.right).toBe(CONTENT_CARD_GUTTER)
-	await expect(edges.top).toBe(CONTENT_CARD_GUTTER)
-	await expect(window.innerHeight - edges.bottom).toBe(CONTENT_CARD_GUTTER)
+	await expect(window.innerWidth - edges.right).toBe(SHELL_GUTTER)
+	await expect(edges.top).toBe(SHELL_TITLE_BAR_HEIGHT)
+	await expect(window.innerHeight - edges.bottom).toBe(SHELL_GUTTER)
 }
 
 const meta = preview.meta({
@@ -145,6 +149,38 @@ const meta = preview.meta({
 	},
 	args: {
 		children: CHAT,
+	},
+})
+
+export const ConversationOpenDark = meta.story({
+	args: {
+		sidebar: (
+			<AppSidebar
+				bots={ROSTER}
+				insetWindowControls
+				railDots={{ conversations: true, missions: true }}
+				selectedBotId="atlas"
+			/>
+		),
+	},
+	globals: { theme: "dark" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The V1e shell with a conversation open: rail, Conversations panel and the conversation sharing one shell card. Check the transcript and the composer sit on the card surface, so the panel and the conversation read as one card with a single divider between them rather than two surfaces.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const card = canvas.getByRole("main")
+		const layout = canvasElement.querySelector<HTMLElement>(
+			'[data-slot="chat-layout"]',
+		)
+		if (!layout) throw new Error("No thread layout rendered")
+		await expect(getComputedStyle(layout).backgroundColor).toBe(
+			getComputedStyle(card).backgroundColor,
+		)
 	},
 })
 
@@ -312,18 +348,21 @@ export const OffCanvas = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same shell on a window too narrow for two columns, where the panel stops being a column and becomes a drawer over the page. Check that the conversation keeps the whole width until the trigger in the bar opens the drawer, that the drawer comes in over the transcript with the scrim dimming it rather than pushing it aside, and that Escape closes it and puts focus back on the trigger that opened it. Opening hands the keyboard to the first control in the drawer, whose tooltip opens with it, so the first Escape dismisses that tooltip and the second closes the drawer. The page underneath keeps its full height throughout — the drawer must never resize the column it covers. Pick `Default` for the two-column shell.",
+					"The same shell on a window too narrow for two columns, where the panel stops being a column and becomes a drawer over the page. Check that the conversation keeps the whole width beside the rail until the trigger in the bar opens the drawer, that the drawer comes in over the transcript with the scrim dimming it rather than pushing it aside, and that Escape closes it and puts focus back on the trigger that opened it. Opening hands the keyboard to the first control in the drawer, whose tooltip opens with it, so the first Escape dismisses that tooltip and the second closes the drawer. The page underneath keeps its full height throughout, the drawer must never resize the column it covers. Pick `Default` for the two-column shell.",
 			},
 		},
 	},
-	play: async ({ canvas, userEvent }) => {
+	play: async ({ canvas, canvasElement, userEvent }) => {
 		const overlay = within(document.body)
 		const trigger = canvas.getByRole("button", { name: "Toggle sidebar" })
 		const main = canvas.getByRole("main")
 		const mainHeight = main.getBoundingClientRect().height
 
 		await expect(overlay.queryByRole("dialog")).toBeNull()
-		await expectCardDetached(main, 0)
+		await expectCardDetached(
+			main,
+			slotIn(canvasElement, "app-rail").getBoundingClientRect().right,
+		)
 
 		await userEvent.click(trigger)
 
@@ -642,7 +681,9 @@ export const TallContent = meta.story({
 		)
 
 		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
-		await expect(sidebar.getBoundingClientRect().top).toBe(0)
+		await expect(sidebar.getBoundingClientRect().top).toBe(
+			SHELL_TITLE_BAR_HEIGHT,
+		)
 	},
 })
 
@@ -668,8 +709,8 @@ const expectSidebarFillingHost = async (
 		.getByRole("complementary", { name: SIDEBAR_LABEL })
 		.getBoundingClientRect()
 
-	await expect(sidebar.top).toBe(host.top)
-	await expect(sidebar.bottom).toBe(host.bottom)
+	await expect(sidebar.top).toBe(host.top + SHELL_TITLE_BAR_HEIGHT)
+	await expect(sidebar.bottom).toBe(host.bottom - SHELL_GUTTER)
 }
 
 export const BoxedHost = meta.story({
@@ -694,7 +735,7 @@ export const BoxedHost = meta.story({
 		await expect(host.bottom).toBeLessThan(window.innerHeight)
 		await expectSidebarFillingHost(canvas, canvasElement)
 		await expect(canvas.getByRole("main").getBoundingClientRect().bottom).toBe(
-			host.bottom - CONTENT_CARD_GUTTER,
+			host.bottom - SHELL_GUTTER,
 		)
 		await expect(composer.getBoundingClientRect().bottom).toBeLessThan(
 			host.bottom,
@@ -729,7 +770,7 @@ export const TallHost = meta.story({
 		await expect(host.height).toBeGreaterThan(window.innerHeight)
 		await expectSidebarFillingHost(canvas, canvasElement)
 		await expect(canvas.getByRole("main").getBoundingClientRect().bottom).toBe(
-			host.bottom - CONTENT_CARD_GUTTER,
+			host.bottom - SHELL_GUTTER,
 		)
 
 		await toggleSidebar(userEvent)

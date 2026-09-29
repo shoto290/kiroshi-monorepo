@@ -637,11 +637,13 @@ layout-threadlayout--forwarded-region
 layout-threadlayout--loading-older-messages
 layout-threadlayout--long-content
 layout-threadlayout--older-messages
+layout-threadlayout--outside-content-card
 layout-threadlayout--pending
 layout-threadlayout--start-of-older-messages
 layout-threadlayout--streaming-into-short-transcript
 layout-workspaceshell--boxed-host
 layout-workspaceshell--collapsed
+layout-workspaceshell--conversation-open-dark
 layout-workspaceshell--default
 layout-workspaceshell--empty
 layout-workspaceshell--not-a-landmark
@@ -656,6 +658,15 @@ layout-workspaceshell--skips-to-the-conversation
 layout-workspaceshell--space-tinted
 layout-workspaceshell--tall-content
 layout-workspaceshell--tall-host
+navigation-apprail--applications-selected
+navigation-apprail--companions-selected
+navigation-apprail--conversations-selected
+navigation-apprail--dark
+navigation-apprail--keyboard-reach
+navigation-apprail--missions-selected
+navigation-apprail--on-tinted-space
+navigation-apprail--with-count
+navigation-apprail--with-dot
 navigation-appsidebar--badges
 navigation-appsidebar--badges-on-rail
 navigation-appsidebar--bare-rows
@@ -670,6 +681,7 @@ navigation-appsidebar--conversation-row-menu
 navigation-appsidebar--conversation-selected
 navigation-appsidebar--conversation-working
 navigation-appsidebar--conversations
+navigation-appsidebar--conversations-panel
 navigation-appsidebar--create-label
 navigation-appsidebar--create-menu
 navigation-appsidebar--drag-bot-into-an-empty-pinned-zone
@@ -683,6 +695,7 @@ navigation-appsidebar--drag-conversation-to-section
 navigation-appsidebar--drag-region
 navigation-appsidebar--drag-section-to-place
 navigation-appsidebar--empty
+navigation-appsidebar--empty-panels
 navigation-appsidebar--empty-section
 navigation-appsidebar--five-spaces
 navigation-appsidebar--footer
@@ -690,6 +703,7 @@ navigation-appsidebar--footer-on-rail
 navigation-appsidebar--footer-without-bots
 navigation-appsidebar--full-row-menu
 navigation-appsidebar--identities
+navigation-appsidebar--idle-footer
 navigation-appsidebar--live-space-selection
 navigation-appsidebar--long-content
 navigation-appsidebar--markdown-preview
@@ -697,7 +711,6 @@ navigation-appsidebar--mission-space-ring
 navigation-appsidebar--mission-strip-none
 navigation-appsidebar--mission-strip-on-rail
 navigation-appsidebar--mission-strip-pinned
-navigation-appsidebar--mission-strip-plain-menu-button
 navigation-appsidebar--mission-strip-quiet
 navigation-appsidebar--mission-strip-raised
 navigation-appsidebar--mission-strip-selected
@@ -763,9 +776,6 @@ navigation-appsidebar--window-controls-reserved
 navigation-appsidebar--window-controls-reserved-on-rail
 navigation-appsidebar--with-search
 navigation-appsidebar--with-user
-navigation-appsidebar--with-user-and-footer
-navigation-appsidebar--with-user-and-idle-footer
-navigation-appsidebar--with-user-on-rail
 navigation-appsidebar--working
 navigation-appsidebar--working-long-summary
 navigation-headerconversationbutton--crowded
@@ -837,10 +847,8 @@ navigation-skiplink--focused
 navigation-skiplink--hidden
 navigation-spaceswitcher--badge-and-long-name
 navigation-spaceswitcher--badge-here
-navigation-spaceswitcher--badge-on-rail
 navigation-spaceswitcher--badge-ranking
 navigation-spaceswitcher--badges
-navigation-spaceswitcher--collapsed
 navigation-spaceswitcher--colourless
 navigation-spaceswitcher--default
 navigation-spaceswitcher--drag-dot-nowhere

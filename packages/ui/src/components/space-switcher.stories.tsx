@@ -46,11 +46,8 @@ const MANY_SPACES: Space[] = [
 	{ id: "jardin", name: "Jardin", colour: "green" },
 ]
 
-const HEADER_LINE =
-	"flex h-12 w-64 items-center justify-end rounded-xl border border-border border-dashed px-2.5"
-
-const RAIL_LINE =
-	"group flex h-12 w-12 items-center justify-center rounded-xl border border-border border-dashed"
+const TITLE_BAR_LINE =
+	"flex h-8.5 w-64 items-center gap-2 rounded-xl border border-border border-dashed px-2.5"
 
 const NARROW_STRIP = "w-24 rounded-xl border border-border border-dashed py-2"
 
@@ -113,13 +110,7 @@ const openMenu = async (trigger: HTMLElement) => {
 }
 
 const SwitcherLine = (props: SpaceSwitcherProps) => (
-	<div className={HEADER_LINE}>
-		<SpaceSwitcher {...props} />
-	</div>
-)
-
-const SwitcherRail = (props: SpaceSwitcherProps) => (
-	<div className={RAIL_LINE} data-collapsible="icon">
+	<div className={TITLE_BAR_LINE}>
 		<SpaceSwitcher {...props} />
 	</div>
 )
@@ -188,7 +179,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The control that says which space a reader is in and moves them to another one. On an open panel it is a ghost button carrying the space's name alone, sized to sit on a header line beside a trailing icon button; on the icon rail the name goes and the space's tint takes its place as a dot, which is all a rail has room for. Pressing it opens a single-choice menu: every space with its tint and its rank as a Cmd shortcut hint, then an item to create one, then an item to open the space settings. `SpaceDots` is its companion for a pinned strip — one dot per space, the open one filled with its tint and larger, the rest muted and smaller, so the reader knows how many spaces exist and where they stand without opening anything. Both take the same props, so a host maps its store onto `spaces` and `selectedSpaceId` once and hands the pair the same callbacks — including `onReorderSpaces`, since the order is the reader's to set: a dot is dragged to the place its space should hold, and the menu's `Move up` and `Move down` do the same move without a pointer. That order is not decoration — it is which space each `⌘1`…`⌘9` reaches and the order a swipe walks — so it is reported whole, as the full list of ids, and never applied here. A single space still shows the button, since creating a second one lives in its menu, but draws no dots — there is nothing to count. Reach for this at the top of a sidebar; `AppSidebar` mounts both and adds the swipe and the Cmd+digit chords that go with them.",
+					"The control that says which space a reader is in and moves them to another one. It is a 32px ghost button in the window's title bar: the space's tint as a 10px swatch, its name in the muted 13px line, then a chevron that says it opens. Pressing it opens a single-choice menu: every space with its tint and its rank as a Cmd shortcut hint, then an item to create one, then an item to open the space settings. `SpaceDots` is its companion for a pinned strip, one dot per space, the open one filled with its tint and larger, the rest muted and smaller, so the reader knows how many spaces exist and where they stand without opening anything. Both take the same props, so a host maps its store onto `spaces` and `selectedSpaceId` once and hands the pair the same callbacks, including `onReorderSpaces`, since the order is the reader's to set: a dot is dragged to the place its space should hold, and the menu's `Move up` and `Move down` do the same move without a pointer. That order is not decoration, it is which space each `⌘1`…`⌘9` reaches and the order a swipe walks, so it is reported whole, as the full list of ids, and never applied here. A single space still shows the button, since creating a second one lives in its menu, but draws no dots, there is nothing to count. Reach for this at the top of a sidebar; `AppSidebar` mounts both and adds the swipe and the Cmd+digit chords that go with them.",
 			},
 		},
 	},
@@ -208,7 +199,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Five spaces with the second one open, on the header line it was sized for. Check the button reads as the space's name and nothing else — no dot beside it, since the header already says where the reader is and the tint would only compete with the name — that the name sits flush with the line's leading inset while the trailing icon slot keeps its own, and that the button is one Tab stop announcing the open space rather than the word `button`. Pick `Collapsed` for the rail, where the tint comes back as the only mark, `Open` for the menu it opens, `SingleSpace` for a reader who has never made a second one. The app assembles it at `apps/app/src/App.tsx:935`.",
+					"Five spaces with the second one open, in the title bar it was sized for. Check the button is 32px tall with 8px corners, that it reads as the swatch, the space's name and a 12px chevron 8px apart, that the swatch carries the space's tint on a 3px radius, and that the button is one Tab stop announcing the open space rather than the word `button`. Pick `Open` for the menu it opens, `SingleSpace` for a reader who has never made a second one. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -220,29 +211,13 @@ export const Default = meta.story({
 		await expect(trigger).toHaveAttribute("aria-haspopup", "menu")
 		await expect(trigger).toHaveAttribute("aria-expanded", "false")
 		await expect(within(trigger).getByText("Vocca")).toBeVisible()
-		await expect(tintVisibleIn(trigger)).toBe(false)
-	},
-})
-
-export const Collapsed = meta.story({
-	render: (args) => <SwitcherRail {...args} />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same button once the sidebar is on its icon rail, where the name cannot fit. Check the name is gone and the open space's tint is drawn in its place as the only mark left, that the button still announces the open space so a screen reader loses nothing, and that it still opens the same menu. Pick `Default` for the open panel, where the name carries it alone. The app assembles it at `apps/app/src/App.tsx:935`.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		const trigger = canvas.getByRole("button", {
-			name: "Change space, Vocca open",
-		})
-
-		await expect(
-			slotsIn(trigger, "space-switcher-name")[0]?.checkVisibility(),
-		).toBe(false)
 		await expect(tintVisibleIn(trigger)).toBe(true)
+		await expect(trigger.getBoundingClientRect().height).toBe(32)
+		await expect(getComputedStyle(trigger).borderStartStartRadius).toBe("8px")
+		await expect(getComputedStyle(trigger).columnGap).toBe("8px")
+		const swatch = slotsIn(trigger, "space-dot")[0]
+		await expect(swatch.getBoundingClientRect().width).toBe(10)
+		await expect(getComputedStyle(swatch).borderStartStartRadius).toBe("3px")
 	},
 })
 
@@ -517,26 +492,6 @@ export const BadgeAndLongName = meta.story({
 		)
 		await expect(badgeBox.width).toBeCloseTo(8, 0)
 		await expect(trigger.getBoundingClientRect().width).toBeLessThan(256)
-	},
-})
-
-export const BadgeOnRail = meta.story({
-	args: { badgesBySpaceId: BADGES },
-	render: (args) => <SwitcherRail {...args} />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The mark once the sidebar is on its icon rail, where the name is gone and the open space's tint is all that is left. Check the badge is still drawn, moved from the name's line to the button's top corner now that there is no line to sit on, and that the button keeps the rail's square rather than growing to make room for it — the room the name needed is not needed here. Pick `Collapsed` for the rail with nothing waiting. The app assembles it at `apps/app/src/App.tsx:935`.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const trigger = canvas.getByRole("button", { name: /^Change space/ })
-
-		await expect(badgeOn(canvasElement)).toBe("attention")
-		await expect(tintVisibleIn(trigger)).toBe(true)
-		await expect(trigger.getBoundingClientRect().width).toBeCloseTo(28, 0)
 	},
 })
 

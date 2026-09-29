@@ -72,6 +72,10 @@
 		0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.06),
 		0 12px 28px rgb(0 0 0 / 0.12);
 	--image-outline: oklch(0 0 0 / 8%);
+	--shell-border: oklch(0 0 0 / 6%);
+	--shell-divider: oklch(0 0 0 / 8%);
+	--rail-item-selected: oklch(0 0 0 / 8%);
+	--rail-avatar: #e5e5e5;
 	--icon-stroke: 0.09em;
 }
 
@@ -115,6 +119,10 @@
 		0 0 0 1px rgb(255 255 255 / 0.1), 0 0 1px rgb(255 255 255 / 0.16),
 		0 12px 28px rgb(0 0 0 / 0.7);
 	--image-outline: oklch(1 0 0 / 8%);
+	--shell-border: oklch(1 0 0 / 6%);
+	--shell-divider: oklch(1 0 0 / 8%);
+	--rail-item-selected: oklch(1 0 0 / 8%);
+	--rail-avatar: #3a3a3a;
 }
 
 @theme inline {
@@ -137,6 +145,10 @@
 	--color-mark: var(--mark);
 	--color-transcript-new-mark: var(--transcript-new-mark);
 	--color-border: var(--border);
+	--color-shell-border: var(--shell-border);
+	--color-shell-divider: var(--shell-divider);
+	--color-rail-item-selected: var(--rail-item-selected);
+	--color-rail-avatar: var(--rail-avatar);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
 	--color-bot-badge-attention: var(--bot-badge-attention);
@@ -334,11 +346,12 @@
 }
 
 @utility surface-shell {
-	background-color: color-mix(
+	--shell-surface: color-mix(
 		in oklab,
-		var(--space-tint, var(--sidebar-untinted)) var(--space-tint-strength),
-		var(--sidebar-untinted)
+		var(--space-tint, var(--background)) var(--space-tint-strength),
+		var(--background)
 	);
+	background-color: var(--shell-surface);
 	transition: background-color 400ms ease-out;
 
 	@media (prefers-reduced-motion: reduce) {

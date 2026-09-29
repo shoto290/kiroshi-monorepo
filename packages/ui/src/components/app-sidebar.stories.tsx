@@ -15,6 +15,7 @@ import {
 	hasOverlayScrollbars,
 	mergeA11y,
 	pictureOf,
+	probedStyleOf,
 	settled,
 	shown,
 	slotIn,
@@ -318,22 +319,19 @@ const SilentSlot = () => null
 
 const SILENT_FOOTER_CONTENT = <SilentSlot />
 
-const footerRowWidth = (footer: HTMLElement) => {
-	const style = getComputedStyle(footer)
-	return (
-		footer.clientWidth -
-		Number.parseFloat(style.paddingLeft) -
-		Number.parseFloat(style.paddingRight)
-	)
-}
-
 const verticalCentreOf = (box: DOMRect) => box.top + box.height / 2
 
-const ROSTER_LANE = 9
+const ROSTER_LANE = 8
 
-const FOOTER_LANE = 8
+const RAIL_SLOT = 36
 
-const CHIP_LANE_DRIFT = ROSTER_LANE - FOOTER_LANE
+const RAIL_AVATAR = 26
+
+const PANEL_GAP = 8
+
+const HEADER_ROW_HEIGHT = 32
+
+const HEADER_ACTION_INSET = 2
 
 const withoutTitle = (bot: AppSidebarBot): AppSidebarBot => ({
 	...bot,
@@ -378,6 +376,14 @@ const panelInView = (canvasElement: HTMLElement) => {
 }
 
 const SEARCH = "Search"
+
+const RAIL_STOPS = 6
+
+type Tabbing = { tab: () => Promise<void> }
+
+const tabAcrossRail = async (userEvent: Tabbing) => {
+	for (let stop = 0; stop < RAIL_STOPS; stop += 1) await userEvent.tab()
+}
 
 const SEARCH_CHORD = "⌘K"
 
@@ -434,16 +440,20 @@ const centerOf = (node: HTMLElement) => {
 	return box.top + box.height / 2
 }
 
+const columnBottomOf = (canvasElement: HTMLElement) => {
+	const inner = slotIn(canvasElement, "sidebar-inner")
+	return (
+		bottomOf(inner) - Number.parseFloat(getComputedStyle(inner).paddingBottom)
+	)
+}
+
 const expectFooterAtColumnBottom = async (canvasElement: HTMLElement) => {
 	const footer = slotIn(canvasElement, "sidebar-footer")
 	await expect(footer.getBoundingClientRect().top).toBeCloseTo(
-		bottomOf(slotIn(canvasElement, "sidebar-content")),
+		bottomOf(slotIn(canvasElement, "sidebar-content")) + PANEL_GAP,
 		0,
 	)
-	await expect(bottomOf(footer)).toBeCloseTo(
-		bottomOf(slotIn(canvasElement, "sidebar-container")),
-		0,
-	)
+	await expect(bottomOf(footer)).toBeCloseTo(columnBottomOf(canvasElement), 0)
 }
 
 const offsetsFrom =
@@ -575,6 +585,14 @@ const panelWidth = () => shellWidthOf("--sidebar-width")
 
 const railWidth = () => shellWidthOf("--sidebar-width-icon")
 
+const expectPanelDivider = async (panel: HTMLElement) => {
+	const edge = getComputedStyle(panel)
+	await expect(edge.borderInlineEndWidth).toBe("1px")
+	await expect(edge.borderInlineEndColor).toBe(
+		probedStyleOf("border-shell-divider", "borderTopColor"),
+	)
+}
+
 const stateOf = (panel: HTMLElement) =>
 	panel.closest<HTMLElement>('[data-slot="sidebar"]')?.dataset.state
 
@@ -663,31 +681,34 @@ export const WithUser = meta.story({
 		docs: {
 			description: {
 				story:
-					"The reader themselves, pinned under the list, which is the only way into their own settings, so a host that has an account to show always hands one down. Check that the chip opens the region with the picture leading and the name beside it, that it covers the whole row since nothing else is drawn there, and that activating it fires the open event once. Check then the two lanes this panel actually draws: the roster sits 9px in from the panel edge and leaves the same 9px on the trailing side, where the pinned region insets the chip by 8px, so the chip starts 1px short of the column the row above it starts on. That 1px is the carousel panel's `px-[9px]` read against the footer's `p-2`, and it is an open spacing question this panel cannot settle on its own: the fix is one inset chosen once, for the roster lane and the pinned region together, not a nudge inside either. Pick `WithUserAndFooter` for the same chip sharing the row, `WithSearch` for the search button in the header.",
+					"The reader themselves, at the foot of the rail under the settings gear, which is the only way into their own settings, so a host that has an account to show always hands one down. Check that the reader is a 26px round picture centred in a 36px slot, named by their name, that it is the last stop of the rail, and that activating it or the gear fires the open event once each. Check then the lane the roster draws: its rows sit 8px in from both inner edges of the panel, the panel's own inline padding and nothing more. Pick `WithSearch` for the search button in the header.",
 			},
 		},
 	},
-	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		const footer = slotIn(canvasElement, "sidebar-footer")
-		const chip = within(footer).getByRole("button", { name: READER_NAME })
-		const inner = slotIn(canvasElement, "sidebar-inner").getBoundingClientRect()
-		const chipBox = chip.getBoundingClientRect()
-		const rowBox = rowButton(rowsIn(canvasElement)[0]).getBoundingClientRect()
-		const card = canvas.getByRole("main").getBoundingClientRect()
-		const rosterLane = rowBox.left - inner.left
-		const chipLane = chipBox.left - inner.left
-		await expect(rosterLane).toBe(ROSTER_LANE)
-		await expect(card.left - rowBox.right).toBe(rosterLane)
-		await expect(rosterLane - chipLane).toBe(CHIP_LANE_DRIFT)
-
-		await expect(chip.getBoundingClientRect().width).toBeCloseTo(
-			footerRowWidth(footer),
+	play: async ({ args, canvasElement, userEvent }) => {
+		const rail = slotIn(canvasElement, "app-rail")
+		const reader = within(rail).getByRole("button", { name: READER_NAME })
+		const slot = reader.getBoundingClientRect()
+		const avatar = slotIn(reader, "app-rail-avatar").getBoundingClientRect()
+		await expect(slot.width).toBe(RAIL_SLOT)
+		await expect(avatar.width).toBe(RAIL_AVATAR)
+		await expect(verticalCentreOf(avatar)).toBeCloseTo(
+			verticalCentreOf(slot),
 			0,
 		)
-		await expectFooterAtColumnBottom(canvasElement)
+		await expect(within(rail).getAllByRole("button").at(-1)).toBe(reader)
 
-		await userEvent.click(chip)
+		const inner = slotIn(canvasElement, "sidebar-inner").getBoundingClientRect()
+		const rowBox = rowButton(rowsIn(canvasElement)[0]).getBoundingClientRect()
+		await expect(rowBox.left - inner.left).toBe(ROSTER_LANE)
+		await expect(inner.right - rowBox.right).toBe(ROSTER_LANE)
+
+		await userEvent.click(reader)
 		await expect(args.onOpenUserSettings).toHaveBeenCalledTimes(1)
+		await userEvent.click(
+			within(rail).getByRole("button", { name: "Settings" }),
+		)
+		await expect(args.onOpenUserSettings).toHaveBeenCalledTimes(2)
 	},
 })
 
@@ -725,6 +746,7 @@ export const Roster = meta.story({
 		await userEvent.tab()
 		await userEvent.tab()
 		await expect(slotIn(canvasElement, "space-switcher")).toHaveFocus()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await expect(searchButtonIn(canvasElement)).toHaveFocus()
 		await userEvent.tab()
@@ -793,6 +815,7 @@ export const CreateLabel = meta.story({
 
 		await userEvent.tab()
 		await userEvent.tab()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
@@ -842,6 +865,7 @@ export const Empty = meta.story({
 		const create = canvas.getByRole("button", { name: CREATE })
 		await userEvent.tab()
 		await userEvent.tab()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
@@ -1073,7 +1097,7 @@ export const Identities = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight blots a companion can be given in its settings, one per row, with nothing running. Every avatar here is a still dithered field; what tells the rows apart is its silhouette and the hue of its tint, not what the companion is doing — and every one of them is a still frame, so a panel of companions that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it, that it draws no rule down its trailing edge — the thread card's own border is the only edge between the two — and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
+					"The eight blots a companion can be given in its settings, one per row, with nothing running. Every avatar here is a still dithered field; what tells the rows apart is its silhouette and the hue of its tint, not what the companion is doing, and every one of them is a still frame, so a panel of companions that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it, that its trailing edge is the one 1px divider between it and the conversation inside the shell card, and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
 			},
 		},
 	},
@@ -1099,7 +1123,7 @@ export const Identities = meta.story({
 			0,
 		)
 		await expect(panelWidth()).toBe(EXPANDED_PANEL_WIDTH)
-		await expect(getComputedStyle(panel).borderInlineEndWidth).toBe("0px")
+		await expectPanelDivider(panel)
 		const surfaceRadius = tokenLengthOf("--radius-lg")
 		await expect(
 			getComputedStyle(rowButton(rows[0])).borderStartStartRadius,
@@ -1107,7 +1131,7 @@ export const Identities = meta.story({
 		await expect(
 			getComputedStyle(canvas.getByRole("button", { name: CREATE }))
 				.borderStartStartRadius,
-		).toBe(surfaceRadius)
+		).toBe(tokenLengthOf("--radius-md"))
 
 		await expectAvatarDrawnAtCallSiteSize(rows[0])
 		await expectAvatarWholeInRow(rows[0])
@@ -1822,38 +1846,6 @@ export const MissionStripOnRail = meta.story({
 	},
 })
 
-export const MissionStripPlainMenuButton = meta.story({
-	tags: ["test-only"],
-	args: {
-		botsBySpaceId: inHome(MISSION_STATE_ROSTER),
-		selectedBotId: "beacon",
-	},
-	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-		docs: {
-			description: {
-				story:
-					"The mission rows over the reader chip, an ordinary menu button that carries no strip. Check the chip is drawn exactly as every menu button outside the roster is: one line, its content centred on it, the 10px gap every menu button puts between its icon and its label, and no head wrapper split out of it. A strip changes the button that has one and no other, so a mission in the roster never reshapes the footer, the switcher or a header. Pick `MissionStripStates` for the rows that do carry one.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const chip = slotIn(
-			slotIn(canvasElement, "sidebar-footer"),
-			"sidebar-menu-button",
-		)
-		const style = getComputedStyle(chip)
-
-		await expect(
-			chip.querySelector('[data-slot="sidebar-menu-head"]'),
-		).toBeNull()
-		await expect(style.flexDirection).toBe("row")
-		await expect(style.alignItems).toBe("center")
-		await expect(style.columnGap).toBe("10px")
-		await expect(slotsIn(chip, "bot-mission-strip")).toHaveLength(0)
-	},
-})
-
 export const LongContent = meta.story({
 	tags: ["test-only"],
 	args: {
@@ -1968,6 +1960,7 @@ export const RowContextMenu = meta.story({
 
 		await userEvent.tab()
 		await userEvent.tab()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
@@ -2071,6 +2064,7 @@ export const Collapsed = meta.story({
 		const create = canvas.getByRole("button", { name: CREATE })
 		await userEvent.tab()
 		await userEvent.tab()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
 
@@ -2105,7 +2099,7 @@ export const SpaceTinted = meta.story({
 		docs: {
 			description: {
 				story:
-					"The roster in a space that carries a colour. The panel paints nothing of its own — the shell surface runs under it to the window edge — so the tint reaches it by inheritance rather than by a second declaration that could drift from the first. Check that the panel's own paint is nothing at all, that the eight tokens it redeclares read the tinted values inside it and the untinted ones outside the shell, and that its trailing edge draws no rule the thread card would double. A row, a section card, a rule or a field that kept the untinted value is how a tint leaks out of a space. The timestamp and the preview line read 4.38:1 against the tinted surface where AA asks 4.5:1, which is the `--muted-foreground` pair the untinted panel already carries and a token decision rather than one this panel can make. Pick `Roster` for the untinted panel, `Conversation/Routines/RoutinesPanel` `OnShellSurfaceTinted` for the panel opposite.",
+					"The roster in a space that carries a colour. The panel is the leading part of the shell card, so the card paints it and the tint reaches its tokens by inheritance rather than by a second declaration that could drift from the first. Check that the panel's inner layer paints nothing of its own, that the eight tokens it redeclares read the tinted values inside it and the untinted ones outside the shell, and that its trailing edge is the single divider the conversation beside it shares. A row, a section card, a rule or a field that kept the untinted value is how a tint leaks out of a space. The timestamp and the preview line read 4.38:1 against the tinted surface where AA asks 4.5:1, which is the `--muted-foreground` pair the untinted panel already carries and a token decision rather than one this panel can make. Pick `Roster` for the untinted panel, `Conversation/Routines/RoutinesPanel` `OnShellSurfaceTinted` for the panel opposite.",
 			},
 		},
 	},
@@ -2115,7 +2109,7 @@ export const SpaceTinted = meta.story({
 		const inner = slotIn(panel, "sidebar-inner")
 
 		await expect(paintOf(inner)).toBe("rgba(0, 0, 0, 0)")
-		await expect(getComputedStyle(panel).borderInlineEndWidth).toBe("0px")
+		await expectPanelDivider(panel)
 		await expect(tokenPaintsIn(panel)).toEqual(tokenPaintsIn(shell, "on-shell"))
 		await expect(tokenPaintsIn(panel)).not.toEqual(
 			tokenPaintsIn(document.body, "on-shell"),
@@ -2144,6 +2138,7 @@ export const Toggle = meta.story({
 		await expect(stateOf(panel)).toBe("expanded")
 		await userEvent.tab()
 		await userEvent.tab()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
@@ -2218,6 +2213,7 @@ export const ReducedMotion = meta.story({
 
 		await userEvent.tab()
 		await userEvent.tab()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
@@ -2269,7 +2265,7 @@ export const NoFooter = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same column with neither a reader nor a slot, which the app never mounts and no other story here reproduces. Check that no pinned region is drawn at all — not an empty one, not a reserved strip — and that the list runs all the way to the bottom edge of the column, so a host that wants nothing under its roster pays nothing for the slot. Pick `WithUserAndIdleFooter` for the resting row the app does draw, `Footer` for the same list with the slot filled.",
+					"The same column with neither a reader nor a slot, which the app never mounts and no other story here reproduces. Check that no pinned region is drawn at all, not an empty one, not a reserved strip, and that the list runs all the way to the bottom edge of the column, so a host that wants nothing under its roster pays nothing for the slot. Pick `IdleFooter` for the resting slot the app does pass, `Footer` for the same list with the slot filled.",
 			},
 		},
 	},
@@ -2277,7 +2273,7 @@ export const NoFooter = meta.story({
 		await expect(slotsIn(canvasElement, "sidebar-footer")).toHaveLength(0)
 		await expect(
 			bottomOf(slotIn(canvasElement, "sidebar-content")),
-		).toBeCloseTo(bottomOf(slotIn(canvasElement, "sidebar-container")), 0)
+		).toBeCloseTo(columnBottomOf(canvasElement), 0)
 	},
 })
 
@@ -2332,90 +2328,109 @@ export const FooterOnRail = meta.story({
 	},
 })
 
-export const WithUserAndFooter = meta.story({
+export const IdleFooter = meta.story({
 	tags: ["test-only"],
-	args: { footer: FOOTER_CONTENT },
+	args: { footer: SILENT_FOOTER_CONTENT },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The chip beside what the host pinned next to it — the update badge, in the app. Check that the chip comes first and gives way to the control rather than pushing it off the row: the two share one line, the control keeps its size, and the name is what is clipped. Pick `WithUserAndIdleFooter` for the same pair while the control draws nothing.",
+					"The state the app is in nearly all the time: the host pins a node under the list and that node draws nothing, since there is no update to install. Check that no pinned region is drawn for it and the list runs to the bottom of the column, with no gap held open for something that is not there. Pick `Footer` for the moment the control does draw.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const footer = slotIn(canvasElement, "sidebar-footer")
-		const chip = within(footer)
-			.getByRole("button", { name: READER_NAME })
-			.getBoundingClientRect()
-		const pinned = within(footer)
-			.getByRole("button", { name: FOOTER_LABEL })
-			.getBoundingClientRect()
-
-		await expect(chip.right).toBeLessThanOrEqual(pinned.left)
-		await expect(verticalCentreOf(chip)).toBeCloseTo(
-			verticalCentreOf(pinned),
-			0,
-		)
-		await expect(chip.width).toBeLessThan(footerRowWidth(footer))
+		await expect(slotIn(canvasElement, "sidebar-footer")).not.toBeVisible()
+		await expect(
+			bottomOf(slotIn(canvasElement, "sidebar-content")),
+		).toBeCloseTo(columnBottomOf(canvasElement), 0)
 	},
 })
 
-export const WithUserAndIdleFooter = meta.story({
-	tags: ["test-only"],
+const RAIL_WIDTH = 52
+
+const SHELL_CARD_RADIUS = "12px"
+
+const pxOf = (value: string) => Number.parseFloat(value)
+
+export const ConversationsPanel = meta.story({
+	args: {
+		insetWindowControls: true,
+		railDots: { conversations: true, missions: true },
+	},
+	globals: { theme: "dark" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The state the app is in nearly all the time, and the row every story here rests on: the host pinned a node beside the chip and that node draws nothing, since there is no update to install. Check that the row reads exactly as `WithUser` — the chip covers the whole width, with no gap held open beside it for something that is not there. Pick `WithUserAndFooter` for the moment the control does draw.",
+					"The V1 shell as the app opens it, drawn against the reference artboard: the title bar with the space switcher, the rail on the window ground with Conversations selected and a dot on Conversations and Missions, then the shell card holding the Conversations panel and the conversation. Check the rail is 52px wide, the panel 304px with its 1px divider, the panel header 32px with the 15px semibold title and the search and create buttons, the card on its 12px radius with a 1px border 34px under the top of the window and 4px off the trailing and bottom edges, and the roster below the header exactly as the list has always drawn it.",
 			},
 		},
 	},
-	play: async ({ canvasElement }) => {
-		const footer = slotIn(canvasElement, "sidebar-footer")
-		const chip = within(footer).getByRole("button", { name: READER_NAME })
+	play: async ({ canvas, canvasElement }) => {
+		const rail = slotIn(canvasElement, "app-rail")
+		await expect(rail.getBoundingClientRect().width).toBe(RAIL_WIDTH)
+		await expect(
+			within(rail).getByRole("button", { name: "Conversations, new activity" }),
+		).toHaveAttribute("aria-current", "true")
 
-		await expect(within(footer).getAllByRole("button")).toHaveLength(1)
-		await expect(chip.getBoundingClientRect().width).toBeCloseTo(
-			footerRowWidth(footer),
-			0,
+		const panel = canvas.getByRole("complementary", { name: "Conversations" })
+		await expect(panel.getBoundingClientRect().left).toBe(RAIL_WIDTH)
+		await expect(panel.getBoundingClientRect().width).toBe(EXPANDED_PANEL_WIDTH)
+		await expectPanelDivider(panel)
+		await expect(getComputedStyle(panel).borderStartStartRadius).toBe(
+			SHELL_CARD_RADIUS,
 		)
+
+		const title = within(slotIn(canvasElement, "sidebar-header")).getByRole(
+			"heading",
+			{ name: "Conversations" },
+		)
+		const type = getComputedStyle(title)
+		await expect(type.fontSize).toBe("15px")
+		await expect(type.lineHeight).toBe("18px")
+		await expect(type.fontWeight).toBe("600")
+		await expect(pxOf(type.letterSpacing)).toBeCloseTo(-0.15, 2)
+
+		const card = canvas.getByRole("main")
+		const edges = card.getBoundingClientRect()
+		await expect(edges.top).toBe(TITLE_BAR_HEIGHT)
+		await expect(window.innerWidth - edges.right).toBe(4)
+		await expect(window.innerHeight - edges.bottom).toBe(4)
+		await expect(getComputedStyle(card).borderStartEndRadius).toBe(
+			SHELL_CARD_RADIUS,
+		)
+		await expect(getComputedStyle(card).borderInlineStartWidth).toBe("0px")
+		await expect(rowsIn(canvasElement)).toHaveLength(ROSTER.length)
 	},
 })
 
-export const WithUserOnRail = meta.story({
+export const EmptyPanels = meta.story({
 	tags: ["test-only"],
-	render: renderShell(false),
-	args: { footer: FOOTER_CONTENT },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The chip and the host's control once the panel collapses to its rail, where a row one avatar wide cannot hold both side by side. Check that they stack with the control above the chip — the chip is the row that is always there, so it stays against the bottom edge — that the picture is drawn alone with the name still naming the button, and that neither is clipped against an edge. `UserChip → OnRail` owns how the picture sits inside the chip; this one owns where the chip sits in the region. Pick `FooterOnRail` for the rail without a reader.",
+					"The three rail entries whose panels have no content yet. Check each opens a panel titled and named after it, with no roster, no search and no create button, that the rail marks it current, and that coming back to Conversations brings the roster back.",
 			},
 		},
 	},
-	play: async ({ canvasElement }) => {
-		const panel = slotIn(canvasElement, "sidebar-container")
-		const rail = railWidth()
-		await waitFor(async () => {
-			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
-		}, FRAME_POLL)
-
-		const footer = slotIn(canvasElement, "sidebar-footer")
-		const chipButton = within(footer).getByRole("button", { name: READER_NAME })
-		const pinned = within(footer)
-			.getByRole("button", { name: FOOTER_LABEL })
-			.getBoundingClientRect()
-		const avatar = slotIn(footer, "user-avatar").getBoundingClientRect()
-
-		await expect(pinned.bottom).toBeLessThanOrEqual(avatar.top)
-		await expect(chipButton).toHaveAttribute("aria-label", READER_NAME)
-
-		const panelBox = panel.getBoundingClientRect()
-		await expect(avatar.left).toBeGreaterThanOrEqual(panelBox.left)
-		await expect(avatar.right).toBeLessThanOrEqual(panelBox.right)
-		await expectFooterAtColumnBottom(canvasElement)
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const rail = slotIn(canvasElement, "app-rail")
+		for (const name of ["Missions", "Companions", "Applications"]) {
+			const entry = within(rail).getByRole("button", { name })
+			await userEvent.click(entry)
+			await expect(entry).toHaveAttribute("aria-current", "true")
+			const panel = canvas.getByRole("complementary", { name })
+			await expect(within(panel).getByRole("heading", { name })).toBeVisible()
+			await expect(rowsIn(canvasElement)).toHaveLength(0)
+			await expect(querySearchButtonIn(canvasElement)).toBeNull()
+			await expect(canvas.queryByRole("button", { name: CREATE })).toBeNull()
+		}
+		await userEvent.click(
+			within(rail).getByRole("button", { name: "Conversations" }),
+		)
+		await expect(rowsIn(canvasElement)).toHaveLength(ROSTER.length)
 	},
 })
 
@@ -2538,7 +2553,7 @@ export const OneSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The state every account opens in: one space, so the header names it and nothing else navigates. Check the switcher sits left of the create button on the same line with the create button's three insets untouched, that no dot strip is drawn in the pinned region, that the row holds exactly one panel filling the list area, and that the row is no wider than that panel, so the trackpad has nothing to scroll and lands nowhere new — there is nowhere to go, and a gesture that silently does nothing is better than one that rubber-bands. Pick `FiveSpaces` for the navigating case, `SpaceScrolling` for the row under the gesture.",
+					"The state every account opens in: one space, so the header names it and nothing else navigates. Check the switcher names it in the title bar above the panel header, that the create button keeps its 2px insets inside the 32px header row, that no dot strip is drawn in the pinned region, that the row holds exactly one panel filling the list area, and that the row is no wider than that panel, so the trackpad has nothing to scroll and lands nowhere new, there is nowhere to go, and a gesture that silently does nothing is better than one that rubber-bands. Pick `FiveSpaces` for the navigating case, `SpaceScrolling` for the row under the gesture.",
 			},
 		},
 	},
@@ -2549,15 +2564,22 @@ export const OneSpace = meta.story({
 		const create = canvas.getByRole("button", { name: CREATE })
 		const header = slotIn(canvasElement, "sidebar-header")
 
-		await expect(switcher.getBoundingClientRect().right).toBeLessThanOrEqual(
-			create.getBoundingClientRect().left,
+		await expect(switcher.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+			header.getBoundingClientRect().top,
 		)
 
 		const headerBox = header.getBoundingClientRect()
 		const createBox = create.getBoundingClientRect()
-		const inset = Math.round(headerBox.right - createBox.right)
-		await expect(Math.round(createBox.top - headerBox.top)).toBe(inset)
-		await expect(Math.round(headerBox.bottom - createBox.bottom)).toBe(inset)
+		await expect(headerBox.height).toBe(HEADER_ROW_HEIGHT)
+		await expect(Math.round(createBox.top - headerBox.top)).toBe(
+			HEADER_ACTION_INSET,
+		)
+		await expect(Math.round(headerBox.bottom - createBox.bottom)).toBe(
+			HEADER_ACTION_INSET,
+		)
+		await expect(Math.round(headerBox.right - createBox.right)).toBe(
+			HEADER_ACTION_INSET + ROSTER_LANE,
+		)
 
 		await expect(spaceDotsIn(canvasElement)).toHaveLength(0)
 
@@ -2602,7 +2624,10 @@ export const FiveSpaces = meta.story({
 			canvasElement,
 			"sidebar-footer",
 		).getBoundingClientRect()
-		await expect(verticalCentreOf(strip)).toBeLessThan(verticalCentreOf(region))
+		await expect(verticalCentreOf(strip)).toBeCloseTo(
+			verticalCentreOf(region),
+			0,
+		)
 		await expect(Math.round(strip.left - region.left)).toBe(
 			Math.round(region.right - strip.right),
 		)
@@ -3207,7 +3232,7 @@ export const SpacesOnRail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same navigation once the panel is on its icon rail. Check the switcher keeps the open space's tint as a dot and drops its name, that it and the create button sit side by side without clipping against either edge of the rail, and that the dot strip is gone — a rail is too narrow to hold nine targets, and the tint on the switcher already says where the reader is. Pick `FiveSpaces` for the expanded panel.",
+					"The same navigation once the panel is collapsed to its icon column. The switcher lives in the title bar, so it keeps its swatch and its name whatever the panel does. Check the create button sits inside the collapsed column without clipping against either edge, and that the dot strip is gone: a column one avatar wide is too narrow to hold nine targets, and the switcher above already says where the reader is. Pick `FiveSpaces` for the expanded panel.",
 			},
 		},
 	},
@@ -3223,18 +3248,15 @@ export const SpacesOnRail = meta.story({
 		})
 		await expect(
 			slotIn(switcher, "space-switcher-name").checkVisibility(),
-		).toBe(false)
+		).toBe(true)
 		await expect(slotIn(switcher, "space-dot").checkVisibility()).toBe(true)
 
 		const panelBox = panel.getBoundingClientRect()
-		for (const control of [
-			switcher,
-			canvas.getByRole("button", { name: CREATE }),
-		]) {
-			const box = control.getBoundingClientRect()
-			await expect(box.left).toBeGreaterThanOrEqual(panelBox.left)
-			await expect(box.right).toBeLessThanOrEqual(panelBox.right)
-		}
+		const create = canvas
+			.getByRole("button", { name: CREATE })
+			.getBoundingClientRect()
+		await expect(create.left).toBeGreaterThanOrEqual(panelBox.left)
+		await expect(create.right).toBeLessThanOrEqual(panelBox.right)
 
 		await expect(
 			slotsIn(canvasElement, "space-dots")[0]?.checkVisibility(),
@@ -3653,20 +3675,18 @@ export const SpaceScrollMemory = meta.story({
 	},
 })
 
-const HEADER_HEIGHT = 48
+const TITLE_BAR_HEIGHT = 34
+
+const TITLE_BAR_GAP = 8
 
 const WINDOW_CONTROLS_RESERVE = 78
 
 const WINDOW_CONTROLS_END = 69.5
 
-const WINDOW_CONTROLS_LEADING_INSET = 17.5
-
-const SPACE_NAME_START = WINDOW_CONTROLS_END + WINDOW_CONTROLS_LEADING_INSET
-
 const HEADER_PADDING = 10
 
-const headerIn = (canvasElement: HTMLElement) =>
-	slotIn(canvasElement, "sidebar-header")
+const titleBarIn = (canvasElement: HTMLElement) =>
+	slotIn(canvasElement, "app-title-bar")
 
 const RESERVE_ARGS = {
 	spaces: FIVE_SPACES,
@@ -3680,63 +3700,54 @@ export const WindowControlsReserved = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this in a desktop window whose title bar is transparent, so the OS paints its close/minimise/zoom buttons over the top of this panel. Check that the header holds a gutter wide enough that the space switcher, the search button and the create button all start past those buttons, that the space name reads as far from the last button as the first button is from the window edge, and that the list below is untouched — the reserve is owed by the header alone. The gutter is measured to the first glyph of the name, not to the switcher's box, so it subtracts the padding the switcher already carries. Pick `NoWindowControlsReserve` in a browser tab or on a host that draws its own title bar, `WindowControlsReservedOnRail` for the same window with the panel collapsed.",
+					"Reach for this in a desktop window whose title bar is transparent, so the OS paints its close, minimise and zoom buttons over the top of the window. Check that the 34px title bar holds a gutter wide enough that the space switcher starts past those buttons, 8px after the last one as the reference draws it, and that the rail and the panel below are untouched: the reserve is owed by the title bar alone. Pick `NoWindowControlsReserve` in a browser tab or on a host that draws its own title bar, `WindowControlsReservedOnRail` for the same window with the panel collapsed.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const header = headerIn(canvasElement)
-		await expect(getComputedStyle(header).paddingLeft).toBe(
+		const titleBar = titleBarIn(canvasElement)
+		await expect(titleBar.getBoundingClientRect().height).toBe(TITLE_BAR_HEIGHT)
+		await expect(getComputedStyle(titleBar).paddingLeft).toBe(
 			`${WINDOW_CONTROLS_RESERVE}px`,
 		)
-
-		const headerStart = header.getBoundingClientRect().left
-		const controls = within(header).getAllByRole("button")
-		await expect(controls.length).toBeGreaterThan(1)
-		for (const control of controls) {
-			await expect(
-				control.getBoundingClientRect().left - headerStart,
-			).toBeGreaterThanOrEqual(WINDOW_CONTROLS_END)
-		}
-
-		const name = slotIn(header, "space-switcher-name")
-		await expect(name.getBoundingClientRect().left - headerStart).toBeCloseTo(
-			SPACE_NAME_START,
-			0,
+		const switcherStart =
+			slotIn(titleBar, "space-switcher").getBoundingClientRect().left -
+			titleBar.getBoundingClientRect().left
+		await expect(switcherStart).toBeGreaterThanOrEqual(
+			WINDOW_CONTROLS_END + TITLE_BAR_GAP,
 		)
 	},
 })
-
 export const NoWindowControlsReserve = meta.story({
 	args: RESERVE_ARGS,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same panel where nothing is owed: a browser tab, or a Windows or Linux window whose system title bar sits above the web view rather than over it. Check that the header opens on the same narrow gutter as every other row in the panel, so the space switcher starts at the leading edge instead of a third of the way in. Pick `WindowControlsReserved` for the macOS window.",
+					"The same window where nothing is owed: a browser tab, or a Windows or Linux window whose system title bar sits above the web view rather than over it. Check that the title bar opens on its 10px gutter, so the space switcher starts at the leading edge instead of a third of the way in. Pick `WindowControlsReserved` for the macOS window.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const header = headerIn(canvasElement)
-		await expect(getComputedStyle(header).paddingLeft).toBe(
+		const titleBar = titleBarIn(canvasElement)
+		await expect(getComputedStyle(titleBar).paddingLeft).toBe(
 			`${HEADER_PADDING}px`,
 		)
 		await expect(
-			slotIn(header, "space-switcher").getBoundingClientRect().left -
-				header.getBoundingClientRect().left,
+			slotIn(titleBar, "space-switcher").getBoundingClientRect().left -
+				titleBar.getBoundingClientRect().left,
 		).toBeLessThan(WINDOW_CONTROLS_END)
 	},
 })
-
 export const WindowControlsReservedOnRail = meta.story({
+	tags: ["test-only"],
 	args: { ...RESERVE_ARGS, insetWindowControls: true },
 	render: renderShell(false),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The reserved header on the icon rail, which is narrower than the window controls are wide — there is no room left of them to put anything, so the header keeps its height and gives up its contents rather than parking the switcher under a button the reader cannot see through. Check that the rail header holds no control at all, that it is gone from the accessibility tree rather than merely faded, and that the first row still starts below it. Pick `Collapsed` for the same rail with nothing owed.",
+					"The reserved title bar with the panel collapsed to its icon column. The title bar spans the window and belongs to neither, so collapsing the panel takes nothing from it. Check that the switcher still stands past the window controls with its name, and that the first row still starts below the title bar. Pick `Collapsed` for the same column with nothing owed.",
 			},
 		},
 	},
@@ -3749,15 +3760,20 @@ export const WindowControlsReservedOnRail = meta.story({
 			)
 		}, FRAME_POLL)
 
-		const header = headerIn(canvasElement)
-		await expect(within(header).queryAllByRole("button")).toHaveLength(0)
-		await expect(header.getBoundingClientRect().height).toBe(HEADER_HEIGHT)
+		const titleBar = titleBarIn(canvasElement)
+		const switcher = slotIn(titleBar, "space-switcher")
+		await expect(
+			switcher.getBoundingClientRect().left -
+				titleBar.getBoundingClientRect().left,
+		).toBe(WINDOW_CONTROLS_RESERVE)
+		await expect(
+			slotIn(switcher, "space-switcher-name").checkVisibility(),
+		).toBe(true)
 		await expect(
 			rowsIn(canvasElement)[0].getBoundingClientRect().top,
-		).toBeGreaterThanOrEqual(header.getBoundingClientRect().bottom)
+		).toBeGreaterThanOrEqual(titleBar.getBoundingClientRect().bottom)
 	},
 })
-
 const SECTIONS: AppSidebarSection[] = [
 	{ id: "research", name: "Research", position: 0 },
 	{ id: "shipping", name: "Shipping", position: 3 },
@@ -4998,6 +5014,7 @@ export const CollapsedSections = meta.story({
 
 		await userEvent.tab()
 		await userEvent.tab()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await expect(canvas.getByRole("button", { name: CREATE })).toHaveFocus()
 		await userEvent.tab()
@@ -5617,6 +5634,7 @@ export const CreateMenu = meta.story({
 
 		await userEvent.tab()
 		await userEvent.tab()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
@@ -5765,6 +5783,7 @@ export const WithSearch = meta.story({
 
 		await userEvent.tab()
 		await userEvent.tab()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await expect(search).toHaveFocus()
 		await expect(search.matches(":focus-visible")).toBe(true)
@@ -5805,6 +5824,7 @@ export const NoSearch = meta.story({
 
 		await userEvent.tab()
 		await userEvent.tab()
+		await tabAcrossRail(userEvent)
 		await userEvent.tab()
 		await expect(canvas.getByRole("button", { name: CREATE })).toHaveFocus()
 		await userEvent.tab()
