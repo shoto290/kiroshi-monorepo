@@ -597,7 +597,7 @@ describe("WorkspaceBody mission menu", () => {
 	const SUMMARY = "Shipped behind the flag"
 	const PULL_REQUEST = "https://github.com/acme/app/pull/12"
 	const OPEN_ENTRY = /^Open mission/
-	const CLOSE_ENTRY = /^Close mission/
+	const CLOSE_ENTRY = /^Close/
 
 	let layout: FakeLayout
 
@@ -655,7 +655,7 @@ describe("WorkspaceBody mission menu", () => {
 			.map((item) => item.textContent)
 
 	const openMenuOf = async (card: HTMLElement) => {
-		fireEvent.click(within(card).getByRole("button", { name: MENU }))
+		fireEvent.contextMenu(within(card).getByText(OBJECTIVE))
 		await settle()
 	}
 
@@ -677,20 +677,6 @@ describe("WorkspaceBody mission menu", () => {
 		await settle()
 	}
 
-	const confirmClose = async (summary: string) => {
-		const popover = document.querySelector<HTMLElement>(
-			'[data-slot="mission-close-popover"]',
-		)
-		if (!popover) throw new Error("the close popover isn't open")
-		fireEvent.change(within(popover).getByRole("textbox"), {
-			target: { value: summary },
-		})
-		fireEvent.click(
-			within(popover).getByRole("button", { name: "Close mission" }),
-		)
-		await settle()
-	}
-
 	const noticeTitled = (title: string) => screen.findAllByText(title)
 
 	it("wraps the Activity panel card and the transcript card in the same menu with its two shortcuts", async () => {
@@ -700,10 +686,9 @@ describe("WorkspaceBody mission menu", () => {
 			await openMenuOf(card)
 			expect(menuEntries()).toEqual([
 				"Open mission↵",
-				"Open in Linear",
 				"Copy",
 				"Answer the question",
-				"Close mission⌘⌫",
+				"Close⌘⌫",
 			])
 			fireEvent.keyDown(document.activeElement ?? document.body, {
 				key: "Escape",
@@ -721,17 +706,13 @@ describe("WorkspaceBody mission menu", () => {
 		expect(missionHeader()?.textContent).toContain("OPE-42")
 	})
 
-	it("opens the ticket and the pull request in the browser", async () => {
+	it("opens the pull request in the browser", async () => {
 		const opened = vi.spyOn(window, "open").mockReturnValue(null)
 		await seed({ pullRequestUrl: PULL_REQUEST })
 
-		await choose(transcriptCard(), "Open in Linear")
 		await choose(transcriptCard(), "Open PR")
 
-		expect(opened.mock.calls.map(([url]) => url)).toEqual([
-			"https://linear.app/ope-42",
-			PULL_REQUEST,
-		])
+		expect(opened.mock.calls.map(([url]) => url)).toEqual([PULL_REQUEST])
 	})
 
 	it("copies each value of the mission and names what was copied", async () => {
@@ -779,7 +760,7 @@ describe("WorkspaceBody mission menu", () => {
 	}
 
 	const chooseAsTheMenuExits = async (card: HTMLElement, entry: string) => {
-		within(card).getByRole("button", { name: MENU }).focus()
+		within(card).getAllByRole("button")[0].focus()
 		await openMenuOf(card)
 		holdMenuExit()
 		fireEvent.click(screen.getByRole("menuitem", { name: entry }))
@@ -829,7 +810,7 @@ describe("WorkspaceBody mission menu", () => {
 		expect(stopped).toHaveBeenCalledTimes(1)
 	})
 
-	it("closes the mission with its outcome and summary and moves it to the closed group", async () => {
+	it("closes the mission at once and moves it to the closed group", async () => {
 		const { mission } = await seed()
 		const closed: Mission = { ...mission, state: "done", closedAt: Date.now() }
 		closeMission.mockImplementation(async () => {
@@ -837,10 +818,9 @@ describe("WorkspaceBody mission menu", () => {
 			return closed
 		})
 
-		await chooseIn(panelCardIn("Waiting on you"), CLOSE_ENTRY, "Close as done")
-		await confirmClose(SUMMARY)
+		await choose(panelCardIn("Waiting on you"), CLOSE_ENTRY)
 
-		expect(closeMission).toHaveBeenCalledWith("m-1", "done", SUMMARY)
+		expect(closeMission).toHaveBeenCalledWith("m-1", "done", "")
 		expect(panelGroup("Waiting on you")).toBeNull()
 		expect(panelCardIn("Earlier today")).toBeTruthy()
 		expect(within(transcriptCard()).getByText("Completed")).toBeTruthy()
@@ -889,8 +869,7 @@ describe("WorkspaceBody mission menu", () => {
 		closeMission.mockRejectedValue(new Error("refused"))
 		await seed()
 
-		await chooseIn(transcriptCard(), CLOSE_ENTRY, "Close as failed")
-		await confirmClose("")
+		await choose(transcriptCard(), CLOSE_ENTRY)
 
 		await noticeTitled("Couldn’t close the mission")
 		expect(panelCardIn("Waiting on you")).toBeTruthy()
@@ -906,7 +885,7 @@ describe("WorkspaceBody mission menu", () => {
 		await noticeTitled("Couldn’t reopen the mission")
 	})
 
-	it("opens the close choice on Cmd+Backspace from a focused card", async () => {
+	it("closes the mission at once on Cmd+Backspace from a focused card", async () => {
 		await seed()
 		const open = within(transcriptCard()).getByRole("button", {
 			name: `Open the mission: ${OBJECTIVE}`,
@@ -916,8 +895,6 @@ describe("WorkspaceBody mission menu", () => {
 		fireEvent.keyDown(open, { key: "Backspace", metaKey: true })
 		await settle()
 
-		expect(
-			document.querySelector('[data-slot="mission-close-popover"]'),
-		).toBeTruthy()
+		expect(closeMission).toHaveBeenCalledWith("m-1", "done", "")
 	})
 })

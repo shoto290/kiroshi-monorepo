@@ -21,6 +21,7 @@ export const MISSION_STATES = listExhaustively<MissionState>({
 	ready_to_merge: true,
 	failed: true,
 	done: true,
+	closed: true,
 })
 
 export const MISSION_STATES_WITHOUT_A_PILL: MissionState[] = [

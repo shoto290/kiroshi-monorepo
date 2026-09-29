@@ -29,7 +29,6 @@ export type MissionActionsPort = {
 }
 
 type FailedAction =
-	| "openTicket"
 	| "openPullRequest"
 	| "copy"
 	| "stopAgent"
@@ -69,8 +68,6 @@ export const missionActionsOf = (
 	port: MissionActionsPort,
 ): MissionMenuActions => ({
 	onOpen: () => port.openMission(mission.id),
-	onOpenTicket: () =>
-		attempt("openTicket", () => port.openInBrowser(mission.ticket.url)),
 	onOpenPullRequest: () =>
 		attempt("openPullRequest", () =>
 			port.openInBrowser(mission.pullRequestUrl),
@@ -88,9 +85,9 @@ export const missionActionsOf = (
 	onAnswer: () => port.openMission(mission.id, "composer"),
 	onStopAgent: () =>
 		attempt("stopAgent", () => port.stopThread(mission.threadConversationId)),
-	onClose: (outcome, summary) =>
+	onClose: () =>
 		attempt("close", async () => {
-			await port.close(mission.id, outcome, summary)
+			await port.close(mission.id, "done", "")
 			port.onChanged()
 		}),
 	onReopen: () =>

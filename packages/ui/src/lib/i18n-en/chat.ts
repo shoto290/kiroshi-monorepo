@@ -558,6 +558,7 @@ const chat = {
 			ready_to_merge: "Ready to merge",
 			failed: "Blocked",
 			done: "Completed",
+			closed: "Closed",
 		},
 		live: "Working now",
 		event: {
@@ -577,6 +578,7 @@ const chat = {
 				checks_failed: "Red checks reported by {{source}}",
 				failed: "Failure reported by {{source}}",
 				closed: "Mission closed by {{source}}",
+				dismissed: "Closed by you",
 				reopened: "Mission reopened by {{source}}",
 			},
 			kind: {
@@ -589,6 +591,7 @@ const chat = {
 				checks_failed: "Checks failed",
 				failed: "Failed",
 				closed: "Closed",
+				dismissed: "Closed",
 				reopened: "Reopened",
 			},
 			link: "Open {{host}}",
@@ -604,7 +607,6 @@ const chat = {
 		menu: {
 			label: "Mission actions",
 			open: "Open mission",
-			openTicket: "Open in Linear",
 			openPullRequest: "Open PR",
 			copy: "Copy",
 			copyKind: {
@@ -616,26 +618,16 @@ const chat = {
 			messageAgent: "Message the agent",
 			stopAgent: "Stop the agent",
 			answer: "Answer the question",
-			close: "Close mission",
-			closeAs: {
-				done: "Close as done",
-				failed: "Close as failed",
-			},
+			close: "Close",
 			reopen: "Reopen",
 			copied: "{{kind}} copied",
 			failed: {
-				openTicket: "Couldn’t open the ticket",
 				openPullRequest: "Couldn’t open the pull request",
 				copy: "Couldn’t copy to the clipboard",
 				stopAgent: "Couldn’t stop the agent",
 				close: "Couldn’t close the mission",
 				reopen: "Couldn’t reopen the mission",
 			},
-		},
-		close: {
-			summary: "Summary (optional)",
-			summaryPlaceholder: "What’s the outcome?",
-			confirm: "Close mission",
 		},
 		card: {
 			open: "Open the mission: {{objective}}",

@@ -36,6 +36,7 @@ const MISSION_EVENT_KINDS = listExhaustively<MissionEventKind>({
 	checks_failed: true,
 	failed: true,
 	closed: true,
+	dismissed: true,
 	reopened: true,
 })
 
@@ -273,6 +274,31 @@ export const FromTheReader = meta.story({
 
 		await expect(authored).toHaveTextContent("You")
 		await expect(authored).not.toHaveTextContent("human")
+	},
+})
+
+export const ClosedByYou = meta.story({
+	args: {
+		event: {
+			id: "event-closed-by-you",
+			kind: "dismissed",
+			source: "person",
+			createdAt: MISSION_NOW - 60_000,
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The person closed the mission, recorded as `dismissed`, with nothing written into its payload. Check that the machine line reads Closed by you rather than naming the source. Kind `closed` stays the companion's close and names its source. " +
+					PLACED_BY_THE_FEED,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const [line] = slotsIn(canvasElement, "mission-machine-line")
+
+		await expect(line).toHaveTextContent(/^Closed by you/)
 	},
 })
 

@@ -27,7 +27,7 @@ const OPENING_ANSWER =
 
 const ACTIVITIES = [true, false]
 
-const PILLS_THE_MATRIX_DRAWS = 8
+const PILLS_THE_MATRIX_DRAWS = 10
 
 const missionsIn = (state: MissionState): MissionCardModel[] =>
 	ACTIVITIES.map((isWorking) => ({
@@ -112,7 +112,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"The six states a mission can be in, exhaustively, each one drawn twice: with a companion on it, then with nobody on it. Check that the pill speaks only for the four states it names and that `working` and `waiting_bot` open their bubble on the tool marks alone, that the gutter avatar turns in the first row of each pair and rests in the second whatever the pill beside it says, and that the two signals never contradict one another. " +
+					"The seven states a mission can be in, exhaustively, each one drawn twice: with a companion on it, then with nobody on it. Check that the pill speaks only for the five states it names and that `working` and `waiting_bot` open their bubble on the tool marks alone, that the gutter avatar turns in the first row of each pair and rests in the second whatever the pill beside it says, and that the two signals never contradict one another. " +
 					PLACED_BY_THE_FEED,
 			},
 		},
