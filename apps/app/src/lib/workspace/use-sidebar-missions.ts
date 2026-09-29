@@ -48,17 +48,14 @@ const facesOf = (rosters: Record<string, Bot[]>) =>
 		),
 	)
 
-const NO_CONVERSATIONS: Conversation[] = []
-
 const listedConversationIdsOf = (
 	conversationRosters: Record<string, Conversation[]>,
 	spaceId: string | null,
 ) =>
 	new Set(
-		(spaceId === null
-			? NO_CONVERSATIONS
-			: (conversationRosters[spaceId] ?? NO_CONVERSATIONS)
-		).map(({ id }) => id),
+		(spaceId === null ? [] : (conversationRosters[spaceId] ?? [])).map(
+			({ id }) => id,
+		),
 	)
 
 const missionsOf = ({
