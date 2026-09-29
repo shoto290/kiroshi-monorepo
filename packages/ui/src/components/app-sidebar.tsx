@@ -22,6 +22,7 @@ import {
 	type AppRailCounts,
 	type AppRailDots,
 	type AppRailPanel,
+	NAVIGATION_ROW_GAP,
 } from "@workspace/ui/components/app-rail"
 import {
 	AvatarGroup,
@@ -138,8 +139,6 @@ const EMPTY_COPY =
 	"px-3 py-4 text-center text-sidebar-foreground/70 text-sm group-data-[collapsible=icon]:hidden"
 
 const ROSTER_SURFACE = "min-h-10 flex-1"
-
-const ROSTER_ROWS = "gap-0.5"
 
 const SECTION_GROUP = "px-0 py-0"
 
@@ -1460,7 +1459,7 @@ const BotRoster = ({
 	}
 
 	const menuOf = (entries: PinnedEntry[], isSlotted: boolean) => (
-		<SidebarMenu className={ROSTER_ROWS}>
+		<SidebarMenu className={NAVIGATION_ROW_GAP}>
 			{entries.map((entry) => rowFor(entry, isSlotted))}
 		</SidebarMenu>
 	)
