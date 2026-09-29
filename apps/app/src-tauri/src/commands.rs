@@ -3,7 +3,7 @@ use tauri_specta::{collect_commands, Builder, Commands};
 
 use crate::{
 	agent, applications, attachments, companions, conversations, environment, mcp_oauth, missions,
-	notifications, plugins, routines, search, sections, spaces, user,
+	notifications, plugins, routines, search, sections, spaces, user, window_controls,
 };
 
 pub fn builder() -> Builder<tauri::Wry> {
@@ -11,6 +11,8 @@ pub fn builder() -> Builder<tauri::Wry> {
 		.commands(commands())
 		.constant("ARCHIVE_EXTENSION", spaces::archive::ARCHIVE_EXTENSION)
 		.constant("ARCHIVE_FILTER_NAME", spaces::archive::ARCHIVE_FILTER_NAME)
+		.constant("MAXIMIZE_BUTTON_EVENT", window_controls::MAXIMIZE_BUTTON_EVENT)
+		.typ::<window_controls::MaximizeButtonPointer>()
 }
 
 // `tauri::test::mock_builder` only ever yields a `Builder<MockRuntime>`, so the handler the
@@ -48,6 +50,7 @@ fn commands<R: Runtime>() -> Commands<R> {
 		conversations::commands::conversation_create_bot_from_draft::<tauri::Wry>,
 		conversations::commands::conversation_suggested_bots,
 		companions::launch::companion_launch_outcome,
+		window_controls::window_declare_maximize_button::<tauri::Wry>,
 		conversations::commands::conversation_duplicate_bot::<tauri::Wry>,
 		conversations::commands::conversation_update_bot::<tauri::Wry>,
 		conversations::commands::conversation_delete_bot::<tauri::Wry>,
