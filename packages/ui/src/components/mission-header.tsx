@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
 import { AppHeader } from "@workspace/ui/components/app-header"
@@ -45,6 +46,8 @@ type MissionHeaderProps = {
 	commitsAhead?: number
 	pullRequest?: MissionPullRequest
 	onBack: () => void
+	windowControls?: ReactNode
+	dragRegion?: "deep"
 	className?: string
 }
 
@@ -69,6 +72,8 @@ const MissionHeader = ({
 	commitsAhead,
 	pullRequest,
 	onBack,
+	windowControls,
+	dragRegion,
 	className,
 }: MissionHeaderProps) => {
 	const { t } = useTranslation("chat")
@@ -82,6 +87,7 @@ const MissionHeader = ({
 			data-slot="mission-header"
 		>
 			<AppHeader
+				data-tauri-drag-region={dragRegion}
 				leading={
 					<>
 						<Button
@@ -110,6 +116,7 @@ const MissionHeader = ({
 				trailing={
 					hasStatePill(state) ? <MissionStatePill state={state} /> : null
 				}
+				windowControls={windowControls}
 			/>
 			<div
 				className="flex h-8.5 shrink-0 items-center gap-2 border-border border-b pe-4 ps-12.5"

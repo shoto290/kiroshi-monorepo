@@ -29,6 +29,13 @@ const common = {
 		maximize: "Agrandir",
 		restore: "Restaurer",
 		close: "Fermer",
+		failure: {
+			minimize: "Impossible de réduire Kiroshi.",
+			maximize: "Impossible d’agrandir ou de restaurer Kiroshi.",
+			close: "Impossible de fermer Kiroshi.",
+			state: "Impossible de savoir si Kiroshi est agrandi.",
+			snap: "Les dispositions d’ancrage sont indisponibles sur le bouton Agrandir.",
+		},
 	},
 	notice: {
 		label: "Avis",

@@ -646,6 +646,7 @@ foundations-token-contrast--semantic-pairs-meet-aa-text
 foundations-token-contrast--tinted-user-bubble-meets-aa-text
 layout-appheader--default
 layout-appheader--trailing-inset
+layout-appheader--windows-caption
 layout-appheader--with-action
 layout-contentcard--default
 layout-contentcard--with-nested-card

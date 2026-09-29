@@ -7,6 +7,7 @@ import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-b
 import { Icons } from "@workspace/ui/components/icons"
 import { PinnedMessages } from "@workspace/ui/components/pinned-messages"
 import { Button } from "@workspace/ui/components/ui/button"
+import { WindowControls } from "@workspace/ui/components/window-controls"
 
 const HEADER_HEIGHT = 48
 
@@ -85,6 +86,54 @@ export const TrailingInset = meta.story({
 			bottom: TRAILING_INSET,
 			right: TRAILING_INSET,
 		})
+	},
+})
+
+export const WindowsCaption = meta.story({
+	args: {
+		leading: (
+			<HeaderIdentityButton
+				connection="ready"
+				name="Nest"
+				onOpenSettings={fn()}
+				seed="nest"
+				version="2.1.233"
+			/>
+		),
+		trailing: <PinnedMessages messages={[]} onJump={fn()} onUnpin={fn()} />,
+		windowControls: (
+			<WindowControls
+				maximized={false}
+				onClose={fn()}
+				onMinimize={fn()}
+				onToggleMaximize={fn()}
+			/>
+		),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this in a frameless Windows window, where the app draws its own minimise, maximise and close buttons at the end of the bar. Check that the three caption buttons sit after the trailing slot, flush with the top and right edges of the bar with no inset, and that the trailing control keeps its gap before them. Pick `TrailingInset` on macOS, where the OS paints the controls on the leading edge. The app assembles it through `apps/app/src/components/window-caption-controls.tsx`.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const header = canvas.getByRole("banner").getBoundingClientRect()
+		const pinned = canvas
+			.getByRole("button", { name: "Pinned messages" })
+			.getBoundingClientRect()
+		const close = canvas
+			.getByRole("button", { name: "Close" })
+			.getBoundingClientRect()
+		const minimize = canvas
+			.getByRole("button", { name: "Minimize" })
+			.getBoundingClientRect()
+
+		await expect(Math.round(header.right - close.right)).toBe(0)
+		await expect(Math.round(close.top - header.top)).toBe(0)
+		await expect(minimize.left).toBeGreaterThan(pinned.right)
+		await expect(header.height).toBe(HEADER_HEIGHT)
 	},
 })
 

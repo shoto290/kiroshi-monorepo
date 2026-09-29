@@ -29,6 +29,13 @@ const common = {
 		maximize: "Maximize",
 		restore: "Restore",
 		close: "Close",
+		failure: {
+			minimize: "Couldn’t minimize Kiroshi.",
+			maximize: "Couldn’t maximize or restore Kiroshi.",
+			close: "Couldn’t close Kiroshi.",
+			state: "Couldn’t tell whether Kiroshi is maximized.",
+			snap: "Snap layouts are unavailable on the maximize button.",
+		},
 	},
 	notice: {
 		label: "Notices",
