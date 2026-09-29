@@ -139,7 +139,7 @@ const McpRefusedRefreshBlock = ({
 						}),
 					})}
 				</p>
-				<code className="block max-w-full wrap-break-word rounded-md border border-border bg-background px-2.5 py-1.25 font-mono text-muted-foreground text-xs/4">
+				<code className="block max-w-full wrap-break-word rounded-md border border-border bg-card px-2.5 py-1.25 font-mono text-muted-foreground text-xs/4">
 					{refusal.reason}
 				</code>
 			</div>

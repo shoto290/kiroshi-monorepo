@@ -1084,7 +1084,7 @@ export const Failure = meta.story({
 				Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy()
 		await expect(getComputedStyle(detail).backgroundColor).toBe(
-			tokenColor("--background"),
+			tokenColor("--card"),
 		)
 		await expect(
 			getComputedStyle(slotIn(canvasElement, "tool-question-failure-dot"))

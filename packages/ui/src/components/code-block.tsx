@@ -203,7 +203,7 @@ export function CodeBlock({
 			data-status={status}
 			aria-busy={streaming}
 			className={cn(
-				"w-full overflow-hidden rounded-2xl border bg-background text-sm",
+				"w-full overflow-hidden rounded-2xl border bg-card text-sm",
 				className,
 			)}
 		>
