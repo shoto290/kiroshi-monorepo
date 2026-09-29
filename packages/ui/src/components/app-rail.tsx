@@ -28,6 +28,8 @@ const RAIL_PANELS = "flex flex-col gap-1.75"
 
 const RAIL_GROUP = "flex flex-col gap-1"
 
+const RAIL_SLOT = "flex empty:hidden"
+
 const RAIL_ITEM =
 	"relative size-9 rounded-md text-muted-foreground hover:text-foreground aria-[current=true]:bg-rail-item-selected aria-[current=true]:text-foreground [&_svg]:size-4.5 [&_svg]:stroke-[1.75]!"
 
@@ -132,6 +134,7 @@ type AppRailProps = Omit<ComponentProps<"nav">, "children"> & {
 	counts?: AppRailCounts
 	dots?: AppRailDots
 	user?: UserChipIdentity
+	updateBadge?: ReactNode
 	onSelectConversations?: () => void
 	onSelectMissions?: () => void
 	onOpenSpaceSettings?: () => void
@@ -143,6 +146,7 @@ const AppRail = ({
 	counts,
 	dots,
 	user,
+	updateBadge,
 	onSelectConversations,
 	onSelectMissions,
 	onOpenSpaceSettings,
@@ -180,6 +184,11 @@ const AppRail = ({
 				</RailItem>
 			</ul>
 			<ul className={RAIL_GROUP}>
+				{updateBadge ? (
+					<li className={RAIL_SLOT} data-slot="app-rail-update">
+						{updateBadge}
+					</li>
+				) : null}
 				<RailItem
 					{...badgeOf("settings")}
 					name={t("rail.spaceSettings")}

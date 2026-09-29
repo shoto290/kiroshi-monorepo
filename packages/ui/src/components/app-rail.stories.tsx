@@ -11,6 +11,10 @@ import {
 import { AppSidebar } from "@workspace/ui/components/app-sidebar"
 import { blotTint } from "@workspace/ui/components/companion-colour"
 import {
+	UpdateBadge,
+	type UpdateBadgeStatus,
+} from "@workspace/ui/components/update-badge"
+import {
 	SHELL_TITLE_BAR_HEIGHT,
 	WorkspaceShell,
 } from "@workspace/ui/components/workspace-shell"
@@ -61,6 +65,43 @@ const renderInSidebar = (openPanel: string) => () => (
 		{null}
 	</WorkspaceShell>
 )
+
+const bottomGroupItemsIn = (canvasElement: HTMLElement) =>
+	Array.from(
+		slotIn(canvasElement, "app-rail").querySelectorAll<HTMLElement>(
+			"ul:last-of-type > li",
+		),
+	)
+
+const expectBareBottomGroup = async (canvasElement: HTMLElement) => {
+	const items = bottomGroupItemsIn(canvasElement).filter((item) =>
+		item.checkVisibility(),
+	)
+	await expect(items).toHaveLength(2)
+	await expect(within(items[0]).getByRole("button")).toBe(
+		entryNamed(canvasElement, SPACE_SETTINGS),
+	)
+}
+
+const updateBadgeIn = (status: UpdateBadgeStatus) => ({
+	args: {
+		updateBadge: <UpdateBadge progress={42} status={status} version="1.4.0" />,
+	},
+	play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+		const [slot, settingsItem] = bottomGroupItemsIn(canvasElement)
+		const gear = entryNamed(canvasElement, SPACE_SETTINGS)
+		await expect(slot).toHaveAttribute("data-slot", "app-rail-update")
+		await expect(slot.nextElementSibling).toBe(settingsItem)
+		await expect(settingsItem.contains(gear)).toBe(true)
+
+		const badge = slot.firstElementChild as HTMLElement
+		const badgeBox = badge.getBoundingClientRect()
+		const gearBox = gear.getBoundingClientRect()
+		await expect(badgeBox.left).toBe(gearBox.left)
+		await expect(badgeBox.width).toBe(gearBox.width)
+		await expect(badgeBox.height).toBe(gearBox.height)
+	},
+})
 
 const verticalCentreOf = (box: DOMRect) => box.top + box.height / 2
 
@@ -123,6 +164,10 @@ const meta = preview.meta({
 
 export const ConversationsSelected = meta.story({
 	...selecting("conversations"),
+	play: async ({ canvasElement }) => {
+		await expectOnlySelected(canvasElement, "conversations")
+		await expectBareBottomGroup(canvasElement)
+	},
 	parameters: {
 		docs: {
 			description: {
@@ -258,6 +303,62 @@ export const WithCount = meta.story({
 		await expect(slotIn(conversations, "app-rail-count")).toHaveTextContent("3")
 		const missions = entryNamed(canvasElement, "Missions, 120 new")
 		await expect(slotIn(missions, "app-rail-count")).toHaveTextContent("99+")
+	},
+})
+
+export const UpdateAvailable = meta.story({
+	...updateBadgeIn("available"),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An update waiting to be downloaded, handed to the rail by the host. Check the badge is the first stop of the foot group, directly above the space settings gear, on the same column and in the same 36px square.",
+			},
+		},
+	},
+})
+
+export const UpdateDownloading = meta.story({
+	...updateBadgeIn("downloading"),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The update downloading, its ring filling around the badge. Check the ring holds the same 36px square as the gear under it and the rail does not shift while it fills.",
+			},
+		},
+	},
+})
+
+export const UpdateReady = meta.story({
+	...updateBadgeIn("ready"),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The update installed and waiting for a restart, its panel opening to the right of the rail. Check the badge keeps its place above the gear with the panel open.",
+			},
+		},
+	},
+})
+
+export const UpdateAvailableDark = meta.story({
+	...updateBadgeIn("available"),
+	globals: { theme: "dark" },
+})
+
+export const UpdateIdle = meta.story({
+	args: { updateBadge: <UpdateBadge status="idle" /> },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The state the app is in nearly all the time: the host hands the rail a badge that has nothing to show. Check the foot of the rail holds the gear and the reader only, with no gap held open above the gear.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expectBareBottomGroup(canvasElement)
 	},
 })
 

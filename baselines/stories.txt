@@ -690,6 +690,11 @@ navigation-apprail--missions-selected
 navigation-apprail--on-tinted-space
 navigation-apprail--removed-panel-falls-back-to-conversations
 navigation-apprail--space-settings-gear-hovered
+navigation-apprail--update-available
+navigation-apprail--update-available-dark
+navigation-apprail--update-downloading
+navigation-apprail--update-idle
+navigation-apprail--update-ready
 navigation-apprail--with-count
 navigation-apprail--with-dot
 navigation-appsidebar--badges
@@ -724,11 +729,8 @@ navigation-appsidebar--empty-panels
 navigation-appsidebar--empty-section
 navigation-appsidebar--five-spaces
 navigation-appsidebar--footer
-navigation-appsidebar--footer-on-rail
-navigation-appsidebar--footer-without-bots
 navigation-appsidebar--full-row-menu
 navigation-appsidebar--identities
-navigation-appsidebar--idle-footer
 navigation-appsidebar--live-space-selection
 navigation-appsidebar--live-space-selection-in-missions
 navigation-appsidebar--long-content

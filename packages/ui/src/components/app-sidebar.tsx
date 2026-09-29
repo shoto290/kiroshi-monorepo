@@ -134,8 +134,6 @@ const sidebarRegionOf = (row: HTMLElement | null) => {
 const FOOTER_INSET =
 	"px-2 py-0 not-has-[*:not(:empty)]:hidden group-data-[collapsible=icon]:px-0"
 
-const FOOTER_SLOT = "flex shrink-0 items-center empty:hidden"
-
 const EMPTY_COPY =
 	"px-3 py-4 text-center text-sidebar-foreground/70 text-sm group-data-[collapsible=icon]:hidden"
 
@@ -1833,7 +1831,7 @@ interface AppSidebarProps
 	onReorderSpaces?: (ids: string[]) => void
 	onCreateSpace?: () => void
 	onOpenSpaceSettings?: () => void
-	footer?: ReactNode
+	updateBadge?: ReactNode
 	user?: UserChipIdentity
 	onOpenUserSettings?: () => void
 	onOpenSearch?: () => void
@@ -1882,7 +1880,7 @@ const AppSidebarBase = ({
 	onReorderSpaces,
 	onCreateSpace,
 	onOpenSpaceSettings,
-	footer,
+	updateBadge,
 	user,
 	onOpenUserSettings,
 	onOpenSearch,
@@ -2105,6 +2103,7 @@ const AppSidebarBase = ({
 				onSelectConversations={() => setOpenPanel("conversations")}
 				onSelectMissions={() => setOpenPanel("missions")}
 				selected={openPanel}
+				updateBadge={updateBadge}
 				user={user}
 			/>
 			<Sidebar
@@ -2123,7 +2122,7 @@ const AppSidebarBase = ({
 					</div>
 				</SidebarHeader>
 				{listContent}
-				{footer || spaces.length > 1 ? (
+				{spaces.length > 1 ? (
 					<SidebarFooter className={FOOTER_INSET}>
 						<SpaceDots
 							badgesBySpaceId={badgesBySpaceId}
@@ -2132,7 +2131,6 @@ const AppSidebarBase = ({
 							selectedSpaceId={selectedSpaceId}
 							spaces={spaces}
 						/>
-						{footer ? <span className={FOOTER_SLOT}>{footer}</span> : null}
 					</SidebarFooter>
 				) : null}
 				<SidebarResizeHandle side="left" />
