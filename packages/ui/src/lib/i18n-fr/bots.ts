@@ -742,6 +742,17 @@ const bots = {
 			label: "Modèle",
 			placeholder: "Choisissez un modèle",
 		},
+		effort: {
+			label: "Effort",
+			option: {
+				default: "Par défaut",
+				low: "Faible",
+				medium: "Moyen",
+				high: "Élevé",
+				xhigh: "Très élevé",
+				max: "Maximal",
+			},
+		},
 		outputStyle: {
 			label: "Style de réponse",
 			option: {

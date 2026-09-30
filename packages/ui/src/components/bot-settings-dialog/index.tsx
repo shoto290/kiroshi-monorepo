@@ -275,9 +275,11 @@ const BotSettingsDialog = ({
 
 			<SettingsScrollingPanel value="runtime">
 				<RuntimeFields
+					effort={value.effort}
 					model={value.model}
 					models={models}
-					onModelChange={(model) => patch({ model })}
+					onEffortChange={(effort) => patch({ effort })}
+					onModelChange={patch}
 					onOutputStyleChange={onOutputStyleChange}
 					outputStyle={outputStyle}
 				/>

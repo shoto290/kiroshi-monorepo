@@ -8,9 +8,17 @@ type BotIdentity = {
 	image?: string
 }
 
+type BotEffort = (typeof BOT_EFFORTS)[number]
+
+const BOT_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const
+
+const readBotEffort = (value: string): BotEffort | null =>
+	BOT_EFFORTS.find((effort) => effort === value) ?? null
+
 type BotModelOption = {
 	label: string
 	value: string
+	supportedEfforts: BotEffort[]
 }
 
 type BotOutputStyle = (typeof BOT_OUTPUT_STYLES)[number]
@@ -415,6 +423,7 @@ type BotSettingsValue = {
 	title: string
 	instructions: string
 	model: string
+	effort: BotEffort | null
 	permissions: BotPermissions
 }
 
@@ -423,11 +432,13 @@ export {
 	BLANK_MCP_SERVER_DRAFT,
 	BLANK_SKILL_DRAFT,
 	BLOT_TINTS,
+	BOT_EFFORTS,
 	BOT_OUTPUT_STYLES,
 	BOT_PERMISSION_MODES,
 	BOT_PERMISSION_RULE_LISTS,
 	type BotAvatarBlot,
 	type BotCommitAuthor,
+	type BotEffort,
 	type BotIdentity,
 	type BotMcpConnectionReason,
 	type BotMcpConnectionState,
@@ -452,6 +463,7 @@ export {
 	MCP_ENDPOINT_KINDS,
 	MCP_TRANSPORTS,
 	parseMcpServerConfig,
+	readBotEffort,
 	readBotOutputStyle,
 	readBotPermissionMode,
 	readConfigList,

@@ -44,9 +44,17 @@ const BOT_ID = "bot-7"
 const DIALOG_WIDTH_REMS = 52
 
 const MODELS: BotModelOption[] = [
-	{ label: "Claude Sonnet 4.5", value: "sonnet-4-5" },
-	{ label: "Claude Opus 4.1", value: "opus-4-1" },
-	{ label: "Claude Haiku 4.5", value: "haiku-4-5" },
+	{
+		label: "Claude Sonnet 4.5",
+		value: "sonnet-4-5",
+		supportedEfforts: ["low", "medium", "high"],
+	},
+	{
+		label: "Claude Opus 4.1",
+		value: "opus-4-1",
+		supportedEfforts: ["low", "medium", "high", "xhigh", "max"],
+	},
+	{ label: "Claude Haiku 4.5", value: "haiku-4-5", supportedEfforts: [] },
 ]
 
 const FILLED_BOT: BotSettingsValue = {
@@ -56,6 +64,7 @@ const FILLED_BOT: BotSettingsValue = {
 	instructions:
 		"You are the Nest Keeper.\n\nEvery visual belongs to packages/ui. The app composes, it never draws.\n\nBefore proposing a component, search the package for one that already does the job. Answer with the file you would touch, then the change.",
 	model: "sonnet-4-5",
+	effort: "high",
 	permissions: {
 		...BLANK_BOT_PERMISSIONS,
 		deny: ["Bash", "Edit", "Write", "NotebookEdit"],
@@ -68,6 +77,7 @@ const NEW_BOT: BotSettingsValue = {
 	title: "",
 	instructions: "",
 	model: "",
+	effort: null,
 	permissions: BLANK_BOT_PERMISSIONS,
 }
 

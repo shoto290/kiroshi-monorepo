@@ -25,6 +25,7 @@ type SettingsSelectProps = {
 	placeholder?: string
 	hint?: string
 	error?: string
+	isDisabled?: boolean
 	ref?: Ref<HTMLButtonElement>
 }
 
@@ -36,6 +37,7 @@ const SettingsSelect = ({
 	placeholder,
 	hint,
 	error,
+	isDisabled = false,
 	ref,
 }: SettingsSelectProps) => {
 	const id = useId()
@@ -46,6 +48,7 @@ const SettingsSelect = ({
 	return (
 		<div className="flex shrink-0 flex-col gap-1.5">
 			<Select.Root
+				disabled={isDisabled}
 				items={options}
 				onValueChange={(next: string | null) => onValueChange(next ?? "")}
 				value={value}
@@ -59,7 +62,7 @@ const SettingsSelect = ({
 						error
 							? FIELD_CONTROL_INVALID_CLASS
 							: "hover:border-muted-foreground",
-						"flex items-center justify-between gap-2 pr-2.5 text-left",
+						"flex items-center justify-between gap-2 pr-2.5 text-left disabled:pointer-events-none disabled:opacity-50",
 					)}
 					ref={ref}
 				>

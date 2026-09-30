@@ -625,6 +625,7 @@ forms-settingslistfield--themes-filled
 forms-settingslistfield--themes-focus-visible
 forms-settingslistfield--themes-invalid
 forms-settingsselect--default
+forms-settingsselect--disabled
 forms-settingsselect--empty
 forms-settingsselect--error
 forms-settingsselect--themes-at-rest
@@ -1132,8 +1133,13 @@ settings-bot-permissionspanel--playground
 settings-bot-permissionspanel--refusing-a-malformed-rule
 settings-bot-permissionspanel--untouched
 settings-bot-runtimefields--concise
+settings-bot-runtimefields--effort-default
+settings-bot-runtimefields--effort-picked
+settings-bot-runtimefields--effort-unsupported
 settings-bot-runtimefields--empty
 settings-bot-runtimefields--filled
+settings-bot-runtimefields--model-switch-keeps-effort
+settings-bot-runtimefields--model-switch-resets-effort
 settings-bot-runtimefields--no-models
 settings-bot-runtimefields--picking-a-model
 settings-bot-runtimefields--playground
