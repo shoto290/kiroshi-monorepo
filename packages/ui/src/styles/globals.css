@@ -225,15 +225,6 @@
 	:root,
 	.dark,
 	[data-theme] {
-		--space-tint-strength: 10%;
-		--accent-untinted: var(--accent);
-		--border-untinted: var(--border);
-		--input-untinted: var(--input);
-		--muted-untinted: var(--muted);
-		--secondary-untinted: var(--secondary);
-		--sidebar-untinted: var(--sidebar);
-		--sidebar-accent-untinted: var(--sidebar-accent);
-		--sidebar-border-untinted: var(--sidebar-border);
 		--user-bubble: var(--primary);
 		--user-bubble-foreground: var(--primary-foreground);
 		--color-foreground: var(--foreground);
@@ -344,20 +335,6 @@
 	}
 }
 
-@utility surface-shell {
-	--shell-surface: color-mix(
-		in oklab,
-		var(--space-tint, var(--background)) var(--space-tint-strength),
-		var(--background)
-	);
-	background-color: var(--shell-surface);
-	transition: background-color 400ms ease-out;
-
-	@media (prefers-reduced-motion: reduce) {
-		transition: none;
-	}
-}
-
 @utility surface-user-bubble {
 	background-color: var(--user-bubble);
 	transition: background-color 400ms ease-out;
@@ -406,49 +383,6 @@
 @utility image-outline {
 	outline: 1px solid var(--image-outline);
 	outline-offset: -1px;
-}
-
-@utility on-shell {
-	--accent: color-mix(
-		in oklab,
-		var(--space-tint, var(--accent-untinted)) var(--space-tint-strength),
-		var(--accent-untinted)
-	);
-	--border: color-mix(
-		in oklab,
-		var(--space-tint, var(--border-untinted)) var(--space-tint-strength),
-		var(--border-untinted)
-	);
-	--input: color-mix(
-		in oklab,
-		var(--space-tint, var(--input-untinted)) var(--space-tint-strength),
-		var(--input-untinted)
-	);
-	--muted: color-mix(
-		in oklab,
-		var(--space-tint, var(--muted-untinted)) var(--space-tint-strength),
-		var(--muted-untinted)
-	);
-	--secondary: color-mix(
-		in oklab,
-		var(--space-tint, var(--secondary-untinted)) var(--space-tint-strength),
-		var(--secondary-untinted)
-	);
-	--sidebar: color-mix(
-		in oklab,
-		var(--space-tint, var(--sidebar-untinted)) var(--space-tint-strength),
-		var(--sidebar-untinted)
-	);
-	--sidebar-accent: color-mix(
-		in oklab,
-		var(--space-tint, var(--sidebar-accent-untinted)) var(--space-tint-strength),
-		var(--sidebar-accent-untinted)
-	);
-	--sidebar-border: color-mix(
-		in oklab,
-		var(--space-tint, var(--sidebar-border-untinted)) var(--space-tint-strength),
-		var(--sidebar-border-untinted)
-	);
 }
 
 @keyframes ui-text-shimmer {

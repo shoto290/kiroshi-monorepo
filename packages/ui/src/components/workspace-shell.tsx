@@ -23,7 +23,7 @@ const SHELL_GUTTER = 4
 
 const SIDEBAR_WIDTH = 304
 
-const SHELL = `surface-shell relative h-svh ${TITLE_BAR_AND_GUTTER} ${CARD_ON_SHELL_INSET} min-h-full max-h-full min-w-0 overflow-hidden ${SIDEBAR_INSIDE_SHELL}`
+const SHELL = `relative bg-background h-svh ${TITLE_BAR_AND_GUTTER} ${CARD_ON_SHELL_INSET} min-h-full max-h-full min-w-0 overflow-hidden ${SIDEBAR_INSIDE_SHELL}`
 
 type ShellStyle = CSSProperties & {
 	"--sidebar-width": string

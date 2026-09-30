@@ -608,7 +608,7 @@ const renderTintedShell = (args: AppSidebarProps) => (
 	</WorkspaceShell>
 )
 
-const ON_SHELL_TOKENS = [
+const PANEL_TOKENS = [
 	"--sidebar",
 	"--sidebar-accent",
 	"--sidebar-border",
@@ -622,10 +622,9 @@ const ON_SHELL_TOKENS = [
 const paintOf = (element: HTMLElement) =>
 	getComputedStyle(element).backgroundColor
 
-const tokenPaintsIn = (host: HTMLElement, className = "") =>
-	ON_SHELL_TOKENS.map((token) => {
+const tokenPaintsIn = (host: HTMLElement) =>
+	PANEL_TOKENS.map((token) => {
 		const probe = document.createElement("div")
-		probe.className = className
 		probe.style.backgroundColor = `var(${token})`
 		host.append(probe)
 		const painted = paintOf(probe)
@@ -1984,7 +1983,7 @@ export const SpaceTinted = meta.story({
 		docs: {
 			description: {
 				story:
-					"The roster in a space that carries a colour. The panel is the leading part of the shell card, so the card paints it and the tint reaches its tokens by inheritance rather than by a second declaration that could drift from the first. Check that the panel's inner layer paints nothing of its own, that the eight tokens it redeclares read the tinted values inside it and the untinted ones outside the shell, and that its trailing edge is the single divider the conversation beside it shares. A row, a section card, a rule or a field that kept the untinted value is how a tint leaks out of a space. The timestamp and the preview line read 4.38:1 against the tinted surface where AA asks 4.5:1, which is the `--muted-foreground` pair the untinted panel already carries and a token decision rather than one this panel can make. Pick `Roster` for the untinted panel, `Conversation/Routines/RoutinesPanel` `OnShellSurfaceTinted` for the panel opposite.",
+					"The roster in a space that carries a colour, which the panel must not wear: the space colour reaches the reader's own message bubbles and the colour dots, never the roster. Check that the panel's inner layer paints nothing of its own, that the eight tokens it paints with read exactly the values they read outside any space, and that its trailing edge is the single divider the conversation beside it shares. A row, a section card, a rule or a field washed in the space colour is the regression this story catches. Pick `Roster` for the panel in a space with no colour, `Conversation/Routines/RoutinesPanel` `OnShellSurfaceTinted` for the panel opposite.",
 			},
 		},
 	},
@@ -1995,10 +1994,8 @@ export const SpaceTinted = meta.story({
 
 		await expect(paintOf(inner)).toBe("rgba(0, 0, 0, 0)")
 		await expectPanelDivider(panel)
-		await expect(tokenPaintsIn(panel)).toEqual(tokenPaintsIn(shell, "on-shell"))
-		await expect(tokenPaintsIn(panel)).not.toEqual(
-			tokenPaintsIn(document.body, "on-shell"),
-		)
+		await expect(shell).toHaveAttribute("data-space-tint", "blue")
+		await expect(tokenPaintsIn(panel)).toEqual(tokenPaintsIn(document.body))
 	},
 })
 
