@@ -47,6 +47,7 @@ type DitheredFieldProps = {
 	field: DensityField
 	ink: string
 	surface?: string
+	hasSilhouette?: boolean
 	tint?: BotAvatarBlot
 }
 
@@ -225,6 +226,7 @@ const DitheredField = ({
 	field,
 	ink,
 	surface,
+	hasSilhouette,
 	tint,
 }: DitheredFieldProps) => {
 	const canvas = useRef<HTMLCanvasElement>(null)
@@ -257,6 +259,7 @@ const DitheredField = ({
 			name={name}
 			size={size}
 			state={state}
+			hasSilhouette={hasSilhouette}
 			surface={surface}
 			tint={tint}
 		>
@@ -284,6 +287,7 @@ const DitheredFieldAvatar = ({
 	return (
 		<DitheredField
 			field={densityField(seed, COMPANION_GRID)}
+			hasSilhouette={fieldInk === "companion"}
 			ink={ink}
 			name={name}
 			size={size}

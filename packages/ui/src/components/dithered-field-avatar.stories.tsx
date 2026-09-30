@@ -31,6 +31,7 @@ const COMPARED_SIZES = [20, 40, 96]
 const COLOURS = [undefined, ...BLOT_TINTS]
 const TRANSPARENT = "rgba(0, 0, 0, 0)"
 const CELL_CONTRAST_FLOOR = 3
+const AVATAR_SURFACES = ["--background", "--sidebar", "--card", "--muted"]
 
 const drawnCanvases = (root: HTMLElement) =>
 	Array.from(root.querySelectorAll<HTMLCanvasElement>("canvas[data-cells]"))
@@ -64,17 +65,31 @@ const rasterised = (pixel: CanvasRenderingContext2D, color: string): Rgb => {
 	return [red, green, blue]
 }
 
-const cellContrastOf = (
+const surfaceColourIn = (scope: HTMLElement, token: string) => {
+	const probe = document.createElement("div")
+	probe.style.backgroundColor = `var(${token})`
+	scope.append(probe)
+	const colour = getComputedStyle(probe).backgroundColor
+	probe.remove()
+	return colour
+}
+
+const cellContrastsOf = (
 	pixel: CanvasRenderingContext2D,
 	frame: HTMLElement,
+	label: string,
 ) => {
 	const canvas = frame.querySelector("canvas")
-	const surface = frame.closest<HTMLElement>(".light, .dark")
-	if (!canvas || !surface) throw new Error("Avatar outside a themed surface")
-	return contrastRatio(
-		rasterised(pixel, getComputedStyle(canvas).color),
-		rasterised(pixel, getComputedStyle(surface).backgroundColor),
-	)
+	const scope = frame.closest<HTMLElement>(".light, .dark")
+	if (!canvas || !scope) throw new Error("Avatar outside a themed surface")
+	const cell = rasterised(pixel, getComputedStyle(canvas).color)
+	return AVATAR_SURFACES.map((token) => ({
+		pair: `${label} on ${token}`,
+		ratio: contrastRatio(
+			cell,
+			rasterised(pixel, surfaceColourIn(scope, token)),
+		),
+	}))
 }
 
 const meta = preview.meta({
@@ -85,7 +100,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A companion drawn as a dithered field of cells only: square cells in the companion colour straight on whatever surface holds them, no ground, no outline, the shape carried by cell density alone. The hue is the companion's in both themes; its lightness rises on dark so the cells keep 3:1 against the surface. Every companion shares one screen: each cell is a square of one fixed size, its tone carried by opacity in two steps through error diffusion, so the field reads in two tones of one hue over the bare surface. The density field is the companion's ASCII glyph silhouette, blurred, over a seeded low noise floor, all seeded on the name. The grid holds the same cell count at every size. At work the field drifts and the state motion passes through it; at rest, and under reduced motion, it holds still.",
+					"A companion drawn as a dithered field of cells only: square cells in the companion colour straight on whatever surface holds them, cut to the rounded hexagon of the Kiroshi mark, no ground, no outline, the shape carried by cell density alone. The hue is the companion's in both themes; its lightness rises on dark so the cells keep 3:1 against the surface. Every companion shares one screen: each cell is a square of one fixed size, its tone carried by opacity in two steps through error diffusion, so the field reads in two tones of one hue over the bare surface. The density field is the companion's ASCII glyph silhouette, blurred, over a seeded low noise floor, all seeded on the name. The grid holds the same cell count at every size. At work the field drifts and the state motion passes through it; at rest, and under reduced motion, it holds still.",
 			},
 		},
 	},
@@ -179,7 +194,7 @@ export const OneGlyphInEveryColour = meta.story({
 		docs: {
 			description: {
 				story:
-					"One companion with no colour, then in each of the eight colours, as the Appearance picker lays its swatches. The seed comes from the name alone, so only the field colour changes and the glyph stays the companion's. Check that the nine fields carry one shape and that each reads on the bare surface in both themes: the test asserts every frame paints a transparent background and every cell ink holds 3:1 against the surface behind it, light and dark.",
+					"One companion with no colour, then in each of the eight colours, as the Appearance picker lays its swatches. The seed comes from the name alone, so only the field colour changes and the glyph stays the companion's. Check that the nine fields carry one shape and that each reads on the bare surface in both themes: the test asserts every frame paints a transparent background and every full-tone cell ink holds 3:1 against the background, sidebar, card and muted surfaces, light and dark.",
 			},
 		},
 	},
@@ -188,12 +203,15 @@ export const OneGlyphInEveryColour = meta.story({
 		const frames = companionGlyphs(canvasElement)
 		const pixel = createPixel()
 		const faint = frames
-			.map((frame, index) => ({
-				label: `${schemeOf(frame)} ${COLOURS[index % COLOURS.length] ?? "untinted"}`,
-				ratio: cellContrastOf(pixel, frame),
-			}))
+			.flatMap((frame, index) =>
+				cellContrastsOf(
+					pixel,
+					frame,
+					`${schemeOf(frame)} ${COLOURS[index % COLOURS.length] ?? "untinted"}`,
+				),
+			)
 			.filter(({ ratio }) => ratio < CELL_CONTRAST_FLOOR)
-			.map(({ label, ratio }) => `${label} ${ratio.toFixed(2)}`)
+			.map(({ pair, ratio }) => `${pair} ${ratio.toFixed(2)}`)
 
 		await expect(frames.map(schemeOf)).toEqual(
 			["light", "dark"].flatMap((scheme) => COLOURS.map(() => scheme)),
@@ -201,6 +219,6 @@ export const OneGlyphInEveryColour = meta.story({
 		await expect(
 			frames.map((frame) => getComputedStyle(frame).backgroundColor),
 		).toEqual(frames.map(() => TRANSPARENT))
-		await expect(faint).toEqual([])
+		await expect(faint, `Cell inks under 3:1:\n${faint.join("\n")}`).toEqual([])
 	},
 })

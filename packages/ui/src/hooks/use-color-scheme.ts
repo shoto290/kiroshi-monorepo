@@ -11,6 +11,14 @@ export const schemeOf = (element: HTMLElement): ColorScheme =>
 		? "dark"
 		: "light"
 
+export const observeSchemeChange = (onChange: () => void) => {
+	const observer = new MutationObserver(onChange)
+	for (const target of [document.documentElement, document.body]) {
+		observer.observe(target, { attributeFilter: ["class"], attributes: true })
+	}
+	return () => observer.disconnect()
+}
+
 export const useColorScheme = (element: RefObject<HTMLElement | null>) => {
 	const [scheme, setScheme] = useState<ColorScheme>("light")
 
@@ -22,12 +30,7 @@ export const useColorScheme = (element: RefObject<HTMLElement | null>) => {
 
 		read()
 
-		const observer = new MutationObserver(read)
-		for (const target of [document.documentElement, document.body]) {
-			observer.observe(target, { attributeFilter: ["class"], attributes: true })
-		}
-
-		return () => observer.disconnect()
+		return observeSchemeChange(read)
 	}, [element])
 
 	return scheme

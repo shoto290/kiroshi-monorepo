@@ -9,6 +9,7 @@ import {
 	drawingOf,
 	expectCellsIn,
 	expectCompanionPictureShape,
+	expectCompanionSilhouette,
 	expectRoundAvatar,
 	pictureOf,
 	Row,
@@ -130,7 +131,7 @@ export const Rest = meta.story({
 		docs: {
 			description: {
 				story:
-					"One companion at rest: its dithered field in the hue of the colour it was given, drawn once and left alone. Check in both themes that nothing moves, that the cells sit on the bare surface with no ground behind them and that no dot is drawn. Pick `Working` for the same companion mid-run.",
+					"One companion at rest: its dithered field in the hue of the colour it was given, drawn once and left alone. Check in both themes that nothing moves, that the field is cut to the rounded hexagon of the Kiroshi mark with no ground behind its cells, and that no dot is drawn. Pick `Working` for the same companion mid-run.",
 			},
 		},
 	},
@@ -140,6 +141,7 @@ export const Rest = meta.story({
 
 		await expectGlyph(avatar, "idle")
 		await expect(companionTintOf(glyph)).toBe("var(--bot-blot-blue)")
+		await expectCompanionSilhouette(glyph)
 		await expect(getComputedStyle(glyph).backgroundColor).toBe(
 			"rgba(0, 0, 0, 0)",
 		)

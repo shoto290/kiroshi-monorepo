@@ -10,6 +10,7 @@ import {
 	stillTime,
 } from "@workspace/ui/components/companion-field"
 import { COMPANION_SILHOUETTE } from "@workspace/ui/components/companion-picture"
+import { observeSchemeChange } from "@workspace/ui/hooks/use-color-scheme"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -18,6 +19,7 @@ type Paint = (time: number) => void
 type FieldFrameProps = Required<Omit<FieldAvatarProps, "tint">> & {
 	tint?: BotAvatarBlot
 	surface?: string
+	hasSilhouette?: boolean
 	children: ReactNode
 }
 
@@ -42,18 +44,13 @@ const subscribe = (paint: Paint) => {
 	}
 }
 
-const onSchemeChange = (repaint: () => void) => {
-	const observer = new MutationObserver(repaint)
-	observer.observe(document.documentElement, { attributeFilter: ["class"] })
-	return () => observer.disconnect()
-}
-
 const FieldFrame = ({
 	name,
 	tint,
 	state,
 	size,
 	surface,
+	hasSilhouette = false,
 	children,
 }: FieldFrameProps) => {
 	const { t } = useTranslation("common")
@@ -71,7 +68,7 @@ const FieldFrame = ({
 			style={{
 				width: size,
 				height: size,
-				...(surface && COMPANION_SILHOUETTE),
+				...(hasSilhouette && COMPANION_SILHOUETTE),
 				backgroundColor: surface,
 			}}
 		>
@@ -96,7 +93,7 @@ const useFieldClock = ({ state, paint }: FieldClock) => {
 
 	useEffect(() => {
 		if (!isAnimated)
-			return onSchemeChange(() => latestPaint.current(stillTime(state)))
+			return observeSchemeChange(() => latestPaint.current(stillTime(state)))
 	}, [isAnimated, state])
 }
 

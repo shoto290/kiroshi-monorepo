@@ -67,6 +67,7 @@ type BrandMarkProps = {
 const BrandMark = ({ size, state = RESTING_STATE }: BrandMarkProps) => (
 	<DitheredField
 		field={BRAND_FIELD}
+		hasSilhouette
 		ink={BRAND_CELLS}
 		name={BRAND_NAME}
 		size={size}
