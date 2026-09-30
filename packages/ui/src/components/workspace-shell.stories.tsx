@@ -94,19 +94,14 @@ const stateOf = (sidebar: HTMLElement) =>
 const paintOf = (element: HTMLElement) =>
 	getComputedStyle(element).backgroundColor
 
-const paintOfProbe = (paint: (swatch: HTMLElement) => void) => {
+const paintFor = (value: string) => {
 	const swatch = document.createElement("div")
-	paint(swatch)
+	swatch.style.backgroundColor = value
 	document.body.append(swatch)
 	const painted = paintOf(swatch)
 	swatch.remove()
 	return painted
 }
-
-const paintFor = (value: string) =>
-	paintOfProbe((swatch) => {
-		swatch.style.backgroundColor = value
-	})
 
 const shellInset = () => Number.parseFloat(tokenLengthOf("--shell-inset"))
 
