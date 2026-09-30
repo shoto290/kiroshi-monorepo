@@ -34,13 +34,13 @@ import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 import { SCENE_COPY } from "./copy"
 import {
 	CONVERSATIONS_BY_SPACE,
-	PERSONAL,
 	READER,
 	ROSTER_BY_SPACE,
 	type SceneLoop,
 	type SceneSpace,
 	SPACES,
 	spaceOf,
+	WORK,
 } from "./scene-cast"
 import { exchangeOf, type SceneTurn } from "./scene-threads"
 import { useReaderAvatar } from "./use-reader-avatar"
@@ -260,8 +260,8 @@ const WorkingRows = ({
 }
 
 export const AppScene = () => {
-	const [spaceId, setSpaceId] = useState(PERSONAL.id)
-	const [selectedId, setSelectedId] = useState(PERSONAL.defaultConversation.id)
+	const [spaceId, setSpaceId] = useState(WORK.id)
+	const [selectedId, setSelectedId] = useState(WORK.defaultConversation.id)
 	const [isPanelOpen, setPanelOpen] = useState(false)
 	const [draft, setDraft] = useState("")
 	const [hasPicked, setHasPicked] = useState(false)
