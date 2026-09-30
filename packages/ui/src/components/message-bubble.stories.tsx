@@ -125,13 +125,14 @@ export const Default = meta.story({
 	play: async ({ canvas }) => {
 		const sent = canvas.getByText(USER_PROMPT).closest("[data-slot]")
 		const received = canvas.getByText(AGENT_REPLY).closest("[data-slot]")
-		const markdownInk = [
+		const whiteInk = [
+			sent,
 			canvas.getByText("the export owner"),
 			canvas.getByText("the runbook"),
 			canvas.getByText("bun run migrate"),
 		]
 
-		for (const ink of [sent, ...markdownInk]) {
+		for (const ink of whiteInk) {
 			await expect(ink && getComputedStyle(ink).color).toBe(WHITE_INK)
 		}
 
