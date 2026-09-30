@@ -228,7 +228,7 @@
 	.dark,
 	[data-theme] {
 		--user-bubble: var(--primary);
-		--user-bubble-foreground: var(--primary-foreground);
+		--user-bubble-foreground: #ffffff;
 		--color-foreground: var(--foreground);
 		--color-muted: var(--muted);
 		--color-muted-foreground: var(--muted-foreground);
