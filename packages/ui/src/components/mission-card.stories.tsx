@@ -29,6 +29,7 @@ import {
 	MISSION_STATES,
 	MISSION_STATUS,
 	MISSION_TOOL_CALL_SLOTS,
+	MISSION_TOOLS_WITHOUT_A_MARK,
 	READY_MISSION,
 	UNTICKETED_MISSION,
 	WAITING_BOT_MISSION,
@@ -739,6 +740,57 @@ export const RowWorkingWithManyTools = meta.story({
 			).toBeLessThanOrEqual(line.getBoundingClientRect().right)
 		}
 		await expectMarksOnTheTextAxis(rowIn(canvasElement))
+	},
+})
+
+const UNNAMED_BEFORE_NAMED_TOOLS = [
+	"gh",
+	...MISSION_TOOLS_WITHOUT_A_MARK,
+	"GitHub",
+]
+
+const TOOL_GLYPH_CASES = [
+	{ tools: UNNAMED_BEFORE_NAMED_TOOLS, glyph: "GitHub" },
+	{
+		tools: MISSION_TOOLS_WITHOUT_A_MARK,
+		glyph: MISSION_TOOLS_WITHOUT_A_MARK[0],
+	},
+]
+
+export const RowToolGlyph = meta.story({
+	args: { density: "row" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Two working rows: one whose tools list unnamed tools ahead of GitHub, one whose tools all lack a mark of their own. Check that the first row draws the GitHub mark alone, that the second draws the generic mark once for its first tool, and that both sit centred on the line. " +
+					LISTED_BY_THE_PANEL,
+			},
+		},
+	},
+	render: (args) => (
+		<Panel>
+			{TOOL_GLYPH_CASES.map(({ tools }, index) => (
+				<MissionCard
+					{...args}
+					{...WORKING_MISSION}
+					id={`mission-tool-glyph-${index}`}
+					key={tools.join()}
+					tools={tools}
+				/>
+			))}
+		</Panel>
+	),
+	play: async ({ canvasElement }) => {
+		const rows = rowsIn(canvasElement)
+
+		await expect(rows).toHaveLength(TOOL_GLYPH_CASES.length)
+		for (const [index, { glyph }] of TOOL_GLYPH_CASES.entries()) {
+			const marks = slotsIn(rows[index], "mission-tool-mark")
+			await expect(marks).toHaveLength(1)
+			await expect(marks[0]).toHaveAccessibleName(glyph)
+			await expectMarksOnTheTextAxis(rows[index])
+		}
 	},
 })
 

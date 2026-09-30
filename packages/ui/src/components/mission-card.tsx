@@ -28,6 +28,7 @@ import {
 	MissionStatusTime,
 	MissionTicketLine,
 	MissionToolMark,
+	missionAgentTool,
 	missionTicketPlatform,
 } from "@workspace/ui/components/mission-marks"
 import {
@@ -219,7 +220,7 @@ const RowDensity = ({
 			: []),
 	].filter((part) => part.text !== "")
 	const hasActivity = hasActivityLine({ commitsAhead, pullRequest })
-	const [tool] = tools
+	const tool = missionAgentTool(tools) ?? tools[0]
 	const hasTicketMark = isTicketed(ticket)
 
 	return (
