@@ -368,10 +368,18 @@ const onSidebarPanel = (Story: () => ReactNode) => (
 	</div>
 )
 
-export const OverflowLight = meta.story({
+type PlayContext = { canvasElement: HTMLElement }
+
+const OVERFLOW_ON_PANEL = {
 	args: { participants: membersOf(4) },
-	globals: { theme: "light", theme_layout: "single" },
 	decorators: [onSidebarPanel],
+	play: ({ canvasElement }: PlayContext) =>
+		expectRoom(canvasElement, membersOf(2), 2),
+}
+
+export const OverflowLight = meta.story({
+	...OVERFLOW_ON_PANEL,
+	globals: { theme: "light", theme_layout: "single" },
 	parameters: {
 		docs: {
 			description: {
@@ -380,13 +388,11 @@ export const OverflowLight = meta.story({
 			},
 		},
 	},
-	play: ({ canvasElement }) => expectRoom(canvasElement, membersOf(2), 2),
 })
 
 export const OverflowDark = meta.story({
-	args: { participants: membersOf(4) },
+	...OVERFLOW_ON_PANEL,
 	globals: { theme: "dark", theme_layout: "single" },
-	decorators: [onSidebarPanel],
 	parameters: {
 		docs: {
 			description: {
@@ -395,7 +401,6 @@ export const OverflowDark = meta.story({
 			},
 		},
 	},
-	play: ({ canvasElement }) => expectRoom(canvasElement, membersOf(2), 2),
 })
 
 export const FiveMembers = meta.story({
