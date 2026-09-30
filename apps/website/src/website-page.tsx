@@ -60,9 +60,7 @@ type AppWindowProps = {
 }
 
 const AppWindow = ({ children }: AppWindowProps) => (
-	<div
-		className={`${PAGE_COLUMN} scene-frozen relative hidden h-[700px] overflow-clip rounded-[16px] bg-sidebar shadow-frame lg:block dark:shadow-frame-dark`}
-	>
+	<div className="w-full max-w-[970px] shrink-0 scene-frozen relative hidden h-[700px] overflow-clip rounded-[16px] bg-sidebar shadow-frame lg:block dark:shadow-frame-dark">
 		{children}
 	</div>
 )
