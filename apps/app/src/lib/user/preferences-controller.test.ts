@@ -400,19 +400,26 @@ describe("a preference another window changed", () => {
 	})
 })
 
-describe("the sidebar width the host holds", () => {
-	it("is carried through untouched and never mirrored", async () => {
-		const host = aHost({ ...DEFAULTS, sidebarWidth: 320 })
+describe("the sidebar edge the reader drags", () => {
+	it("writes the width once, and shows it before the host answers", async () => {
+		const host = aHost()
 		const controller = await loaded()
 
-		await controller.setColorScheme("dark")
+		await controller.setSidebarWidth(320)
 
-		expect(host()).toEqual({
-			...DEFAULTS,
-			sidebarWidth: 320,
-			colorScheme: "dark",
-		})
-		expect(localStorage.getItem("sidebarWidth")).toBeNull()
+		expect(controller.getState().preferences.sidebarWidth).toBe(320)
+		expect(localStorage.getItem("sidebarWidth")).toBe("320")
+		expect(host()).toEqual({ ...DEFAULTS, sidebarWidth: 320 })
+	})
+
+	it("writes nothing for a width the record already holds", async () => {
+		aHost({ ...DEFAULTS, sidebarWidth: 320 })
+		const controller = await loaded()
+		hostInvoke.mockClear()
+
+		await controller.setSidebarWidth(320)
+
+		expect(hostInvoke).not.toHaveBeenCalled()
 	})
 })
 

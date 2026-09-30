@@ -103,6 +103,13 @@ export const useWorkspaceOverlay = ({
 		[preferences],
 	)
 
+	const changeSidebarWidth = useCallback(
+		(sidebarWidth: number) => {
+			void user.controller.setSidebarWidth(sidebarWidth)
+		},
+		[user.controller],
+	)
+
 	const activityPanel = useMemo(
 		() => ({
 			isOpen: preferences.activityPanelOpen,
@@ -132,6 +139,7 @@ export const useWorkspaceOverlay = ({
 
 	return {
 		activityPanel,
+		changeSidebarWidth,
 		isOverlayOpen,
 		isThreadConversationSettingsOpen,
 		isThreadSettingsOpen,

@@ -1,8 +1,12 @@
 import type { ReactNode } from "react"
-import { expect, fn, type within } from "storybook/test"
+import { expect, fn, waitFor, type within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotIn, tokenLengthOf } from "@workspace/storybook/story-utils"
+import {
+	FRAME_POLL,
+	slotIn,
+	tokenLengthOf,
+} from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import {
 	AppSidebar,
@@ -13,12 +17,16 @@ import { PinnedMessages } from "@workspace/ui/components/pinned-messages"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
 import type { ReplyQuote } from "@workspace/ui/components/prompt-reply"
 import type { RosterBot } from "@workspace/ui/components/roster"
+import {
+	SIDEBAR_DEFAULT_WIDTH,
+	SIDEBAR_MAX_WIDTH,
+	SIDEBAR_WIDTH_STEP,
+} from "@workspace/ui/components/sidebar-resize"
 import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import { AssistantTurn, UserTurn } from "@workspace/ui/components/turn"
 import {
 	SHELL_GUTTER,
 	SHELL_TITLE_BAR_HEIGHT,
-	SIDEBAR_WIDTH,
 	WorkspaceShell,
 } from "@workspace/ui/components/workspace-shell"
 
@@ -382,26 +390,144 @@ export const Empty = meta.story({
 	},
 })
 
-export const FixedWidth = meta.story({
-	tags: ["test-only"],
+const WIDER_BY = 60
+
+const handleIn = (canvas: ReturnType<typeof within>) =>
+	canvas.getByRole("separator", { name: "Resize sidebar" })
+
+const widthOf = (element: HTMLElement) =>
+	Math.round(element.getBoundingClientRect().width)
+
+const expectWidth = async (sidebar: HTMLElement, expected: number) => {
+	await waitFor(async () => {
+		await expect(widthOf(sidebar)).toBe(expected)
+	}, FRAME_POLL)
+}
+
+interface PointerStep {
+	coords?: { clientX: number; clientY: number }
+	keys?: string
+	target?: HTMLElement
+}
+
+interface DragParams {
+	by: number
+	handle: HTMLElement
+	pointer: (steps: PointerStep[]) => Promise<void>
+}
+
+const dragHandleBy = async ({ by, handle, pointer }: DragParams) => {
+	const grip = handle.getBoundingClientRect()
+	const from = {
+		clientX: grip.left + grip.width / 2,
+		clientY: grip.top + grip.height / 2,
+	}
+	const to = { clientX: from.clientX + by, clientY: from.clientY }
+	await pointer([
+		{ keys: "[MouseLeft>]", target: handle, coords: from },
+		{ coords: to },
+		{ keys: "[/MouseLeft]", coords: to },
+	])
+}
+
+export const Resized = meta.story({
 	args: {
 		sidebar: SIDEBAR,
+		onWidthChange: fn(),
 	},
-	play: async ({ canvas, userEvent }) => {
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this when a reader drags the sidebar's inline-end edge to give it more room. Check that the panel tracks the pointer live, that the width is reported once on release as a whole number of pixels, and that a pointer run far past the edge stops the panel at 416px. Pick `ResizeByKeyboard` for the same width moved without a pointer, `NotResizable` for a host that fixes it. The app allows the drag at `apps/app/src/App.tsx`.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		const handle = handleIn(canvas)
 		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
-		const widthOfSidebar = () =>
-			Math.round(sidebar.getBoundingClientRect().width)
+		const widened = SIDEBAR_DEFAULT_WIDTH + WIDER_BY
 
-		await expect(widthOfSidebar()).toBe(SIDEBAR_WIDTH)
-		await expect(
-			canvas.queryByRole("separator", { name: /resize/i }),
-		).toBeNull()
+		await expectWidth(sidebar, SIDEBAR_DEFAULT_WIDTH)
+		await dragHandleBy({ by: WIDER_BY, handle, pointer: userEvent.pointer })
+
+		await expectWidth(sidebar, widened)
+		await expect(args.onWidthChange).toHaveBeenCalledTimes(1)
+		await expect(args.onWidthChange).toHaveBeenLastCalledWith(widened)
+		await expect(handle).toHaveAttribute("aria-valuenow", String(widened))
+
+		await dragHandleBy({
+			by: window.innerWidth,
+			handle,
+			pointer: userEvent.pointer,
+		})
+		await expectWidth(sidebar, SIDEBAR_MAX_WIDTH)
+		await expect(args.onWidthChange).toHaveBeenLastCalledWith(SIDEBAR_MAX_WIDTH)
+	},
+})
+
+export const ResizeByKeyboard = meta.story({
+	args: {
+		sidebar: SIDEBAR,
+		onWidthChange: fn(),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this when the reader never touches a pointer: the edge takes focus and the arrow keys move the width one 16px step at a time. Check that the handle shows its focus line, that ArrowRight widens and ArrowLeft narrows, that each press reports the new width, and that Cmd+B or Ctrl+B leaves the panel open at the width it holds. Pick `Resized` for the drag. The app allows the resize at `apps/app/src/App.tsx`.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		const handle = handleIn(canvas)
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
+		const widened = SIDEBAR_DEFAULT_WIDTH + SIDEBAR_WIDTH_STEP
+
+		handle.focus()
+		await expect(handle).toHaveFocus()
+
+		await userEvent.keyboard("{ArrowRight}")
+		await expectWidth(sidebar, widened)
+		await expect(args.onWidthChange).toHaveBeenLastCalledWith(widened)
+
+		await userEvent.keyboard("{ArrowLeft}")
+		await expectWidth(sidebar, SIDEBAR_DEFAULT_WIDTH)
+		await expect(args.onWidthChange).toHaveBeenLastCalledWith(
+			SIDEBAR_DEFAULT_WIDTH,
+		)
+		await expect(args.onWidthChange).toHaveBeenCalledTimes(2)
 
 		await userEvent.keyboard("{Meta>}b{/Meta}")
 		await userEvent.keyboard("{Control>}b{/Control}")
-
 		await expect(stateOf(sidebar)).toBe("expanded")
-		await expect(widthOfSidebar()).toBe(SIDEBAR_WIDTH)
+		await expectWidth(sidebar, SIDEBAR_DEFAULT_WIDTH)
+	},
+})
+
+export const NotResizable = meta.story({
+	args: {
+		sidebar: SIDEBAR,
+		width: SIDEBAR_DEFAULT_WIDTH + WIDER_BY,
+		isResizable: false,
+		onWidthChange: fn(),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this when the host runs somewhere the reader may not change the width: every desktop platform but macOS. Check that the inline-end edge carries no handle, that nothing along it takes focus or turns the cursor into a resize arrow, and that the panel still sits at the width the host stored rather than falling back to the default. Pick `Resized` for the same shell where dragging is allowed. The app decides it at `apps/app/src/App.tsx`.",
+			},
+		},
+	},
+	play: async ({ args, canvas }) => {
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
+
+		await expectWidth(sidebar, SIDEBAR_DEFAULT_WIDTH + WIDER_BY)
+		await expect(
+			canvas.queryByRole("separator", { name: /resize/i }),
+		).toBeNull()
+		await expect(args.onWidthChange).not.toHaveBeenCalled()
 	},
 })
 

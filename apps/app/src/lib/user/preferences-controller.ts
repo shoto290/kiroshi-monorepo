@@ -48,6 +48,7 @@ export type UserController = {
 	setNotification: (change: NotificationChange) => Promise<void>
 	setColorScheme: (colorScheme: ColorScheme) => Promise<void>
 	setLanguage: (language: Language | null) => Promise<void>
+	setSidebarWidth: (sidebarWidth: number) => Promise<void>
 	setSidebarTab: (sidebarTab: SidebarTab) => Promise<void>
 	setActivityPanelOpen: (activityPanelOpen: boolean) => Promise<void>
 	markFirstRunDone: () => Promise<void>
@@ -65,7 +66,6 @@ const UNMIRRORED_DEFAULTS = {
 	notifyOnFinishedTurn: true,
 	notifyWithSound: true,
 	sidebarTab: "conversations",
-	sidebarWidth: null,
 } satisfies Omit<UserPreferences, keyof MirroredPreferences>
 
 const openingPreferences = (): ReaderPreferences => ({
@@ -200,6 +200,8 @@ export const createUserController = (): UserController => {
 			changeMirrored({ colorScheme }),
 
 		setLanguage: (language: Language | null) => changeMirrored({ language }),
+
+		setSidebarWidth: (sidebarWidth: number) => changeMirrored({ sidebarWidth }),
 
 		setSidebarTab: (sidebarTab: SidebarTab) => {
 			const held = current().preferences

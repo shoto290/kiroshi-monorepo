@@ -1,5 +1,7 @@
-// Call sites: packages/ui/src/components/routines-panel.tsx line 554 for the
-// provider and line 516 for the handle
+// Call sites: packages/ui/src/components/workspace-shell.tsx line 65 and
+// packages/ui/src/components/routines-panel.tsx line 553 for the provider,
+// packages/ui/src/components/app-sidebar.tsx line 2119 and
+// packages/ui/src/components/routines-panel.tsx line 515 for the handle
 
 import type { CSSProperties } from "react"
 import { expect, fn, waitFor } from "storybook/test"
@@ -97,7 +99,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"How wide the panel is, and who decides. The provider owns the width and clamps every answer between 192px and 416px, so no caller can ever hand the shell a width it cannot draw; the handle is the grip on the panel's edge, a `separator` carrying the width as its value. It is a pointer drag, an arrow key step of 16px, and a double press back to the default — three ways to the same number. The handle takes itself off screen wherever a width is not the reader's to set: the icon rail and a narrow window. The workspace sidebar never mounts it: its width is fixed.",
+					"How wide the panel is, and who decides. The provider owns the width and clamps every answer between 192px and 416px, so no caller can ever hand the shell a width it cannot draw; the handle is the grip on the panel's edge, a `separator` carrying the width as its value. It is a pointer drag, an arrow key step of 16px, and a double press back to the default — three ways to the same number. The handle takes itself off screen wherever a width is not the reader's to set: the icon rail, a narrow window, a shell that declared itself fixed.",
 			},
 		},
 	},

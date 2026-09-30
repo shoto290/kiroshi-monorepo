@@ -34,6 +34,7 @@ const RECORD: UserPreferences = {
 const MIRRORED: MirroredPreferences = {
 	colorScheme: "light",
 	language: null,
+	sidebarWidth: null,
 	activityPanelOpen: false,
 	firstRunDone: false,
 	lastSpaceId: null,
@@ -85,6 +86,7 @@ describe("the mirror", () => {
 		expect(readMirror()).toEqual({
 			colorScheme: "system",
 			language: null,
+			sidebarWidth: null,
 			activityPanelOpen: false,
 			firstRunDone: false,
 			lastSpaceId: null,
@@ -125,13 +127,26 @@ describe("the mirror", () => {
 		expect(readMirror().colorScheme).toBe("system")
 	})
 
-	it("neither reads nor writes a sidebar width", () => {
-		localStorage.setItem("sidebarWidth", "320")
+	it("holds the width the reader dragged the edge to", () => {
+		writeMirror({ ...MIRRORED, sidebarWidth: 320 })
 
-		writeMirror(MIRRORED)
-
-		expect(readMirror()).not.toHaveProperty("sidebarWidth")
 		expect(localStorage.getItem("sidebarWidth")).toBe("320")
+		expect(readMirror().sidebarWidth).toBe(320)
+	})
+
+	it("holds no width once the record holds none", () => {
+		writeMirror({ ...MIRRORED, sidebarWidth: 320 })
+
+		writeMirror({ ...MIRRORED, sidebarWidth: null })
+
+		expect(localStorage.getItem("sidebarWidth")).toBeNull()
+		expect(readMirror().sidebarWidth).toBeNull()
+	})
+
+	it("reads no width for a width that is not a count of pixels", () => {
+		localStorage.setItem("sidebarWidth", "wide")
+
+		expect(readMirror().sidebarWidth).toBeNull()
 	})
 
 	it("holds the panel the reader left open", () => {
@@ -194,6 +209,7 @@ describe("the record the host holds", () => {
 		).toEqual({
 			colorScheme: "dark",
 			language: "fr",
+			sidebarWidth: 320,
 			activityPanelOpen: false,
 			firstRunDone: false,
 			lastSpaceId: "vocca",
@@ -211,6 +227,7 @@ describe("the record the host holds", () => {
 		expect(mirrorOf({ ...RECORD, language: "br" })).toEqual({
 			colorScheme: "dark",
 			language: null,
+			sidebarWidth: null,
 			activityPanelOpen: false,
 			firstRunDone: false,
 			lastSpaceId: null,
@@ -251,7 +268,7 @@ describe("isMirrorKey", () => {
 	it("tells the keys the mirror holds from the rest of the storage", () => {
 		expect(isMirrorKey("theme")).toBe(true)
 		expect(isMirrorKey("language")).toBe(true)
-		expect(isMirrorKey("sidebarWidth")).toBe(false)
+		expect(isMirrorKey("sidebarWidth")).toBe(true)
 		expect(isMirrorKey("lastSpaceId")).toBe(true)
 		expect(isMirrorKey("conversations")).toBe(false)
 		expect(isMirrorKey(null)).toBe(false)
@@ -263,6 +280,7 @@ describe("sameMirror", () => {
 		const mirrored = {
 			colorScheme: "dark",
 			language: "fr",
+			sidebarWidth: 320,
 			activityPanelOpen: false,
 			firstRunDone: false,
 			lastSpaceId: "vocca",
@@ -274,6 +292,7 @@ describe("sameMirror", () => {
 			false,
 		)
 		expect(sameMirror(mirrored, { ...mirrored, language: null })).toBe(false)
+		expect(sameMirror(mirrored, { ...mirrored, sidebarWidth: 256 })).toBe(false)
 		expect(sameMirror(mirrored, { ...mirrored, activityPanelOpen: true })).toBe(
 			false,
 		)

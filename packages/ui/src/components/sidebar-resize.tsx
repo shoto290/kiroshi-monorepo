@@ -37,6 +37,7 @@ const HANDLE_LIT =
 type SidebarResize = {
 	width: number
 	defaultWidth: number
+	isResizable: boolean
 	isResizing: boolean
 	resizeTo: (width: number) => void
 	commitWidth: (width: number) => void
@@ -48,6 +49,7 @@ interface SidebarResizeProviderProps {
 	width?: number
 	defaultWidth?: number
 	onWidthChange?: (width: number) => void
+	isResizable?: boolean
 	children: (resize: SidebarResize) => ReactNode
 }
 
@@ -55,6 +57,7 @@ const SidebarResizeProvider = ({
 	width,
 	defaultWidth = SIDEBAR_DEFAULT_WIDTH,
 	onWidthChange,
+	isResizable = true,
 	children,
 }: SidebarResizeProviderProps) => {
 	const boundedDefaultWidth = clampSidebarWidth(defaultWidth)
@@ -79,11 +82,20 @@ const SidebarResizeProvider = ({
 		() => ({
 			width: draftWidth ?? clampSidebarWidth(width ?? ownWidth),
 			defaultWidth: boundedDefaultWidth,
+			isResizable,
 			isResizing: draftWidth !== null,
 			resizeTo,
 			commitWidth,
 		}),
-		[boundedDefaultWidth, commitWidth, draftWidth, ownWidth, resizeTo, width],
+		[
+			boundedDefaultWidth,
+			commitWidth,
+			draftWidth,
+			isResizable,
+			ownWidth,
+			resizeTo,
+			width,
+		],
 	)
 
 	return (
@@ -103,7 +115,7 @@ const SidebarResizeHandle = ({ side }: SidebarResizeHandleProps) => {
 	const resize = useContext(SidebarResizeContext)
 	const towardsWider = side === "left" ? 1 : -1
 
-	if (!resize) return null
+	if (!resize?.isResizable) return null
 	if (isMobile || state === "collapsed") return null
 
 	const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
