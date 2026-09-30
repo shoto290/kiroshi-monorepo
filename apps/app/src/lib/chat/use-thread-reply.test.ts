@@ -6,7 +6,7 @@ import { afterEach, expect, it } from "vitest"
 import { useComposerFocus, useThreadReply } from "./use-thread-reply"
 
 type FocusProps = {
-	threadId: string
+	threadId: string | null
 	isSettingsOpen?: boolean
 }
 
@@ -61,6 +61,23 @@ it("focuses the input on a conversation, then on a mission thread of the same co
 	rerender({ threadId: "mission-1" })
 
 	expect(document.activeElement).toBe(elsewhere)
+})
+
+it("focuses the input again when a shared companion's solo thread switches to another space", () => {
+	const composer = mountComposer()
+	const elsewhere = mountComposer()
+	const { rerender } = renderThread(composer, { threadId: null })
+
+	expect(document.activeElement).not.toBe(composer)
+
+	rerender({ threadId: "solo-in-space-1" })
+
+	expect(document.activeElement).toBe(composer)
+
+	elsewhere.focus()
+	rerender({ threadId: "solo-in-space-2" })
+
+	expect(document.activeElement).toBe(composer)
 })
 
 it("leaves the focus where it is while the settings page is open", () => {

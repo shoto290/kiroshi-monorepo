@@ -78,7 +78,7 @@ export function useComposerRequest(
 }
 
 type ComposerFocusInput = {
-	threadId: string
+	threadId: string | null
 	isPromptPending: boolean
 	isSettingsOpen: boolean
 	isOverlayOpen: boolean
@@ -95,6 +95,9 @@ export function useComposerFocus({
 	const focusedThreadId = useRef<string | null>(null)
 
 	useEffect(() => {
+		if (!threadId) {
+			return
+		}
 		const claimed = claimsComposerFocus({
 			threadId,
 			focusedThreadId: focusedThreadId.current,
