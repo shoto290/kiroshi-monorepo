@@ -65,6 +65,7 @@
 	--scrollbar: oklch(0.72 0.013 285.938);
 	--scrollbar-hover: oklch(0.6 0.014 285.938);
 	--user-bubble-tint-strength: 100%;
+	--shell-tint-strength: 10%;
 	--user-bubble-tint-ink: var(--bot-blot-ink);
 	--popover-shadow:
 		0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.06),
@@ -111,6 +112,7 @@
 	--scrollbar: oklch(0.44 0.008 286.033);
 	--scrollbar-hover: oklch(0.55 0.01 286.033);
 	--user-bubble-tint-strength: 50%;
+	--shell-tint-strength: 20%;
 	--user-bubble-tint-ink: var(--foreground);
 	--popover-shadow:
 		0 0 0 1px rgb(255 255 255 / 0.1), 0 0 1px rgb(255 255 255 / 0.16),
@@ -225,15 +227,6 @@
 	:root,
 	.dark,
 	[data-theme] {
-		--space-tint-strength: 10%;
-		--accent-untinted: var(--accent);
-		--border-untinted: var(--border);
-		--input-untinted: var(--input);
-		--muted-untinted: var(--muted);
-		--secondary-untinted: var(--secondary);
-		--sidebar-untinted: var(--sidebar);
-		--sidebar-accent-untinted: var(--sidebar-accent);
-		--sidebar-border-untinted: var(--sidebar-border);
 		--user-bubble: var(--primary);
 		--user-bubble-foreground: var(--primary-foreground);
 		--color-foreground: var(--foreground);
@@ -251,6 +244,11 @@
 			var(--card)
 		);
 		--user-bubble-foreground: var(--user-bubble-tint-ink);
+		--shell-surface: color-mix(
+			in oklab,
+			var(--space-tint) var(--shell-tint-strength),
+			var(--background)
+		);
 	}
 }
 
@@ -345,12 +343,7 @@
 }
 
 @utility surface-shell {
-	--shell-surface: color-mix(
-		in oklab,
-		var(--space-tint, var(--background)) var(--space-tint-strength),
-		var(--background)
-	);
-	background-color: var(--shell-surface);
+	background-color: var(--shell-surface, var(--background));
 	transition: background-color 400ms ease-out;
 
 	@media (prefers-reduced-motion: reduce) {
@@ -406,49 +399,6 @@
 @utility image-outline {
 	outline: 1px solid var(--image-outline);
 	outline-offset: -1px;
-}
-
-@utility on-shell {
-	--accent: color-mix(
-		in oklab,
-		var(--space-tint, var(--accent-untinted)) var(--space-tint-strength),
-		var(--accent-untinted)
-	);
-	--border: color-mix(
-		in oklab,
-		var(--space-tint, var(--border-untinted)) var(--space-tint-strength),
-		var(--border-untinted)
-	);
-	--input: color-mix(
-		in oklab,
-		var(--space-tint, var(--input-untinted)) var(--space-tint-strength),
-		var(--input-untinted)
-	);
-	--muted: color-mix(
-		in oklab,
-		var(--space-tint, var(--muted-untinted)) var(--space-tint-strength),
-		var(--muted-untinted)
-	);
-	--secondary: color-mix(
-		in oklab,
-		var(--space-tint, var(--secondary-untinted)) var(--space-tint-strength),
-		var(--secondary-untinted)
-	);
-	--sidebar: color-mix(
-		in oklab,
-		var(--space-tint, var(--sidebar-untinted)) var(--space-tint-strength),
-		var(--sidebar-untinted)
-	);
-	--sidebar-accent: color-mix(
-		in oklab,
-		var(--space-tint, var(--sidebar-accent-untinted)) var(--space-tint-strength),
-		var(--sidebar-accent-untinted)
-	);
-	--sidebar-border: color-mix(
-		in oklab,
-		var(--space-tint, var(--sidebar-border-untinted)) var(--space-tint-strength),
-		var(--sidebar-border-untinted)
-	);
 }
 
 @keyframes ui-text-shimmer {

@@ -1236,7 +1236,7 @@ const expectThreadInsideShellCard = async (canvasElement: HTMLElement) => {
 const activityPanelIn = (canvasElement: HTMLElement) =>
 	within(canvasElement).getByRole("complementary", { name: "Activity" })
 
-const ON_SHELL_TOKENS = [
+const PANEL_TOKENS = [
 	"--sidebar",
 	"--sidebar-accent",
 	"--sidebar-border",
@@ -1247,10 +1247,9 @@ const ON_SHELL_TOKENS = [
 	"--secondary",
 ]
 
-const tokenPaintsIn = (host: HTMLElement, className = "") =>
-	ON_SHELL_TOKENS.map((token) => {
+const tokenPaintsIn = (host: HTMLElement) =>
+	PANEL_TOKENS.map((token) => {
 		const probe = document.createElement("div")
-		probe.className = className
 		probe.style.backgroundColor = `var(${token})`
 		host.append(probe)
 		const painted = paintOf(probe)
@@ -1264,9 +1263,7 @@ const expectShellSurfaceAround = async (canvasElement: HTMLElement) => {
 
 	await expectPanelOnCardSurface(panel)
 	const shellCard = await expectThreadInsideShellCard(canvasElement)
-	await expect(tokenPaintsIn(panel)).toEqual(
-		tokenPaintsIn(document.body, "on-shell"),
-	)
+	await expect(tokenPaintsIn(panel)).toEqual(tokenPaintsIn(document.body))
 
 	await waitFor(async () => {
 		const threadEdges = threadCard.getBoundingClientRect()
@@ -1356,7 +1353,7 @@ export const OnShellSurfaceTinted = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel open in a space that carries a colour, which is the only state where the panel could betray the surface it sits on. Check that the panel keeps the card surface the Conversations panel paints, while the shell behind it wears the tint of the space. Check too that the eight tokens the panel redeclares — sidebar, sidebar-accent, sidebar-border, accent, border, input, muted and secondary — read tinted inside it and untinted outside the shell, since a row, a rule or a field that keeps the untinted value is the way a tint leaks. `Navigation/AppSidebar` `SpaceTinted` reads the same pair on the roster panel opposite. Pick `OnShellSurfaceOpen` for the untinted surface. `apps/app/src/App.tsx:935` mounts the same panel inside the workspace shell, through `apps/app/src/components/thread-routines.tsx:107`.",
+					"The panel open in a space that carries a colour, which washes the window background around the panel and never the panel itself: the space colour reaches the shell, the reader's own message bubbles and the colour dots, never a panel surface. Check that the panel keeps the card surface the Conversations panel paints, that the eight tokens it paints with (sidebar, sidebar-accent, sidebar-border, accent, border, input, muted and secondary) read exactly the values they read outside any space, and that the wrapper behind it wears the same coloured background as the workspace shell. A row, a rule or a field washed in the space colour, or a wrapper left uncoloured beside a coloured shell, is the regression this story catches. `Navigation/AppSidebar` `SpaceTinted` reads the same pair on the roster panel opposite. Pick `OnShellSurfaceOpen` for the panel in a space with no colour. `apps/app/src/App.tsx:935` mounts the same panel inside the workspace shell, through `apps/app/src/components/thread-routines.tsx:107`.",
 			},
 		},
 	},
@@ -1372,17 +1369,12 @@ export const OnShellSurfaceTinted = meta.story({
 		await expect(paintOf(panelSurfaceIn(activity))).toBe(
 			cardPaintBeside(activity),
 		)
-		await expect(tokenPaintsIn(activity)).toEqual(
-			tokenPaintsIn(shell, "on-shell"),
-		)
-		await expect(tokenPaintsIn(activity)).not.toEqual(
-			tokenPaintsIn(document.body, "on-shell"),
-		)
-
+		await expect(shell).toHaveAttribute("data-space-tint", "blue")
+		await expect(tokenPaintsIn(activity)).toEqual(tokenPaintsIn(document.body))
 		await waitFor(async () => {
-			const tinted = paintOf(activity.parentElement as HTMLElement)
-			await expect(tinted).toBe(paintOf(shell))
-			await expect(tinted).not.toBe(shellPaint())
+			const wrapper = paintOf(activity.parentElement as HTMLElement)
+			await expect(wrapper).toBe(paintOf(shell))
+			await expect(wrapper).not.toBe(shellPaint())
 		}, FRAME_POLL)
 	},
 })

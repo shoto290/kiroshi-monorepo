@@ -94,7 +94,7 @@ import { probeRender } from "@workspace/ui/lib/render-probe"
 import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
 const PANEL =
-	"on-shell data-[side=left]:left-13 rounded-s-control border-y border-s border-e border-shell-border border-e-shell-divider bg-card **:data-[slot=sidebar-inner]:gap-2 **:data-[slot=sidebar-inner]:bg-transparent **:data-[slot=sidebar-inner]:pt-2 **:data-[slot=sidebar-inner]:pb-3"
+	"data-[side=left]:left-13 rounded-s-control border-y border-s border-e border-shell-border border-e-shell-divider bg-card **:data-[slot=sidebar-inner]:gap-2 **:data-[slot=sidebar-inner]:bg-transparent **:data-[slot=sidebar-inner]:pt-2 **:data-[slot=sidebar-inner]:pb-3"
 
 const TITLE_BAR = "absolute inset-x-0 top-0 flex h-8.5 items-center gap-2"
 

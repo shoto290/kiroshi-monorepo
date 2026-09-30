@@ -2,11 +2,7 @@ import type { ReactNode } from "react"
 import { expect, fn, type within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import {
-	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-	slotIn,
-	tokenLengthOf,
-} from "@workspace/storybook/story-utils"
+import { slotIn, tokenLengthOf } from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import {
 	AppSidebar,
@@ -98,25 +94,14 @@ const stateOf = (sidebar: HTMLElement) =>
 const paintOf = (element: HTMLElement) =>
 	getComputedStyle(element).backgroundColor
 
-const paintOfProbe = (paint: (swatch: HTMLElement) => void) => {
+const paintFor = (value: string) => {
 	const swatch = document.createElement("div")
-	paint(swatch)
+	swatch.style.backgroundColor = value
 	document.body.append(swatch)
 	const painted = paintOf(swatch)
 	swatch.remove()
 	return painted
 }
-
-const shellPaintFor = (tint?: string) =>
-	paintOfProbe((swatch) => {
-		swatch.className = "surface-shell"
-		if (tint) swatch.style.setProperty("--space-tint", tint)
-	})
-
-const paintFor = (value: string) =>
-	paintOfProbe((swatch) => {
-		swatch.style.backgroundColor = value
-	})
 
 const shellInset = () => Number.parseFloat(tokenLengthOf("--shell-inset"))
 
@@ -239,7 +224,7 @@ export const Default = meta.story({
 
 		const surface = shellSurface(canvas)
 		await expect(surface.style.getPropertyValue("--space-tint")).toBe("")
-		await expect(paintOf(surface)).toBe(shellPaintFor())
+		await expect(paintOf(surface)).toBe(paintFor("var(--background)"))
 		await expectCardDetached(
 			canvas.getByRole("main"),
 			sidebar.getBoundingClientRect().right,
@@ -281,32 +266,69 @@ export const SkipsToTheConversation = meta.story({
 	},
 })
 
+const shellPaintWithoutSpaceColour = () => {
+	const swatch = document.createElement("div")
+	swatch.className = "surface-shell"
+	document.body.append(swatch)
+	const painted = paintOf(swatch)
+	swatch.remove()
+	return painted
+}
+
+const isMotionReduced = () =>
+	window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+const expectShellInSpaceColour = async (canvas: ReturnType<typeof within>) => {
+	const surface = shellSurface(canvas)
+	const background = paintFor("var(--background)")
+
+	await expect(surface).toHaveAttribute("data-space-tint", "blue")
+	await expect(surface.style.getPropertyValue("--space-tint")).toBe(
+		"var(--bot-blot-blue)",
+	)
+	await expect(shellPaintWithoutSpaceColour()).toBe(background)
+	await expect(paintOf(surface)).not.toBe(background)
+	await expect(paintOf(surface)).toBe(
+		paintFor(
+			"color-mix(in oklab, var(--bot-blot-blue) var(--shell-tint-strength), var(--background))",
+		),
+	)
+	await expect(getComputedStyle(surface).transitionDuration).toBe(
+		isMotionReduced() ? "0s" : "0.4s",
+	)
+	await expect(paintOf(canvas.getByRole("main"))).toBe(paintFor("var(--card)"))
+}
+
+const SPACE_TINTED_ARGS = {
+	sidebar: SIDEBAR,
+	spaceTint: "blue",
+} as const
+
 export const SpaceTinted = meta.story({
-	args: {
-		sidebar: SIDEBAR,
-		spaceTint: "blue",
-	},
+	args: SPACE_TINTED_ARGS,
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"The same shell with a space in view, whose colour washes the window surface. Check that the tint lands on the surface around the card and never on the card itself, that it stays faint enough for the sidebar text to read exactly as it does untinted, and that it is derived from the space colour custom property so a palette or colour-scheme change repaints it on its own. Moving between spaces settles the surface onto the new tint over a beat rather than swapping it, and reduced motion drops that settle. Pick `Default` for the untinted surface. The app assembles it at `apps/app/src/App.tsx:928`. The tint is what puts the roster preview line below AA: `--muted-foreground` measures 4.38:1 on the blue-tinted shell surface, against the 4.5:1 the 12px line owes, so the pair is waived here and awaits a token decision rather than a fix in this story.",
+					"The same shell with a space in view, whose colour washes the window background: the title bar area, the rail and the gutters around the card. Check that the colour lands on that background and never on the card or the Conversations panel inside it, that it is the space colour mixed into the window background at the strength the theme sets, and that moving between spaces eases the background onto the new colour over a beat, which reduced motion swaps instantly. Pick `SpaceTintedDark` for the dark theme, `Default` for a space with no colour. The app assembles it at `apps/app/src/App.tsx:928`.",
 			},
 		},
 	},
-	play: async ({ canvas }) => {
-		const surface = shellSurface(canvas)
+	play: async ({ canvas }) => expectShellInSpaceColour(canvas),
+})
 
-		await expect(surface.style.getPropertyValue("--space-tint")).toBe(
-			"var(--bot-blot-blue)",
-		)
-		await expect(paintOf(surface)).toBe(shellPaintFor("var(--bot-blot-blue)"))
-		await expect(paintOf(surface)).not.toBe(shellPaintFor())
-		await expect(paintOf(canvas.getByRole("main"))).toBe(
-			paintFor("var(--card)"),
-		)
+export const SpaceTintedDark = meta.story({
+	args: SPACE_TINTED_ARGS,
+	globals: { theme: "dark" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The coloured shell in the dark theme, where the window background is black and a faint mix reads as no colour at all. Check that the rail and the title bar area read at a glance as the space colour against a space with no colour, while the card and the Conversations panel keep their neutral surfaces. Pick `SpaceTinted` for the light theme. The app assembles it at `apps/app/src/App.tsx:928`.",
+			},
+		},
 	},
+	play: async ({ canvas }) => expectShellInSpaceColour(canvas),
 })
 
 export const NotALandmark = meta.story({
