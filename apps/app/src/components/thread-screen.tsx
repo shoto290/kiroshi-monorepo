@@ -1369,7 +1369,7 @@ const useThreadActions = (
 		useThreadReply({ composerRef, scrollerRef, send })
 
 	useComposerFocus({
-		botId: facts.bot?.id ?? null,
+		threadId: facts.id,
 		isPromptPending: facts.isPromptPending,
 		isSettingsOpen: thread.isSettingsOpen,
 		isOverlayOpen: facts.isOverlayOpen,

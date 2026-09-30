@@ -640,8 +640,8 @@ describe("bubbleOf", () => {
 
 describe("claimsComposerFocus", () => {
 	const claim = {
-		botId: "bot-1",
-		focusedBotId: null,
+		threadId: "conversation-1",
+		focusedThreadId: null,
 		isPromptPending: false,
 		isSettingsOpen: false,
 		isOverlayOpen: false,
@@ -651,12 +651,16 @@ describe("claimsComposerFocus", () => {
 		expect(claimsComposerFocus(claim)).toBe(true)
 	})
 
-	it("claims the caret again when another companion opens", () => {
-		expect(claimsComposerFocus({ ...claim, focusedBotId: "bot-2" })).toBe(true)
+	it("claims the caret again when another thread opens", () => {
+		expect(
+			claimsComposerFocus({ ...claim, focusedThreadId: "conversation-2" }),
+		).toBe(true)
 	})
 
-	it("leaves the caret alone on the conversation it already claimed", () => {
-		expect(claimsComposerFocus({ ...claim, focusedBotId: "bot-1" })).toBe(false)
+	it("leaves the caret alone on the thread it already claimed", () => {
+		expect(
+			claimsComposerFocus({ ...claim, focusedThreadId: "conversation-1" }),
+		).toBe(false)
 	})
 
 	it("yields to a card that waits for the reader", () => {

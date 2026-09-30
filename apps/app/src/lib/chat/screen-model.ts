@@ -312,8 +312,8 @@ export function noticeTitleFor(t: ChatCopy, error: TransportError): string {
 }
 
 export type ComposerFocusClaim = {
-	botId: string
-	focusedBotId: string | null
+	threadId: string
+	focusedThreadId: string | null
 	isPromptPending: boolean
 	isSettingsOpen: boolean
 	isOverlayOpen: boolean
@@ -321,7 +321,7 @@ export type ComposerFocusClaim = {
 
 export function claimsComposerFocus(claim: ComposerFocusClaim): boolean {
 	return (
-		claim.botId !== claim.focusedBotId &&
+		claim.threadId !== claim.focusedThreadId &&
 		!claim.isPromptPending &&
 		!claim.isSettingsOpen &&
 		!claim.isOverlayOpen
