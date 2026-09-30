@@ -103,6 +103,8 @@ const WINDOW_CONTROLS_INSET = "pl-[78px]"
 
 const NO_WINDOW_CONTROLS_INSET = "pl-2.5"
 
+const TITLE_BAR_WINDOW_CONTROLS = "ms-auto flex shrink-0 self-stretch"
+
 const HEADER = "px-2 py-0"
 
 const HEADER_ROW = "flex h-8 items-center justify-between ps-2 pe-0.5"
@@ -1812,6 +1814,7 @@ interface AppSidebarProps
 	missionsBySpaceId?: Record<string, MissionsPanelProps>
 	onSearchMissions?: () => void
 	insetWindowControls?: boolean
+	windowControls?: ReactNode
 	railCounts?: AppRailCounts
 	railDots?: AppRailDots
 	openPanel?: string
@@ -1861,6 +1864,7 @@ const AppSidebarBase = ({
 	missionsBySpaceId,
 	onSearchMissions,
 	insetWindowControls = false,
+	windowControls,
 	railCounts,
 	railDots,
 	openPanel: controlledPanel,
@@ -2067,6 +2071,14 @@ const AppSidebarBase = ({
 					selectedSpaceId={selectedSpaceId}
 					spaces={spaces}
 				/>
+				{windowControls ? (
+					<div
+						className={TITLE_BAR_WINDOW_CONTROLS}
+						data-slot="app-title-bar-window-controls"
+					>
+						{windowControls}
+					</div>
+				) : null}
 			</div>
 			<AppRail
 				counts={railCounts}

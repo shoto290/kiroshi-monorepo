@@ -705,6 +705,7 @@ navigation-apprail--with-count
 navigation-apprail--with-dot
 navigation-appsidebar--badges
 navigation-appsidebar--bare-rows
+navigation-appsidebar--caption-window-controls
 navigation-appsidebar--conversation-mission-strips
 navigation-appsidebar--conversation-of-one-bot
 navigation-appsidebar--conversation-participants

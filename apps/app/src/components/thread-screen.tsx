@@ -65,10 +65,7 @@ import {
 	ThreadRoutines,
 } from "@/components/thread-routines"
 import { QueuedTurn, RefusedTurn, ThreadTurn } from "@/components/thread-turn"
-import {
-	titleBarDragRegion,
-	titleBarWindowControls,
-} from "@/components/window-caption-controls"
+import { titleBarDragRegion } from "@/components/window-caption-controls"
 import type { ApplicationInstall } from "@/lib/applications/application-port"
 import {
 	isLeftOutOf,
@@ -345,7 +342,6 @@ const ThreadHeader = ({
 				ticket={mission.mission.ticket}
 				tools={mission.mission.tools}
 				dragRegion={titleBarDragRegion()}
-				windowControls={titleBarWindowControls()}
 			/>
 		)
 	}
@@ -394,7 +390,6 @@ const ThreadHeader = ({
 					pinned
 				)
 			}
-			windowControls={titleBarWindowControls()}
 		/>
 	)
 }
