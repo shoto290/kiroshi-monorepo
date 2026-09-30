@@ -308,6 +308,7 @@ export {
 	ROSTER_BY_SPACE,
 	SABLE,
 	type SceneLoop,
+	type SceneSpace,
 	SPACES,
 	sceneMission,
 	spaceOf,
