@@ -10,9 +10,8 @@ type FocusProps = {
 	isSettingsOpen?: boolean
 }
 
-const mountComposer = (isDisabled = false): HTMLTextAreaElement => {
+const mountComposer = (): HTMLTextAreaElement => {
 	const composer = document.createElement("textarea")
-	composer.disabled = isDisabled
 	document.body.append(composer)
 	return composer
 }
@@ -75,7 +74,8 @@ it("leaves the focus where it is while the settings page is open", () => {
 })
 
 it("takes no focus on a closed mission whose input is disabled", () => {
-	const composer = mountComposer(true)
+	const composer = mountComposer()
+	composer.disabled = true
 
 	expect(() => renderThread(composer, { threadId: "mission-1" })).not.toThrow()
 	expect(document.activeElement).not.toBe(composer)
