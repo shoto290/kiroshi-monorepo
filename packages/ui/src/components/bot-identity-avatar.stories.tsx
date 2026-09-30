@@ -9,7 +9,6 @@ import {
 	drawingOf,
 	expectCellsIn,
 	expectCompanionPictureShape,
-	expectCompanionSilhouette,
 	expectRoundAvatar,
 	pictureOf,
 	Row,
@@ -131,7 +130,7 @@ export const Rest = meta.story({
 		docs: {
 			description: {
 				story:
-					"One companion at rest: its dithered field in the hue of the colour it was given, drawn once and left alone. Check in both themes that nothing moves, that the field fills the rounded hexagon of the Kiroshi mark and that no dot is drawn. Pick `Working` for the same companion mid-run.",
+					"One companion at rest: its dithered field in the hue of the colour it was given, drawn once and left alone. Check in both themes that nothing moves, that the cells sit on the bare surface with no ground behind them and that no dot is drawn. Pick `Working` for the same companion mid-run.",
 			},
 		},
 	},
@@ -141,7 +140,9 @@ export const Rest = meta.story({
 
 		await expectGlyph(avatar, "idle")
 		await expect(companionTintOf(glyph)).toBe("var(--bot-blot-blue)")
-		await expectCompanionSilhouette(glyph)
+		await expect(getComputedStyle(glyph).backgroundColor).toBe(
+			"rgba(0, 0, 0, 0)",
+		)
 		for (const layer of [avatar, glyph]) {
 			await expect(getComputedStyle(layer).borderRadius).toBe("0px")
 			await expect(getComputedStyle(layer).outlineStyle).toBe("none")
@@ -188,7 +189,7 @@ export const EveryTint = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion with no colour, then the eight colours a companion can be given. Each colour paints the cells in its hue on a pale tint of that hue, and the colours do not follow the theme; the uncoloured one paints its cells in Kiroshi blue. Switch to dark and check the cells read darker than their ground on all nine.",
+					"The companion with no colour, then the eight colours a companion can be given. Each colour paints its cells only, in its hue, with no ground behind them; the hue holds across themes while its lightness rises on dark, so the cells keep 3:1 against the surface; the uncoloured one paints its cells in Kiroshi blue. Switch to dark and check the cells read against the bare surface on all nine.",
 			},
 		},
 	},
@@ -210,7 +211,7 @@ export const NoChosenColour = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion never given a colour: its cells are the fixed Kiroshi blue rather than a hue of its own, on a pale tint of that blue. Switch the theme and check the blue cells hold on their ground against both backgrounds.",
+					"A companion never given a colour: its cells are the Kiroshi blue rather than a hue of its own, lifted on dark, with no ground behind them. Switch the theme and check the blue cells hold against both backgrounds.",
 			},
 		},
 	},

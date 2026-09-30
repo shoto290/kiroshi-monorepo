@@ -44,7 +44,6 @@ branding-ditheredfieldavatar--every-state
 branding-ditheredfieldavatar--one-drawing-at-every-size
 branding-ditheredfieldavatar--one-glyph-in-every-colour
 branding-ditheredfieldavatar--one-screen-for-every-companion
-branding-ditheredfieldavatar--without-ground
 branding-spacetint--default
 branding-spacetint--untinted
 branding-spacetint--variants

@@ -25,7 +25,6 @@ function AppBootScreen({ className, ...props }: AppBootScreenProps) {
 			{...props}
 		>
 			<DitheredFieldAvatar
-				hasGround={false}
 				ink="foreground"
 				name={BRAND_NAME}
 				size={BOOT_MARK_SIZE}

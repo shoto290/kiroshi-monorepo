@@ -30,7 +30,6 @@ import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced
 type FieldInk = "companion" | "foreground"
 
 type DitheredFieldAvatarProps = FieldAvatarProps & {
-	hasGround?: boolean
 	ink?: FieldInk
 }
 
@@ -63,10 +62,8 @@ const DRIFT_PERIOD = 9000
 const STATE_HOLD = 0.6
 const HUE_SALT = 0x51ed270b
 const HUE_JITTER = 12
-const FIELD_LIGHTNESS = 0.5
+const FIELD_LIGHTNESS = "var(--bot-avatar-field-lightness)"
 const FIELD_CHROMA = 0.16
-const SURFACE_LIGHTNESS = 0.96
-const SURFACE_CHROMA_SHARE = 0.15
 const CELL_SHARE = 0.9
 const TONES = [0, 0.5, 1]
 const HALF_TONE_ALPHA = 0.45
@@ -88,9 +85,6 @@ const inkOf = (seed: number, tint?: BotAvatarBlot) => {
 		? `oklch(from ${blotTint(tint)} ${FIELD_LIGHTNESS} ${FIELD_CHROMA} calc(h + ${jitter}))`
 		: "var(--bot-avatar-field-untinted)"
 }
-
-const surfaceOf = (ink: string) =>
-	`oklch(from ${ink} ${SURFACE_LIGHTNESS} calc(c * ${SURFACE_CHROMA_SHARE}) h)`
 
 const fieldLattice = (seed: number) =>
 	Float32Array.from({ length: LATTICE * LATTICE }, seededRandom(seed))
@@ -282,7 +276,6 @@ const DitheredFieldAvatar = ({
 	tint,
 	state = "idle",
 	size = 40,
-	hasGround = true,
 	ink: fieldInk = "companion",
 }: DitheredFieldAvatarProps) => {
 	const seed = companionSeed(name)
@@ -295,7 +288,6 @@ const DitheredFieldAvatar = ({
 			name={name}
 			size={size}
 			state={state}
-			surface={hasGround ? surfaceOf(ink) : undefined}
 			tint={tint}
 		/>
 	)

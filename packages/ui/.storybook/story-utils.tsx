@@ -229,7 +229,9 @@ export const companionGlyphs = (root: Element) =>
 	slotsIn(root, "companion-field")
 
 export const companionTintOf = (glyph: HTMLElement) =>
-	glyph.style.backgroundColor.match(/var\(--bot-blot-\w+\)/)?.[0] ?? ""
+	glyph
+		.querySelector("canvas")
+		?.style.color.match(/var\(--bot-blot-\w+\)/)?.[0] ?? ""
 
 export const companionGlyphsIn = (root: Element, state: string) =>
 	companionGlyphs(root).filter((glyph) => glyph.dataset.state === state)

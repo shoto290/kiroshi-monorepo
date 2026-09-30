@@ -42,6 +42,12 @@ const subscribe = (paint: Paint) => {
 	}
 }
 
+const onSchemeChange = (repaint: () => void) => {
+	const observer = new MutationObserver(repaint)
+	observer.observe(document.documentElement, { attributeFilter: ["class"] })
+	return () => observer.disconnect()
+}
+
 const FieldFrame = ({
 	name,
 	tint,
@@ -87,6 +93,11 @@ const useFieldClock = ({ state, paint }: FieldClock) => {
 	useEffect(() => {
 		if (!isAnimated) latestPaint.current(stillTime(state))
 	})
+
+	useEffect(() => {
+		if (!isAnimated)
+			return onSchemeChange(() => latestPaint.current(stillTime(state)))
+	}, [isAnimated, state])
 }
 
 export { FieldFrame, useFieldClock }
