@@ -34,7 +34,10 @@ import {
 	hasStatePill,
 	MissionStatePill,
 } from "@workspace/ui/components/mission-state-pill"
-import { DOT_CLASS } from "@workspace/ui/components/row-anatomy"
+import {
+	DOT_CLASS,
+	ROW_GLYPH_CLASS,
+} from "@workspace/ui/components/row-anatomy"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { cn } from "@workspace/ui/lib/utils"
@@ -66,8 +69,8 @@ const BADGE_OF: Partial<Record<MissionState, BotBadge>> = {
 	failed: "failed",
 }
 
-const MARK_CLASS =
-	"me-[5px] inline-block size-[11px]! align-[-1px] text-muted-foreground"
+const MARKS_CLASS =
+	"me-[5px] inline-flex h-4 items-center gap-[5px] align-top text-muted-foreground"
 
 const IDENTIFIER_CLASS = "font-medium tabular-nums"
 
@@ -197,7 +200,6 @@ const RowDensity = ({
 	shownStatus,
 	commitsAhead,
 	pullRequest,
-	lastActivity,
 	surface,
 	isActive,
 	onOpen,
@@ -216,8 +218,9 @@ const RowDensity = ({
 			? [{ slot: "state", text: t(`missions.state.${state}`) }]
 			: []),
 	].filter((part) => part.text !== "")
-	const liveActivity = liveActivityOf({ isWorking, lastActivity })
 	const hasActivity = hasActivityLine({ commitsAhead, pullRequest })
+	const [tool] = tools
+	const hasTicketMark = isTicketed(ticket)
 
 	return (
 		<li
@@ -229,15 +232,8 @@ const RowDensity = ({
 				badge={BADGE_OF[state]}
 				data-opens={id}
 				detail={
-					liveActivity || hasActivity ? (
-						<>
-							{liveActivity ? (
-								<MissionLiveActivity className="pe-3.5" {...liveActivity} />
-							) : null}
-							{hasActivity ? (
-								<span aria-hidden="true" className="block h-4" />
-							) : null}
-						</>
+					hasActivity ? (
+						<span aria-hidden="true" className="block h-4" />
 					) : undefined
 				}
 				isActive={isActive}
@@ -261,11 +257,15 @@ const RowDensity = ({
 						{isWorking ? (
 							<span className="sr-only">{t("missions.live")}</span>
 						) : null}
-						{tools.map((tool) => (
-							<MissionToolMark className={MARK_CLASS} key={tool} tool={tool} />
-						))}
-						{isTicketed(ticket) ? (
-							<Mark aria-hidden="true" className={MARK_CLASS} />
+						{tool || hasTicketMark ? (
+							<span className={MARKS_CLASS} data-slot="mission-card-marks">
+								{tool ? (
+									<MissionToolMark className={ROW_GLYPH_CLASS} tool={tool} />
+								) : null}
+								{hasTicketMark ? (
+									<Mark aria-hidden="true" className={ROW_GLYPH_CLASS} />
+								) : null}
+							</span>
 						) : null}
 						{parts.map((part, index) => (
 							<span
