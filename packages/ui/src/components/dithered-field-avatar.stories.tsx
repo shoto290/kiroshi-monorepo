@@ -8,6 +8,7 @@ import preview from "@workspace/storybook/preview"
 import {
 	companionGlyphs,
 	drawingOf,
+	probedStyleOf,
 	recordLitCells,
 } from "@workspace/storybook/story-utils"
 import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
@@ -31,7 +32,7 @@ const COMPARED_SIZES = [20, 40, 96]
 const COLOURS = [undefined, ...BLOT_TINTS]
 const TRANSPARENT = "rgba(0, 0, 0, 0)"
 const CELL_CONTRAST_FLOOR = 3
-const AVATAR_SURFACES = ["--background", "--sidebar", "--card", "--muted"]
+const AVATAR_SURFACES = ["bg-background", "bg-sidebar", "bg-card", "bg-muted"]
 
 const drawnCanvases = (root: HTMLElement) =>
 	Array.from(root.querySelectorAll<HTMLCanvasElement>("canvas[data-cells]"))
@@ -65,15 +66,6 @@ const rasterised = (pixel: CanvasRenderingContext2D, color: string): Rgb => {
 	return [red, green, blue]
 }
 
-const surfaceColourIn = (scope: HTMLElement, token: string) => {
-	const probe = document.createElement("div")
-	probe.style.backgroundColor = `var(${token})`
-	scope.append(probe)
-	const colour = getComputedStyle(probe).backgroundColor
-	probe.remove()
-	return colour
-}
-
 const cellContrastsOf = (
 	pixel: CanvasRenderingContext2D,
 	frame: HTMLElement,
@@ -83,11 +75,11 @@ const cellContrastsOf = (
 	const scope = frame.closest<HTMLElement>(".light, .dark")
 	if (!canvas || !scope) throw new Error("Avatar outside a themed surface")
 	const cell = rasterised(pixel, getComputedStyle(canvas).color)
-	return AVATAR_SURFACES.map((token) => ({
-		pair: `${label} on ${token}`,
+	return AVATAR_SURFACES.map((surface) => ({
+		pair: `${label} on ${surface}`,
 		ratio: contrastRatio(
 			cell,
-			rasterised(pixel, surfaceColourIn(scope, token)),
+			rasterised(pixel, probedStyleOf(surface, "backgroundColor", scope)),
 		),
 	}))
 }
