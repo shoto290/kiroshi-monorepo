@@ -168,7 +168,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The column of icons down the left edge of the window: the two panels a reader moves between, Conversations then Missions, then the space settings gear and the reader at the foot. The rail draws and reports; which panel is open, the count and the dot on each entry are props, and each entry reports its own press. An entry is a button named by its panel, the open one marked `aria-current`, and the news it carries is spoken in its name, so a dot or a count never rides on colour alone.",
+					"The column of icons down the left edge of the window: the two panels a reader moves between, Conversations then Missions, then the space settings gear and the reader at the foot. The rail draws and reports; which panel is open and the dot on each entry are props, and each entry reports its own press. An entry is a button named by its panel, the open one marked `aria-current`, and the news it carries is spoken in its name, so a dot never rides on colour alone.",
 			},
 		},
 	},
@@ -188,6 +188,9 @@ export const ConversationsSelected = meta.story({
 		await expectOnlySelected(canvasElement, "conversations")
 		await expectBareBottomGroup(canvasElement)
 		await expectListRowGapBetweenEntries(canvasElement)
+		await expect(
+			canvasElement.querySelector('[data-slot="app-rail-dot"]'),
+		).toBeNull()
 	},
 	parameters: {
 		docs: {
@@ -283,7 +286,7 @@ export const WithDot = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two entries with something new, the way the reference draws them. Check each dot is 8px, primary, flush with the top and trailing corner of its 36px entry and ringed 2px in the window ground, and that the entry's name says there is news.",
+					"Two entries with something new, the way the reference draws them. Check each dot is 8px, primary, carries no number, flush with the top and trailing corner of its 36px entry and ringed 2px in the window ground, and that the entry's name says there is news.",
 			},
 		},
 	},
@@ -294,6 +297,7 @@ export const WithDot = meta.story({
 		await expect(dot.width).toBe(8)
 		await expect(dot.top).toBe(box.top)
 		await expect(dot.right).toBe(box.right)
+		await expect(slotIn(canvasElement, "app-rail")).not.toHaveTextContent(/\d/)
 		await expect(
 			slotIn(
 				entryNamed(canvasElement, "Missions, new activity"),
@@ -305,24 +309,6 @@ export const WithDot = meta.story({
 				'[data-slot="app-rail-dot"]',
 			),
 		).toBeNull()
-	},
-})
-
-export const WithCount = meta.story({
-	args: { counts: { conversations: 3, missions: 120 } },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Entries carrying a count. The reference draws no count, so the badge is placed off the dot: a primary pill on the same corner, ringed in the ground, with tabular figures. Check the count is drawn and spoken, that a count past 99 reads 99+ on the pill while the name keeps the real number, and that a count replaces the dot rather than stacking on it.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const conversations = entryNamed(canvasElement, "Conversations, 3 new")
-		await expect(slotIn(conversations, "app-rail-count")).toHaveTextContent("3")
-		const missions = entryNamed(canvasElement, "Missions, 120 new")
-		await expect(slotIn(missions, "app-rail-count")).toHaveTextContent("99+")
 	},
 })
 
@@ -406,7 +392,7 @@ type TintedShellStyle = CSSProperties & { "--space-tint": string }
 const TINTED_SHELL: TintedShellStyle = { "--space-tint": blotTint("blue") }
 
 export const OnTintedSpace = meta.story({
-	args: { counts: { conversations: 3 }, dots: { missions: true } },
+	args: { dots: { conversations: true, missions: true } },
 	render: (args: AppRailProps) => (
 		<div className="surface-shell flex h-[32rem]" style={TINTED_SHELL}>
 			<AppRail {...args} />
@@ -416,7 +402,7 @@ export const OnTintedSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The rail on a space that carries a colour, which washes the shell surface behind it. Check the ring around the count and around the dot is the tinted surface itself, so neither badge wears a halo of the untinted ground.",
+					"The rail on a space that carries a colour, which washes the shell surface behind it. Check the ring around each dot is the tinted surface itself, so no dot wears a halo of the untinted ground.",
 			},
 		},
 	},
@@ -424,10 +410,10 @@ export const OnTintedSpace = meta.story({
 		const ground = getComputedStyle(
 			slotIn(canvasElement, "app-rail").parentElement as HTMLElement,
 		).backgroundColor
-		for (const badge of ["app-rail-count", "app-rail-dot"]) {
-			await expect(
-				getComputedStyle(slotIn(canvasElement, badge)).boxShadow,
-			).toContain(ground)
+		const dots = canvasElement.querySelectorAll('[data-slot="app-rail-dot"]')
+		await expect(dots).toHaveLength(2)
+		for (const dot of dots) {
+			await expect(getComputedStyle(dot).boxShadow).toContain(ground)
 		}
 	},
 })

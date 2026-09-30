@@ -17,8 +17,6 @@ type AppRailPanel = "conversations" | "missions"
 
 type AppRailEntry = AppRailPanel | "settings" | "you"
 
-type AppRailCounts = Partial<Record<AppRailEntry, number>>
-
 type AppRailDots = Partial<Record<AppRailEntry, boolean>>
 
 const RAIL =
@@ -36,42 +34,13 @@ const RAIL_ITEM =
 const RAIL_DOT =
 	"pointer-events-none absolute -end-px -top-px size-2 rounded-full bg-primary ring-2 ring-(--shell-surface,var(--background)) transition-shadow duration-400 ease-out motion-reduce:transition-none"
 
-const RAIL_COUNT =
-	"pointer-events-none absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-medium text-primary-foreground text-xs/4 tabular-nums ring-2 ring-(--shell-surface,var(--background)) transition-shadow duration-400 ease-out motion-reduce:transition-none"
-
 const RAIL_AVATAR =
 	"grid size-full place-items-center bg-rail-avatar font-medium text-foreground text-xs/4 uppercase"
 
 const AVATAR_SIZE = 26
 
-const COUNT_CEILING = 99
-
-const shownCount = (count: number) =>
-	count > COUNT_CEILING ? `${COUNT_CEILING}+` : String(count)
-
-type RailBadgeProps = { count?: number; hasDot?: boolean }
-
-const RailBadge = ({ count = 0, hasDot }: RailBadgeProps) => {
-	if (count > 0)
-		return (
-			<span
-				aria-hidden="true"
-				className={RAIL_COUNT}
-				data-slot="app-rail-count"
-			>
-				{shownCount(count)}
-			</span>
-		)
-	if (hasDot)
-		return (
-			<span aria-hidden="true" className={RAIL_DOT} data-slot="app-rail-dot" />
-		)
-	return null
-}
-
 type RailItemProps = {
 	name: string
-	count?: number
 	hasDot?: boolean
 	isSelected?: boolean
 	onPress?: () => void
@@ -80,19 +49,13 @@ type RailItemProps = {
 
 const RailItem = ({
 	name,
-	count = 0,
 	hasDot,
 	isSelected,
 	onPress,
 	children,
 }: RailItemProps) => {
 	const { t } = useTranslation("bots")
-	const spokenName =
-		count > 0
-			? t("rail.count", { count, name })
-			: hasDot
-				? t("rail.dot", { name })
-				: name
+	const spokenName = hasDot ? t("rail.dot", { name }) : name
 
 	return (
 		<li>
@@ -108,7 +71,13 @@ const RailItem = ({
 				variant="ghost"
 			>
 				{children}
-				<RailBadge count={count} hasDot={hasDot} />
+				{hasDot ? (
+					<span
+						aria-hidden="true"
+						className={RAIL_DOT}
+						data-slot="app-rail-dot"
+					/>
+				) : null}
 			</TooltipButton>
 		</li>
 	)
@@ -131,7 +100,6 @@ const RailAvatar = ({ name, image }: RailAvatarProps) => (
 
 type AppRailProps = Omit<ComponentProps<"nav">, "children"> & {
 	selected: AppRailPanel
-	counts?: AppRailCounts
 	dots?: AppRailDots
 	user?: UserChipIdentity
 	updateBadge?: ReactNode
@@ -143,7 +111,6 @@ type AppRailProps = Omit<ComponentProps<"nav">, "children"> & {
 
 const AppRail = ({
 	selected,
-	counts,
 	dots,
 	user,
 	updateBadge,
@@ -155,12 +122,9 @@ const AppRail = ({
 	...props
 }: AppRailProps) => {
 	const { t } = useTranslation("bots")
-	const badgeOf = (entry: AppRailEntry) => ({
-		count: counts?.[entry],
-		hasDot: dots?.[entry],
-	})
+	const dotOf = (entry: AppRailEntry) => ({ hasDot: dots?.[entry] })
 	const panelEntry = (entry: AppRailPanel) => ({
-		...badgeOf(entry),
+		...dotOf(entry),
 		isSelected: selected === entry,
 		name: t(`rail.${entry}`),
 	})
@@ -190,14 +154,14 @@ const AppRail = ({
 					</li>
 				) : null}
 				<RailItem
-					{...badgeOf("settings")}
+					{...dotOf("settings")}
 					name={t("rail.spaceSettings")}
 					onPress={onOpenSpaceSettings}
 				>
 					<Icons.Settings aria-hidden="true" />
 				</RailItem>
 				<RailItem
-					{...badgeOf("you")}
+					{...dotOf("you")}
 					name={displayNameOf(user?.name)}
 					onPress={onOpenYou}
 				>
@@ -210,7 +174,6 @@ const AppRail = ({
 
 export {
 	AppRail,
-	type AppRailCounts,
 	type AppRailDots,
 	type AppRailPanel,
 	type AppRailProps,

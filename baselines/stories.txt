@@ -701,7 +701,6 @@ navigation-apprail--update-available-dark
 navigation-apprail--update-downloading
 navigation-apprail--update-idle
 navigation-apprail--update-ready
-navigation-apprail--with-count
 navigation-apprail--with-dot
 navigation-appsidebar--badges
 navigation-appsidebar--bare-rows
