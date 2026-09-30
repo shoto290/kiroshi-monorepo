@@ -42,12 +42,14 @@ const DENIED_TOOLS = ["Agent", "Task"]
 
 const SANDBOX = {
 	enabled: true,
-	allowUnsandboxedCommands: false,
 	autoAllowBashIfSandboxed: false,
 } as const
 
 export const failsWithoutSandbox = (platform: NodeJS.Platform): boolean =>
 	platform !== "win32"
+
+export const allowsUnsandboxedCommands = (platform: NodeJS.Platform): boolean =>
+	!failsWithoutSandbox(platform)
 
 type Denial = {
 	directories: string[]
@@ -191,6 +193,7 @@ export const securityFloor = (scope: FloorScope): Settings => {
 		},
 		sandbox: {
 			...SANDBOX,
+			allowUnsandboxedCommands: allowsUnsandboxedCommands(platform),
 			failIfUnavailable: failsWithoutSandbox(platform),
 			filesystem: {
 				denyRead: [...pathsOf(reads), ...trees],
