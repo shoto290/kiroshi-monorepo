@@ -7,7 +7,7 @@ import { readModelCatalogue } from "./model-catalogue"
 
 import type { OfferedModel_Serialize } from "@/lib/bindings"
 
-export type ModelCatalogue = {
+type ModelCatalogue = {
 	models: OfferedModel_Serialize[]
 	hasFailedToLoad: boolean
 }
