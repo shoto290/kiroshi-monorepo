@@ -9,6 +9,8 @@ branding-avatargroup--every-place
 branding-avatargroup--five-members
 branding-avatargroup--four-members
 branding-avatargroup--one-member
+branding-avatargroup--overflow-dark
+branding-avatargroup--overflow-light
 branding-avatargroup--person-among-bots
 branding-avatargroup--several-working
 branding-avatargroup--starts-working-slides

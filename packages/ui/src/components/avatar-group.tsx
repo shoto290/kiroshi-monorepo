@@ -1,6 +1,7 @@
 "use client"
 
 import { motion, useReducedMotionConfig } from "motion/react"
+import { useId } from "react"
 import { useTranslation } from "react-i18next"
 
 import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/bot-badge"
@@ -40,6 +41,8 @@ const CELL_HEIGHT_RATIO = 0.4775
 const COUNTER_FONT_RATIO = { small: 0.4605, large: 0.3589 }
 
 const CAP_CENTRE_RATIO = 0.36
+
+const OVERFLOW_EDGE_WIDTH = 2
 
 const FILL_ORDER = [
 	{ column: 0, row: 0 },
@@ -148,6 +151,7 @@ type OverflowCellProps = {
 const OverflowCell = ({ label, shape, spot, size }: OverflowCellProps) => {
 	const font = shape.halfHeight * 2 * counterFontRatio(size)
 	const side = shape.halfWidth * 2
+	const edgeClipId = useId()
 	return (
 		<span
 			className={OVERFLOW_CELL}
@@ -165,13 +169,18 @@ const OverflowCell = ({ label, shape, spot, size }: OverflowCellProps) => {
 				viewBox={`0 0 ${side} ${side}`}
 			>
 				<path
+					clipPath={`url(#${edgeClipId})`}
 					d={shape.path}
-					style={{ fill: "var(--sidebar-accent-foreground)" }}
+					strokeWidth={OVERFLOW_EDGE_WIDTH}
+					style={{ fill: "var(--secondary)", stroke: "var(--image-outline)" }}
 				/>
+				<clipPath id={edgeClipId}>
+					<path d={shape.path} />
+				</clipPath>
 				<text
 					className={COUNTER_TEXT}
 					fontSize={font}
-					style={{ fill: "var(--sidebar)" }}
+					style={{ fill: "var(--muted-foreground)" }}
 					textAnchor="middle"
 					x={shape.halfWidth}
 					y={shape.halfWidth + font * CAP_CENTRE_RATIO}

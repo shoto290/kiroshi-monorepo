@@ -1,5 +1,5 @@
 import { MotionConfig, type ReducedMotionConfig } from "motion/react"
-import { useState } from "react"
+import { type ReactNode, useState } from "react"
 import { expect, userEvent, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -91,7 +91,9 @@ const botAvatarsOf = (icon: HTMLElement) =>
 const cellsOf = (icon: HTMLElement) => [
 	...membersIn(icon).map((member) => member.firstElementChild as Element),
 	...Array.from(
-		icon.querySelectorAll('[data-slot="conversation-avatar-overflow"] path'),
+		icon.querySelectorAll(
+			'[data-slot="conversation-avatar-overflow"] svg > path',
+		),
 	),
 ]
 
@@ -194,10 +196,13 @@ const expectCounter = async (icon: HTMLElement, text: string) => {
 	await expect(counter).toHaveTextContent(text)
 	await expect(icon).toHaveAccessibleName(text)
 	await expect(getComputedStyle(cell).fill).toBe(
-		resolvedFill("var(--sidebar-accent-foreground)", icon),
+		resolvedFill("var(--secondary)", icon),
+	)
+	await expect(getComputedStyle(cell).stroke).toBe(
+		resolvedFill("var(--image-outline)", icon),
 	)
 	await expect(getComputedStyle(ink).fill).toBe(
-		resolvedFill("var(--sidebar)", icon),
+		resolvedFill("var(--muted-foreground)", icon),
 	)
 }
 
@@ -350,7 +355,43 @@ export const FourMembers = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room past three: two companions and a third cell counting the other two, dark on light and light on dark. The count is the icon's accessible name.",
+					"A room past three: two companions and a third cell counting the other two in the muted ink on the secondary ground, edged by a hairline. The count is the icon's accessible name.",
+			},
+		},
+	},
+	play: ({ canvasElement }) => expectRoom(canvasElement, membersOf(2), 2),
+})
+
+const onSidebarPanel = (Story: () => ReactNode) => (
+	<div className="bg-sidebar p-6">
+		<Story />
+	</div>
+)
+
+export const OverflowLight = meta.story({
+	args: { participants: membersOf(4) },
+	globals: { theme: "light", theme_layout: "single" },
+	decorators: [onSidebarPanel],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The counting cell in the light theme, on the sidebar panel it sits on in a row: the muted count on the secondary ground falls behind the room name, and the hairline keeps the cell apart from the panel and from a hovered row. Pick `OverflowDark` for the dark theme.",
+			},
+		},
+	},
+	play: ({ canvasElement }) => expectRoom(canvasElement, membersOf(2), 2),
+})
+
+export const OverflowDark = meta.story({
+	args: { participants: membersOf(4) },
+	globals: { theme: "dark", theme_layout: "single" },
+	decorators: [onSidebarPanel],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The counting cell in the dark theme, on the sidebar panel: the same muted count and secondary ground, the hairline lighter than the ground. Pick `OverflowLight` for the light theme.",
 			},
 		},
 	},
