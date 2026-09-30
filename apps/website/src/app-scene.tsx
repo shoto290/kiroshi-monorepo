@@ -2,10 +2,7 @@ import { type ReactNode, useState } from "react"
 
 import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
 import { AppHeader } from "@workspace/ui/components/app-header"
-import type {
-	AppRailCounts,
-	AppRailDots,
-} from "@workspace/ui/components/app-rail"
+import type { AppRailDots } from "@workspace/ui/components/app-rail"
 import {
 	AppSidebar,
 	type AppSidebarConversation,
@@ -93,15 +90,9 @@ const missionsPanelOf = (space: SceneSpace): MissionsPanelProps => ({
 	onOpen: doNothing,
 })
 
-const railCountsOf = (space: SceneSpace): AppRailCounts => ({
-	conversations: space.conversations.filter((row) => row.badge).length,
-	missions: space.missions.filter(
-		(mission) => mission.state === "waiting_human",
-	).length,
-})
-
 const railDotsOf = (space: SceneSpace): AppRailDots => ({
-	conversations: space.conversations.some((row) => row.badge === "attention"),
+	conversations: space.conversations.some((row) => row.badge),
+	missions: space.missions.some((mission) => mission.state === "waiting_human"),
 })
 
 const sceneRow = (
@@ -331,7 +322,6 @@ export const AppScene = () => {
 							onSelectBot={select}
 							onSelectConversation={select}
 							onSelectSpace={selectSpace}
-							railCounts={railCountsOf(space)}
 							railDots={railDotsOf(space)}
 							selectedBotId={exchange?.bot ? selectedId : undefined}
 							selectedConversationId={exchange?.bot ? undefined : selectedId}
