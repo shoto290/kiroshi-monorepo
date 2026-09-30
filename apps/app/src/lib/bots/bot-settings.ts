@@ -139,6 +139,7 @@ export const toIdentity = (
 	deniedTools: withoutChangingTools(bot.deniedTools),
 	permissions: value.permissions,
 	outputStyle: bot.outputStyle,
+	effort: bot.effort,
 })
 
 const listOf = (items: string[]): string => [...items].sort().join(",")

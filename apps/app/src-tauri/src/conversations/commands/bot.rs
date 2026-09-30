@@ -6,6 +6,7 @@ use super::super::contract::{
 	AvatarBlot, Bot, BotDraft, BotIdentity, SuggestedBot, TranscriptStoreError,
 };
 use super::super::seed;
+use crate::agent::commands::supported_effort_levels;
 use crate::agent::contract::AgentCommand;
 use crate::attachments;
 use crate::avatars;
@@ -54,8 +55,8 @@ pub(crate) fn ready(state: &db::DatabaseState) -> Result<&db::Database, Transcri
 	state.as_ref().map_err(|failure| TranscriptStoreError::Unavailable { failure: failure.into() })
 }
 
-async fn write_bundle(
-	root: Option<&Path>,
+async fn write_bundle<R: Runtime>(
+	app: &AppHandle<R>,
 	database: &db::Database,
 	bot: &StoredBot,
 	output_style: &str,
@@ -63,12 +64,22 @@ async fn write_bundle(
 ) -> Result<StoredBot, TranscriptStoreError> {
 	let accepted = permissions.clone().accepted();
 	let ruled = database.conversations().set_permissions(bot.id.clone(), accepted.clone()).await?;
-	if let Some(root) = root {
+	let root = bundles::root(app);
+	if let Some(root) = root.as_deref() {
+		let effort = written_effort(app, bot).await;
 		bundles::set_permissions(root, bot, &accepted).map_err(unwritable)?;
-		bundles::write_styled(root, bot, output_style).map_err(unwritable)?;
+		bundles::write_styled(root, bot, output_style, effort).map_err(unwritable)?;
 	}
-	list_bundles(root, database).await;
+	list_bundles(root.as_deref(), database).await;
 	Ok(ruled)
+}
+
+async fn written_effort<R: Runtime>(
+	app: &AppHandle<R>,
+	bot: &StoredBot,
+) -> Option<bundles::EffortLevel> {
+	let supported = supported_effort_levels(app, &bot.model).await;
+	bundles::supported_effort(bot.effort, supported.as_deref())
 }
 
 fn remember_bundle(
@@ -253,6 +264,7 @@ fn drafted_identity(
 		denied_tools: Vec::new(),
 		permissions: bundles::BotPermissions::default(),
 		output_style: bundles::DEFAULT_OUTPUT_STYLE.to_owned(),
+		effort: None,
 	})
 }
 
@@ -276,17 +288,14 @@ pub(in crate::conversations) async fn create_bundled_bot<R: Runtime>(
 	let permissions = identity.permissions.clone();
 	let created = database.conversations().create_bot(identity.into(), space_id, None).await?;
 	avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
-	let ruled =
-		match write_bundle(bundle_root.as_deref(), database, &created, &output_style, &permissions)
-			.await
-		{
-			Ok(ruled) => ruled,
-			Err(refusal) => {
-				let _ = database.conversations().delete_bot(created.id).await;
-				avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
-				return Err(refusal);
-			}
-		};
+	let ruled = match write_bundle(app, database, &created, &output_style, &permissions).await {
+		Ok(ruled) => ruled,
+		Err(refusal) => {
+			let _ = database.conversations().delete_bot(created.id).await;
+			avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
+			return Err(refusal);
+		}
+	};
 	Ok(Bot::of(ruled, dir.as_deref(), bundle_root.as_deref()))
 }
 
@@ -375,8 +384,7 @@ async fn copied_onto<R: Runtime>(
 	if let Some(root) = root.as_deref() {
 		bundles::inherit(root, &carried.source_id, &placed.id).map_err(unwritable)?;
 	}
-	write_bundle(root.as_deref(), database, &placed, &carried.output_style, &carried.permissions)
-		.await
+	write_bundle(app, database, &placed, &carried.output_style, &carried.permissions).await
 }
 
 async fn copied_environment<R: Runtime>(
@@ -433,6 +441,7 @@ fn duplicated_identity(source: Bot, taken: &[String]) -> BotIdentity {
 		denied_tools: source.denied_tools,
 		permissions: source.permissions,
 		output_style: source.output_style,
+		effort: source.effort,
 	}
 }
 
@@ -468,19 +477,16 @@ pub async fn conversation_update_bot<R: Runtime>(
 	let permissions = reconciled.permissions.clone();
 	let updated = database.conversations().update_bot(id.clone(), reconciled.into()).await?;
 	avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
-	let ruled =
-		match write_bundle(bundle_root.as_deref(), database, &updated, &output_style, &permissions)
-			.await
-		{
-			Ok(ruled) => ruled,
-			Err(refusal) => {
-				if let Some(previous) = previous {
-					let _ = database.conversations().update_bot(id, previous.into()).await;
-					avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
-				}
-				return Err(refusal);
+	let ruled = match write_bundle(&app, database, &updated, &output_style, &permissions).await {
+		Ok(ruled) => ruled,
+		Err(refusal) => {
+			if let Some(previous) = previous {
+				let _ = database.conversations().update_bot(id, previous.into()).await;
+				avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
 			}
-		};
+			return Err(refusal);
+		}
+	};
 	Ok(Bot::of(ruled, dir.as_deref(), bundle_root.as_deref()))
 }
 
@@ -616,6 +622,7 @@ mod tests {
 			denied_tools: Vec::new(),
 			permissions: None,
 			created_at: 1,
+			effort: None,
 		}
 	}
 
@@ -679,6 +686,7 @@ mod tests {
 				denied_tools: Vec::new(),
 				permissions: bundles::BotPermissions::default(),
 				output_style: bundles::DEFAULT_OUTPUT_STYLE.to_owned(),
+				effort: None,
 			})
 		);
 	}
@@ -864,6 +872,7 @@ mod tests {
 			permissions: bundles::BotPermissions::unruled(true),
 			output_style: "terse".to_owned(),
 			created_at: 1,
+			effort: None,
 		};
 
 		assert_eq!(
@@ -878,6 +887,7 @@ mod tests {
 				denied_tools: source.denied_tools,
 				permissions: source.permissions,
 				output_style: source.output_style,
+				effort: None,
 			}
 		);
 	}

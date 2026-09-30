@@ -51,6 +51,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 42, statements: MISSION_REOPENED },
 	Migration { version: 43, statements: MISSION_DISMISSED },
 	Migration { version: 44, statements: BOTS_WITHOUT_ANIMAL },
+	Migration { version: 45, statements: BOT_EFFORT },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -1044,6 +1045,11 @@ const BOTS_WITHOUT_ANIMAL: &str = "
 ALTER TABLE bots DROP COLUMN avatar_animal;
 ";
 
+const BOT_EFFORT: &str = "
+ALTER TABLE bots ADD COLUMN effort TEXT
+	CHECK (effort IN ('low', 'medium', 'high', 'xhigh', 'max'));
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -1142,6 +1148,7 @@ mod tests {
 	const MISSION_REOPENED_STEP: u32 = 42;
 	const MISSION_DISMISSED_STEP: u32 = 43;
 	const BOTS_WITHOUT_ANIMAL_STEP: u32 = 44;
+	const BOT_EFFORT_STEP: u32 = 45;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -1735,7 +1742,7 @@ mod tests {
 
 		apply(&mut connection).expect("the file comes up to this build");
 
-		assert_eq!(version(&connection).expect("version"), BOTS_WITHOUT_ANIMAL_STEP);
+		assert_eq!(version(&connection).expect("version"), latest_version());
 		let kept = connection
 			.prepare(
 				"SELECT id, name, model, created_at, instructions, memory, title,
@@ -1803,11 +1810,45 @@ mod tests {
 		let dir = temp_dir();
 		let connection = migrated(&dir);
 
-		assert_eq!(version(&connection).expect("version"), BOTS_WITHOUT_ANIMAL_STEP);
+		assert_eq!(version(&connection).expect("version"), latest_version());
 		assert!(
 			connection.prepare("SELECT avatar_animal FROM bots").is_err(),
 			"a fresh bots table carries avatar_animal"
 		);
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn a_bot_stored_before_the_effort_step_carries_no_effort_and_a_level_outside_five_is_refused() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(BOT_EFFORT_STEP)).expect("the shipped schema");
+		assert_eq!(version(&connection).expect("version"), BOTS_WITHOUT_ANIMAL_STEP);
+		connection
+			.execute_batch(
+				"INSERT INTO bots (id, name, model, created_at)
+					VALUES ('b1', 'Nyx', 'opus', 1), ('b2', 'Ada', 'sonnet', 2);",
+			)
+			.expect("the bots this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(version(&connection).expect("version"), BOT_EFFORT_STEP);
+		let efforts = connection
+			.prepare("SELECT effort FROM bots ORDER BY id")
+			.expect("the bots carry an effort column")
+			.query_map([], |row| row.get::<_, Option<String>>(0))
+			.expect("query")
+			.collect::<Result<Vec<_>, _>>()
+			.expect("the efforts read back");
+		assert_eq!(efforts, vec![None, None]);
+		assert!(
+			write(&connection, "UPDATE bots SET effort = 'extreme' WHERE id = 'b1'").is_err(),
+			"a level outside the five reached the file"
+		);
+		assert_eq!(write(&connection, "UPDATE bots SET effort = 'xhigh' WHERE id = 'b1'"), Ok(1));
 
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");

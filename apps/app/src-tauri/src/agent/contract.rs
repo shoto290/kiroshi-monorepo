@@ -1,6 +1,28 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
+use crate::bundles::EffortLevel;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct OfferedModel {
+	pub value: String,
+	#[serde(default, deserialize_with = "levels_the_app_knows")]
+	#[specta(type = Vec<EffortLevel>)]
+	pub supported_effort_levels: Vec<EffortLevel>,
+}
+
+fn levels_the_app_knows<'de, D>(deserializer: D) -> Result<Vec<EffortLevel>, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	Ok(Option::<Vec<Value>>::deserialize(deserializer)?
+		.unwrap_or_default()
+		.into_iter()
+		.filter_map(|named| serde_json::from_value(named).ok())
+		.collect())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ConnectionState {

@@ -13,6 +13,7 @@ use crate::db::{Access, DatabaseError};
 
 mod avatar;
 mod bots;
+mod effort;
 
 pub use avatar::AvatarBlot;
 pub use bots::{Bot, BotIdentity};
@@ -951,6 +952,7 @@ mod tests {
 			avatar_image_path: None,
 			instructions: String::new(),
 			denied_tools: Vec::new(),
+			effort: None,
 		}
 	}
 

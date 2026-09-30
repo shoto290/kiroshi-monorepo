@@ -353,6 +353,7 @@ mod tests {
 			avatar_image_path: None,
 			instructions: String::new(),
 			denied_tools: Vec::new(),
+			effort: None,
 		}
 	}
 

@@ -79,6 +79,7 @@ pub struct Bot {
 	pub changes_nothing: bool,
 	pub permissions: crate::bundles::BotPermissions,
 	pub output_style: String,
+	pub effort: Option<bundles::EffortLevel>,
 	pub created_at: i64,
 }
 
@@ -122,6 +123,7 @@ impl Bot {
 			denied_tools,
 			permissions,
 			output_style,
+			effort: bot.effort,
 			created_at: bot.created_at,
 		}
 	}
@@ -141,6 +143,8 @@ pub struct BotIdentity {
 	pub permissions: crate::bundles::BotPermissions,
 	#[serde(default = "default_output_style")]
 	pub output_style: String,
+	#[serde(default)]
+	pub effort: Option<bundles::EffortLevel>,
 }
 
 fn default_output_style() -> String {
@@ -157,6 +161,7 @@ impl From<BotIdentity> for conversations::BotIdentity {
 			avatar_image_path: identity.avatar_image_path,
 			instructions: identity.instructions,
 			denied_tools: identity.denied_tools,
+			effort: identity.effort,
 		}
 	}
 }
@@ -357,6 +362,7 @@ mod tests {
 				permissions: crate::bundles::BotPermissions::unruled(true),
 				output_style: "Concise".into(),
 				created_at: 1,
+				effort: Some(crate::bundles::EffortLevel::Xhigh),
 			},
 			json!({
 				"id": "default",
@@ -378,6 +384,7 @@ mod tests {
 					"deny": ["Bash", "Edit", "Write", "NotebookEdit"]
 				},
 				"outputStyle": "Concise",
+				"effort": "xhigh",
 				"createdAt": 1
 			}),
 		);
@@ -400,6 +407,7 @@ mod tests {
 				denied_tools: Vec::new(),
 				permissions: crate::bundles::BotPermissions::default(),
 				output_style: "Concise".into(),
+				effort: None,
 			},
 			json!({
 				"name": "Claude",
@@ -415,7 +423,8 @@ mod tests {
 					"ask": [],
 					"deny": []
 				},
-				"outputStyle": "Concise"
+				"outputStyle": "Concise",
+				"effort": null
 			}),
 		);
 	}
@@ -476,6 +485,7 @@ mod tests {
 			denied_tools: Vec::new(),
 			permissions: None,
 			created_at: 1,
+			effort: None,
 		}
 	}
 
@@ -549,7 +559,7 @@ mod tests {
 	#[test]
 	fn a_bot_is_reported_on_the_style_its_bundle_names() {
 		let root = a_bundle_root("style");
-		crate::bundles::write_styled(&root, &a_stored_bot("sonnet"), "default")
+		crate::bundles::write_styled(&root, &a_stored_bot("sonnet"), "default", None)
 			.expect("the bundle is written");
 
 		assert_eq!(Bot::of(a_stored_bot("sonnet"), None, Some(&root)).output_style, "default");

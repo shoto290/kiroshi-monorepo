@@ -191,6 +191,7 @@ fn identity(picture: &Path) -> BotIdentity {
 		denied_tools: Vec::new(),
 		permissions: bundles::BotPermissions::default(),
 		output_style: bundles::DEFAULT_OUTPUT_STYLE.to_owned(),
+		effort: None,
 	}
 }
 

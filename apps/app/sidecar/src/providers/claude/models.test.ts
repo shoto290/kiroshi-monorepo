@@ -23,6 +23,9 @@ describe("modelsOptions", () => {
 	})
 })
 
+const valuesOf = (offered: { value: string }[]) =>
+	offered.map((model) => model.value)
+
 describe("offeredModels", () => {
 	it("drops default and keeps the other values in their order", () => {
 		const offered = [
@@ -32,13 +35,48 @@ describe("offeredModels", () => {
 			{ value: "haiku" },
 		]
 
-		expect(offeredModels(offered)).toEqual(["opus", "sonnet", "haiku"])
+		expect(valuesOf(offeredModels(offered))).toEqual([
+			"opus",
+			"sonnet",
+			"haiku",
+		])
 	})
 
 	it("returns every value while default is not offered", () => {
-		expect(offeredModels([{ value: "sonnet" }, { value: "opus" }])).toEqual([
-			"sonnet",
-			"opus",
+		expect(
+			valuesOf(offeredModels([{ value: "sonnet" }, { value: "opus" }])),
+		).toEqual(["sonnet", "opus"])
+	})
+
+	it("carries the effort levels of a model that supports effort", () => {
+		expect(
+			offeredModels([
+				{
+					value: "opus",
+					supportsEffort: true,
+					supportedEffortLevels: ["low", "high", "max"],
+				},
+			]),
+		).toEqual([
+			{ value: "opus", supportedEffortLevels: ["low", "high", "max"] },
+		])
+	})
+
+	it("offers no level for a model whose effort support is off or unsaid", () => {
+		expect(
+			offeredModels([
+				{
+					value: "haiku",
+					supportsEffort: false,
+					supportedEffortLevels: ["low"],
+				},
+				{ value: "sonnet", supportedEffortLevels: ["high"] },
+				{ value: "fable", supportsEffort: true },
+			]),
+		).toEqual([
+			{ value: "haiku", supportedEffortLevels: [] },
+			{ value: "sonnet", supportedEffortLevels: [] },
+			{ value: "fable", supportedEffortLevels: [] },
 		])
 	})
 })

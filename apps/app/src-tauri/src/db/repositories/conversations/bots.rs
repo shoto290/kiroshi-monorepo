@@ -7,7 +7,7 @@ use super::{
 	ensure_chat_in, now, refuse_if_untouched, space_of, unserializable, write_transaction,
 	ConversationError, CHAT_KIND, DEFAULT_BOT_ID, DEFAULT_BOT_MODEL, DEFAULT_BOT_NAME,
 };
-use crate::bundles::BotPermissions;
+use crate::bundles::{BotPermissions, EffortLevel};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Bot {
@@ -23,6 +23,7 @@ pub struct Bot {
 	pub memory: String,
 	pub denied_tools: Vec<String>,
 	pub permissions: Option<BotPermissions>,
+	pub effort: Option<EffortLevel>,
 	pub created_at: i64,
 }
 
@@ -35,6 +36,7 @@ pub struct BotIdentity {
 	pub avatar_image_path: Option<String>,
 	pub instructions: String,
 	pub denied_tools: Vec<String>,
+	pub effort: Option<EffortLevel>,
 }
 
 impl From<Bot> for BotIdentity {
@@ -47,6 +49,7 @@ impl From<Bot> for BotIdentity {
 			avatar_image_path: bot.avatar_image_path,
 			instructions: bot.instructions,
 			denied_tools: bot.denied_tools,
+			effort: bot.effort,
 		}
 	}
 }
@@ -55,7 +58,7 @@ pub(super) const BOT_COLUMNS: &str = "SELECT bots.id, membership.section_id,
 		membership.pin_position, bots.name, bots.title, bots.model,
 		bots.avatar_color,
 		bots.avatar_image_path, bots.instructions, bots.memory,
-		bots.denied_tools, bots.permissions, bots.created_at
+		bots.denied_tools, bots.permissions, bots.effort, bots.created_at
 	FROM bots JOIN bot_spaces AS membership ON membership.bot_id = bots.id";
 
 const OLDEST_MEMBERSHIP: &str = "membership.space_id = (SELECT space_id FROM bot_spaces
@@ -158,8 +161,8 @@ pub(super) fn created_bot(
 	let id = Uuid::new_v4().to_string();
 	transaction.execute(
 		"INSERT INTO bots (id, name, title, model,
-				avatar_color, avatar_image_path, instructions, denied_tools, created_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+				avatar_color, avatar_image_path, instructions, denied_tools, effort, created_at)
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
 		params![
 			id,
 			identity.name,
@@ -169,6 +172,7 @@ pub(super) fn created_bot(
 			identity.avatar_image_path,
 			identity.instructions,
 			denied(identity)?,
+			identity.effort,
 			now(),
 		],
 	)?;
@@ -189,7 +193,7 @@ pub(super) fn updated_bot(
 	let written = transaction.execute(
 		"UPDATE bots SET name = ?2, title = ?3, model = ?4,
 				avatar_color = ?5, avatar_image_path = ?6,
-				instructions = ?7, denied_tools = ?8
+				instructions = ?7, denied_tools = ?8, effort = ?9
 			WHERE id = ?1",
 		params![
 			id,
@@ -200,6 +204,7 @@ pub(super) fn updated_bot(
 			identity.avatar_image_path,
 			identity.instructions,
 			denied(identity)?,
+			identity.effort,
 		],
 	)?;
 	refuse_if_untouched(written, id)?;
@@ -343,6 +348,7 @@ pub(super) fn bot(row: &Row<'_>) -> rusqlite::Result<Bot> {
 		memory: row.get("memory")?,
 		denied_tools: listed(row.get("denied_tools")?),
 		permissions: ruled(row.get("permissions")?),
+		effort: row.get("effort")?,
 		created_at: row.get("created_at")?,
 	})
 }
@@ -461,6 +467,7 @@ mod tests {
 			avatar_blot: Some(AvatarBlot::Red),
 			avatar_image_path: Some("/pictures/owl.png".to_owned()),
 			instructions: "Answer briefly.".to_owned(),
+			effort: None,
 		};
 
 		let created = database
@@ -595,6 +602,7 @@ mod tests {
 					avatar_blot: Some(AvatarBlot::Orange),
 					avatar_image_path: Some("/pictures/koala.png".to_owned()),
 					instructions: "answer at length".to_owned(),
+					effort: None,
 				},
 			)
 			.await

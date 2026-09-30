@@ -84,6 +84,7 @@ fn probe_bot(id: &str, instructions: &str, model: &str) -> Bot {
 		denied_tools: Vec::new(),
 		permissions: None,
 		created_at: 1,
+		effort: None,
 	}
 }
 
@@ -93,7 +94,7 @@ fn bundle_carrying(instructions: &str, model: &str) -> Bundle {
 
 fn styled_bundle(bot: &Bot, output_style: &str) -> Bundle {
 	let root = bundles_root();
-	bundles::write_styled(&root, bot, output_style).expect("the bundle is written");
+	bundles::write_styled(&root, bot, output_style, None).expect("the bundle is written");
 	handed_over(&root, bot)
 }
 

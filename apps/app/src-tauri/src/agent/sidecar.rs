@@ -14,7 +14,7 @@ use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::task::JoinHandle;
 
-use super::contract::TransportError;
+use super::contract::{OfferedModel, TransportError};
 use super::protocol::{
 	self, AuthorizeRequest, Authorized, Checked, OauthStarted, Ready, RefreshRequest,
 	RevocationRequest, Revoked, SignedIn, Titled,
@@ -243,15 +243,18 @@ impl Sidecar {
 		}
 	}
 
-	pub async fn catalogue(&self, connection: &Values) -> Result<Vec<String>, TransportError> {
+	pub async fn catalogue(
+		&self,
+		connection: &Values,
+	) -> Result<Vec<OfferedModel>, TransportError> {
 		self.offered(protocol::MODELS, connection).await
 	}
 
-	pub async fn offered(
+	pub async fn offered<Item: DeserializeOwned>(
 		&self,
 		command: &'static str,
 		connection: &Values,
-	) -> Result<Vec<String>, TransportError> {
+	) -> Result<Vec<Item>, TransportError> {
 		let answer = self.ask(command, connection, CATALOGUE_TIMEOUT).await?;
 		protocol::listed(command, answer)
 			.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })

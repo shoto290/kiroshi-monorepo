@@ -43,6 +43,7 @@ export const botIdentity = (
 	deniedTools: [],
 	permissions: BLANK_BOT_PERMISSIONS,
 	outputStyle: DEFAULT_BOT_OUTPUT_STYLE,
+	effort: null,
 	...overrides,
 })
 

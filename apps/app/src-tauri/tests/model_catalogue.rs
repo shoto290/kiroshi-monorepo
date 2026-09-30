@@ -10,7 +10,7 @@ use tauri::{Manager, WebviewWindow, WebviewWindowBuilder};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 
-const OFFERED: &str = "quasar,quasar[1m],nimbus-preview";
+const OFFERED: &str = "quasar=low+high+max,quasar[1m],nimbus-preview=medium+ultra";
 
 fn window(app: &tauri::App<MockRuntime>) -> WebviewWindow<MockRuntime> {
 	WebviewWindowBuilder::new(app.handle(), "main", tauri::WebviewUrl::default())
@@ -48,10 +48,16 @@ fn the_catalogue_crosses_as_the_sidecar_offers_it() {
 	let window = window(&app);
 
 	let offered = call(&window, "agent_models").expect("the catalogue crosses");
-	let values: Vec<String> =
-		serde_json::from_value(offered.clone()).expect("a list of labels crossed");
 
-	assert_eq!(values, OFFERED.split(',').collect::<Vec<_>>(), "the catalogue crossed changed");
+	assert_eq!(
+		offered,
+		json!([
+			{ "value": "quasar", "supportedEffortLevels": ["low", "high", "max"] },
+			{ "value": "quasar[1m]", "supportedEffortLevels": [] },
+			{ "value": "nimbus-preview", "supportedEffortLevels": ["medium"] },
+		]),
+		"the catalogue crossed changed"
+	);
 
 	std::env::set_var("FAKE_AGENT_MODELS", "something,else");
 	assert_eq!(call(&window, "agent_models"), Ok(offered), "a second ask reached the sidecar");

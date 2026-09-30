@@ -3467,3 +3467,91 @@ fn a_question_line_the_host_wrote_answers_its_seq_and_refuses_every_front_write(
 	assert_eq!(a_question_row(&app), Some(stored), "a front write reached the host question line");
 	tauri::async_runtime::block_on(terminate_session(&app.state::<AgentState>()));
 }
+
+fn agent_text(app: &App<MockRuntime>, bot_id: &str) -> String {
+	let root = bundles::root(app.handle()).expect("the bundle root");
+	let path = bundles::agent_file(&root, bot_id).expect("the agent file is written");
+	std::fs::read_to_string(path).expect("the agent file reads")
+}
+
+#[test]
+fn an_effort_the_update_receives_is_stored_and_written_and_null_takes_the_key_out() {
+	let home = Home::new();
+	let app = home.app();
+	let window = window(&app);
+	let created = call(
+		&window,
+		"conversation_create_bot",
+		json!({ "identity": an_identity("Nyx", "sonnet", json!("red")) }),
+	)
+	.expect("the bot is created");
+	let id = created["id"].as_str().expect("the bot holds an id").to_owned();
+	assert_eq!(created["effort"], Value::Null, "a companion was born with an effort");
+
+	let mut high = an_identity("Nyx", "sonnet", json!("red"));
+	high["effort"] = json!("high");
+	let updated = call(&window, "conversation_update_bot", json!({ "id": id, "identity": high }))
+		.expect("the effort is saved");
+
+	assert_eq!(updated["effort"], json!("high"));
+	assert_eq!(
+		call(&window, "conversation_bots", json!({})).map(|bots| bots[0]["effort"].clone()),
+		Ok(json!("high")),
+		"the effort did not outlive the update"
+	);
+	assert_eq!(occurrences(&agent_text(&app, &id), "\neffort: high\n"), 1);
+
+	let mut cleared = an_identity("Nyx", "sonnet", json!("red"));
+	cleared["effort"] = Value::Null;
+	let updated =
+		call(&window, "conversation_update_bot", json!({ "id": id, "identity": cleared }))
+			.expect("the effort is cleared");
+
+	assert_eq!(updated["effort"], Value::Null);
+	assert!(!agent_text(&app, &id).contains("effort:"), "the cleared effort stayed in the file");
+}
+
+#[test]
+fn an_effort_outside_the_five_levels_is_refused_and_changes_nothing() {
+	let home = Home::new();
+	let app = home.app();
+	let window = window(&app);
+	let mut high = an_identity("Nyx", "sonnet", json!("red"));
+	high["effort"] = json!("high");
+	let created = call(&window, "conversation_create_bot", json!({ "identity": high }))
+		.expect("the bot is created");
+	let id = created["id"].as_str().expect("the bot holds an id").to_owned();
+	let before = agent_text(&app, &id);
+
+	let mut extreme = an_identity("Ada", "opus", json!("blue"));
+	extreme["effort"] = json!("extreme");
+	let refused =
+		call(&window, "conversation_update_bot", json!({ "id": id, "identity": extreme }));
+
+	assert!(refused.is_err(), "a level outside the five was accepted: {refused:?}");
+	let held = call(&window, "conversation_bots", json!({})).expect("the bots read");
+	assert_eq!(
+		(held[0]["name"].clone(), held[0]["model"].clone(), held[0]["effort"].clone()),
+		(json!("Nyx"), json!("sonnet"), json!("high")),
+		"a refused update reached the row"
+	);
+	assert_eq!(agent_text(&app, &id), before, "a refused update reached the agent file");
+}
+
+#[test]
+fn a_duplicate_carries_the_effort_of_its_source() {
+	let home = Home::new();
+	let app = home.app();
+	let window = window(&app);
+	let mut max = an_identity("Nyx", "sonnet", json!("red"));
+	max["effort"] = json!("max");
+	let source = call(&window, "conversation_create_bot", json!({ "identity": max }))
+		.expect("the bot is created");
+
+	let duplicate = call(&window, "conversation_duplicate_bot", json!({ "botId": source["id"] }))
+		.expect("the bot is duplicated");
+	let duplicate_id = duplicate["id"].as_str().expect("the copy holds an id").to_owned();
+
+	assert_eq!(duplicate["effort"], json!("max"));
+	assert_eq!(occurrences(&agent_text(&app, &duplicate_id), "\neffort: max\n"), 1);
+}

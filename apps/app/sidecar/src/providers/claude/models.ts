@@ -1,10 +1,12 @@
 import { tmpdir } from "node:os"
 
-import { query } from "@anthropic-ai/claude-agent-sdk"
+import { type ModelInfo, query } from "@anthropic-ai/claude-agent-sdk"
 
 import { resolveExecutable } from "./executable"
 import { createPromptStream } from "./prompt-stream"
 import { sessionEnv } from "./session-env"
+
+import type { OfferedModel } from "../provider"
 
 export const modelsOptions = (connection?: Record<string, string>) => ({
 	cwd: tmpdir(),
@@ -15,10 +17,23 @@ export const modelsOptions = (connection?: Record<string, string>) => ({
 
 const UNRESOLVED_MODEL = "default"
 
-export const offeredModels = (offered: readonly { value: string }[]) =>
+type SupportedModel = Pick<
+	ModelInfo,
+	"value" | "supportsEffort" | "supportedEffortLevels"
+>
+
+const effortLevelsOf = (model: SupportedModel) =>
+	model.supportsEffort ? [...(model.supportedEffortLevels ?? [])] : []
+
+export const offeredModels = (
+	offered: readonly SupportedModel[],
+): OfferedModel[] =>
 	offered
-		.map((model) => model.value)
-		.filter((value) => value !== UNRESOLVED_MODEL)
+		.filter((model) => model.value !== UNRESOLVED_MODEL)
+		.map((model) => ({
+			value: model.value,
+			supportedEffortLevels: effortLevelsOf(model),
+		}))
 
 export const claudeModels = async (connection?: Record<string, string>) => {
 	const prompts = createPromptStream()
