@@ -394,7 +394,11 @@ const TINTED_SHELL: TintedShellStyle = { "--space-tint": blotTint("blue") }
 export const OnTintedSpace = meta.story({
 	args: { dots: { conversations: true, missions: true } },
 	render: (args: AppRailProps) => (
-		<div className="flex h-[32rem] bg-background" style={TINTED_SHELL}>
+		<div
+			className="surface-shell flex h-[32rem]"
+			data-space-tint="blue"
+			style={TINTED_SHELL}
+		>
 			<AppRail {...args} />
 		</div>
 	),
@@ -402,7 +406,7 @@ export const OnTintedSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The rail on a space that carries a colour, which the window behind it does not wear. Check the ring around each dot is the window background itself, so no dot wears a halo of another ground.",
+					"The rail on a space that carries a colour, which washes the shell surface behind it. Check the ring around each dot is the tinted surface itself, so no dot wears a halo of the uncoloured ground.",
 			},
 		},
 	},

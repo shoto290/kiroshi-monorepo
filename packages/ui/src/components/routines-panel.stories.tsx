@@ -1195,7 +1195,7 @@ const paintOf = (element: HTMLElement) =>
 
 const shellPaint = () => {
 	const swatch = document.createElement("div")
-	swatch.className = "bg-background"
+	swatch.className = "surface-shell"
 	document.body.append(swatch)
 	const painted = paintOf(swatch)
 	swatch.remove()
@@ -1353,7 +1353,7 @@ export const OnShellSurfaceTinted = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel open in a space that carries a colour, which neither the panel nor the window around it wears: the space colour reaches the reader's own message bubbles and the colour dots, never a surface. Check that the panel keeps the card surface the Conversations panel paints, that the eight tokens it paints with (sidebar, sidebar-accent, sidebar-border, accent, border, input, muted and secondary) read exactly the values they read outside any space, and that the wrapper behind it paints the plain window background. A row, a rule, a field or a wrapper washed in the space colour is the regression this story catches. `Navigation/AppSidebar` `SpaceTinted` reads the same pair on the roster panel opposite. Pick `OnShellSurfaceOpen` for the panel in a space with no colour. `apps/app/src/App.tsx:935` mounts the same panel inside the workspace shell, through `apps/app/src/components/thread-routines.tsx:107`.",
+					"The panel open in a space that carries a colour, which washes the window background around the panel and never the panel itself: the space colour reaches the shell, the reader's own message bubbles and the colour dots, never a panel surface. Check that the panel keeps the card surface the Conversations panel paints, that the eight tokens it paints with (sidebar, sidebar-accent, sidebar-border, accent, border, input, muted and secondary) read exactly the values they read outside any space, and that the wrapper behind it wears the same coloured background as the workspace shell. A row, a rule or a field washed in the space colour, or a wrapper left uncoloured beside a coloured shell, is the regression this story catches. `Navigation/AppSidebar` `SpaceTinted` reads the same pair on the roster panel opposite. Pick `OnShellSurfaceOpen` for the panel in a space with no colour. `apps/app/src/App.tsx:935` mounts the same panel inside the workspace shell, through `apps/app/src/components/thread-routines.tsx:107`.",
 			},
 		},
 	},
@@ -1371,9 +1371,10 @@ export const OnShellSurfaceTinted = meta.story({
 		)
 		await expect(shell).toHaveAttribute("data-space-tint", "blue")
 		await expect(tokenPaintsIn(activity)).toEqual(tokenPaintsIn(document.body))
-		await expect(paintOf(activity.parentElement as HTMLElement)).toBe(
-			shellPaint(),
-		)
-		await expect(paintOf(shell)).toBe(shellPaint())
+		await waitFor(async () => {
+			const wrapper = paintOf(activity.parentElement as HTMLElement)
+			await expect(wrapper).toBe(paintOf(shell))
+			await expect(wrapper).not.toBe(shellPaint())
+		}, FRAME_POLL)
 	},
 })

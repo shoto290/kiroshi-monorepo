@@ -66,7 +66,7 @@ import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
 const ROUTINES_PANEL_WIDTH = 320
 
 const PANEL_SHELL =
-	"h-full min-h-0 bg-background min-w-0 flex-1 overflow-hidden"
+	"surface-shell h-full min-h-0 min-w-0 flex-1 overflow-hidden"
 
 const PANEL_SURFACE = "relative min-h-0 border-s border-shell-divider bg-card"
 

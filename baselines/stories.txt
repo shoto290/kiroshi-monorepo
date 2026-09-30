@@ -688,6 +688,7 @@ layout-workspaceshell--fixed-width
 layout-workspaceshell--not-a-landmark
 layout-workspaceshell--skips-to-the-conversation
 layout-workspaceshell--space-tinted
+layout-workspaceshell--space-tinted-dark
 layout-workspaceshell--tall-content
 layout-workspaceshell--tall-host
 navigation-apprail--conversations-selected
