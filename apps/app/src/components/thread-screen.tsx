@@ -281,6 +281,9 @@ const routinesScopeOf = (
 const speakerIdOf = (thread: LoadedThread, error: ChatError | undefined) =>
 	thread.kind === "bot" ? thread.bot.id : error?.botId
 
+const shownConversationIdOf = (thread: LoadedThread): string | null =>
+	thread.kind === "bot" ? thread.state.conversationId : thread.conversation.id
+
 const isClosedMission = (seat: ThreadMission | null): boolean =>
 	seat !== null && seat.mission.closedAt !== null
 
@@ -1369,7 +1372,7 @@ const useThreadActions = (
 		useThreadReply({ composerRef, scrollerRef, send })
 
 	useComposerFocus({
-		botId: facts.bot?.id ?? null,
+		threadId: shownConversationIdOf(thread),
 		isPromptPending: facts.isPromptPending,
 		isSettingsOpen: thread.isSettingsOpen,
 		isOverlayOpen: facts.isOverlayOpen,

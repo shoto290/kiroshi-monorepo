@@ -142,7 +142,8 @@ const botFactsOf = (thread: LoadedBotThread): ThreadFacts => {
 		isBusy: isTurnBusy(thread.state.turn),
 		isLoadingOlder: thread.state.loadingOlder,
 		isLoadingNewer: thread.state.loadingNewer,
-		isPromptPending: thread.state.permission !== null,
+		isPromptPending:
+			thread.state.permission !== null || thread.state.question !== null,
 		isOverlayOpen: thread.isOverlayOpen,
 		canAttach: isReady,
 		permission: permissionOf(thread.state.permission),
@@ -171,7 +172,7 @@ const conversationFactsOf = (
 	isBusy: thread.state.speakers.length > 0,
 	isLoadingOlder: thread.state.isLoadingOlder,
 	isLoadingNewer: thread.state.isLoadingNewer,
-	isPromptPending: false,
+	isPromptPending: thread.state.pendingPrompt !== null,
 	isOverlayOpen: false,
 	canAttach: true,
 	permission: permissionIn(thread.state.pendingPrompt),
