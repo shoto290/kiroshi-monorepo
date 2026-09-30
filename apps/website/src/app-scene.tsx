@@ -2,6 +2,10 @@ import { type ReactNode, useState } from "react"
 
 import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
 import { AppHeader } from "@workspace/ui/components/app-header"
+import type {
+	AppRailCounts,
+	AppRailDots,
+} from "@workspace/ui/components/app-rail"
 import {
 	AppSidebar,
 	type AppSidebarConversation,
@@ -10,6 +14,10 @@ import { HeaderConversationButton } from "@workspace/ui/components/header-conver
 import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { Markdown } from "@workspace/ui/components/markdown"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
+import type {
+	MissionsPanelMission,
+	MissionsPanelProps,
+} from "@workspace/ui/components/missions-panel"
 import {
 	type PinnedMessage,
 	PinnedMessages,
@@ -33,6 +41,7 @@ import {
 	READER,
 	ROSTER_BY_SPACE,
 	type SceneLoop,
+	type SceneSpace,
 	SPACES,
 	spaceOf,
 } from "./scene-cast"
@@ -72,6 +81,28 @@ const NO_PINS: PinnedMessage[] = []
 const NO_ACTIVITY: EarlierTodayRow[] = []
 
 const doNothing = () => {}
+
+const NO_EARLIER_MISSIONS: MissionsPanelMission[] = []
+
+const missionsPanelOf = (space: SceneSpace): MissionsPanelProps => ({
+	open: space.missions.map((mission) => ({
+		...mission,
+		conversationId: mission.id,
+	})),
+	earlierToday: NO_EARLIER_MISSIONS,
+	onOpen: doNothing,
+})
+
+const railCountsOf = (space: SceneSpace): AppRailCounts => ({
+	conversations: space.conversations.filter((row) => row.badge).length,
+	missions: space.missions.filter(
+		(mission) => mission.state === "waiting_human",
+	).length,
+})
+
+const railDotsOf = (space: SceneSpace): AppRailDots => ({
+	conversations: space.conversations.some((row) => row.badge === "attention"),
+})
 
 const sceneRow = (
 	key: string,
@@ -293,12 +324,15 @@ export const AppScene = () => {
 							botsBySpaceId={ROSTER_BY_SPACE}
 							conversationsBySpaceId={CONVERSATIONS_BY_SPACE}
 							insetWindowControls
+							missionsBySpaceId={{ [space.id]: missionsPanelOf(space) }}
 							onCreateBot={engage}
 							onCreateConversation={engage}
 							onOpenSearch={engage}
 							onSelectBot={select}
 							onSelectConversation={select}
 							onSelectSpace={selectSpace}
+							railCounts={railCountsOf(space)}
+							railDots={railDotsOf(space)}
 							selectedBotId={exchange?.bot ? selectedId : undefined}
 							selectedConversationId={exchange?.bot ? undefined : selectedId}
 							selectedSpaceId={space.id}
