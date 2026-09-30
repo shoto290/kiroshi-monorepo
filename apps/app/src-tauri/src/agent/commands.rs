@@ -2,6 +2,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use serde::de::DeserializeOwned;
 use tauri::{AppHandle, Manager, Runtime, State};
 use tokio::sync::Mutex;
 
@@ -408,7 +409,7 @@ impl AgentState {
 		self.sidecar.lock().await.take()
 	}
 
-	async fn offered<Item: Clone + serde::de::DeserializeOwned>(
+	async fn offered<Item: Clone + DeserializeOwned>(
 		&self,
 		catalogue: &Catalogue<Item>,
 		connection: &Values,
