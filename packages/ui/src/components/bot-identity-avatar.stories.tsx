@@ -188,7 +188,7 @@ export const EveryTint = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion with no colour, then the eight colours a companion can be given. Each colour paints the cells in its hue on a pale tint of that hue, and the colours do not follow the theme; the uncoloured one paints its cells in Kiroshi blue. Switch to dark and check the cells read darker than their ground on all nine.",
+					"The companion with no colour, then the eight colours a companion can be given. Each colour paints the cells in its hue on the secondary surface tinted with that hue at the avatar ground strength, so the ground follows the theme and the cells lighten in dark to hold on it; the uncoloured one paints its cells in Kiroshi blue. Switch to dark and check the cells read lighter than their ground on all nine, with no near-white tile.",
 			},
 		},
 	},
@@ -210,7 +210,7 @@ export const NoChosenColour = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion never given a colour: its cells are the fixed Kiroshi blue rather than a hue of its own, on a pale tint of that blue. Switch the theme and check the blue cells hold on their ground against both backgrounds.",
+					"A companion never given a colour: its cells are the fixed Kiroshi blue rather than a hue of its own, on the secondary surface tinted with that blue. Switch the theme and check the ground follows it and the blue cells hold on it in both.",
 			},
 		},
 	},

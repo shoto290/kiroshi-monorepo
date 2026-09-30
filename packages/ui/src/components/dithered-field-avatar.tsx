@@ -25,6 +25,7 @@ import {
 	hexagonCorners,
 	honeycombGrid,
 } from "@workspace/ui/components/field-grid"
+import { useColorScheme } from "@workspace/ui/hooks/use-color-scheme"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 
 type FieldInk = "companion" | "foreground"
@@ -63,10 +64,7 @@ const DRIFT_PERIOD = 9000
 const STATE_HOLD = 0.6
 const HUE_SALT = 0x51ed270b
 const HUE_JITTER = 12
-const FIELD_LIGHTNESS = 0.5
 const FIELD_CHROMA = 0.16
-const SURFACE_LIGHTNESS = 0.96
-const SURFACE_CHROMA_SHARE = 0.15
 const CELL_SHARE = 0.9
 const TONES = [0, 0.5, 1]
 const HALF_TONE_ALPHA = 0.45
@@ -76,6 +74,7 @@ const TONE_ALPHAS = [
 ] as const
 const DITHER_SCREEN = "square-tone"
 const FOREGROUND_INK = "var(--foreground)"
+const UNTINTED_FIELD = "var(--bot-avatar-field-untinted)"
 
 const COMPANION_GRID = honeycombGrid(FIELD_CELLS, CELL_SHARE)
 
@@ -85,12 +84,12 @@ const inkOf = (seed: number, tint?: BotAvatarBlot) => {
 	const random = seededRandom(seed ^ HUE_SALT)
 	const jitter = Math.round((random() * 2 - 1) * HUE_JITTER)
 	return tint
-		? `oklch(from ${blotTint(tint)} ${FIELD_LIGHTNESS} ${FIELD_CHROMA} calc(h + ${jitter}))`
-		: "var(--bot-avatar-field-untinted)"
+		? `oklch(from ${blotTint(tint)} var(--bot-avatar-field-lightness) ${FIELD_CHROMA} calc(h + ${jitter}))`
+		: UNTINTED_FIELD
 }
 
-const surfaceOf = (ink: string) =>
-	`oklch(from ${ink} ${SURFACE_LIGHTNESS} calc(c * ${SURFACE_CHROMA_SHARE}) h)`
+const groundOf = (tint?: BotAvatarBlot) =>
+	`color-mix(in oklab, ${tint ? blotTint(tint) : UNTINTED_FIELD} var(--bot-avatar-ground-strength), var(--secondary))`
 
 const fieldLattice = (seed: number) =>
 	Float32Array.from({ length: LATTICE * LATTICE }, seededRandom(seed))
@@ -236,6 +235,7 @@ const DitheredField = ({
 	const canvas = useRef<HTMLCanvasElement>(null)
 	const prefersReducedMotion = usePrefersReducedMotion()
 	const drawnState = prefersReducedMotion ? "idle" : state
+	useColorScheme(canvas)
 
 	useFieldClock({
 		state: drawnState,
@@ -295,7 +295,7 @@ const DitheredFieldAvatar = ({
 			name={name}
 			size={size}
 			state={state}
-			surface={hasGround ? surfaceOf(ink) : undefined}
+			surface={hasGround ? groundOf(tint) : undefined}
 			tint={tint}
 		/>
 	)
