@@ -89,6 +89,31 @@ export const Default = meta.story({
 	},
 })
 
+export const Disabled = meta.story({
+	args: { isDisabled: true },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A question with nothing to choose from right now. The trigger stays in place and keeps its answer, dimmed, and it neither opens nor takes focus. Check that assistive technology hears it as disabled rather than merely grey.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		const trigger = canvas.getByRole("combobox", { name: /Model/ })
+
+		await expect(trigger).toBeDisabled()
+		await expect(trigger).toHaveTextContent("Claude Sonnet")
+
+		await userEvent.tab()
+		await userEvent.keyboard("{ArrowDown}")
+
+		await expect(trigger).not.toHaveFocus()
+		await expect(screen.queryByRole("listbox")).toBeNull()
+		await expect(args.onValueChange).not.toHaveBeenCalled()
+	},
+})
+
 export const Empty = meta.story({
 	args: { value: "", placeholder: "Choose a model" },
 	parameters: {

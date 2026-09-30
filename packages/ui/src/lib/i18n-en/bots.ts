@@ -1,4 +1,5 @@
 import type {
+	BotEffort,
 	BotOutputStyle,
 	BotPermissionMode,
 	BotSkillContext,
@@ -728,6 +729,18 @@ const bots = {
 		model: {
 			label: "Model",
 			placeholder: "Choose a model",
+			unreadable: "Couldn’t read the models this machine offers.",
+		},
+		effort: {
+			label: "Effort",
+			option: {
+				default: "Default",
+				low: "Low",
+				medium: "Medium",
+				high: "High",
+				xhigh: "Extra high",
+				max: "Max",
+			} as const satisfies Record<BotEffort | "default", string>,
 		},
 		outputStyle: {
 			label: "Answer style",

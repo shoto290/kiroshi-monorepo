@@ -741,6 +741,18 @@ const bots = {
 		model: {
 			label: "Modèle",
 			placeholder: "Choisissez un modèle",
+			unreadable: "Impossible de lire les modèles proposés par cette machine.",
+		},
+		effort: {
+			label: "Effort",
+			option: {
+				default: "Par défaut",
+				low: "Faible",
+				medium: "Moyen",
+				high: "Élevé",
+				xhigh: "Très élevé",
+				max: "Maximal",
+			},
 		},
 		outputStyle: {
 			label: "Style de réponse",

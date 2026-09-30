@@ -1,15 +1,34 @@
 import { useEffect, useState } from "react"
 
+import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
+import { i18n } from "@workspace/ui/lib/i18n"
+
 import { readModelCatalogue } from "./model-catalogue"
 
-export const useModelCatalogue = (): string[] => {
-	const [catalogue, setCatalogue] = useState<string[]>([])
+import type { OfferedModel_Serialize } from "@/lib/bindings"
+
+type ModelCatalogue = {
+	models: OfferedModel_Serialize[]
+	hasFailedToLoad: boolean
+}
+
+const UNREAD_CATALOGUE: ModelCatalogue = { models: [], hasFailedToLoad: false }
+
+export const useModelCatalogue = (): ModelCatalogue => {
+	const [catalogue, setCatalogue] = useState(UNREAD_CATALOGUE)
 
 	useEffect(() => {
 		let listening = true
-		void readModelCatalogue().then((found) => {
-			if (listening) setCatalogue(found)
-		})
+		readModelCatalogue().then(
+			(models) => {
+				if (listening) setCatalogue({ models, hasFailedToLoad: false })
+			},
+			() => {
+				if (!listening) return
+				setCatalogue({ models: [], hasFailedToLoad: true })
+				raiseFailureNotice({ title: i18n.t("bots:runtime.model.unreadable") })
+			},
+		)
 		return () => {
 			listening = false
 		}

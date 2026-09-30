@@ -73,7 +73,7 @@ export const BotSettingsHost = ({
 				)
 			}
 			serverEnvironment={serverEnvironmentSection}
-			models={modelOptionsFor(settingsBot.model, catalogue)}
+			models={modelOptionsFor(settingsBot.model, catalogue.models)}
 			outputStyle={readBotOutputStyle(settingsBot.outputStyle)}
 			memory={settingsBot.memory}
 			onMemoryChange={(memory) => {

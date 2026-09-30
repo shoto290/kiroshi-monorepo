@@ -11,7 +11,10 @@ import {
 import { rosterTimestamp } from "./roster-timestamp"
 
 import { avatarSrc } from "../host"
-import type { BotPermissions as HostBotPermissions } from "@/lib/bindings"
+import type {
+	BotPermissions as HostBotPermissions,
+	OfferedModel_Serialize,
+} from "@/lib/bindings"
 import type { SidebarActivity } from "../chat/screen-model"
 import type {
 	AvatarBlot,
@@ -34,15 +37,25 @@ const withoutChangingTools = (denied: string[]): string[] =>
 export const deniesChanges = (denied: string[]): boolean =>
 	CHANGING_TOOLS.every((tool) => denied.includes(tool))
 
+const withNoEffort = (value: string): OfferedModel_Serialize => ({
+	value,
+	supportedEffortLevels: [],
+})
+
 export const modelOptionsFor = (
 	model: string,
-	catalogue: string[],
+	catalogue: OfferedModel_Serialize[],
 ): BotModelOption[] => {
-	const read = catalogue.filter((value) => value !== UNRUNNABLE_MODEL)
-	const offered = read.length > 0 ? read : FALLBACK_MODELS
-	const isOffered = offered.includes(model) || model === UNRUNNABLE_MODEL
-	const values = isOffered ? offered : [...offered, model]
-	return values.map((value) => ({ label: value, value }))
+	const read = catalogue.filter(({ value }) => value !== UNRUNNABLE_MODEL)
+	const offered = read.length > 0 ? read : FALLBACK_MODELS.map(withNoEffort)
+	const isOffered =
+		offered.some(({ value }) => value === model) || model === UNRUNNABLE_MODEL
+	const models = isOffered ? offered : [...offered, withNoEffort(model)]
+	return models.map(({ value, supportedEffortLevels }) => ({
+		label: value,
+		value,
+		supportedEfforts: supportedEffortLevels,
+	}))
 }
 
 export const BOT_NAMES = [
@@ -120,6 +133,7 @@ export const toSettingsValue = (bot: Bot): BotSettingsValue => ({
 	title: bot.title,
 	instructions: bot.instructions,
 	model: bot.model,
+	effort: bot.effort,
 	permissions: {
 		...bot.permissions,
 		defaultMode: readBotPermissionMode(bot.permissions.defaultMode),
@@ -139,7 +153,7 @@ export const toIdentity = (
 	deniedTools: withoutChangingTools(bot.deniedTools),
 	permissions: value.permissions,
 	outputStyle: bot.outputStyle,
-	effort: bot.effort,
+	effort: value.effort,
 })
 
 const listOf = (items: string[]): string => [...items].sort().join(",")
@@ -157,6 +171,7 @@ export const changesRuntime = (bot: Bot, value: BotSettingsValue): boolean => {
 	return (
 		next.instructions !== bot.instructions ||
 		next.model !== bot.model ||
+		next.effort !== bot.effort ||
 		listOf(next.deniedTools) !== listOf(bot.deniedTools) ||
 		permissionsOf(next.permissions) !== permissionsOf(bot.permissions)
 	)

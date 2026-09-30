@@ -53,8 +53,13 @@ describe("toSettingsValue", () => {
 			title: "Reviewer",
 			instructions: "Answer briefly.",
 			model: "haiku",
+			effort: null,
 			permissions: BLANK_BOT_PERMISSIONS,
 		})
+	})
+
+	it("reads the effort the companion was saved with", () => {
+		expect(toSettingsValue(bot({ effort: "xhigh" })).effort).toBe("xhigh")
 	})
 
 	it("reads a companion nobody marked as wearing no blot", () => {
@@ -67,6 +72,16 @@ describe("toSettingsValue", () => {
 describe("changesRuntime", () => {
 	const stored = bot({ instructions: "Answer briefly." })
 	const value = toSettingsValue(stored)
+
+	it("says so for the effort, like the model", () => {
+		expect(changesRuntime(stored, { ...value, effort: "high" })).toBe(true)
+		expect(
+			changesRuntime(bot({ effort: "high" }), {
+				...toSettingsValue(bot({ effort: "high" })),
+				effort: null,
+			}),
+		).toBe(true)
+	})
 
 	it("says so for the instructions, the model and the permissions", () => {
 		expect(
@@ -139,6 +154,14 @@ describe("toIdentity", () => {
 		).toBe("default")
 	})
 
+	it("writes the effort the panel was left with, Default as null", () => {
+		const tuned = bot({ effort: "high" })
+		const value = toSettingsValue(tuned)
+
+		expect(toIdentity({ ...value, effort: "max" }, tuned).effort).toBe("max")
+		expect(toIdentity({ ...value, effort: null }, tuned).effort).toBeNull()
+	})
+
 	it("writes the model label it was given, whatever it is", () => {
 		const value = toSettingsValue(stored)
 
@@ -188,17 +211,22 @@ describe("modelOptionsFor", () => {
 		"claude-sonnet-5",
 		"best",
 	]
+	const OFFERED = CATALOGUE.map((value) => ({
+		value,
+		supportedEffortLevels: [],
+	}))
 
 	it("offers what the machine carries, in the order it was given", () => {
 		expect(
-			modelOptionsFor("sonnet", CATALOGUE).map((option) => option.value),
+			modelOptionsFor("sonnet", OFFERED).map((option) => option.value),
 		).toEqual(CATALOGUE)
 	})
 
 	it("labels every value with itself", () => {
-		expect(modelOptionsFor("quasar", CATALOGUE)).toContainEqual({
+		expect(modelOptionsFor("quasar", OFFERED)).toContainEqual({
 			label: "claude-quasar-5",
 			value: "claude-quasar-5",
+			supportedEfforts: [],
 		})
 	})
 
@@ -209,13 +237,14 @@ describe("modelOptionsFor", () => {
 	})
 
 	it("offers a label of its own back so the companion can be seen on it", () => {
-		const read = modelOptionsFor("claude-mythos-preview", CATALOGUE)
+		const read = modelOptionsFor("claude-mythos-preview", OFFERED)
 		const fallen = modelOptionsFor("claude-mythos-preview", [])
 
 		expect(read).toHaveLength(CATALOGUE.length + 1)
 		expect(read.at(-1)).toEqual({
 			label: "claude-mythos-preview",
 			value: "claude-mythos-preview",
+			supportedEfforts: [],
 		})
 		expect(fallen.at(-1)?.value).toBe("claude-mythos-preview")
 	})
@@ -224,17 +253,35 @@ describe("modelOptionsFor", () => {
 		expect(modelOptionsFor("sonnet", [])[0]?.value).toBe("opus")
 	})
 
+	it("carries the effort levels every model supports", () => {
+		expect(
+			modelOptionsFor("opus", [
+				{ value: "opus", supportedEffortLevels: ["low", "high", "max"] },
+				{ value: "haiku", supportedEffortLevels: [] },
+			]).map((option) => option.supportedEfforts),
+		).toEqual([["low", "high", "max"], []])
+	})
+
+	it("offers no effort level on the fallback list", () => {
+		expect(
+			modelOptionsFor("sonnet", []).every(
+				(option) => option.supportedEfforts.length === 0,
+			),
+		).toBe(true)
+	})
+
 	it("leaves default out of what the catalogue carries", () => {
-		const values = modelOptionsFor("sonnet", ["default", ...CATALOGUE]).map(
-			(option) => option.value,
-		)
+		const values = modelOptionsFor("sonnet", [
+			{ value: "default", supportedEffortLevels: ["high"] },
+			...OFFERED,
+		]).map((option) => option.value)
 
 		expect(values).toEqual(CATALOGUE)
 	})
 
 	it("does not offer default back when the companion carries it", () => {
 		expect(
-			modelOptionsFor("default", CATALOGUE).map((option) => option.value),
+			modelOptionsFor("default", OFFERED).map((option) => option.value),
 		).toEqual(CATALOGUE)
 		expect(
 			modelOptionsFor("default", []).map((option) => option.value),
