@@ -2139,6 +2139,21 @@ const SHELL_CARD_RADIUS = "12px"
 
 const pxOf = (value: string) => Number.parseFloat(value)
 
+const expectJoinedCard = async (canvasElement: HTMLElement) => {
+	const controlRadius = tokenLengthOf("--radius-control")
+	const panel = getComputedStyle(slotIn(canvasElement, "sidebar-container"))
+	await expect(panel.borderStartStartRadius).toBe(controlRadius)
+	await expect(panel.borderEndStartRadius).toBe(controlRadius)
+	await expect(panel.borderStartEndRadius).toBe("0px")
+	await expect(panel.borderEndEndRadius).toBe("0px")
+	const pane = getComputedStyle(slotIn(canvasElement, "sidebar-inset"))
+	await expect(pane.borderStartStartRadius).toBe("0px")
+	await expect(pane.borderEndStartRadius).toBe("0px")
+	await expect(pane.borderInlineStartWidth).toBe("0px")
+	await expect(pane.borderStartEndRadius).toBe(controlRadius)
+	await expect(pane.borderEndEndRadius).toBe(controlRadius)
+}
+
 export const ConversationsPanel = meta.story({
 	args: {
 		insetWindowControls: true,
@@ -2187,7 +2202,7 @@ export const ConversationsPanel = meta.story({
 		await expect(getComputedStyle(card).borderStartEndRadius).toBe(
 			SHELL_CARD_RADIUS,
 		)
-		await expect(getComputedStyle(card).borderInlineStartWidth).toBe("0px")
+		await expectJoinedCard(canvasElement)
 		await expect(rowsIn(canvasElement)).toHaveLength(ROSTER.length)
 	},
 })
@@ -3772,6 +3787,7 @@ export const NoWindowControlsReserve = meta.story({
 			slotIn(titleBar, "space-switcher").getBoundingClientRect().left -
 				titleBar.getBoundingClientRect().left,
 		).toBeLessThan(WINDOW_CONTROLS_END)
+		await expectJoinedCard(canvasElement)
 	},
 })
 export const CaptionWindowControls = meta.story({
