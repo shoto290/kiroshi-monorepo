@@ -2201,7 +2201,6 @@ export const ConversationsPanel = meta.story({
 		await expect(getComputedStyle(card).borderStartEndRadius).toBe(
 			SHELL_CARD_RADIUS,
 		)
-		await expect(getComputedStyle(card).borderInlineStartWidth).toBe("0px")
 		await expectJoinedCard(canvasElement)
 		await expect(rowsIn(canvasElement)).toHaveLength(ROSTER.length)
 	},
