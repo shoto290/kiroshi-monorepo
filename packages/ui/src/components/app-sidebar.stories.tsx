@@ -1999,7 +1999,7 @@ export const SpaceTinted = meta.story({
 	},
 })
 
-export const NoCollapseNorResize = meta.story({
+export const NoCollapse = meta.story({
 	tags: ["test-only"],
 	play: async ({ canvas, userEvent }) => {
 		const panel = canvas.getByRole("complementary", { name: "Conversations" })
@@ -2010,9 +2010,6 @@ export const NoCollapseNorResize = meta.story({
 
 		await expect(stateOf(panel)).toBe("expanded")
 		await expect(panel.getBoundingClientRect().width).toBe(width)
-		await expect(
-			canvas.queryByRole("separator", { name: /resize/i }),
-		).toBeNull()
 	},
 })
 

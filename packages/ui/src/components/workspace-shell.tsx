@@ -5,6 +5,7 @@ import {
 	blotTint,
 } from "@workspace/ui/components/companion-colour"
 import { ContentCard } from "@workspace/ui/components/content-card"
+import { SidebarResizeProvider } from "@workspace/ui/components/sidebar-resize"
 import { SkipLink } from "@workspace/ui/components/skip-link"
 import { SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
@@ -21,21 +22,25 @@ const SHELL_TITLE_BAR_HEIGHT = 34
 
 const SHELL_GUTTER = 4
 
-const SIDEBAR_WIDTH = 304
-
-const SHELL = `surface-shell relative h-svh ${TITLE_BAR_AND_GUTTER} ${CARD_ON_SHELL_INSET} min-h-full max-h-full min-w-0 overflow-hidden ${SIDEBAR_INSIDE_SHELL}`
+const SHELL = `surface-shell relative h-svh ${TITLE_BAR_AND_GUTTER} ${CARD_ON_SHELL_INSET} min-h-full max-h-full min-w-0 overflow-hidden ${SIDEBAR_INSIDE_SHELL} data-[resizing=true]:cursor-col-resize data-[resizing=true]:select-none`
 
 type ShellStyle = CSSProperties & {
 	"--sidebar-width": string
 	"--space-tint"?: string
 }
 
-const shellStyle = (tint?: BotAvatarBlot | null): ShellStyle => ({
-	"--sidebar-width": `${SIDEBAR_WIDTH}px`,
+const shellStyle = (
+	width: number,
+	tint?: BotAvatarBlot | null,
+): ShellStyle => ({
+	"--sidebar-width": `${width}px`,
 	...(tint ? { "--space-tint": blotTint(tint) } : undefined),
 })
 
 interface WorkspaceShellProps {
+	width?: number
+	onWidthChange?: (width: number) => void
+	isResizable?: boolean
 	className?: string
 	sidebar?: ReactNode
 	spaceTint?: BotAvatarBlot | null
@@ -47,6 +52,9 @@ const WorkspaceShell = ({
 	sidebar,
 	spaceTint,
 	isLandmark,
+	width,
+	onWidthChange,
+	isResizable,
 	children,
 	className,
 }: WorkspaceShellProps) => {
@@ -54,19 +62,28 @@ const WorkspaceShell = ({
 	const isMain = isLandmark ?? true
 
 	return (
-		<SidebarProvider
-			className={cn(SHELL, className)}
-			data-space-tint={spaceTint ?? undefined}
-			open
-			style={shellStyle(spaceTint)}
+		<SidebarResizeProvider
+			isResizable={isResizable}
+			onWidthChange={onWidthChange}
+			width={width}
 		>
-			{isMain ? <SkipLink targetId={mainId} /> : null}
-			{sidebar}
-			<ContentCard id={isMain ? mainId : undefined} isLandmark={isMain}>
-				{children}
-			</ContentCard>
-		</SidebarProvider>
+			{(resize) => (
+				<SidebarProvider
+					className={cn(SHELL, className)}
+					data-resizing={resize.isResizing}
+					data-space-tint={spaceTint ?? undefined}
+					open
+					style={shellStyle(resize.width, spaceTint)}
+				>
+					{isMain ? <SkipLink targetId={mainId} /> : null}
+					{sidebar}
+					<ContentCard id={isMain ? mainId : undefined} isLandmark={isMain}>
+						{children}
+					</ContentCard>
+				</SidebarProvider>
+			)}
+		</SidebarResizeProvider>
 	)
 }
 
-export { SHELL_GUTTER, SHELL_TITLE_BAR_HEIGHT, SIDEBAR_WIDTH, WorkspaceShell }
+export { SHELL_GUTTER, SHELL_TITLE_BAR_HEIGHT, WorkspaceShell }

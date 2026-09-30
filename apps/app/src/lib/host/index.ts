@@ -79,6 +79,9 @@ export function hasOverlayWindowControls(): boolean {
 	return isDesktopHost() && platform() === "macos"
 }
 
+export const isSidebarResizable = (): boolean =>
+	!isDesktopHost() || platform() === "macos"
+
 export const hasCaptionWindowControls = (): boolean =>
 	isDesktopHost() && platform() === "windows"
 

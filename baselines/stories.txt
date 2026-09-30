@@ -685,8 +685,10 @@ layout-workspaceshell--composer-with-reply-on-shell-inset
 layout-workspaceshell--conversation-open-dark
 layout-workspaceshell--default
 layout-workspaceshell--empty
-layout-workspaceshell--fixed-width
 layout-workspaceshell--not-a-landmark
+layout-workspaceshell--not-resizable
+layout-workspaceshell--resize-by-keyboard
+layout-workspaceshell--resized
 layout-workspaceshell--skips-to-the-conversation
 layout-workspaceshell--space-tinted
 layout-workspaceshell--space-tinted-dark
@@ -764,7 +766,7 @@ navigation-appsidebar--new-section-for-a-bot
 navigation-appsidebar--new-section-for-a-conversation
 navigation-appsidebar--new-section-from-nothing
 navigation-appsidebar--nine-spaces
-navigation-appsidebar--no-collapse-nor-resize
+navigation-appsidebar--no-collapse
 navigation-appsidebar--no-footer
 navigation-appsidebar--no-history
 navigation-appsidebar--no-search

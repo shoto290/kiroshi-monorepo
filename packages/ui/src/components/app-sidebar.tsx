@@ -54,6 +54,7 @@ import {
 	SectionBranch,
 } from "@workspace/ui/components/roster-menu-items"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
+import { SidebarResizeHandle } from "@workspace/ui/components/sidebar-resize"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"
 import {
 	SpaceDots,
@@ -2115,6 +2116,7 @@ const AppSidebarBase = ({
 						/>
 					</SidebarFooter>
 				) : null}
+				<SidebarResizeHandle side="left" />
 			</Sidebar>
 			<span className="sr-only" role="status">
 				{announcementFor(t, selectedBot, selectedConversation)}

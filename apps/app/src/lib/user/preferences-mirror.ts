@@ -13,6 +13,7 @@ import type {
 
 const COLOR_SCHEME_KEY = "theme"
 const LANGUAGE_KEY = "language"
+const SIDEBAR_WIDTH_KEY = "sidebarWidth"
 const ACTIVITY_PANEL_OPEN_KEY = "activityPanelOpen"
 const FIRST_RUN_DONE_KEY = "firstRunDone"
 const LAST_SPACE_KEY = "lastSpaceId"
@@ -29,6 +30,7 @@ const SWITCH_OFF = "off"
 export type MirroredPreferences = {
 	colorScheme: ColorScheme
 	language: Language | null
+	sidebarWidth: number | null
 	activityPanelOpen: boolean
 	firstRunDone: boolean
 	lastSpaceId: string | null
@@ -68,6 +70,11 @@ export const lastBotIn = (
 	spaceId: string | null,
 ) => (spaceId === null ? null : (mirrored.lastBotIdBySpace[spaceId] ?? null))
 
+const widthOf = (value: string | null): number | null => {
+	const width = Number.parseInt(value ?? "", 10)
+	return Number.isNaN(width) ? null : width
+}
+
 export const activeLanguageOf = (chosen: string | null): Language =>
 	languageOf(chosen) ?? languageOf(navigator.language) ?? DEFAULT_LANGUAGE
 
@@ -78,6 +85,7 @@ export const applyLanguage = (chosen: Language | null) => {
 export const mirrorOf = (record: UserPreferences): MirroredPreferences => ({
 	colorScheme: colorSchemeOf(record.colorScheme),
 	language: languageOf(record.language),
+	sidebarWidth: record.sidebarWidth ?? null,
 	activityPanelOpen: record.activityPanelOpen === true,
 	firstRunDone: record.firstRunDone === true,
 	lastSpaceId: record.lastSpaceId ?? null,
@@ -90,6 +98,7 @@ export const sameMirror = (
 ) =>
 	one.colorScheme === other.colorScheme &&
 	one.language === other.language &&
+	one.sidebarWidth === other.sidebarWidth &&
 	one.activityPanelOpen === other.activityPanelOpen &&
 	one.firstRunDone === other.firstRunDone &&
 	one.lastSpaceId === other.lastSpaceId &&
@@ -98,6 +107,7 @@ export const sameMirror = (
 export const readMirror = (): MirroredPreferences => ({
 	colorScheme: colorSchemeOf(localStorage.getItem(COLOR_SCHEME_KEY)),
 	language: languageOf(localStorage.getItem(LANGUAGE_KEY)),
+	sidebarWidth: widthOf(localStorage.getItem(SIDEBAR_WIDTH_KEY)),
 	activityPanelOpen:
 		localStorage.getItem(ACTIVITY_PANEL_OPEN_KEY) === SWITCH_ON,
 	firstRunDone: localStorage.getItem(FIRST_RUN_DONE_KEY) === SWITCH_ON,
@@ -107,7 +117,7 @@ export const readMirror = (): MirroredPreferences => ({
 	),
 })
 
-const keep = (key: string, value: string | null) => {
+const keep = (key: string, value: string | number | null) => {
 	if (value === null) {
 		localStorage.removeItem(key)
 		return
@@ -119,6 +129,7 @@ const keep = (key: string, value: string | null) => {
 export const writeMirror = (mirrored: MirroredPreferences) => {
 	localStorage.setItem(COLOR_SCHEME_KEY, mirrored.colorScheme)
 	keep(LANGUAGE_KEY, mirrored.language)
+	keep(SIDEBAR_WIDTH_KEY, mirrored.sidebarWidth)
 	localStorage.setItem(
 		ACTIVITY_PANEL_OPEN_KEY,
 		mirrored.activityPanelOpen ? SWITCH_ON : SWITCH_OFF,
@@ -135,6 +146,7 @@ export const writeMirror = (mirrored: MirroredPreferences) => {
 const MIRROR_KEYS = [
 	COLOR_SCHEME_KEY,
 	LANGUAGE_KEY,
+	SIDEBAR_WIDTH_KEY,
 	ACTIVITY_PANEL_OPEN_KEY,
 	FIRST_RUN_DONE_KEY,
 	LAST_SPACE_KEY,
