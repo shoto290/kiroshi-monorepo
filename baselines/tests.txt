@@ -1,0 +1,2 @@
+app :: apps/app/src/components/thread-screen.test.ts :: ThreadScreen opens a searched message centred, highlighted and paged both ways
+app :: apps/app/src/lib/perf/chat-open-baseline.test.ts :: PRF5 chat open baseline lists the store calls an opening waits on

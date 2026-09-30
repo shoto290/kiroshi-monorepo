@@ -1,8 +1,14 @@
 import type { CSSProperties } from "react"
-import { expect, fn, screen, within } from "storybook/test"
+import { expect, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { probedStyleOf, slotIn } from "@workspace/storybook/story-utils"
+import {
+	isInBrowserRunner,
+	probedStyleOf,
+	realPointer,
+	slotIn,
+	tokenStyleIn,
+} from "@workspace/storybook/story-utils"
 import {
 	AppRail,
 	type AppRailPanel,
@@ -125,17 +131,37 @@ const expectListRowGapBetweenEntries = async (canvasElement: HTMLElement) => {
 
 const verticalCentreOf = (box: DOMRect) => box.top + box.height / 2
 
-const iconColourOf = (entry: HTMLElement) => getComputedStyle(entry).color
+const iconColourOf = (entry: HTMLElement) => {
+	const icon = entry.querySelector("svg")
+	if (!icon) throw new Error(`No icon in ${entry.getAttribute("aria-label")}`)
+	return getComputedStyle(icon).color
+}
 
 const fillOf = (entry: HTMLElement) => getComputedStyle(entry).backgroundColor
+
+const NO_FILL = "rgba(0, 0, 0, 0)"
+
+const railIn = (canvasElement: HTMLElement) => slotIn(canvasElement, "app-rail")
+
+const railEntriesIn = (canvasElement: HTMLElement) =>
+	Array.from(
+		railIn(canvasElement).querySelectorAll<HTMLElement>(
+			'[data-slot="app-rail-item"]',
+		),
+	)
 
 const expectOnlySelected = async (
 	canvasElement: HTMLElement,
 	selected: AppRailPanel,
 ) => {
-	const selectedFill = probedStyleOf("bg-rail-item-selected", "backgroundColor")
-	const selectedInk = probedStyleOf("text-foreground", "color")
-	const idleInk = probedStyleOf("text-muted-foreground", "color")
+	const rail = railIn(canvasElement)
+	const selectedFill = tokenStyleIn(
+		rail,
+		"bg-rail-item-selected",
+		"backgroundColor",
+	)
+	const selectedInk = tokenStyleIn(rail, "text-foreground", "color")
+	const idleInk = tokenStyleIn(rail, "text-muted-foreground", "color")
 	await expect(panelEntriesIn(canvasElement)).toEqual(
 		PANELS.map((panel) => ENTRY_NAMES[panel]),
 	)
@@ -147,9 +173,68 @@ const expectOnlySelected = async (
 			await expect(iconColourOf(entry)).toBe(selectedInk)
 		} else {
 			await expect(entry).not.toHaveAttribute("aria-current")
+			await expect(fillOf(entry)).toBe(NO_FILL)
 			await expect(iconColourOf(entry)).toBe(idleInk)
 		}
 	}
+}
+
+const expectFootLikeIdlePanel = async (
+	canvasElement: HTMLElement,
+	selected: AppRailPanel,
+) => {
+	const idlePanel = PANELS.find((panel) => panel !== selected)
+	if (!idlePanel) throw new Error("No idle panel entry")
+	const idle = entryNamed(canvasElement, ENTRY_NAMES[idlePanel])
+	const gear = entryNamed(canvasElement, SPACE_SETTINGS)
+	await expect(iconColourOf(gear)).toBe(iconColourOf(idle))
+	for (const entry of [gear, entryNamed(canvasElement, READER.name)]) {
+		await expect(entry).not.toHaveAttribute("aria-current")
+		await expect(getComputedStyle(entry).color).toBe(
+			getComputedStyle(idle).color,
+		)
+		await expect(fillOf(entry)).toBe(NO_FILL)
+	}
+}
+
+const expectNoEntryInColour = async (canvasElement: HTMLElement) => {
+	const rail = railIn(canvasElement)
+	const colour = tokenStyleIn(rail, "bg-primary", "backgroundColor")
+	for (const entry of railEntriesIn(canvasElement)) {
+		await expect(fillOf(entry)).not.toBe(colour)
+		await expect(getComputedStyle(entry).color).not.toBe(colour)
+	}
+}
+
+const expectCurrentBesideIdle = async (canvasElement: HTMLElement) =>
+	waitFor(async () => {
+		await expectOnlySelected(canvasElement, OPENING_PANEL)
+		await expectFootLikeIdlePanel(canvasElement, OPENING_PANEL)
+		await expectNoEntryInColour(canvasElement)
+	})
+
+const expectHoverBetweenIdleAndCurrent = async (canvasElement: HTMLElement) => {
+	if (!isInBrowserRunner()) return
+	const rail = railIn(canvasElement)
+	const currentFill = tokenStyleIn(
+		rail,
+		"bg-rail-item-selected",
+		"backgroundColor",
+	)
+	const hoverFill = tokenStyleIn(
+		rail,
+		"bg-rail-item-selected/50",
+		"backgroundColor",
+	)
+	const idle = entryNamed(canvasElement, ENTRY_NAMES.missions)
+	const current = entryNamed(canvasElement, ENTRY_NAMES[OPENING_PANEL])
+	const pointer = await realPointer()
+	await pointer.hover(idle)
+	await waitFor(() => expect(fillOf(idle)).toBe(hoverFill))
+	await expect(hoverFill).not.toBe(currentFill)
+	await pointer.hover(current)
+	await waitFor(() => expect(fillOf(current)).toBe(currentFill))
+	await pointer.unhover(current)
 }
 
 const selecting = (selected: AppRailPanel) => ({
@@ -185,7 +270,7 @@ const meta = preview.meta({
 export const ConversationsSelected = meta.story({
 	...selecting("conversations"),
 	play: async ({ canvasElement }) => {
-		await expectOnlySelected(canvasElement, "conversations")
+		await expectCurrentBesideIdle(canvasElement)
 		await expectBareBottomGroup(canvasElement)
 		await expectListRowGapBetweenEntries(canvasElement)
 		await expect(
@@ -196,13 +281,27 @@ export const ConversationsSelected = meta.story({
 		docs: {
 			description: {
 				story:
-					"The rail as the app opens it. Check the conversation bubble sits on the white 8% fill in the foreground colour while Missions stays muted, that no other panel entry is drawn, and that the space settings gear and the reader's initial hold the foot of the rail.",
+					"The rail as the app opens it, the current entry beside idle ones. Check the conversation bubble sits on the 10% fill in the foreground colour while Missions, the gear and the reader stay muted on no fill, that no other panel entry is drawn, and that the space settings gear and the reader's initial hold the foot of the rail.",
 			},
 		},
 	},
 })
 
 export const MissionsSelected = meta.story(selecting("missions"))
+
+export const IdleEntryHovered = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Missions under the pointer beside the current Conversations entry. Check the hover fill reads at half the current fill, and that the current entry keeps its full fill when the pointer moves onto it.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expectHoverBetweenIdleAndCurrent(canvasElement)
+	},
+})
 
 export const RemovedPanelFallsBackToConversations = meta.story({
 	render: renderInSidebar(REMOVED_PANEL),
@@ -380,6 +479,11 @@ export const KeyboardReach = meta.story({
 		await expect(entryNamed(canvasElement, "Missions")).toHaveFocus()
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onSelectMissions).toHaveBeenCalledTimes(1)
+		for (const entry of railEntriesIn(canvasElement).slice(PANELS.length)) {
+			await userEvent.tab()
+			await expect(entry).toHaveFocus()
+			await expect(getComputedStyle(entry).boxShadow).not.toBe("none")
+		}
 		await userEvent.click(entryNamed(canvasElement, READER.name))
 		await expect(args.onOpenYou).toHaveBeenCalledTimes(1)
 		await userEvent.click(entryNamed(canvasElement, SPACE_SETTINGS))
@@ -427,5 +531,21 @@ export const Dark = meta.story({
 	globals: { theme: "dark" },
 	play: async ({ canvasElement }) => {
 		await expectListRowGapBetweenEntries(canvasElement)
+	},
+})
+
+export const CurrentBesideIdleDark = meta.story({
+	globals: { theme: "dark" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The rail as the app opens it in dark. Check the conversation bubble sits on the 12% fill in the foreground colour while Missions, the gear and the reader stay muted on no fill, and that hovering Missions draws half the current fill.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expectCurrentBesideIdle(canvasElement)
+		await expectHoverBetweenIdleAndCurrent(canvasElement)
 	},
 })

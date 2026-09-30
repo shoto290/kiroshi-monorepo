@@ -693,8 +693,10 @@ layout-workspaceshell--space-tinted-dark
 layout-workspaceshell--tall-content
 layout-workspaceshell--tall-host
 navigation-apprail--conversations-selected
+navigation-apprail--current-beside-idle-dark
 navigation-apprail--dark
 navigation-apprail--first-tab-level-with-panel-title
+navigation-apprail--idle-entry-hovered
 navigation-apprail--keyboard-reach
 navigation-apprail--missions-selected
 navigation-apprail--on-tinted-space
