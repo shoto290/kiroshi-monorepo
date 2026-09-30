@@ -46,7 +46,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A companion drawn as a dithered field that fills the whole rounded tile: square cells in the companion colour on a pale tint of that same colour, no outline, the shape carried by cell density alone. Every companion shares one screen: each cell is a square of one fixed size, its tone carried by opacity in two steps through error diffusion, so the tile reads in three tones of one hue. The density field is the companion's ASCII glyph silhouette, blurred, over a seeded low noise floor, all seeded on the name. The grid holds the same cell count at every size. At work the field drifts and the state motion passes through it; at rest, and under reduced motion, it holds still.",
+					"A companion drawn as a dithered field that fills the whole rounded tile: square cells in the companion colour on the secondary surface tinted with that same colour at the avatar ground strength, so the ground follows the theme, no outline, the shape carried by cell density alone. Every companion shares one screen: each cell is a square of one fixed size, its tone carried by opacity in two steps through error diffusion, so the tile reads in three tones of one hue. The density field is the companion's ASCII glyph silhouette, blurred, over a seeded low noise floor, all seeded on the name. The grid holds the same cell count at every size. At work the field drifts and the state motion passes through it; at rest, and under reduced motion, it holds still.",
 			},
 		},
 	},
@@ -72,7 +72,7 @@ export const OneScreenForEveryCompanion = meta.story({
 		docs: {
 			description: {
 				story:
-					"The avatar as the app draws it, at 40 px: one companion with no colour, which takes the Kiroshi blue, then one per colour. Every tile uses the same screen, so the row reads as one family parted by silhouette and hue. Check that the cells read darker than their pale ground in both themes, and that every tile holds still at rest.",
+					"The avatar as the app draws it, at 40 px: one companion with no colour, which takes the Kiroshi blue, then one per colour. Every tile uses the same screen, so the row reads as one family parted by silhouette and hue. Check that the cells read darker than their ground in light and lighter in dark, that no tile sits on a near-white ground in dark, and that every tile holds still at rest.",
 			},
 		},
 	},
@@ -146,6 +146,43 @@ export const OneGlyphInEveryColour = meta.story({
 	},
 	play: ({ canvasElement }) =>
 		expectOneDrawing(canvasElement, COLOURS.length * 2),
+})
+
+export const GroundInEveryColour = meta.story({
+	render: () => (
+		<div aria-label="Grounds" className="flex flex-wrap gap-4" role="group">
+			{COLOURS.map((tint) => (
+				<div className="flex flex-col items-center gap-2" key={tint ?? "none"}>
+					<DitheredFieldAvatar name={COMPARED_NAME} size={96} tint={tint} />
+					<span className="text-muted-foreground text-xs">
+						{tint ?? "untinted"}
+					</span>
+				</div>
+			))}
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The ground of every colour at 96 px, light above and dark below: the secondary surface mixed with the companion colour at the avatar ground strength, the uncoloured one mixed with the Kiroshi blue. Check that each ground carries a faint cast of its hue, that no dark tile sits on a near-white ground, and that the cells hold on their ground in both themes.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const grounds = Array.from(
+			canvasElement.querySelectorAll<HTMLElement>(
+				'[data-slot="companion-field"]',
+			),
+			(avatar) => getComputedStyle(avatar).backgroundColor,
+		)
+		const light = grounds.slice(0, COLOURS.length)
+		const dark = grounds.slice(COLOURS.length)
+
+		await expect(grounds).toHaveLength(COLOURS.length * 2)
+		for (const [index, ground] of light.entries())
+			await expect(ground).not.toBe(dark[index])
+	},
 })
 
 export const WithoutGround = meta.story({
