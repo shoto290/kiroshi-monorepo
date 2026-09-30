@@ -210,6 +210,16 @@ const expectMarksOnTheTextAxis = async (row: HTMLElement) => {
 	)
 	const gaps = boxes.slice(1).map((box, index) => box.left - boxes[index].right)
 
+	const line = previewIn(row).getBoundingClientRect()
+	for (const [index, mark] of marks.entries()) {
+		const glyph = (mark.querySelector("svg") ?? mark).getBoundingClientRect()
+		await expect(glyph.width).toBe(boxes[index].width)
+		await expect(glyph.height).toBe(boxes[index].height)
+		await expect(glyph.left).toBeGreaterThanOrEqual(line.left)
+		await expect(glyph.top).toBeGreaterThanOrEqual(line.top)
+		await expect(glyph.bottom).toBeLessThanOrEqual(line.bottom)
+	}
+
 	await expect(gaps[0]).toBeGreaterThan(0)
 	for (const gap of gaps) {
 		await expect(gap).toBeCloseTo(gaps[0], 1)

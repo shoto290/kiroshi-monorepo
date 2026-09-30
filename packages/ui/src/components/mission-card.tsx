@@ -71,7 +71,7 @@ const BADGE_OF: Partial<Record<MissionState, BotBadge>> = {
 }
 
 const MARKS_CLASS =
-	"me-[5px] inline-flex h-4 items-center gap-[5px] align-top text-muted-foreground"
+	"me-[5px] inline-flex h-4 items-center gap-[5px] align-top text-muted-foreground [&_svg]:size-[11px]!"
 
 const IDENTIFIER_CLASS = "font-medium tabular-nums"
 
