@@ -39,12 +39,17 @@ const CROSS_FAMILY_PAIRS: TokenPair[] = [
 	{ background: ROOT_PAIR.background, foreground: "--bot-badge-attention" },
 ]
 
-const TOKEN_PAIRS = [ROOT_PAIR, ...SUFFIXED_PAIRS, ...CROSS_FAMILY_PAIRS]
-
 const USER_BUBBLE_PAIR: TokenPair = {
 	background: "--user-bubble",
 	foreground: "--user-bubble-foreground",
 }
+
+const TOKEN_PAIRS = [
+	ROOT_PAIR,
+	...SUFFIXED_PAIRS,
+	...CROSS_FAMILY_PAIRS,
+	USER_BUBBLE_PAIR,
+]
 
 const pairKey = (scheme: ThemeName, pair: TokenPair) =>
 	`${scheme} ${pair.foreground} on ${pair.background}`

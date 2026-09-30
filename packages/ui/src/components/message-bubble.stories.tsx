@@ -14,6 +14,7 @@ import {
 	type BotAvatarBlot,
 	blotTint,
 } from "@workspace/ui/components/companion-colour"
+import { Markdown } from "@workspace/ui/components/markdown"
 import { MessageAttachments } from "@workspace/ui/components/message-attachments"
 import {
 	MessageBubble,
@@ -48,6 +49,11 @@ const SpaceTintScope = ({ blot, children }: SpaceTintScopeProps) => (
 
 const USER_PROMPT =
 	"Summarise yesterday's onboarding call and pull out the follow-ups."
+
+const USER_MARKDOWN_PROMPT =
+	"Check **the export owner** in [the runbook](https://example.com/runbook) before running `bun run migrate`."
+
+const WHITE_INK = "rgb(255, 255, 255)"
 
 const AGENT_REPLY =
 	"Three follow-ups came out of it: send Ada Martin the revised quote, book the migration window, and confirm who owns the data export."
@@ -105,6 +111,11 @@ export const Default = meta.story({
 			<MessageBubble variant="solid" align="end">
 				<MessageBubbleContent>{USER_PROMPT}</MessageBubbleContent>
 			</MessageBubble>
+			<MessageBubble variant="solid" align="end">
+				<MessageBubbleContent>
+					<Markdown>{USER_MARKDOWN_PROMPT}</Markdown>
+				</MessageBubbleContent>
+			</MessageBubble>
 			<MessageBubble variant="soft" align="start">
 				<MessageBubbleContent>{AGENT_REPLY}</MessageBubbleContent>
 			</MessageBubble>
@@ -113,6 +124,16 @@ export const Default = meta.story({
 	play: async ({ canvas }) => {
 		const sent = canvas.getByText(USER_PROMPT).closest("[data-slot]")
 		const received = canvas.getByText(AGENT_REPLY).closest("[data-slot]")
+		const whiteInk = [
+			sent,
+			canvas.getByText("the export owner"),
+			canvas.getByText("the runbook"),
+			canvas.getByText("bun run migrate"),
+		]
+
+		for (const ink of whiteInk) {
+			await expect(ink && getComputedStyle(ink).color).toBe(WHITE_INK)
+		}
 
 		await expect(sent?.closest("[data-align]")).toHaveAttribute(
 			"data-variant",
