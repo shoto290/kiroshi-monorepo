@@ -33,6 +33,13 @@ const supportedEffortsOf = (
 ): BotEffort[] =>
 	models.find((option) => option.value === model)?.supportedEfforts ?? []
 
+const effortKeptFor = (
+	models: BotModelOption[],
+	model: string,
+	effort: BotEffort | null,
+): BotEffort | null =>
+	effort && supportedEffortsOf(models, model).includes(effort) ? effort : null
+
 const RuntimeFields = ({
 	models,
 	model,
@@ -45,8 +52,7 @@ const RuntimeFields = ({
 	const { t } = useTranslation("bots")
 
 	const supportedEfforts = supportedEffortsOf(models, model)
-	const shownEffort =
-		effort && supportedEfforts.includes(effort) ? effort : DEFAULT_EFFORT
+	const shownEffort = effortKeptFor(models, model, effort) ?? DEFAULT_EFFORT
 
 	const effortOptions = [
 		DEFAULT_EFFORT,
@@ -61,17 +67,16 @@ const RuntimeFields = ({
 		value: style,
 	}))
 
-	const changeModel = (next: string) => {
-		const keepsEffort =
-			effort !== null && supportedEffortsOf(models, next).includes(effort)
-		onModelChange({ model: next, effort: keepsEffort ? effort : null })
-	}
-
 	return (
 		<>
 			<SettingsSelect
 				label={t("runtime.model.label")}
-				onValueChange={changeModel}
+				onValueChange={(next) =>
+					onModelChange({
+						model: next,
+						effort: effortKeptFor(models, next, effort),
+					})
+				}
 				options={models}
 				placeholder={t("runtime.model.placeholder")}
 				value={model}
@@ -98,4 +103,4 @@ const RuntimeFields = ({
 	)
 }
 
-export { type BotRuntime, RuntimeFields, type RuntimeFieldsProps }
+export { RuntimeFields, type RuntimeFieldsProps }
