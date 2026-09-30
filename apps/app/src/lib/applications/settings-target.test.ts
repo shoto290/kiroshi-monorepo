@@ -41,6 +41,7 @@ const COMPANION = {
 	title: "Repository archivist",
 	instructions: "",
 	model: "sonnet-4-5",
+	effort: null,
 	permissions: BLANK_BOT_PERMISSIONS,
 }
 
@@ -110,7 +111,13 @@ const OpenedSettings = ({ application }: SettingsProps) =>
 			history: HISTORY,
 			mcpServers: BOT_MCP_SERVERS,
 			mcpServerToOpen: applicationToOpenIn(COMPANION_SCOPE, application),
-			models: [{ label: "Claude Sonnet 4.5", value: "sonnet-4-5" }],
+			models: [
+				{
+					label: "Claude Sonnet 4.5",
+					value: "sonnet-4-5",
+					supportedEfforts: [],
+				},
+			],
 			onAvatarUpload: vi.fn(),
 			onClose: vi.fn(),
 			onDelete: vi.fn(),

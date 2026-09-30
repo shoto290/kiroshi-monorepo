@@ -729,6 +729,7 @@ const bots = {
 		model: {
 			label: "Model",
 			placeholder: "Choose a model",
+			unreadable: "Couldn’t read the models this machine offers.",
 		},
 		effort: {
 			label: "Effort",
