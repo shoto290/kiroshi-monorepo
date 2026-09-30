@@ -5,6 +5,11 @@ export type ProviderCapability =
 	| "modelCatalogue"
 	| "toolCatalogue"
 
+export type OfferedModel = {
+	value: string
+	supportedEffortLevels: string[]
+}
+
 export type ServerEnv = {
 	base?: Record<string, string>
 	perServer?: Record<string, Record<string, string>>
@@ -84,7 +89,7 @@ export type AgentProvider = {
 	signIn: (emit: EmitFrame) => Promise<SignInAnswer>
 	enterSignInCode: (text: string) => void
 	cancelSignIn: () => void
-	models: (connection?: Record<string, string>) => Promise<string[]>
+	models: (connection?: Record<string, string>) => Promise<OfferedModel[]>
 	tools: (connection?: Record<string, string>) => Promise<string[]>
 	title: (
 		text: string,

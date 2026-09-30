@@ -39,7 +39,7 @@ export const commands = {
 	agentSignIn: () => typedError<null, SignInError>(__TAURI_INVOKE("agent_sign_in")),
 	agentSignInCode: (text: string) => typedError<null, SignInError>(__TAURI_INVOKE("agent_sign_in_code", { text })),
 	agentSignInCancel: () => typedError<null, SignInError>(__TAURI_INVOKE("agent_sign_in_cancel")),
-	agentModels: () => __TAURI_INVOKE<string[]>("agent_models"),
+	agentModels: () => __TAURI_INVOKE<OfferedModel_Serialize[]>("agent_models"),
 	agentTools: () => __TAURI_INVOKE<string[]>("agent_tools"),
 	agentTitle: (text: string) => __TAURI_INVOKE<string | null>("agent_title", { text }),
 	agentStartOrResumeSession: (scope: RuntimeScope, resume: string | null, cwd: string | null, outputSchema: null | boolean | number | null | string | Json[] | { [key in string]: Json } | null) => typedError<SessionHandle, TransportError>(__TAURI_INVOKE("agent_start_or_resume_session", { scope, resume, cwd, outputSchema })),
@@ -356,6 +356,7 @@ export type Bot = {
 	changesNothing: boolean,
 	permissions: BotPermissions,
 	outputStyle: string,
+	effort: EffortLevel | null,
 	createdAt: number,
 };
 
@@ -391,6 +392,7 @@ export type BotIdentity = {
 	deniedTools: string[],
 	permissions?: BotPermissions,
 	outputStyle?: string,
+	effort?: EffortLevel | null,
 };
 
 export type BotPermissions = {
@@ -532,6 +534,8 @@ export type Disconnected_Serialize = {
 	revoked: boolean,
 	detail?: string | null,
 };
+
+export type EffortLevel = "low" | "medium" | "high" | "xhigh" | "max";
 
 export type EnvEntry = EnvEntry_Serialize | EnvEntry_Deserialize;
 
@@ -835,6 +839,18 @@ export type OauthError_Deserialize = ({ kind: "alreadyRunning" }) & { body?: nev
 export type OauthError_Serialize = ({ kind: "alreadyRunning" }) & { body?: never; carries?: never; detail?: never; error?: never; status?: never; step?: never; timeoutMs?: never; url?: never } | ({ kind: "cancelled" }) & { body?: never; carries?: never; detail?: never; error?: never; status?: never; step?: never; timeoutMs?: never; url?: never } | ({ kind: "timedOut" }) & { body?: never; carries?: never; detail?: never; error?: never; status?: never; step?: never; timeoutMs?: never; url?: never } | ({ kind: "denied"; detail: string }) & { body?: never; carries?: never; error?: never; status?: never; step?: never; timeoutMs?: never; url?: never } | ({ kind: "browserRefused"; url: string }) & { body?: never; carries?: never; detail?: never; error?: never; status?: never; step?: never; timeoutMs?: never } | ({ kind: "notAuthorizable"; carries: AuthorizationWithheld; detail: string }) & { body?: never; error?: never; status?: never; step?: never; timeoutMs?: never; url?: never } | ({ kind: "refusedUrl"; url: string }) & { body?: never; carries?: never; detail?: never; error?: never; status?: never; step?: never; timeoutMs?: never } | ({ kind: "flowTimedOut"; timeoutMs: number }) & { body?: never; carries?: never; detail?: never; error?: never; status?: never; step?: never; url?: never } | ({ kind: "failed"; detail: string; step?: OauthStep | null; status?: number | null; body?: string | null }) & { carries?: never; error?: never; timeoutMs?: never; url?: never } | ({ kind: "transport"; error: TransportError }) & { body?: never; carries?: never; detail?: never; status?: never; step?: never; timeoutMs?: never; url?: never } | ({ kind: "store"; error: EnvError }) & { body?: never; carries?: never; detail?: never; status?: never; step?: never; timeoutMs?: never; url?: never };
 
 export type OauthStep = "discovery" | "registration" | "tokenExchange";
+
+export type OfferedModel = OfferedModel_Serialize | OfferedModel_Deserialize;
+
+export type OfferedModel_Deserialize = {
+	value: string,
+	supportedEffortLevels?: EffortLevel[],
+};
+
+export type OfferedModel_Serialize = {
+	value: string,
+	supportedEffortLevels: EffortLevel[],
+};
 
 export type Participant = {
 	botId: string,

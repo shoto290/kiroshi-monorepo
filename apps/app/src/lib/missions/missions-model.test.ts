@@ -704,6 +704,7 @@ const bot = (id: string): Bot => ({
 	deniedTools: [],
 	permissions: BLANK_BOT_PERMISSIONS,
 	outputStyle: "",
+	effort: null,
 	createdAt: 1,
 	changesNothing: false,
 	memory: "",

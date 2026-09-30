@@ -8,6 +8,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use crate::db::repositories::conversations::{AvatarBlot, Bot};
 use crate::private_files;
 
+mod effort;
 mod front;
 mod git;
 mod mcp;
@@ -25,6 +26,7 @@ use front::{
 };
 use skill::preloaded;
 
+pub use effort::{supported_effort, EffortLevel};
 pub use git::{Author, ChangedFile, FileChange, HistoryEntry};
 pub use mcp::{
 	mcp_servers, mcp_servers_at, remove_mcp_server, remove_mcp_server_at, set_mcp_server,
@@ -301,6 +303,7 @@ pub struct Generated {
 	pub blot: Option<AvatarBlot>,
 	pub denied_tools: Vec<String>,
 	pub output_style: String,
+	pub effort: Option<EffortLevel>,
 }
 
 pub fn generated(root: &Path, bot_id: &str) -> Option<Generated> {
@@ -311,6 +314,7 @@ pub fn generated(root: &Path, bot_id: &str) -> Option<Generated> {
 	let blot = front_value(&text, COLOR_KEY).and_then(|found| AvatarBlot::parse(found.trim()));
 	let denied_tools = front_denials(&text);
 	let output_style = front_output_style(&text);
+	let effort = front_value(&text, EFFORT_KEY).and_then(|found| EffortLevel::parse(found.trim()));
 	Some(Generated {
 		instructions: body(&text).to_owned(),
 		memory: remembered(&text).to_owned(),
@@ -318,6 +322,7 @@ pub fn generated(root: &Path, bot_id: &str) -> Option<Generated> {
 		blot,
 		denied_tools,
 		output_style,
+		effort,
 	})
 }
 
@@ -340,15 +345,26 @@ pub fn write(root: &Path, bot: &Bot) -> std::io::Result<()> {
 }
 
 fn write_serialised(root: &Path, bot: &Bot) -> std::io::Result<()> {
-	write_styled_serialised(root, bot, &output_style(root, &bot.id))
+	let effort = held_effort(bot, generated(root, &bot.id).as_ref());
+	write_styled_serialised(root, bot, &output_style(root, &bot.id), effort)
 }
 
-pub fn write_styled(root: &Path, bot: &Bot, output_style: &str) -> std::io::Result<()> {
+pub fn write_styled(
+	root: &Path,
+	bot: &Bot,
+	output_style: &str,
+	effort: Option<EffortLevel>,
+) -> std::io::Result<()> {
 	let _serialised = serialised(&dir(root, &bot.id));
-	write_styled_serialised(root, bot, output_style)
+	write_styled_serialised(root, bot, output_style, effort)
 }
 
-fn write_styled_serialised(root: &Path, bot: &Bot, output_style: &str) -> std::io::Result<()> {
+fn write_styled_serialised(
+	root: &Path,
+	bot: &Bot,
+	output_style: &str,
+	effort: Option<EffortLevel>,
+) -> std::io::Result<()> {
 	write_briefed(
 		root,
 		bot,
@@ -357,6 +373,7 @@ fn write_styled_serialised(root: &Path, bot: &Bot, output_style: &str) -> std::i
 			memory: &kept_memory(root, bot),
 			output_style,
 			denied: &bot.denied_tools,
+			effort,
 		},
 	)?;
 	settled(root, bot);
@@ -429,6 +446,7 @@ struct Written<'a> {
 	memory: &'a str,
 	output_style: &'a str,
 	denied: &'a [String],
+	effort: Option<EffortLevel>,
 }
 
 fn write_briefed(root: &Path, bot: &Bot, written: Written) -> std::io::Result<()> {
@@ -688,6 +706,8 @@ fn agent(mut parts: Parts, root: &Path, bot: &Bot, written: Written) -> String {
 	parts.front = keyed_line(&parts.front, MODEL_KEY, &model_value(&bot.model));
 	parts.front = keyed_line(&parts.front, COLOR_KEY, &color_value(bot.avatar_blot));
 	parts.front = keyed_line(&parts.front, DISALLOWED_KEY, &denial_value(written.denied));
+	parts.front =
+		keyed_line(&parts.front, EFFORT_KEY, written.effort.map_or("", EffortLevel::named));
 	parts.front = with_key(&parts.front, &[METADATA_KEY, OWNER_KEY], &quoted(&bot.id));
 	parts.front = with_key(
 		&parts.front,
@@ -800,7 +820,16 @@ fn rewrite_agent_holding(root: &Path, bot: &Bot, memory: &str) -> std::io::Resul
 	let brief = held.as_ref().map_or(&bot.instructions, |held| &held.instructions);
 	let style = held.as_ref().map_or(DEFAULT_OUTPUT_STYLE, |held| held.output_style.as_str());
 	let denied = also_denied(bot, held.as_ref());
-	write_briefed(root, bot, Written { brief, memory, output_style: style, denied: &denied })
+	let effort = held_effort(bot, held.as_ref());
+	write_briefed(
+		root,
+		bot,
+		Written { brief, memory, output_style: style, denied: &denied, effort },
+	)
+}
+
+fn held_effort(bot: &Bot, held: Option<&Generated>) -> Option<EffortLevel> {
+	held.map_or(bot.effort, |held| held.effort)
 }
 
 fn also_denied(bot: &Bot, held: Option<&Generated>) -> Vec<String> {
@@ -929,6 +958,7 @@ mod tests {
 			denied_tools: Vec::new(),
 			permissions: None,
 			created_at: 1,
+			effort: None,
 		}
 	}
 
@@ -1280,6 +1310,7 @@ mod tests {
 				memory: "",
 				output_style: DEFAULT_OUTPUT_STYLE,
 				denied: &bot.denied_tools,
+				effort: None,
 			},
 		);
 
@@ -1293,7 +1324,7 @@ mod tests {
 	fn the_style_a_reader_picks_is_the_style_the_file_carries() {
 		let root = a_root("styled");
 		let bot = a_bot("Bean", "Answer briefly.");
-		write_styled(&root, &bot, "default").expect("the bundle is written");
+		write_styled(&root, &bot, "default", None).expect("the bundle is written");
 
 		assert_eq!(output_style(&root, &bot.id), "default");
 		assert_eq!(
@@ -1304,11 +1335,69 @@ mod tests {
 		let _ = fs::remove_dir_all(&root);
 	}
 
+	fn agent_text(root: &Path, bot_id: &str) -> String {
+		fs::read_to_string(agent_file(root, bot_id).expect("the agent file")).expect("it reads")
+	}
+
+	#[test]
+	fn an_effort_written_to_the_front_reads_back_as_the_same_level() {
+		let root = a_root("effort-round-trip");
+		let bot = a_bot("Bean", "Answer briefly.");
+
+		for level in [
+			EffortLevel::Low,
+			EffortLevel::Medium,
+			EffortLevel::High,
+			EffortLevel::Xhigh,
+			EffortLevel::Max,
+		] {
+			write_styled(&root, &bot, "default", Some(level)).expect("the bundle is written");
+
+			let read = generated(&root, &bot.id).expect("the file is read back");
+			assert_eq!(read.effort, Some(level));
+			let line = format!("\neffort: {}\n", level.named());
+			assert_eq!(agent_text(&root, &bot.id).matches(&line).count(), 1, "no single {line}");
+		}
+
+		let _ = fs::remove_dir_all(&root);
+	}
+
+	#[test]
+	fn a_cleared_effort_takes_the_key_out_of_the_front() {
+		let root = a_root("effort-cleared");
+		let bot = a_bot("Bean", "Answer briefly.");
+		write_styled(&root, &bot, "default", Some(EffortLevel::High))
+			.expect("the bundle is written");
+
+		write_styled(&root, &bot, "default", None).expect("the bundle is written again");
+
+		assert_eq!(generated(&root, &bot.id).expect("the file is read back").effort, None);
+		assert!(!agent_text(&root, &bot.id).contains("effort:"), "the key outlived the clear");
+
+		let _ = fs::remove_dir_all(&root);
+	}
+
+	#[test]
+	fn a_rewrite_that_names_no_effort_keeps_the_one_on_the_disk() {
+		let root = a_root("effort-kept");
+		let mut bot = a_bot("Bean", "Answer briefly.");
+		write_styled(&root, &bot, "default", Some(EffortLevel::Low))
+			.expect("the bundle is written");
+
+		bot.effort = Some(EffortLevel::Max);
+		write(&root, &bot).expect("the bundle is written again");
+
+		let read = generated(&root, &bot.id).expect("the file is read back");
+		assert_eq!(read.effort, Some(EffortLevel::Low));
+
+		let _ = fs::remove_dir_all(&root);
+	}
+
 	#[test]
 	fn a_write_that_names_no_style_keeps_the_one_on_the_disk() {
 		let root = a_root("styled-kept");
 		let mut bot = a_bot("Bean", "Answer briefly.");
-		write_styled(&root, &bot, "default").expect("the bundle is written");
+		write_styled(&root, &bot, "default", None).expect("the bundle is written");
 
 		bot.name = "Fig".to_owned();
 		write(&root, &bot).expect("the bundle is written again");
@@ -2418,7 +2507,7 @@ mod tests {
 			write(root, &a_bot("Bean", label)).expect("the bundle is written");
 		});
 		commits_at_once("at-once-styled", nothing_prepared, |root, bot, label| {
-			write_styled(root, bot, label).expect("the bundle is written");
+			write_styled(root, bot, label, None).expect("the bundle is written");
 		});
 		commits_at_once("at-once-remembered", nothing_prepared, |root, bot, label| {
 			write_remembered(root, bot, label).expect("the memory is written");

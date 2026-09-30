@@ -1,4 +1,5 @@
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
@@ -382,10 +383,13 @@ pub struct Checked {
 	pub auth_method: Option<String>,
 }
 
-pub fn listed(command: &str, answer: Value) -> Result<Vec<String>, serde_json::Error> {
+pub fn listed<Item: DeserializeOwned>(
+	command: &str,
+	answer: Value,
+) -> Result<Vec<Item>, serde_json::Error> {
 	let mut fields: serde_json::Map<String, Value> = serde_json::from_value(answer)?;
 	let list = fields.remove(command).unwrap_or(Value::Null);
-	Ok(serde_json::from_value::<Option<Vec<String>>>(list)?.unwrap_or_default())
+	Ok(serde_json::from_value::<Option<Vec<Item>>>(list)?.unwrap_or_default())
 }
 
 #[derive(Debug, Clone, Deserialize)]

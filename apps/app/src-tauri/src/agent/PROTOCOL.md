@@ -199,7 +199,11 @@ field is absent; `authMethod` is the method the probe names, carried to the
 could not be answered at all, which reaches the frontend as `authCheckFailed`
 rather than as `notAuthenticated`. `models` is `Query.supportedModels()`, asked of
 a session opened for nothing else and closed again — there is no file to read and
-no endpoint to ask.
+no endpoint to ask. Each entry of the answer is `{ value, supportedEffortLevels }`,
+`default` left out: `supportedEffortLevels` is the SDK list when `supportsEffort` is
+true and empty otherwise. The host drops a level it has no name for, and writes a
+companion's `effort` into its `agent.md` only when the catalogue lists that level for
+its model, or has not answered for that model at all.
 
 `tools` is the `tools` of the `init` frame, taken off a session opened for nothing
 else and closed the moment the frame lands. No control request answers it, and the

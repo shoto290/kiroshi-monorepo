@@ -395,6 +395,7 @@ mod tests {
 			avatar_image_path: None,
 			instructions: "Answer briefly.".to_owned(),
 			denied_tools: Vec::new(),
+			effort: None,
 		};
 		let bot = database
 			.conversations()

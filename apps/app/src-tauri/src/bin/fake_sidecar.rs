@@ -753,8 +753,14 @@ fn method_of(connection: &Value) -> Option<&'static str> {
 	connection.get("CLAUDE_CODE_OAUTH_TOKEN").map(|_| "oauth_token")
 }
 
-fn models() -> Vec<String> {
-	named_list("FAKE_AGENT_MODELS")
+fn models() -> Vec<Value> {
+	named_list("FAKE_AGENT_MODELS").iter().map(|named| offered_model(named)).collect()
+}
+
+fn offered_model(named: &str) -> Value {
+	let (value, levels) = named.split_once('=').unwrap_or((named, ""));
+	let levels: Vec<&str> = levels.split('+').filter(|level| !level.is_empty()).collect();
+	json!({ "value": value, "supportedEffortLevels": levels })
 }
 
 fn tools() -> Vec<String> {

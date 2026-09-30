@@ -6,8 +6,8 @@ use tauri::{AppHandle, Manager, Runtime, State};
 use tokio::sync::Mutex;
 
 use super::contract::{
-	AgentEvent, CheckReport, ConnectionState, EvolvedBundle, LiveSession, PermissionDecision,
-	RuntimeScope, ScopedEvent, SessionHandle, SubmittedTurn, TransportError,
+	AgentEvent, CheckReport, ConnectionState, EvolvedBundle, LiveSession, OfferedModel,
+	PermissionDecision, RuntimeScope, ScopedEvent, SessionHandle, SubmittedTurn, TransportError,
 };
 use super::host::hosted;
 use super::protocol::{self, Checked};
@@ -317,19 +317,19 @@ pub struct AgentState {
 	gate: std::sync::Mutex<Gate>,
 	live: Arc<Live>,
 	sidecar: Mutex<Option<Arc<Sidecar>>>,
-	models: Catalogue,
-	tools: Catalogue,
+	models: Catalogue<OfferedModel>,
+	tools: Catalogue<String>,
 	host_writes: Arc<HostWrites>,
 }
 
-struct Catalogue {
+struct Catalogue<Item> {
 	command: &'static str,
-	computed: Mutex<Option<ComputedCatalogue>>,
+	computed: Mutex<Option<ComputedCatalogue<Item>>>,
 }
 
-struct ComputedCatalogue {
+struct ComputedCatalogue<Item> {
 	source: Values,
-	list: Vec<String>,
+	list: Vec<Item>,
 }
 
 impl Default for AgentState {
@@ -345,18 +345,23 @@ impl Default for AgentState {
 	}
 }
 
-impl Catalogue {
+impl<Item: Clone> Catalogue<Item> {
 	fn of(command: &'static str) -> Self {
 		Self { command, computed: Mutex::default() }
+	}
+
+	async fn held(&self, connection: &Values) -> Option<Vec<Item>> {
+		let computed = self.computed.lock().await;
+		computed.as_ref().filter(|held| &held.source == connection).map(|held| held.list.clone())
 	}
 
 	async fn served<Computing>(
 		&self,
 		connection: &Values,
 		computing: impl FnOnce() -> Computing,
-	) -> Vec<String>
+	) -> Vec<Item>
 	where
-		Computing: std::future::Future<Output = Vec<String>>,
+		Computing: std::future::Future<Output = Vec<Item>>,
 	{
 		let mut computed = self.computed.lock().await;
 		if let Some(held) = computed.as_ref().filter(|held| &held.source == connection) {
@@ -403,7 +408,11 @@ impl AgentState {
 		self.sidecar.lock().await.take()
 	}
 
-	async fn offered(&self, catalogue: &Catalogue, connection: &Values) -> Vec<String> {
+	async fn offered<Item: Clone + serde::de::DeserializeOwned>(
+		&self,
+		catalogue: &Catalogue<Item>,
+		connection: &Values,
+	) -> Vec<Item> {
 		catalogue
 			.served(connection, || async {
 				let Ok(sidecar) = self.sidecar().await else {
@@ -440,9 +449,21 @@ fn stale(scope: &RuntimeScope) -> TransportError {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn agent_models<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
+pub async fn agent_models<R: Runtime>(app: AppHandle<R>) -> Vec<OfferedModel> {
 	let state = app.state::<AgentState>();
 	state.offered(&state.models, &held_connection(&app)).await
+}
+
+pub async fn supported_effort_levels<R: Runtime>(
+	app: &AppHandle<R>,
+	model: &str,
+) -> Option<Vec<bundles::EffortLevel>> {
+	let state = app.try_state::<AgentState>()?;
+	let offered = state.models.held(&held_connection(app)).await?;
+	offered
+		.into_iter()
+		.find(|offered| offered.value == model)
+		.map(|offered| offered.supported_effort_levels)
 }
 
 #[tauri::command]
@@ -971,7 +992,7 @@ mod tests {
 	}
 
 	async fn computed(
-		catalogue: &Catalogue,
+		catalogue: &Catalogue<String>,
 		connection: &Values,
 		asks: &std::sync::atomic::AtomicUsize,
 		list: &[&str],
@@ -1093,6 +1114,7 @@ mod tests {
 			denied_tools: Vec::new(),
 			permissions: None,
 			created_at: 1,
+			effort: None,
 		}
 	}
 

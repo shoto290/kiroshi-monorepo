@@ -7,7 +7,8 @@ use std::time::{Duration, Instant};
 use kiroshi_app::agent::commands::start_with_fallback;
 use kiroshi_app::agent::contract::{
 	ActivityKind, ActivityStatus, AgentCommand, AgentEvent, ConnectionState, MessageCompletion,
-	PermissionDecision, PermissionRequest, QuestionRequest, TransportError, TurnOutcome, TurnState,
+	OfferedModel, PermissionDecision, PermissionRequest, QuestionRequest, TransportError,
+	TurnOutcome, TurnState,
 };
 use kiroshi_app::agent::protocol::AuthorizeRequest;
 use kiroshi_app::agent::session::{EventSink, Session, SessionOptions, PARTIAL_MESSAGES};
@@ -206,6 +207,10 @@ async fn streams_a_normal_turn_and_closes_it() {
 	harness.session.shutdown().await;
 }
 
+fn values(offered: Vec<OfferedModel>) -> Vec<String> {
+	offered.into_iter().map(|model| model.value).collect()
+}
+
 #[tokio::test]
 async fn the_install_is_asked_of_the_sidecar_the_sessions_are_served_from() {
 	let live = sidecar_with(&[("FAKE_AGENT_MODELS", "quasar,nimbus-preview")]).await;
@@ -213,7 +218,10 @@ async fn the_install_is_asked_of_the_sidecar_the_sessions_are_served_from() {
 	assert!(
 		live.checked(&Values::new()).await.expect("the sign-in probe answers").authenticated
 	);
-	assert_eq!(live.catalogue(&Values::new()).await.expect("the catalogue answers"), ["quasar", "nimbus-preview"]);
+	assert_eq!(
+		values(live.catalogue(&Values::new()).await.expect("the catalogue answers")),
+		["quasar", "nimbus-preview"]
+	);
 
 	let mut harness = start_on(live, options("normal")).await.expect("session starts");
 	harness.submit("bonjour").await.expect("prompt accepted");
@@ -229,8 +237,8 @@ async fn two_asks_landing_together_are_both_answered() {
 	let (first, second) =
 		tokio::join!(live.catalogue(&nothing_held), live.catalogue(&nothing_held));
 
-	assert_eq!(first.expect("the first ask answers"), ["quasar"]);
-	assert_eq!(second.expect("the second ask answers"), ["quasar"]);
+	assert_eq!(values(first.expect("the first ask answers")), ["quasar"]);
+	assert_eq!(values(second.expect("the second ask answers")), ["quasar"]);
 	live.shutdown().await;
 }
 

@@ -1,12 +1,14 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use kiroshi_app::agent::contract::OfferedModel;
 use kiroshi_app::agent::protocol::{
 	listed, Authorized, Checked, ContentBlock, ContentDelta, ControlRequestBody, Envelope, Frame,
 	OauthFailureKind, OauthStarted, OauthStep, Ready, Revoked, SignInFailureKind, SignedIn,
 	StreamEvent, Titled,
 };
 use kiroshi_app::bundles;
+use kiroshi_app::bundles::EffortLevel;
 use kiroshi_app::routines::sources::stacked;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -217,13 +219,26 @@ fn sessionless_name(value: Value) -> String {
 		}
 		"models" => {
 			assert_eq!(
-				listed("models", value).expect("the catalogue reads"),
-				["claude-sonnet-4-5", "claude-opus-4-1"]
+				listed::<OfferedModel>("models", value).expect("the catalogue reads"),
+				[
+					OfferedModel {
+						value: "claude-sonnet-4-5".to_owned(),
+						supported_effort_levels: vec![
+							EffortLevel::Low,
+							EffortLevel::Medium,
+							EffortLevel::High
+						],
+					},
+					OfferedModel {
+						value: "claude-opus-4-1".to_owned(),
+						supported_effort_levels: Vec::new(),
+					},
+				]
 			);
 		}
 		"tools" => {
 			assert_eq!(
-				listed("tools", value).expect("the catalogue reads"),
+				listed::<String>("tools", value).expect("the catalogue reads"),
 				["Read", "Write", "WebFetch"]
 			);
 		}
