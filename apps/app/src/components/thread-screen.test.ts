@@ -1263,6 +1263,7 @@ describe("ThreadScreen", () => {
 	afterEach(() => {
 		cleanup()
 		layout.restore()
+		onCaptionWindow.mockReturnValue(false)
 	})
 
 	it("opens the routines of a solo companion thread on its main conversation", async () => {
@@ -1290,7 +1291,6 @@ describe("ThreadScreen", () => {
 		onCaptionWindow.mockReturnValue(true)
 		render(screenOf(threadOf({ id: "bot-1", name: "Nyx", said: "held" })))
 		await settle()
-		onCaptionWindow.mockReturnValue(false)
 
 		const header = within(screen.getByRole("banner"))
 		expect(header.queryByRole("button", { name: "Minimize" })).toBeNull()
