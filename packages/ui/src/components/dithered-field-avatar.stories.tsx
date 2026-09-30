@@ -5,7 +5,11 @@ import {
 	playCompanionStatesRoster,
 } from "@workspace/storybook/companion-states-roster"
 import preview from "@workspace/storybook/preview"
-import { drawingOf, recordLitCells } from "@workspace/storybook/story-utils"
+import {
+	companionGlyphs,
+	drawingOf,
+	recordLitCells,
+} from "@workspace/storybook/story-utils"
 import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
 import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
 import { contrastRatio, type Rgb } from "@workspace/ui/lib/contrast"
@@ -40,11 +44,6 @@ const expectOneDrawing = async (root: HTMLElement, count: number) => {
 	await waitFor(() => expect(drawingOf(canvases[0])).not.toBe(""))
 	await expect(new Set(canvases.map(drawingOf)).size).toBe(1)
 }
-
-const framesIn = (root: HTMLElement) =>
-	Array.from(
-		root.querySelectorAll<HTMLElement>('[data-slot="companion-field"]'),
-	)
 
 const schemeOf = (frame: HTMLElement) =>
 	frame.closest(".dark") ? "dark" : "light"
@@ -186,7 +185,7 @@ export const OneGlyphInEveryColour = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		await expectOneDrawing(canvasElement, COLOURS.length * 2)
-		const frames = framesIn(canvasElement)
+		const frames = companionGlyphs(canvasElement)
 		const pixel = createPixel()
 		const faint = frames
 			.map((frame, index) => ({
