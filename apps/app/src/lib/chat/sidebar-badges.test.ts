@@ -117,46 +117,22 @@ describe("toRailSignals", () => {
 			spaceId,
 		})
 
-	it("counts the conversations of the space carrying a badge", () => {
-		const { counts } = signalsOf({
+	it("dots Conversations while a conversation of the space carries a badge", () => {
+		const badgedSpace = signalsOf({
 			conversations: {
 				vocca: badged(["attention", undefined, "done", "failed"]),
 			},
 		})
-		expect(counts.conversations).toBe(3)
-	})
-
-	it("counts nothing when no conversation carries a badge", () => {
-		const { counts } = signalsOf({
+		const quietSpace = signalsOf({
 			conversations: { vocca: badged([undefined, undefined]) },
 		})
-		expect(counts.conversations).toBe(0)
+		expect(badgedSpace.conversations).toBe(true)
+		expect(quietSpace.conversations).toBe(false)
 	})
 
-	it("dots Conversations while a conversation of the space asks for attention", () => {
-		const asking = signalsOf({
-			conversations: { vocca: badged(["done", "attention"]) },
-		})
-		const settled = signalsOf({
-			conversations: { vocca: badged(["done", "failed"]) },
-		})
-		expect(asking.dots.conversations).toBe(true)
-		expect(settled.dots.conversations).toBe(false)
-	})
-
-	it("counts on Missions the missions of the space waiting on the reader", () => {
-		const { counts } = signalsOf({ waitingMissionCount: 3 })
-		expect(counts.missions).toBe(3)
-	})
-
-	it("counts nothing on Missions when no mission waits on the reader", () => {
-		const { counts } = signalsOf({ waitingMissionCount: 0 })
-		expect(counts.missions).toBe(0)
-	})
-
-	it("never dots Missions", () => {
-		const { dots } = signalsOf({ waitingMissionCount: 2 })
-		expect(dots).not.toHaveProperty("missions")
+	it("dots Missions while a mission of the space waits on the reader", () => {
+		expect(signalsOf({ waitingMissionCount: 3 }).missions).toBe(true)
+		expect(signalsOf({ waitingMissionCount: 0 }).missions).toBe(false)
 	})
 
 	it("reads the conversation signals of the selected space only", () => {
@@ -165,33 +141,24 @@ describe("toRailSignals", () => {
 		}
 		const vocca = signalsOf({ ...sources, spaceId: "vocca" })
 		const atlas = signalsOf({ ...sources, spaceId: "atlas" })
-		expect(vocca).toEqual({
-			counts: { conversations: 0, missions: 0 },
-			dots: { conversations: false },
-		})
-		expect(atlas).toEqual({
-			counts: { conversations: 2, missions: 0 },
-			dots: { conversations: true },
-		})
+		expect(vocca).toEqual({ conversations: false, missions: false })
+		expect(atlas).toEqual({ conversations: true, missions: false })
 	})
 
 	it("signals nothing on Companions and Applications", () => {
-		const { counts, dots } = signalsOf({
+		const dots = signalsOf({
 			conversations: { vocca: badged(["attention"]) },
 			waitingMissionCount: 1,
 		})
-		expect(counts).not.toHaveProperty("companions")
-		expect(counts).not.toHaveProperty("applications")
 		expect(dots).not.toHaveProperty("companions")
 		expect(dots).not.toHaveProperty("applications")
 	})
 
 	it("signals nothing when no space is selected", () => {
-		const { counts, dots } = signalsOf({
+		const dots = signalsOf({
 			conversations: { vocca: badged(["attention"]) },
 			spaceId: null,
 		})
-		expect(counts.conversations).toBe(0)
-		expect(dots).toEqual({ conversations: false })
+		expect(dots).toEqual({ conversations: false, missions: false })
 	})
 })

@@ -99,8 +99,7 @@ export function App() {
 						conversations={rosterLists.rosterConversations}
 						conversationsBySpaceId={rosterLists.rosterConversationsBySpace}
 						badgesBySpaceId={rosterLists.badgesBySpaceId}
-						railCounts={rosterLists.railSignals.counts}
-						railDots={rosterLists.railSignals.dots}
+						railDots={rosterLists.railSignals}
 						missionsBySpaceId={sidebarMissions.panelsBySpaceId}
 						openPanel={sidebarTab.openTab}
 						onOpenPanelChange={sidebarTab.openSidebarTab}

@@ -19,7 +19,6 @@ import { useTranslation } from "react-i18next"
 
 import {
 	AppRail,
-	type AppRailCounts,
 	type AppRailDots,
 	type AppRailPanel,
 	NAVIGATION_ROW_GAP,
@@ -1815,7 +1814,6 @@ interface AppSidebarProps
 	onSearchMissions?: () => void
 	insetWindowControls?: boolean
 	windowControls?: ReactNode
-	railCounts?: AppRailCounts
 	railDots?: AppRailDots
 	openPanel?: string
 	onOpenPanelChange?: (panel: AppRailPanel) => void
@@ -1865,7 +1863,6 @@ const AppSidebarBase = ({
 	onSearchMissions,
 	insetWindowControls = false,
 	windowControls,
-	railCounts,
 	railDots,
 	openPanel: controlledPanel,
 	onOpenPanelChange,
@@ -2081,7 +2078,6 @@ const AppSidebarBase = ({
 				) : null}
 			</div>
 			<AppRail
-				counts={railCounts}
 				data-tauri-drag-region={dragRegion}
 				dots={railDots}
 				onOpenSpaceSettings={onOpenSpaceSettings}

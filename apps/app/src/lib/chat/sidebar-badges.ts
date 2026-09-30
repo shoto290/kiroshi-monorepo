@@ -1,7 +1,4 @@
-import type {
-	AppRailCounts,
-	AppRailDots,
-} from "@workspace/ui/components/app-rail"
+import type { AppRailDots } from "@workspace/ui/components/app-rail"
 import type { BotBadge as ShownBadge } from "@workspace/ui/components/bot-badge"
 
 import type { BotBadge } from "./bot-badge"
@@ -69,29 +66,19 @@ type RailSources = {
 	spaceId: string | null
 }
 
-type RailSignals = {
-	counts: AppRailCounts
-	dots: AppRailDots
-}
-
 const NO_CONVERSATIONS: BadgeCarrier[] = []
 
 export const toRailSignals = ({
 	conversationsBySpaceId,
 	waitingMissionCount,
 	spaceId,
-}: RailSources): RailSignals => {
+}: RailSources): AppRailDots => {
 	const conversations =
 		spaceId === null
 			? NO_CONVERSATIONS
 			: (conversationsBySpaceId[spaceId] ?? NO_CONVERSATIONS)
 	return {
-		counts: {
-			conversations: conversations.filter((row) => row.badge).length,
-			missions: waitingMissionCount,
-		},
-		dots: {
-			conversations: conversations.some((row) => row.badge === "attention"),
-		},
+		conversations: conversations.some((row) => row.badge),
+		missions: waitingMissionCount > 0,
 	}
 }

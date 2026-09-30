@@ -72,9 +72,6 @@ const bots = {
 		searchMissions: "Rechercher des missions",
 		spaceSettings: "Réglages de l’espace",
 		dot: "{{name}}, nouvelle activité",
-		count_one: "{{name}}, {{count}} nouveau",
-		count_many: "{{name}}, {{count}} nouveaux",
-		count_other: "{{name}}, {{count}} nouveaux",
 	},
 	spaces: {
 		label: "Espaces",
