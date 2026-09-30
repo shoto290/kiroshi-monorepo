@@ -592,23 +592,6 @@ const stopOf = (speaking: SpeakingBot) => () => {
 	void speaking.stop()
 }
 
-type SpeakerStops = ReadonlyMap<string, () => void>
-
-const NO_SPEAKER_STOPS: SpeakerStops = new Map()
-
-const speakerStopsOf = (thread: LoadedThread): SpeakerStops =>
-	thread.kind === "conversation"
-		? new Map(
-				thread.state.speakers.map((speaking) => [
-					speaking.botId,
-					stopOf(speaking),
-				]),
-			)
-		: NO_SPEAKER_STOPS
-
-const stopOfRow = (row: TranscriptRow, stops: SpeakerStops) =>
-	row.authorBotId ? stops.get(row.authorBotId) : undefined
-
 type ThreadRunProps = {
 	run: TranscriptRow[]
 	presentation: RunPresentation
@@ -621,7 +604,6 @@ type ThreadRunProps = {
 	quotes: ThreadQuotes
 	pins: PinnedBubbles
 	toQuote: ThreadNaming["toQuote"]
-	speakerStops: SpeakerStops
 	onReply: (target: ReplyTarget) => void
 	onRetry?: (messageId: string) => void
 }
@@ -638,7 +620,6 @@ const ThreadRun = ({
 	quotes,
 	pins,
 	toQuote,
-	speakerStops,
 	onReply,
 	onRetry,
 }: ThreadRunProps) => (
@@ -668,7 +649,6 @@ const ThreadRun = ({
 					onPin={pins.toggle}
 					onReply={onReply}
 					onRetry={onRetry}
-					onStop={stopOfRow(row, speakerStops)}
 					pinned={pins.isPinned(bubble)}
 					quoted={
 						row.quotedMessageId ? quotes.get(row.quotedMessageId) : undefined
@@ -1518,7 +1498,6 @@ const threadRowsOf = (
 		rejectedPromptId: facts.rejectedPromptId,
 		responder: promptResponder,
 		runs,
-		speakerStops: speakerStopsOf(thread),
 		toQuote,
 	})
 	const missionFace = missionSeat

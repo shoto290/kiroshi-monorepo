@@ -1,6 +1,5 @@
 import { memo, type ReactNode } from "react"
 
-import type { BotStopProps } from "@workspace/ui/components/bot-identity-avatar"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import type { QuotedMessage } from "@workspace/ui/components/message-quote"
 import {
@@ -39,7 +38,6 @@ type ThreadTurnProps = {
 	onPin: (messageId: string, blockIndex: number) => void
 	onReply: (target: ReplyTarget) => void
 	onRetry?: (messageId: string) => void
-	onStop?: () => void
 }
 
 export const ThreadTurn = memo(function ThreadTurn({
@@ -60,13 +58,11 @@ export const ThreadTurn = memo(function ThreadTurn({
 	onPin,
 	onReply,
 	onRetry,
-	onStop,
 }: ThreadTurnProps) {
 	probeRender("ThreadTurn", anchor)
 	const { text, attachments } = messageWithAttachments(row.text)
 	const content = asking ?? <TurnBody attachments={attachments} text={text} />
 	const repliedTo = quoted ? toQuote(quoted) : undefined
-	const stop: BotStopProps = onStop ? { stoppable: true, onStop } : {}
 	const pin = () => {
 		onPin(row.messageId, row.blockIndex)
 	}
@@ -99,7 +95,6 @@ export const ThreadTurn = memo(function ThreadTurn({
 
 	return (
 		<AssistantTurn
-			{...stop}
 			author={author}
 			cause={cause}
 			identity={avatarFace}

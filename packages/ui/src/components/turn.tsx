@@ -13,8 +13,6 @@ import { useTranslation } from "react-i18next"
 import {
 	BotIdentityAvatar,
 	BotSelectButton,
-	BotStopButton,
-	type BotStopProps,
 } from "@workspace/ui/components/bot-identity-avatar"
 import { CompanionMenuHost } from "@workspace/ui/components/companion-menu"
 import { useCompanionSelect } from "@workspace/ui/components/companion-select"
@@ -102,7 +100,7 @@ interface UserTurnProps {
 	className?: string
 }
 
-type AssistantTurnProps = BotStopProps & {
+type AssistantTurnProps = {
 	children: ReactNode
 	state?: TurnState
 	run?: TurnRun
@@ -451,25 +449,17 @@ function AssistantTurn(props: AssistantTurnProps) {
 			size={TURN_AVATAR_SIZE}
 		/>
 	) : null
-	const control = !gutterBot ? null : props.stoppable ? (
-		<BotStopButton
-			image={gutterBot.image}
-			name={gutterBot.name}
-			onStop={props.onStop}
-			size={TURN_AVATAR_SIZE}
-		>
-			{mark}
-		</BotStopButton>
-	) : onSelectCompanion ? (
-		<BotSelectButton
-			image={gutterBot.image}
-			name={gutterBot.name}
-			onSelect={() => onSelectCompanion(gutterBot.id)}
-			size={TURN_AVATAR_SIZE}
-		>
-			{mark}
-		</BotSelectButton>
-	) : null
+	const control =
+		gutterBot && onSelectCompanion ? (
+			<BotSelectButton
+				image={gutterBot.image}
+				name={gutterBot.name}
+				onSelect={() => onSelectCompanion(gutterBot.id)}
+				size={TURN_AVATAR_SIZE}
+			>
+				{mark}
+			</BotSelectButton>
+		) : null
 
 	return (
 		<Message
