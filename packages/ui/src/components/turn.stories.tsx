@@ -5,7 +5,6 @@ import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
 	expectCompanionPictureShape,
-	expectCompanionSilhouette,
 	shown,
 	slotIn,
 	slotsIn,
@@ -25,7 +24,6 @@ import type { RosterMenuSection } from "@workspace/ui/components/roster-menu-ite
 import type { Space } from "@workspace/ui/components/space"
 import {
 	AssistantTurn,
-	TURN_AVATAR_SIZE,
 	type TurnCause,
 	TurnGroup,
 	type TurnState,
@@ -191,59 +189,9 @@ const NO_SECTIONS: RosterMenuSection[] = []
 
 const stopTurn = fn()
 
-const expectNoStop = async (
-	canvas: ReturnType<typeof within>,
-	canvasElement: HTMLElement,
-) => {
-	const [gutter] = slotsIn(canvasElement, "message-gutter")
-
-	await expect(canvas.queryByRole("button", { name: /^Stop/ })).toBeNull()
-	await expect(gutter).toHaveAttribute("aria-hidden", "true")
-}
-
-const expectStop = async (
-	canvas: ReturnType<typeof within>,
-	canvasElement: HTMLElement,
-) => {
-	const [gutter] = slotsIn(canvasElement, "message-gutter")
-	const stop = canvas.getByRole("button", { name: `Stop ${LEAD.name}` })
-
-	await expect(gutter).not.toHaveAttribute("aria-hidden")
-	stop.focus()
-	await expect(stop).toHaveFocus()
-}
-
 const PICTURED: MessageAuthor = { ...LEAD, image: UPLOADED_AVATAR_IMAGE }
 
 const PARTIAL = ANSWER.slice(0, 48)
-
-type StoppableTurnProps = {
-	state: TurnState
-	stoppable?: boolean
-	author?: MessageAuthor
-}
-
-const StoppableTurn = ({
-	state,
-	stoppable = false,
-	author = LEAD,
-}: StoppableTurnProps) => {
-	const text = state === "cancelled" ? PARTIAL : ANSWER
-
-	return (
-		<div className="mx-auto flex max-w-2xl flex-col gap-6">
-			<AssistantTurn
-				author={author}
-				copyText={text}
-				onStop={stopTurn}
-				state={state}
-				stoppable={stoppable}
-			>
-				{text}
-			</AssistantTurn>
-		</div>
-	)
-}
 
 const MARKED_BOT_ID = "bot-lyra"
 
@@ -341,8 +289,8 @@ const MarkedHistory = () => {
 const RENDERED_BY_THE_THREAD =
 	"`apps/app/src/components/thread-turn.tsx:98` renders the companion row of every transcript, from the row `apps/app/src/lib/chat/screen-model.ts:101` publishes."
 
-const STOPPED_BY_THE_SCREEN =
-	"`apps/app/src/components/thread-screen.tsx:642` hands the row a stop for as long as the screen holds a seat for that companion, and `apps/app/src/components/thread-turn.tsx:67` turns it into `stoppable`, whatever state the row landed in."
+const STOPPED_FROM_THE_WORKING_ROW =
+	"`apps/app/src/components/thread-screen.tsx:1045` hands the stop of a seated companion to its working row alone, and `apps/app/src/components/thread-turn.tsx:97` hands its bubbles none, so a bubble gutter draws the same avatar whether its companion is working or idle."
 
 const CAUSED_BY_THE_RUN =
 	"`apps/app/src/components/thread-screen.tsx:637` passes the cause of the run, from the reported runs and the mission summons the thread holds."
@@ -355,7 +303,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The two transcript rows, one per side. `UserTurn` is a bubble that can offer a retry when the prompt never reached Claude, and that holds the wait for a prompt written while another turn runs — `queued` draws it a step back from a sent prompt, with its own way out; `AssistantTurn` is a bubble on the other side with a gutter for the companion's avatar. Only the companions are named here — the reader's side carries no avatar at all. A long answer arrives as a run of rows, one per paragraph: wrap those in `TurnGroup` and it tells each row where it sits, so nothing counts rows by hand, and pass `identity` on the row that closes the run — a row with no `identity` falls back to the `author` it closes its run with, and both draw the same companion avatar. A block that already draws its own frame — a table — takes `bare`, which drops the bubble behind it rather than boxing the same grid twice. `copyText` is per bubble and holds that bubble's own words — a row handed an empty one, as a turn that stopped before writing is, offers no copy at all. Both take the transport's completion verbatim as `state`, so a screen maps nothing. A row given `onReply` reveals a second action ahead of copy, and a row given `repliedTo` is wrapped in the quote of the message it answers — both report to the screen and neither knows what is being quoted. `messageId` anchors the row so the scroller can be asked to bring it back, and it is set once per message: a message split into a run puts it on the group instead of on every paragraph. `stoppable` comes in from the screen and turns the gutter avatar into the stop for that one companion, so a wave is ended one seat at a time; it is never read off `state`, since a turn can be read back as `streaming` from a crash and stop nothing, and a row the screen still holds a seat for carries its stop whatever state it landed in, and it is named and shaped after the very identity the gutter draws, since a stop named after another companion stops the wrong one. `footer` puts a line of the screen's own under the bubble, in the very slot a completion label uses, so a row never carries two footers and the label wins whenever the state produces one. Neither scrolls or animates the list — that belongs to the scroller around them.",
+					"The two transcript rows, one per side. `UserTurn` is a bubble that can offer a retry when the prompt never reached Claude, and that holds the wait for a prompt written while another turn runs — `queued` draws it a step back from a sent prompt, with its own way out; `AssistantTurn` is a bubble on the other side with a gutter for the companion's avatar. Only the companions are named here — the reader's side carries no avatar at all. A long answer arrives as a run of rows, one per paragraph: wrap those in `TurnGroup` and it tells each row where it sits, so nothing counts rows by hand, and pass `identity` on the row that closes the run — a row with no `identity` falls back to the `author` it closes its run with, and both draw the same companion avatar. A block that already draws its own frame — a table — takes `bare`, which drops the bubble behind it rather than boxing the same grid twice. `copyText` is per bubble and holds that bubble's own words — a row handed an empty one, as a turn that stopped before writing is, offers no copy at all. Both take the transport's completion verbatim as `state`, so a screen maps nothing. A row given `onReply` reveals a second action ahead of copy, and a row given `repliedTo` is wrapped in the quote of the message it answers — both report to the screen and neither knows what is being quoted. `messageId` anchors the row so the scroller can be asked to bring it back, and it is set once per message: a message split into a run puts it on the group instead of on every paragraph. The gutter avatar never stops anything: the stop of a working companion rides its working row (`ActivityIndicator`) under the bubbles, so a wave is still ended one seat at a time and the avatar above stays the same companion control whether that companion is working or idle. `footer` puts a line of the screen's own under the bubble, in the very slot a completion label uses, so a row never carries two footers and the label wins whenever the state produces one. Neither scrolls or animates the list — that belongs to the scroller around them.",
 			},
 		},
 	},
@@ -1040,218 +988,6 @@ export const DeletedAuthor = meta.story({
 	},
 })
 
-export const CompleteStoppable = meta.story({
-	render: () => <StoppableTurn state="complete" stoppable />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The landed answer of a companion the screen still holds a seat for: `stoppable` turns the gutter avatar into the same control the waiting seat carries, named after the companion, and opens the gutter to assistive technology so the control can be reached at all. The wave keeps running around it — this stop ends one companion. Check that the control is the size of the avatar it rides, that pointing at it or reaching it by keyboard veils the avatar with the stop glyph, that the ring shows where focus landed, and that pressing it reports the stop. " +
-					STOPPED_BY_THE_SCREEN,
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		stopTurn.mockClear()
-
-		const stop = canvas.getByRole("button", { name: "Stop Atlas" })
-		const [glyph] = slotsIn(canvasElement, "bot-working-stop-glyph")
-
-		await expectStop(canvas, canvasElement)
-		await expect(Math.round(stop.getBoundingClientRect().height)).toBe(
-			TURN_AVATAR_SIZE,
-		)
-		await waitFor(() => expect(glyph).toBeVisible())
-
-		await userEvent.click(stop)
-		await expect(stopTurn).toHaveBeenCalledTimes(1)
-	},
-})
-
-export const CompleteNotStoppable = meta.story({
-	render: () => <StoppableTurn state="complete" />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same landed answer once the screen holds no seat for its companion, which is what a reopened conversation shows: the row still holds an `onStop`, and it draws no control, since the stop follows `stoppable` and never the handler. Check that the gutter is a drawing, hidden from assistive technology, with no button to reach. " +
-					STOPPED_BY_THE_SCREEN,
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		await expectNoStop(canvas, canvasElement)
-	},
-})
-
-export const CancelledStoppable = meta.story({
-	render: () => <StoppableTurn state="cancelled" stoppable />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The turn that was already stopped, while the screen still says the companion can be stopped: the row keeps the words it had written and its `Stopped` footer, and the gutter still carries the control. The screen drops `stoppable` when it drops the seat, and the row follows. Check that the footer reads `Stopped`, that the control named after the companion is there, and that Tab reaches it. " +
-					STOPPED_BY_THE_SCREEN,
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		await expect(canvas.getByText("Stopped")).toBeVisible()
-		await expectStop(canvas, canvasElement)
-	},
-})
-
-export const FailedStoppable = meta.story({
-	render: () => <StoppableTurn state="failed" stoppable />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The turn the transport gave up on, while the screen still says the companion can be stopped: the row keeps its failure footer and its copy, and the gutter still carries the control, since the state a row landed in never decides what the gutter draws. Check that the failure footer is there and that the control named after the companion is reachable by keyboard. " +
-					STOPPED_BY_THE_SCREEN,
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		await expect(canvas.getByText("This response failed")).toBeVisible()
-		await expectStop(canvas, canvasElement)
-	},
-})
-
-const accessibleNameOf = (mark: HTMLElement) => {
-	const label = mark.getAttribute("aria-label")
-	if (!label) throw new globalThis.Error("This mark carries no accessible name")
-	return label
-}
-
-export const StoppableSameBotEitherWay = meta.story({
-	render: () => (
-		<div className="mx-auto flex max-w-4xl gap-6">
-			<div data-slot="author-named-row" className="min-w-0 flex-1">
-				<AssistantTurn
-					author={LEAD}
-					copyText={PARTIAL}
-					onStop={stopTurn}
-					state="cancelled"
-					stoppable
-				>
-					{PARTIAL}
-				</AssistantTurn>
-			</div>
-			<div data-slot="identity-named-row" className="min-w-0 flex-1">
-				<AssistantTurn
-					copyText={PARTIAL}
-					identity={LEAD}
-					onStop={stopTurn}
-					state="cancelled"
-					stoppable
-				>
-					{PARTIAL}
-				</AssistantTurn>
-			</div>
-		</div>
-	),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same companion reaching the gutter by either road: the row on the leading edge is named by `author`, the row beside it by `identity`, and nothing else differs. Check that both gutters draw the very same mark and offer a stop under the same name, and that only the `author` row carries the name line above its bubble, since `identity` says who is drawn and never who is speaking. " +
-					STOPPED_BY_THE_SCREEN,
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const authored = within(slotIn(canvasElement, "author-named-row"))
-		const identified = within(slotIn(canvasElement, "identity-named-row"))
-		const authoredMark = authored.getByRole("img", { name: LEAD.name })
-
-		await expect(
-			identified.getByRole("img", { name: LEAD.name }),
-		).toHaveAccessibleName(accessibleNameOf(authoredMark))
-		await expect(
-			authored.getAllByRole("button", { name: `Stop ${LEAD.name}` }),
-		).toHaveLength(1)
-		await expect(
-			identified.getAllByRole("button", { name: `Stop ${LEAD.name}` }),
-		).toHaveLength(1)
-
-		const nameLines = slotsIn(
-			slotIn(canvasElement, "author-named-row"),
-			"message-author",
-		)
-
-		await expect(nameLines).toHaveLength(1)
-		await expect(nameLines[0]).toHaveTextContent(LEAD.name)
-		await expect(
-			slotsIn(slotIn(canvasElement, "identity-named-row"), "message-author"),
-		).toHaveLength(0)
-	},
-})
-
-export const StoppableOtherIdentity = meta.story({
-	render: () => (
-		<div className="mx-auto flex max-w-2xl flex-col gap-6">
-			<AssistantTurn
-				author={LEAD}
-				copyText={PARTIAL}
-				identity={SECOND}
-				onStop={stopTurn}
-				state="cancelled"
-				stoppable
-			>
-				{PARTIAL}
-			</AssistantTurn>
-		</div>
-	),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A row whose two identities disagree: `author` names the companion the words are attributed to, `identity` names the face the screen wants in the gutter, and the screen is free to send both. The gutter answers to `identity` alone — avatar, stop name and veil — while the line above the bubble keeps answering to `author`. Check that the control names the companion drawn under it and not the one written above the bubble, so a stop can never reach a companion the reader is not looking at. " +
-					STOPPED_BY_THE_SCREEN,
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const [gutter] = slotsIn(canvasElement, "message-gutter")
-		const drawn = within(gutter).getByRole("img")
-
-		await expect(
-			canvas.getByRole("button", { name: `Stop ${SECOND.name}` }),
-		).toBeVisible()
-		await expect(
-			canvas.queryByRole("button", { name: `Stop ${LEAD.name}` }),
-		).toBeNull()
-		await expect(drawn).toHaveAccessibleName(SECOND.name)
-		await expect(drawn).not.toHaveAccessibleName(LEAD.name)
-		await expect(canvas.getByText(LEAD.name)).toBeVisible()
-	},
-})
-
-export const StoppablePicture = meta.story({
-	render: () => <StoppableTurn author={PICTURED} state="cancelled" stoppable />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same stop on a companion that uploaded its own picture. Name and veil both come from the identity the gutter draws, so neither can drift from the face under them. Check that the control is named after that companion and that the veil holds to the rounded square of the picture, corner for corner. " +
-					STOPPED_BY_THE_SCREEN,
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const [glyph] = slotsIn(canvasElement, "bot-working-stop-glyph")
-
-		const [picture] = botIdentityAvatars(canvasElement)
-
-		await expect(
-			canvas.getByRole("button", { name: "Stop Atlas" }),
-		).toBeVisible()
-		await expectCompanionPictureShape(picture)
-		await expectCompanionSilhouette(glyph)
-	},
-})
-
 export const PictureBesideBlot = meta.story({
 	render: () => (
 		<div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -1285,16 +1021,10 @@ export const PictureBesideBlot = meta.story({
 	},
 })
 
-export const StoppableIdentity = meta.story({
+export const NamedByIdentity = meta.story({
 	render: () => (
 		<div className="mx-auto flex max-w-2xl flex-col gap-6">
-			<AssistantTurn
-				copyText={PARTIAL}
-				identity={BOT}
-				onStop={stopTurn}
-				state="cancelled"
-				stoppable
-			>
+			<AssistantTurn copyText={PARTIAL} identity={BOT} state="cancelled">
 				{PARTIAL}
 			</AssistantTurn>
 		</div>
@@ -1303,14 +1033,14 @@ export const StoppableIdentity = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row that names its gutter through `identity` rather than `author`: the screen hands the face it draws, so the stop can only ever be named after the companion under it. Check that the control is named after that companion and that the bubble carries no name line above it, since naming the row above the bubble is the author's job alone. " +
-					STOPPED_BY_THE_SCREEN,
+					"A row that names its gutter through `identity` rather than `author`: the screen hands the face it draws. Check that the gutter draws that companion and that the bubble carries no name line above it, since naming the row above the bubble is the author's job alone. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(
-			canvas.getByRole("button", { name: "Stop Skippy" }),
+			canvas.getByRole("img", { hidden: true, name: BOT.name }),
 		).toBeVisible()
 		await expect(slotsIn(canvasElement, "message-author")).toHaveLength(0)
 	},
@@ -1346,20 +1076,14 @@ export const ReportedByRoutine = meta.story({
 		docs: {
 			description: {
 				story:
-					"A run a routine opened. The row is an ordinary companion turn, and the line above the bubble names the routine that produced it instead of the companion that wrote it: the icon says what fired it — a clock face for a schedule — and it is quieter than a name line, because who wrote the words is already the avatar\u2019s job. Only the run that carries a cause loses its name line; the run under it is untouched. Check that the gutter avatar and the stop are exactly the ones the row always had, and that a screen reader hears the line as a routine report before it hears the title. " +
+					"A run a routine opened. The row is an ordinary companion turn, and the line above the bubble names the routine that produced it instead of the companion that wrote it: the icon says what fired it — a clock face for a schedule — and it is quieter than a name line, because who wrote the words is already the avatar\u2019s job. Only the run that carries a cause loses its name line; the run under it is untouched. Check that the gutter avatar is exactly the one the row always had, and that a screen reader hears the line as a routine report before it hears the title. " +
 					CAUSED_BY_THE_RUN,
 			},
 		},
 	},
 	render: () => (
 		<div className="mx-auto flex max-w-2xl flex-col gap-6">
-			<AssistantTurn
-				author={LEAD}
-				cause={SCHEDULED_CAUSE}
-				copyText={REPORT}
-				onStop={stopTurn}
-				stoppable
-			>
+			<AssistantTurn author={LEAD} cause={SCHEDULED_CAUSE} copyText={REPORT}>
 				{REPORT}
 			</AssistantTurn>
 			<AssistantTurn author={SECOND} copyText={ANSWER}>
@@ -1367,7 +1091,7 @@ export const ReportedByRoutine = meta.story({
 			</AssistantTurn>
 		</div>
 	),
-	play: async ({ canvas, canvasElement }) => {
+	play: async ({ canvasElement }) => {
 		const cause = slotIn(canvasElement, "turn-cause")
 
 		await expect(cause).toHaveTextContent("Routine report")
@@ -1383,9 +1107,6 @@ export const ReportedByRoutine = meta.story({
 
 		await expect(named).toHaveLength(1)
 		await expect(named[0]).toHaveTextContent(SECOND.name)
-		await expect(
-			canvas.getByRole("button", { name: `Stop ${LEAD.name}` }),
-		).toBeVisible()
 		await expect(botIdentityAvatars(canvasElement)).toHaveLength(2)
 	},
 })
@@ -1802,33 +1523,58 @@ export const CompanionSelectFromGutter = meta.story({
 	},
 })
 
-export const CompanionSelectWhileStoppable = meta.story({
-	tags: ["test-only"],
+export const WorkingCompanionStopsFromItsRow = meta.story({
 	parameters: {
 		docs: {
 			description: {
-				story: `A stoppable turn under a mounted select. Check that the stop stays the only control of the gutter and that pressing it stops the companion without reporting a select. ${SELECT_NOT_YET_RENDERED}`,
+				story:
+					"A working companion with an earlier landed bubble above its working row, under the select and the companion menu the app mounts. The stop lives on the working row alone. Check that the bubble gutter carries no stop glyph, no veil and no control named after stopping, that pressing it opens the companion as it does when the companion is idle, that a right-click still opens the companion menu, and that the stop on the working row reports the stop. " +
+					STOPPED_FROM_THE_WORKING_ROW,
 			},
 		},
 	},
 	render: () => (
 		<CompanionSelectProvider onSelect={selectCompanion}>
-			<StoppableTurn state="complete" stoppable />
+			<CompanionMenuProvider menuFor={companionMenuFor}>
+				<div className="mx-auto flex max-w-2xl flex-col gap-6">
+					<AssistantTurn author={BOT} copyText={ANSWER}>
+						{ANSWER}
+					</AssistantTurn>
+					<ActivityIndicator
+						blot={BOT.blot}
+						kind="thinking"
+						name={BOT.name}
+						onStop={stopTurn}
+						seed={BOT.id}
+						stoppable
+					/>
+				</div>
+			</CompanionMenuProvider>
 		</CompanionSelectProvider>
 	),
-	play: async ({ canvasElement, userEvent }) => {
+	play: async ({ canvas, canvasElement, userEvent }) => {
 		selectCompanion.mockClear()
 		stopTurn.mockClear()
 		const gutter = slotIn(canvasElement, "message-gutter")
-		const [stop, ...others] = within(gutter).getAllByRole("button")
+		const avatar = within(gutter).getByRole("button", { name: BOT.name })
 
-		if (!stop) throw new globalThis.Error("The gutter drew no stop")
+		await expect(
+			within(gutter).queryByRole("button", { name: /stop/i }),
+		).toBeNull()
+		await expect(slotsIn(gutter, "bot-working-stop-glyph")).toHaveLength(0)
+		await expect(avatar).toHaveClass("hover:not-focus-visible:opacity-70")
 
-		await expect(others).toHaveLength(0)
-		await expect(stop).toHaveAccessibleName(`Stop ${LEAD.name}`)
-
-		await userEvent.click(stop)
+		await userEvent.click(
+			canvas.getByRole("button", { name: `Stop ${BOT.name}` }),
+		)
 		await expect(stopTurn).toHaveBeenCalledTimes(1)
 		await expect(selectCompanion).not.toHaveBeenCalled()
+
+		await userEvent.click(avatar)
+		await expect(selectCompanion).toHaveBeenLastCalledWith(BOT.id)
+		await expect(stopTurn).toHaveBeenCalledTimes(1)
+
+		await rightClickOn(avatar)
+		await shown(await screen.findByRole("menu", { name: COMPANION_MENU_LABEL }))
 	},
 })

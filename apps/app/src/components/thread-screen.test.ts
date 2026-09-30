@@ -2195,7 +2195,7 @@ describe("ThreadScreen", () => {
 		expect(elapsedText()).toMatch(/^\d+s$/)
 	})
 
-	it("carries the stop onto the run a speaking companion is writing", async () => {
+	it("stops a writing companion from its working row alone", async () => {
 		const room = await roomOf({ names: ["Ada"] })
 		render(screenOf(room.thread))
 		await settle()
@@ -2207,6 +2207,7 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(screen.getByText("the walls hold")).toBeTruthy()
+		expect(stopsFor("Ada")).toHaveLength(1)
 		fireEvent.click(stopsFor("Ada")[0])
 		await settle()
 
@@ -2244,7 +2245,8 @@ describe("ThreadScreen", () => {
 		expect(screen.getByText("the walls hold")).toBeTruthy()
 		expect(screen.getByText("Ada is writing…")).toBeTruthy()
 
-		fireEvent.click(stopsFor("Ada")[1])
+		expect(stopsFor("Ada")).toHaveLength(1)
+		fireEvent.click(stopsFor("Ada")[0])
 		await settle()
 
 		expect(room.driver.cancelled).toEqual([room.idOf("Ada")])
