@@ -20,6 +20,8 @@ const WINDOWS_APP_DATA = "C:\\data\\kiroshi"
 
 const home = (path: string): string => join(homedir(), path)
 
+const windowsHome = (path: string): string => join(WINDOWS_HOME, path)
+
 const floor = (pluginPaths: string[] = [], writablePaths: string[] = []) =>
 	securityFloor({
 		appDataDir: APP_DATA,
@@ -42,14 +44,17 @@ const floorIn = (appDataDir: string, conversationId: string) =>
 const denyOf = (pluginPaths: string[] = []): string[] =>
 	floor(pluginPaths).permissions?.deny ?? []
 
-const onWindows = (scope: Partial<FloorScope> = {}): string[] =>
+const windowsFloor = (scope: Partial<FloorScope> = {}) =>
 	securityFloor({
 		home: WINDOWS_HOME,
 		platform: "win32",
 		pluginPaths: [],
 		writablePaths: [],
 		...scope,
-	}).permissions?.deny ?? []
+	})
+
+const onWindows = (scope: Partial<FloorScope> = {}): string[] =>
+	windowsFloor(scope).permissions?.deny ?? []
 
 const filesystemOf = (
 	pluginPaths: string[] = [],
@@ -253,32 +258,114 @@ describe("securityFloor", () => {
 		expect(writableOf()).toBeUndefined()
 	})
 
-	it("sandboxes every spawned command, with no domain gate", () => {
-		const sandbox = floor().sandbox
-
-		expect(sandbox).toMatchObject({
+	it("sandboxes every spawned command of a darwin session, with no domain gate", () => {
+		expect(floor().sandbox).toEqual({
 			enabled: true,
-			failIfUnavailable: true,
 			allowUnsandboxedCommands: false,
 			autoAllowBashIfSandboxed: false,
+			failIfUnavailable: true,
+			filesystem: {
+				denyRead: [
+					home(".ssh"),
+					home(".aws"),
+					home(".gnupg"),
+					home(".config/gh"),
+					home(".kube"),
+					home("Library/Keychains"),
+					home(".netrc"),
+					home(".npmrc"),
+					home(".docker/config.json"),
+					home(".claude.json"),
+					home(".claude/.credentials.json"),
+					"/**/.env",
+					"/**/.env.*",
+					join(APP_DATA, "conversations.sqlite3"),
+					join(APP_DATA, "conversations.sqlite3-wal"),
+					join(APP_DATA, "conversations.sqlite3-shm"),
+					join(APP_DATA, "bots"),
+					join(APP_DATA, "spaces"),
+					join(APP_DATA, "attachments"),
+				],
+				denyWrite: [
+					home(".claude"),
+					home("Library/LaunchAgents"),
+					home(".zshrc"),
+					home(".bashrc"),
+					home(".zprofile"),
+					home(".zshenv"),
+				],
+			},
 		})
-		expect(sandbox?.network).toBeUndefined()
 	})
 
-	it("starts the session when a sandbox is out of reach on Windows", () => {
-		const sandbox = securityFloor({
-			home: WINDOWS_HOME,
-			platform: "win32",
-			pluginPaths: [],
-			writablePaths: [],
-		}).sandbox
-
-		expect(sandbox).toMatchObject({
+	it("runs the commands of a Windows session unsandboxed under the same path denials", () => {
+		expect(windowsFloor({ appDataDir: WINDOWS_APP_DATA }).sandbox).toEqual({
 			enabled: true,
-			failIfUnavailable: false,
-			allowUnsandboxedCommands: false,
+			allowUnsandboxedCommands: true,
 			autoAllowBashIfSandboxed: false,
+			failIfUnavailable: false,
+			filesystem: {
+				denyRead: [
+					windowsHome(".ssh"),
+					windowsHome(".aws"),
+					windowsHome(".gnupg"),
+					windowsHome(".config/gh"),
+					windowsHome(".kube"),
+					windowsHome("Library/Keychains"),
+					windowsHome(".netrc"),
+					windowsHome(".npmrc"),
+					windowsHome(".docker/config.json"),
+					windowsHome(".claude.json"),
+					windowsHome(".claude/.credentials.json"),
+					"/**/.env",
+					"/**/.env.*",
+					join(WINDOWS_APP_DATA, "conversations.sqlite3"),
+					join(WINDOWS_APP_DATA, "conversations.sqlite3-wal"),
+					join(WINDOWS_APP_DATA, "conversations.sqlite3-shm"),
+					join(WINDOWS_APP_DATA, "bots"),
+					join(WINDOWS_APP_DATA, "spaces"),
+					join(WINDOWS_APP_DATA, "attachments"),
+				],
+				denyWrite: [
+					windowsHome(".claude"),
+					windowsHome("Library/LaunchAgents"),
+					windowsHome(".zshrc"),
+					windowsHome(".bashrc"),
+					windowsHome(".zprofile"),
+					windowsHome(".zshenv"),
+				],
+			},
 		})
+	})
+
+	it("keeps every deny rule on a Windows session that runs commands unsandboxed", () => {
+		expect(onWindows({ appDataDir: WINDOWS_APP_DATA })).toEqual([
+			"Agent",
+			"Task",
+			"Read(//c/Users/alice/.ssh/**)",
+			"Read(//c/Users/alice/.aws/**)",
+			"Read(//c/Users/alice/.gnupg/**)",
+			"Read(//c/Users/alice/.config/gh/**)",
+			"Read(//c/Users/alice/.kube/**)",
+			"Read(//c/Users/alice/Library/Keychains/**)",
+			"Read(//c/Users/alice/.netrc)",
+			"Read(//c/Users/alice/.npmrc)",
+			"Read(//c/Users/alice/.docker/config.json)",
+			"Read(//c/Users/alice/.claude.json)",
+			"Read(//c/Users/alice/.claude/.credentials.json)",
+			"Read(//**/.env)",
+			"Read(//**/.env.*)",
+			"Read(//c/data/kiroshi/conversations.sqlite3)",
+			"Read(//c/data/kiroshi/conversations.sqlite3-wal)",
+			"Read(//c/data/kiroshi/conversations.sqlite3-shm)",
+			"Read(//c/data/kiroshi/attachments/**)",
+			"Edit(//c/Users/alice/.claude/**)",
+			"Edit(//c/Users/alice/Library/LaunchAgents/**)",
+			"Edit(//c/Users/alice/.zshrc)",
+			"Edit(//c/Users/alice/.bashrc)",
+			"Edit(//c/Users/alice/.zprofile)",
+			"Edit(//c/Users/alice/.zshenv)",
+		])
 	})
 
 	it("emits the deny list of a darwin session in full", () => {
