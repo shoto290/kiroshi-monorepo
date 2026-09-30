@@ -304,12 +304,14 @@ conversation-missions-missioncard--row-parts-repeating-the-same-words
 conversation-missions-missioncard--row-pull-request-opens-alone
 conversation-missions-missioncard--row-ready-to-merge
 conversation-missions-missioncard--row-states
+conversation-missions-missioncard--row-tool-glyph
 conversation-missions-missioncard--row-waiting-bot
 conversation-missions-missioncard--row-waiting-human
 conversation-missions-missioncard--row-with-and-without-pill
 conversation-missions-missioncard--row-with-status
 conversation-missions-missioncard--row-without-a-ticket
 conversation-missions-missioncard--row-working
+conversation-missions-missioncard--row-working-with-many-tools
 conversation-missions-missioneventrow--authored-event
 conversation-missions-missioneventrow--authored-events
 conversation-missions-missioneventrow--closed-by-you

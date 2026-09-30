@@ -29,6 +29,7 @@ import {
 	MISSION_STATES,
 	MISSION_STATUS,
 	MISSION_TOOL_CALL_SLOTS,
+	MISSION_TOOLS_WITHOUT_A_MARK,
 	READY_MISSION,
 	UNTICKETED_MISSION,
 	WAITING_BOT_MISSION,
@@ -86,6 +87,18 @@ const cardIn = (state: MissionState): MissionCardModel => ({
 })
 
 const ACTIVITIES = [true, false]
+
+const MANY_TOOLS = [
+	"Superset",
+	"GitHub",
+	"Terminal",
+	"paper",
+	"Web search",
+	"Screenshot",
+	"Repository",
+	"Read",
+	"Write",
+]
 
 const ROW_STATE_MATRIX = MISSION_STATES.flatMap((state) =>
 	ACTIVITIES.map((isWorking) => ({
@@ -173,6 +186,48 @@ const boxOf = (row: HTMLElement) => {
 		gap: style.gap,
 		radius: style.borderRadius,
 		border: style.borderTopWidth,
+	}
+}
+
+const middleOf = (element: Element) => {
+	const box = element.getBoundingClientRect()
+	return box.top + box.height / 2
+}
+
+const expectNoToolCallIn = async (canvasElement: HTMLElement) => {
+	await expect(slotsIn(canvasElement, "mission-live-activity")).toHaveLength(0)
+	await expect(canvasElement).not.toHaveTextContent(MISSION_LAST_ACTIVITY.tool)
+	await expect(canvasElement).not.toHaveTextContent(
+		MISSION_LAST_ACTIVITY.target,
+	)
+}
+
+const expectMarksOnTheTextAxis = async (row: HTMLElement) => {
+	const marks = Array.from(slotIn(row, "mission-card-marks").children)
+	const [text] = slotsIn(row, "mission-card-part")
+	const boxes = [...marks, text].map((element) =>
+		element.getBoundingClientRect(),
+	)
+	const gaps = boxes.slice(1).map((box, index) => box.left - boxes[index].right)
+
+	const line = previewIn(row).getBoundingClientRect()
+	for (const [index, mark] of marks.entries()) {
+		const glyph = (mark.querySelector("svg") ?? mark).getBoundingClientRect()
+		await expect(glyph.width).toBe(boxes[index].width)
+		await expect(glyph.height).toBe(boxes[index].height)
+		await expect(glyph.left).toBeGreaterThanOrEqual(line.left)
+		await expect(glyph.top).toBeGreaterThanOrEqual(line.top)
+		await expect(glyph.bottom).toBeLessThanOrEqual(line.bottom)
+	}
+
+	await expect(gaps[0]).toBeGreaterThan(0)
+	for (const gap of gaps) {
+		await expect(gap).toBeCloseTo(gaps[0], 1)
+	}
+	for (const mark of marks) {
+		await expect(Math.abs(middleOf(mark) - middleOf(text))).toBeLessThanOrEqual(
+			1,
+		)
 	}
 }
 
@@ -626,7 +681,7 @@ export const RowWorking = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission somebody is live on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line opens on a word only a screen reader hears, runs the working shimmer and stops after the companion name, that the identifier keeps the medium weight and the tabular figures while the companion stays at the line's own weight, that the last tool call reads under it as the tool, a dot, then its target, and that the row reports the mission it belongs to when it is pressed. " +
+					"A mission somebody is live on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line opens on a word only a screen reader hears, runs the working shimmer and stops after the companion name, that the identifier keeps the medium weight and the tabular figures while the companion stays at the line's own weight, that its first tool is the one mark drawn ahead of the ticket mark, both centred on the line and spaced by the gap that separates them from the identifier, that the last tool call it carries is never drawn and the row keeps the height of an idle one, and that the row reports the mission it belongs to when it is pressed. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -651,9 +706,12 @@ export const RowWorking = meta.story({
 		await expect(
 			canvas.getByRole("img", { name: WORKING_MISSION.tools[0] }),
 		).toBeVisible()
+		await expect(slotsIn(canvasElement, "mission-tool-mark")).toHaveLength(1)
 		await expect(slotsIn(canvasElement, "mission-status")).toHaveLength(0)
 		await expect(slotsIn(canvasElement, "mission-activity")).toHaveLength(0)
-		await expectLiveActivity({ canvasElement, isShown: true })
+		await expectNoToolCallIn(canvasElement)
+		await expect(boxOf(rowIn(canvasElement)).height).toBe(48)
+		await expectMarksOnTheTextAxis(rowIn(canvasElement))
 
 		const name = canvas.getByText("Ada Martin")
 		await expect(figuresOf(name)).toBe("normal")
@@ -666,6 +724,83 @@ export const RowWorking = meta.story({
 		)
 		await userEvent.click(canvas.getByText(WORKING_MISSION.objective))
 		await expect(args.onOpen).toHaveBeenCalledWith(WORKING_MISSION.id)
+	},
+})
+
+export const RowWorkingWithManyTools = meta.story({
+	args: { ...WORKING_MISSION, density: "row", tools: MANY_TOOLS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission somebody is live on that lists nine tools, in a panel at its default width. Check that the line draws the first tool alone ahead of the ticket mark, and that the identifier and the companion name still read after the marks. " +
+					LISTED_BY_THE_PANEL,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const line = previewIn(canvasElement)
+		const marks = slotsIn(canvasElement, "mission-tool-mark")
+
+		await expect(marks).toHaveLength(1)
+		await expect(marks[0]).toHaveAccessibleName(MANY_TOOLS[0])
+		for (const text of ["OPE-42", "Ada Martin"]) {
+			await expect(
+				canvas.getByText(text).getBoundingClientRect().right,
+			).toBeLessThanOrEqual(line.getBoundingClientRect().right)
+		}
+		await expectMarksOnTheTextAxis(rowIn(canvasElement))
+	},
+})
+
+const UNNAMED_BEFORE_NAMED_TOOLS = [
+	"gh",
+	...MISSION_TOOLS_WITHOUT_A_MARK,
+	"GitHub",
+]
+
+const TOOL_GLYPH_CASES = [
+	{ tools: UNNAMED_BEFORE_NAMED_TOOLS, glyph: "GitHub" },
+	{
+		tools: MISSION_TOOLS_WITHOUT_A_MARK,
+		glyph: MISSION_TOOLS_WITHOUT_A_MARK[0],
+	},
+]
+
+export const RowToolGlyph = meta.story({
+	args: { density: "row" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Two working rows: one whose tools list unnamed tools ahead of GitHub, one whose tools all lack a mark of their own. Check that the first row draws the GitHub mark alone, that the second draws the generic mark once for its first tool, and that both sit centred on the line. " +
+					LISTED_BY_THE_PANEL,
+			},
+		},
+	},
+	render: (args) => (
+		<Panel>
+			{TOOL_GLYPH_CASES.map(({ tools }, index) => (
+				<MissionCard
+					{...args}
+					{...WORKING_MISSION}
+					id={`mission-tool-glyph-${index}`}
+					key={tools.join()}
+					tools={tools}
+				/>
+			))}
+		</Panel>
+	),
+	play: async ({ canvasElement }) => {
+		const rows = rowsIn(canvasElement)
+
+		await expect(rows).toHaveLength(TOOL_GLYPH_CASES.length)
+		for (const [index, { glyph }] of TOOL_GLYPH_CASES.entries()) {
+			const marks = slotsIn(rows[index], "mission-tool-mark")
+			await expect(marks).toHaveLength(1)
+			await expect(marks[0]).toHaveAccessibleName(glyph)
+			await expectMarksOnTheTextAxis(rows[index])
+		}
 	},
 })
 
@@ -693,6 +828,11 @@ export const RowWaitingBot = meta.story({
 			WAITING_BOT_MISSION.ticket.title,
 		)
 		await expect(partsIn(canvasElement)).toHaveLength(2)
+		await expect(slotsIn(canvasElement, "mission-tool-mark")).toHaveLength(0)
+		await expect(
+			slotIn(line, "mission-card-marks").querySelectorAll("svg"),
+		).toHaveLength(1)
+		await expectMarksOnTheTextAxis(rowIn(canvasElement))
 		await expect(getComputedStyle(line).whiteSpace).toBe("nowrap")
 		await expect(line.scrollWidth).toBeGreaterThan(line.clientWidth)
 		await expectLiveActivity({ canvasElement, isShown: false })
@@ -806,7 +946,7 @@ export const RowStates = meta.story({
 		docs: {
 			description: {
 				story:
-					"The seven states a mission can be in, each drawn twice: with a companion live on it, then with nobody on it. Check that the row of each pair somebody is on opens on the word only a screen reader hears and carries the tool call line, that the preview line closes on a state word for the five states a reader can act on, that the blot turns in the first row of each pair and rests in the second, and that the badge dot keeps following the state rather than the work. " +
+					"The seven states a mission can be in, each drawn twice: with a companion live on it, then with nobody on it. Check that the row of each pair somebody is on opens on the word only a screen reader hears, draws no tool call line and keeps the height of its idle twin, that the tool mark and the ticket mark sit centred on the line and spaced by one gap in every row, that the preview line closes on a state word for the five states a reader can act on, that the blot turns in the first row of each pair and rests in the second, and that the badge dot keeps following the state rather than the work. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -822,9 +962,14 @@ export const RowStates = meta.story({
 		await expect(canvas.getAllByText("Working now")).toHaveLength(
 			MISSION_STATES.length,
 		)
-		await expect(slotsIn(canvasElement, "mission-live-activity")).toHaveLength(
-			MISSION_STATES.length,
-		)
+		await expectNoToolCallIn(canvasElement)
+		const rows = rowsIn(canvasElement)
+		for (const row of rows) {
+			await expect(row.getBoundingClientRect().height).toBe(
+				rows[0].getBoundingClientRect().height,
+			)
+			await expectMarksOnTheTextAxis(row)
+		}
 		await expect(companionGlyphsIn(canvasElement, "working")).toHaveLength(
 			MISSION_STATES.length,
 		)
@@ -897,7 +1042,7 @@ export const RowActivityLine = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission whose branch is ahead of its base and has a pull request open. Check that the last muted line reads the commits ahead in tabular figures then the pull request link, under the live tool call and aligned with the preview line, that a press on the commits still lands on the row, and that the row itself holds no second keyboard target. Pick `RowWorking` for a row with neither, which draws no such line. " +
+					"A mission whose branch is ahead of its base and has a pull request open. Check that the last muted line reads the commits ahead in tabular figures then the pull request link, right under the preview line and aligned with it, that a press on the commits still lands on the row, and that the row itself holds no second keyboard target. Pick `RowWorking` for a row with neither, which draws no such line. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -925,10 +1070,8 @@ export const RowActivityLine = meta.story({
 		const lineBox = line.getBoundingClientRect()
 		const previewBox = previewIn(canvasElement).getBoundingClientRect()
 		await expect(lineBox.left).toBe(previewBox.left)
-		await expect(lineBox.top).toBe(
-			slotIn(canvasElement, "mission-live-activity").getBoundingClientRect()
-				.bottom,
-		)
+		await expect(lineBox.top).toBe(previewBox.bottom)
+		await expectNoToolCallIn(canvasElement)
 		await expect(lineBox.bottom).toBeLessThanOrEqual(
 			rowIn(canvasElement).getBoundingClientRect().bottom,
 		)
@@ -940,13 +1083,12 @@ export const RowLongContent = meta.story({
 		...WORKING_MISSION,
 		density: "row",
 		objective: UNBROKEN_OBJECTIVE,
-		lastActivity: { tool: "Edit", target: UNBROKEN_TARGET },
 	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"An unbroken objective and an unbroken tool call target, in a panel at its 320px width. Check that the objective, the line under it and the tool call each stay on one line and end in an ellipsis, that the row keeps its height, and that the blot is not squeezed to make room for them. " +
+					"An unbroken objective in a panel at its 320px width. Check that the objective and the line under it each stay on one line and end in an ellipsis, that the row keeps its height, and that the blot is not squeezed to make room for them. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -954,20 +1096,17 @@ export const RowLongContent = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		const objective = canvas.getByText(UNBROKEN_OBJECTIVE)
 		const line = previewIn(canvasElement)
-		const live = slotIn(canvasElement, "mission-live-activity")
 		const row = rowIn(canvasElement)
 
-		for (const clipped of [objective, live]) {
-			await expect(clipped.scrollWidth).toBeGreaterThan(clipped.clientWidth)
-		}
-		for (const clipped of [objective, line, live]) {
+		await expect(objective.scrollWidth).toBeGreaterThan(objective.clientWidth)
+		for (const clipped of [objective, line]) {
 			await expect(getComputedStyle(clipped).textOverflow).toBe("ellipsis")
 			await expect(clipped.getBoundingClientRect().right).toBeLessThanOrEqual(
 				row.getBoundingClientRect().right,
 			)
 		}
 		await expect(objective.clientHeight).toBe(20)
-		await expect(boxOf(row).height).toBe(64)
+		await expect(boxOf(row).height).toBe(48)
 		await expect(
 			slotIn(canvasElement, "bot-identity-avatar").getBoundingClientRect()
 				.width,
@@ -1057,7 +1196,7 @@ export const RowLongStatus = meta.story({
 
 export const RowBoxMatchesARosterRow = meta.story({
 	tags: ["test-only"],
-	args: { ...WORKING_MISSION, density: "row", lastActivity: undefined },
+	args: { ...WORKING_MISSION, density: "row" },
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
