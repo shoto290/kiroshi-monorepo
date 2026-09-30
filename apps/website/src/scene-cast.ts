@@ -181,7 +181,7 @@ const TRIAGE = castConversation({
 const PERSONAL: SceneSpace = {
 	id: "personal",
 	name: SCENE_COPY.spaces.personal,
-	colour: "yellow",
+	colour: "blue",
 	bots: [MOCHI, OLIVE, PIP, TOMO, ASH],
 	rows: [
 		rosterRow(MOCHI, SCENE_COPY.bots.mochi),
@@ -226,7 +226,6 @@ const PERSONAL: SceneSpace = {
 const WORK: SceneSpace = {
 	id: "work",
 	name: SCENE_COPY.spaces.work,
-	colour: "cyan",
 	bots: [WREN, IVY, SABLE, JUNO],
 	rows: [
 		rosterRow(WREN, SCENE_COPY.bots.wren),
@@ -272,7 +271,7 @@ const WORK: SceneSpace = {
 	},
 }
 
-const SCENE_SPACES: SceneSpace[] = [PERSONAL, WORK]
+const SCENE_SPACES: SceneSpace[] = [WORK, PERSONAL]
 
 const SPACES: Space[] = SCENE_SPACES.map(({ id, name, colour }) => ({
 	id,
@@ -281,7 +280,7 @@ const SPACES: Space[] = SCENE_SPACES.map(({ id, name, colour }) => ({
 }))
 
 const spaceOf = (id: string): SceneSpace =>
-	SCENE_SPACES.find((space) => space.id === id) ?? PERSONAL
+	SCENE_SPACES.find((space) => space.id === id) ?? WORK
 
 const ROSTER_BY_SPACE: Record<string, AppSidebarBot[]> = Object.fromEntries(
 	SCENE_SPACES.map((space) => [space.id, space.rows]),
@@ -302,7 +301,6 @@ export {
 	MOCHI,
 	MOVE,
 	OLIVE,
-	PERSONAL,
 	PIP,
 	READER,
 	ROSTER_BY_SPACE,
@@ -314,5 +312,6 @@ export {
 	spaceOf,
 	TOMO,
 	TRIAGE,
+	WORK,
 	WREN,
 }
