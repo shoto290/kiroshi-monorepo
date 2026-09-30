@@ -729,10 +729,10 @@ export const RowWorkingWithManyTools = meta.story({
 	},
 	play: async ({ canvas, canvasElement }) => {
 		const line = previewIn(canvasElement)
-		const [mark] = slotsIn(canvasElement, "mission-tool-mark")
+		const marks = slotsIn(canvasElement, "mission-tool-mark")
 
-		await expect(slotsIn(canvasElement, "mission-tool-mark")).toHaveLength(1)
-		await expect(mark).toHaveAccessibleName(MANY_TOOLS[0])
+		await expect(marks).toHaveLength(1)
+		await expect(marks[0]).toHaveAccessibleName(MANY_TOOLS[0])
 		for (const text of ["OPE-42", "Ada Martin"]) {
 			await expect(
 				canvas.getByText(text).getBoundingClientRect().right,
@@ -1134,7 +1134,7 @@ export const RowLongStatus = meta.story({
 
 export const RowBoxMatchesARosterRow = meta.story({
 	tags: ["test-only"],
-	args: { ...WORKING_MISSION, density: "row", lastActivity: undefined },
+	args: { ...WORKING_MISSION, density: "row" },
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
