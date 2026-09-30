@@ -99,7 +99,6 @@ const meta = preview.meta({
 
 export const Default = meta.story({
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:

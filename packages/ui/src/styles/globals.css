@@ -227,7 +227,7 @@
 	:root,
 	.dark,
 	[data-theme] {
-		--user-bubble: var(--primary);
+		--user-bubble: #364f7c;
 		--user-bubble-foreground: #ffffff;
 		--color-foreground: var(--foreground);
 		--color-muted: var(--muted);
