@@ -122,9 +122,8 @@ const AppRail = ({
 	...props
 }: AppRailProps) => {
 	const { t } = useTranslation("bots")
-	const dotOf = (entry: AppRailEntry) => ({ hasDot: dots?.[entry] })
 	const panelEntry = (entry: AppRailPanel) => ({
-		...dotOf(entry),
+		hasDot: dots?.[entry],
 		isSelected: selected === entry,
 		name: t(`rail.${entry}`),
 	})
@@ -154,14 +153,14 @@ const AppRail = ({
 					</li>
 				) : null}
 				<RailItem
-					{...dotOf("settings")}
+					hasDot={dots?.settings}
 					name={t("rail.spaceSettings")}
 					onPress={onOpenSpaceSettings}
 				>
 					<Icons.Settings aria-hidden="true" />
 				</RailItem>
 				<RailItem
-					{...dotOf("you")}
+					hasDot={dots?.you}
 					name={displayNameOf(user?.name)}
 					onPress={onOpenYou}
 				>
