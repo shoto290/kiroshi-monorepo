@@ -11,9 +11,10 @@ import {
 import { createElement } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { AppHeader } from "@workspace/ui/components/app-header"
+import { AppSidebar } from "@workspace/ui/components/app-sidebar"
 import { MissionHeader } from "@workspace/ui/components/mission-header"
 import { NoticeSurface } from "@workspace/ui/components/notice-surface"
+import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 import "@workspace/ui/lib/i18n"
 
 import {
@@ -62,15 +63,23 @@ class FakeResizeObserver {
 	}
 }
 
-const renderHeader = () => {
+const renderTitleBar = () => {
 	render(createElement(NoticeSurface))
 	return render(
-		createElement(AppHeader, {
-			trailing: "Pinned",
-			windowControls: titleBarWindowControls(),
+		createElement(WorkspaceShell, {
+			sidebar: createElement(AppSidebar, {
+				bots: [],
+				"data-tauri-drag-region": "deep",
+				windowControls: titleBarWindowControls(),
+			}),
+			// biome-ignore lint/correctness/noChildrenProp: createElement types a required children prop through props only
+			children: null,
 		}),
 	)
 }
+
+const titleBar = () =>
+	document.querySelector("[data-slot=app-title-bar]") as HTMLElement
 
 const renderMissionHeader = () =>
 	render(
@@ -90,7 +99,6 @@ const renderMissionHeader = () =>
 			now: 0,
 			onBack: vi.fn(),
 			dragRegion: titleBarDragRegion(),
-			windowControls: titleBarWindowControls(),
 		}),
 	)
 
@@ -162,24 +170,40 @@ afterEach(() => {
 describe("title bar window controls", () => {
 	it("renders no caption buttons off Windows", () => {
 		vi.mocked(hasCaptionWindowControls).mockReturnValue(false)
-		renderHeader()
+		renderTitleBar()
 
 		expect(screen.queryByRole("button", { name: "Minimize" })).toBeNull()
-		expect(
-			screen.getByRole("banner").querySelector("[data-slot*=window]"),
-		).toBeNull()
+		expect(titleBar().querySelector("[data-slot*=window]")).toBeNull()
 	})
 
-	it("renders the caption buttons after the trailing slot", () => {
-		renderHeader()
-		const header = screen.getByRole("banner")
+	it("renders one set of caption buttons at the trailing end of the title bar", () => {
+		renderTitleBar()
+		const trailing = titleBar().lastElementChild
 
-		expect(header.lastElementChild?.textContent).toBe("")
-		expect(header.lastElementChild?.querySelectorAll("button")).toHaveLength(3)
+		expect(trailing?.getAttribute("data-slot")).toBe(
+			"app-title-bar-window-controls",
+		)
+		expect(
+			[...(trailing?.querySelectorAll("button") ?? [])].map((button) =>
+				button.getAttribute("aria-label"),
+			),
+		).toEqual(["Minimize", "Maximize", "Close"])
+		expect(
+			document.querySelectorAll("[data-slot=window-controls]"),
+		).toHaveLength(1)
+	})
+
+	it("drags the window from the title bar but not from its caption buttons", () => {
+		renderTitleBar()
+
+		expect(titleBar().getAttribute("data-tauri-drag-region")).toBe("deep")
+		for (const name of ["Minimize", "Maximize", "Close"]) {
+			expect(isDragBlocking(screen.getByRole("button", { name }))).toBe(true)
+		}
 	})
 
 	it("drives the current window from each button", () => {
-		renderHeader()
+		renderTitleBar()
 
 		fireEvent.click(screen.getByRole("button", { name: "Minimize" }))
 		fireEvent.click(screen.getByRole("button", { name: "Maximize" }))
@@ -191,7 +215,7 @@ describe("title bar window controls", () => {
 	})
 
 	it("follows the window between maximized and restored", () => {
-		renderHeader()
+		renderTitleBar()
 
 		reportedMaximized(true)
 		expect(screen.getByRole("button", { name: "Restore" })).toBeTruthy()
@@ -201,7 +225,7 @@ describe("title bar window controls", () => {
 	})
 
 	it("stops following the window once unmounted", async () => {
-		const { unmount } = renderHeader()
+		const { unmount } = renderTitleBar()
 		await waitFor(() => expect(watchWindowMaximized).toHaveBeenCalled())
 
 		unmount()
@@ -210,7 +234,7 @@ describe("title bar window controls", () => {
 	})
 
 	it("declares the maximize button while mounted and withdraws it on unmount", () => {
-		const { unmount } = renderHeader()
+		const { unmount } = renderTitleBar()
 		const declared = vi.mocked(declareMaximizeButton)
 
 		expect(declared).toHaveBeenLastCalledWith(
@@ -227,7 +251,7 @@ describe("title bar window controls", () => {
 
 	it("names the window action that failed", async () => {
 		vi.mocked(minimizeWindow).mockRejectedValue(new Error("denied"))
-		renderHeader()
+		renderTitleBar()
 
 		fireEvent.click(screen.getByRole("button", { name: "Minimize" }))
 
@@ -238,7 +262,7 @@ describe("title bar window controls", () => {
 
 	it("names the maximize button declaration once when it keeps failing", async () => {
 		vi.mocked(declareMaximizeButton).mockRejectedValue(new Error("unsupported"))
-		renderHeader()
+		renderTitleBar()
 		const snapNotices = () =>
 			screen.findAllByText(
 				"Snap layouts are unavailable on the maximize button.",
@@ -254,7 +278,7 @@ describe("title bar window controls", () => {
 
 	it("names the maximized state it could not read", async () => {
 		vi.mocked(watchWindowMaximized).mockRejectedValue(new Error("denied"))
-		renderHeader()
+		renderTitleBar()
 
 		expect(
 			await screen.findAllByText("Couldn’t tell whether Kiroshi is maximized."),
@@ -262,7 +286,7 @@ describe("title bar window controls", () => {
 	})
 
 	it("forces the maximize button into the state the host reports", () => {
-		renderHeader()
+		renderTitleBar()
 		expect(maximizeShows("idle")).toBe(true)
 
 		reportedPointer("hover")
@@ -276,7 +300,7 @@ describe("title bar window controls", () => {
 	})
 
 	it("returns the maximize button to idle when the window loses focus", () => {
-		renderHeader()
+		renderTitleBar()
 		reportedPointer("hover")
 		expect(maximizeShows("hover")).toBe(true)
 
@@ -288,7 +312,7 @@ describe("title bar window controls", () => {
 	})
 
 	it("subscribes to the maximize button once per mount", () => {
-		renderHeader()
+		renderTitleBar()
 		reportedPointer("hover")
 		reportedPointer("pressed")
 
@@ -297,7 +321,7 @@ describe("title bar window controls", () => {
 	})
 
 	it("stops following the maximize button once unmounted", async () => {
-		const { unmount } = renderHeader()
+		const { unmount } = renderTitleBar()
 
 		unmount()
 
@@ -309,7 +333,7 @@ describe("title bar window controls", () => {
 
 	it("follows no maximize button off Windows", () => {
 		vi.mocked(hasCaptionWindowControls).mockReturnValue(false)
-		renderHeader()
+		renderTitleBar()
 
 		expect(watchMaximizeButton).not.toHaveBeenCalled()
 		expect(watchWindowFocus).not.toHaveBeenCalled()
@@ -317,7 +341,7 @@ describe("title bar window controls", () => {
 
 	it("names the maximize button events it could not follow and stays idle", async () => {
 		vi.mocked(watchMaximizeButton).mockRejectedValue(new Error("denied"))
-		renderHeader()
+		renderTitleBar()
 
 		expect(await screen.findAllByText(POINTER_FAILURE)).toBeTruthy()
 		expect(maximizeShows("idle")).toBe(true)
@@ -325,27 +349,24 @@ describe("title bar window controls", () => {
 
 	it("names the focus changes it could not follow and ignores later reports", async () => {
 		vi.mocked(watchWindowFocus).mockRejectedValue(new Error("denied"))
-		renderHeader()
+		renderTitleBar()
 
 		expect(await screen.findAllByText(POINTER_FAILURE)).toBeTruthy()
 		reportedPointer("hover")
 		expect(maximizeShows("idle")).toBe(true)
 	})
 
-	it("drags the window from the mission header on Windows", () => {
+	it("drags the window from the mission header on Windows without caption buttons", () => {
 		renderMissionHeader()
 		const header = screen.getByRole("banner")
-		const buttons = [
-			"Back to the conversation",
-			"Minimize",
-			"Maximize",
-			"Close",
-		]
 
 		expect(header.getAttribute("data-tauri-drag-region")).toBe("deep")
-		for (const name of buttons) {
-			expect(isDragBlocking(screen.getByRole("button", { name }))).toBe(true)
-		}
+		expect(
+			isDragBlocking(
+				screen.getByRole("button", { name: "Back to the conversation" }),
+			),
+		).toBe(true)
+		expect(screen.queryByRole("button", { name: "Minimize" })).toBeNull()
 	})
 
 	it("leaves the mission header without a drag region off Windows", () => {

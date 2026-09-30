@@ -55,6 +55,7 @@ import type {
 	MissionsPanelMission,
 	MissionsPanelProps,
 } from "@workspace/ui/components/missions-panel"
+import { WindowControls } from "@workspace/ui/components/window-controls"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
 const LAST_MESSAGE =
@@ -3771,6 +3772,45 @@ export const NoWindowControlsReserve = meta.story({
 			slotIn(titleBar, "space-switcher").getBoundingClientRect().left -
 				titleBar.getBoundingClientRect().left,
 		).toBeLessThan(WINDOW_CONTROLS_END)
+	},
+})
+export const CaptionWindowControls = meta.story({
+	args: {
+		...RESERVE_ARGS,
+		"data-tauri-drag-region": "deep",
+		windowControls: (
+			<WindowControls
+				maximized={false}
+				onClose={fn()}
+				onMinimize={fn()}
+				onToggleMaximize={fn()}
+			/>
+		),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this on Windows, where the app draws its own caption buttons. Check that minimise, maximise and close sit at the trailing end of the 34px title bar, flush with the top and right edges of the window and as tall as the bar, that the title bar stays a drag region while the buttons do not carry it, and that the space switcher keeps its 10px gutter. Pick `NoWindowControlsReserve` for a window without caption buttons.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const titleBar = titleBarIn(canvasElement)
+		const controls = slotIn(
+			titleBar,
+			"app-title-bar-window-controls",
+		).getBoundingClientRect()
+		const bar = titleBar.getBoundingClientRect()
+		await expect(controls.right).toBe(bar.right)
+		await expect(controls.top).toBe(bar.top)
+		await expect(controls.height).toBe(TITLE_BAR_HEIGHT)
+		await expect(titleBar.getAttribute("data-tauri-drag-region")).toBe("deep")
+		for (const button of titleBar.querySelectorAll(
+			"[data-slot=window-controls] button",
+		)) {
+			await expect(button.hasAttribute("data-tauri-drag-region")).toBe(false)
+		}
 	},
 })
 const SECTIONS: AppSidebarSection[] = [

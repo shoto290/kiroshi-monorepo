@@ -6,6 +6,7 @@ import { probeRender } from "@workspace/ui/lib/render-probe"
 
 import { AppDialogs } from "@/components/app-dialogs"
 import { StartupScreen } from "@/components/startup-screen"
+import { titleBarWindowControls } from "@/components/window-caption-controls"
 import { WorkspaceBody } from "@/components/workspace-body"
 import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
 import { SessionApplicationsContext } from "@/lib/applications/use-session-application"
@@ -91,6 +92,7 @@ export function App() {
 					<AppSidebar
 						data-tauri-drag-region="deep"
 						insetWindowControls={hasOverlayWindowControls()}
+						windowControls={titleBarWindowControls()}
 						bots={rosterLines.rosterBots}
 						haveBotsFailedToLoad={roster.state.hasFailedToLoad}
 						botsBySpaceId={rosterLists.rosterBotsBySpace}

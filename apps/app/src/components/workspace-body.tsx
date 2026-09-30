@@ -7,7 +7,6 @@ import { useCommonCopy } from "@workspace/ui/hooks/use-common-copy"
 import { MissionThreadScreen } from "@/components/mission-thread-screen"
 import type { ActivityPanel } from "@/components/thread-routines"
 import { ThreadScreen } from "@/components/thread-screen"
-import { titleBarWindowControls } from "@/components/window-caption-controls"
 import type { AttachmentsController } from "@/lib/chat/attachments-controller"
 import type { DraftsController } from "@/lib/chat/drafts-controller"
 import type { Thread } from "@/lib/chat/thread-contract"
@@ -130,7 +129,6 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 			<AppHeader
 				data-tauri-drag-region="deep"
 				insetWindowControls={hasOverlayWindowControls()}
-				windowControls={titleBarWindowControls()}
 			/>
 		)
 	}

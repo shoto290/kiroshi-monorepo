@@ -88,6 +88,7 @@ import {
 	type ConversationSeating,
 	ConversationSeatingContext,
 } from "@/lib/conversations/use-conversation-seating"
+import { hasCaptionWindowControls } from "@/lib/host"
 import type { Mission, MissionChanged } from "@/lib/missions/mission-contract"
 import { missionSummonsFor } from "@/lib/missions/mission-summons"
 import { missionsTransport } from "@/lib/missions/missions-transport"
@@ -144,6 +145,10 @@ vi.mock("@/lib/routines/routines-transport", async (importOriginal) => {
 vi.mock("@/lib/routines/trigger-sources-transport", () => ({
 	triggerSourcesTransport: { sources: vi.fn() },
 }))
+vi.mock("@/lib/host", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@/lib/host")>()),
+	hasCaptionWindowControls: vi.fn(() => false),
+}))
 vi.mock("@/lib/missions/missions-transport", () => ({
 	missionsTransport: {
 		list: vi.fn(),
@@ -157,6 +162,7 @@ const updateRoutine = vi.mocked(routinesTransport.update)
 const listSources = vi.mocked(triggerSourcesTransport.sources)
 const listMissions = vi.mocked(missionsTransport.list)
 const listenToMissions = vi.mocked(missionsTransport.onChanged)
+const onCaptionWindow = vi.mocked(hasCaptionWindowControls)
 
 const CRASH: ChatError = {
 	id: "crashed-0",
@@ -1278,6 +1284,19 @@ describe("ThreadScreen", () => {
 			SOLO_ROUTINE.id,
 			expect.objectContaining({ isEnabled: false }),
 		)
+	})
+
+	it("keeps the caption buttons out of the conversation header on Windows", async () => {
+		onCaptionWindow.mockReturnValue(true)
+		render(screenOf(threadOf({ id: "bot-1", name: "Nyx", said: "held" })))
+		await settle()
+		onCaptionWindow.mockReturnValue(false)
+
+		const header = within(screen.getByRole("banner"))
+		expect(header.queryByRole("button", { name: "Minimize" })).toBeNull()
+		expect(header.queryByRole("button", { name: "Close" })).toBeNull()
+		expect(header.getByRole("button", { name: /Pinned messages/ })).toBeTruthy()
+		expect(header.getByRole("button", { name: ROUTINES_TOGGLE })).toBeTruthy()
 	})
 
 	it("leaves a solo companion thread with no main conversation without routines", async () => {
