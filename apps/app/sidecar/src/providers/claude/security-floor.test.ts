@@ -44,23 +44,17 @@ const floorIn = (appDataDir: string, conversationId: string) =>
 const denyOf = (pluginPaths: string[] = []): string[] =>
 	floor(pluginPaths).permissions?.deny ?? []
 
-const onWindows = (scope: Partial<FloorScope> = {}): string[] =>
+const windowsFloor = (scope: Partial<FloorScope> = {}) =>
 	securityFloor({
 		home: WINDOWS_HOME,
 		platform: "win32",
 		pluginPaths: [],
 		writablePaths: [],
 		...scope,
-	}).permissions?.deny ?? []
-
-const windowsFloor = () =>
-	securityFloor({
-		appDataDir: WINDOWS_APP_DATA,
-		home: WINDOWS_HOME,
-		platform: "win32",
-		pluginPaths: [],
-		writablePaths: [],
 	})
+
+const onWindows = (scope: Partial<FloorScope> = {}): string[] =>
+	windowsFloor(scope).permissions?.deny ?? []
 
 const filesystemOf = (
 	pluginPaths: string[] = [],
@@ -305,7 +299,7 @@ describe("securityFloor", () => {
 	})
 
 	it("runs the commands of a Windows session unsandboxed under the same path denials", () => {
-		expect(windowsFloor().sandbox).toEqual({
+		expect(windowsFloor({ appDataDir: WINDOWS_APP_DATA }).sandbox).toEqual({
 			enabled: true,
 			allowUnsandboxedCommands: true,
 			autoAllowBashIfSandboxed: false,
@@ -345,7 +339,7 @@ describe("securityFloor", () => {
 	})
 
 	it("keeps every deny rule on a Windows session that runs commands unsandboxed", () => {
-		expect(windowsFloor().permissions?.deny).toEqual([
+		expect(onWindows({ appDataDir: WINDOWS_APP_DATA })).toEqual([
 			"Agent",
 			"Task",
 			"Read(//c/Users/alice/.ssh/**)",
