@@ -9,6 +9,24 @@ const common = {
 		},
 	},
 	skipLink: "Passer à la conversation",
+	spaceGraph: {
+		directions: {
+			label: "Disposition",
+			force: "Force",
+			hubs: "Pôles",
+			rings: "Anneaux",
+			nested: "Imbriqué",
+		},
+		focus: "Afficher {{name}} et ce qu’il charge",
+		showWhole: "Afficher tout le graphe",
+		scopes: {
+			system: "Système",
+			user: "Utilisateur",
+			space: "Espace",
+			bot: "Compagnon",
+		},
+		detail: "{{scope}} · {{tokens, number}} jetons",
+	},
 	companion: {
 		unnamed: "Compagnon",
 	},

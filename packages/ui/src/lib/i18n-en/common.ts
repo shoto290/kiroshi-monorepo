@@ -9,6 +9,24 @@ const common = {
 		},
 	},
 	skipLink: "Skip to the conversation",
+	spaceGraph: {
+		directions: {
+			label: "Layout",
+			force: "Force",
+			hubs: "Hubs",
+			rings: "Rings",
+			nested: "Nested",
+		},
+		focus: "Show {{name}} and what it loads",
+		showWhole: "Show the whole graph",
+		scopes: {
+			system: "System",
+			user: "User",
+			space: "Space",
+			bot: "Bot",
+		},
+		detail: "{{scope}} · {{tokens, number}} tokens",
+	},
 	companion: {
 		unnamed: "Companion",
 	},
