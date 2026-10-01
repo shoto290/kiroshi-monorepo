@@ -11,9 +11,9 @@ use tauri::{AppHandle, Runtime};
 pub use connection::DatabaseError;
 use repositories::{
 	messages, ApplicationInstallsRepository, CatalogueRepository, ConversationsRepository,
-	JoinedSpacesRepository, MessagesRepository, MissionsRepository, RoutinesRepository, RuntimeContextRepository,
-	SearchRepository, SectionsRepository, SpaceRowsRepository, SpaceSettingsRepository,
-	SpacesRepository, UserRepository,
+	JoinedSpacesRepository, MessagesRepository, MissionsRepository, RoutinesRepository,
+	RuntimeContextRepository, SearchRepository, SectionsRepository, SpaceRowsRepository,
+	SpaceSettingsRepository, SpacesRepository, UserRepository,
 };
 
 #[derive(Clone)]
