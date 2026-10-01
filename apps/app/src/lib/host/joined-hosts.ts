@@ -31,8 +31,11 @@ export const LOCAL_COMMANDS: ReadonlySet<string> = new Set([
 	"companion_launch_outcome",
 ])
 
+export const JOINED_SPACE_CHANGED_EVENT = "joined-space://changed"
+
 const LOCAL_EVENTS: ReadonlySet<string> = new Set([
 	"host://presence",
+	JOINED_SPACE_CHANGED_EVENT,
 	"window-maximize-button",
 	"notification://activated",
 	"user://first-run-done",
@@ -42,13 +45,13 @@ const LOCAL_EVENTS: ReadonlySet<string> = new Set([
 
 const TAURI_PLUGIN_PREFIX = "plugin:"
 
-type JoinedHostState =
+export type JoinedHostState =
 	| { status: "connecting" }
 	| { status: "up" }
 	| { status: "down" }
 	| { status: "refused"; failure: string }
 
-type JoinedHostsState = {
+export type JoinedHostsState = {
 	active: string | null
 	connections: Record<string, JoinedHostState>
 }
@@ -75,6 +78,7 @@ export type JoinedHostsOptions = {
 	fetch: typeof fetch
 	openSocket: (url: string) => HostSocket
 	reportFailure: (message: string, status?: number) => void
+	reportHostDown: () => void
 }
 
 type Subscription = {
@@ -87,7 +91,7 @@ type Subscription = {
 const isLocalCommand = (command: string): boolean =>
 	command.startsWith(TAURI_PLUGIN_PREFIX) || LOCAL_COMMANDS.has(command)
 
-const describeJoinError = (error: JoinedSpaceError): string => {
+export const describeJoinError = (error: JoinedSpaceError): string => {
 	if ("message" in error) {
 		return error.message
 	}
@@ -103,6 +107,7 @@ export const createJoinedHosts = ({
 	fetch,
 	openSocket,
 	reportFailure,
+	reportHostDown,
 }: JoinedHostsOptions) => {
 	const store = createStore<JoinedHostsState>({ active: null, connections: {} })
 	const hosts = new Map<string, HttpHost>()
@@ -124,6 +129,15 @@ export const createJoinedHosts = ({
 		return null
 	}
 
+	const isDown = (id: string) =>
+		store.getState().connections[id]?.status === "down"
+
+	const reportIfActiveDown = (id: string) => {
+		if (store.getState().active === id && isDown(id)) {
+			reportHostDown()
+		}
+	}
+
 	const openHost = (id: string, { hostUrl, token }: JoinedSpaceConnection) => {
 		const host = createHttpHost({
 			host: hostUrl,
@@ -131,7 +145,10 @@ export const createJoinedHosts = ({
 			fetch,
 			openSocket,
 			onUp: () => record(id, { status: "up" }),
-			onDown: () => record(id, { status: "down" }),
+			onDown: () => {
+				record(id, { status: "down" })
+				reportIfActiveDown(id)
+			},
 			onRefused: reportFailure,
 		})
 		hosts.set(id, host)
@@ -219,6 +236,17 @@ export const createJoinedHosts = ({
 		const host = await openConnection(id)
 		if (host && requested === id) {
 			setActive(id)
+			reportIfActiveDown(id)
+		}
+	}
+
+	const forget = (id: string) => {
+		hosts.get(id)?.close()
+		hosts.delete(id)
+		const { [id]: _forgotten, ...connections } = store.getState().connections
+		store.setState({ ...store.getState(), connections })
+		if (requested === id) {
+			void activate(null)
 		}
 	}
 
@@ -254,8 +282,11 @@ export const createJoinedHosts = ({
 			await openConnection(id)
 		},
 		activate,
+		forget,
 		invoke,
 		listen,
 		fileSrc,
 	}
 }
+
+export type JoinedHosts = ReturnType<typeof createJoinedHosts>

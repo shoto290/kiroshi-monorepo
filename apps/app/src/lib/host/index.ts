@@ -81,6 +81,7 @@ export const joinedHosts = createJoinedHosts({
 	fetch: (input, init) => fetch(input, init),
 	openSocket: (url) => new WebSocket(url),
 	reportFailure: raiseRefusalNotice,
+	reportHostDown: raiseHostDownNotice,
 })
 
 export const invoke: typeof tauriInvoke = joinedHosts.invoke

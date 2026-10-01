@@ -18,6 +18,7 @@ import {
 	type SectionsController,
 	spaceOfSection,
 } from "../sections/sections-controller"
+import type { JoinedSpacesController } from "../spaces/joined-spaces-controller"
 import type { SpacesController } from "../spaces/spaces-controller"
 import type { UserController } from "../user/preferences-controller"
 
@@ -34,6 +35,8 @@ export type SidebarActions = Required<
 		| "onDeleteSection"
 		| "onDuplicateBot"
 		| "onEditBot"
+		| "onJoinSpace"
+		| "onLeaveSpace"
 		| "onOpenConversationSettings"
 		| "onOpenSpaceSettings"
 		| "onOpenUserSettings"
@@ -51,6 +54,7 @@ export type SidebarActionsSource = {
 	attachments: AttachmentsController
 	collapsedSections: CollapsedSectionsController
 	drafts: DraftsController
+	joinedSpaces: JoinedSpacesController
 	openedMission: Pick<OpenedMissionController, "leave">
 	roster: RosterController
 	runtimes: ConversationRuntimes
@@ -61,10 +65,16 @@ export type SidebarActionsSource = {
 	userPlugin: PluginController
 }
 
+const localSpaceIdsIn = (spaces: SpacesController, ids: string[]) => {
+	const localIds = new Set(spaces.getState().spaces.map((space) => space.id))
+	return ids.filter((id) => localIds.has(id))
+}
+
 export const useSidebarActions = ({
 	attachments,
 	collapsedSections,
 	drafts,
+	joinedSpaces,
 	openedMission,
 	roster,
 	runtimes,
@@ -128,6 +138,8 @@ export const useSidebarActions = ({
 				void roster.removeFromSpace(botId, spaceId)
 			},
 			onEditBot: roster.edit,
+			onJoinSpace: joinedSpaces.openJoin,
+			onLeaveSpace: joinedSpaces.askToLeave,
 			onOpenConversationSettings: roster.editConversation,
 			onOpenSpaceSettings: () => {
 				spaces.setSettingsOpen(true)
@@ -145,7 +157,7 @@ export const useSidebarActions = ({
 			},
 			onRenameSection: sections.rename,
 			onReorderSpaces: (ids) => {
-				void spaces.reorder(ids)
+				void spaces.reorder(localSpaceIdsIn(spaces, ids))
 			},
 			onSelectBot: (id) => {
 				openedMission.leave()
@@ -155,12 +167,13 @@ export const useSidebarActions = ({
 				openedMission.leave()
 				roster.selectConversation(id)
 			},
-			onSelectSpace: spaces.select,
+			onSelectSpace: joinedSpaces.selectSpace,
 		}),
 		[
 			attachments,
 			collapsedSections,
 			drafts,
+			joinedSpaces,
 			openedMission,
 			roster,
 			runtimes,

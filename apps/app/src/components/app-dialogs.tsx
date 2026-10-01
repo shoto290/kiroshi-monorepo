@@ -3,6 +3,7 @@ import { SearchPalette } from "@workspace/ui/components/search-palette"
 
 import { BotSettingsHost } from "@/components/bot-settings-host"
 import { ConversationSettingsHost } from "@/components/conversation-settings-host"
+import { JoinedSpaceDialogs } from "@/components/joined-space-dialogs"
 import { SpaceSettingsHost } from "@/components/space-settings-host"
 import { UserSettingsHost } from "@/components/user-settings-host"
 import type { ApplicationScopes } from "@/lib/workspace/use-application-scopes"
@@ -47,6 +48,7 @@ export const AppDialogs = ({
 			rosterView={rosterView}
 		/>
 		<SpaceSettingsHost core={core} panels={panels} scopes={scopes} />
+		<JoinedSpaceDialogs joinedSpaces={core.joinedSpaces} />
 		<UserSettingsHost
 			core={core}
 			overlay={overlay}

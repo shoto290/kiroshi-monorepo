@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo } from "react"
 import type { ApplicationScopes } from "./use-application-scopes"
 import type { WorkspaceCore } from "./use-workspace-core"
 
+import { rosterSpaceIdsOf } from "../spaces/joined-spaces-controller"
 import { useSpaceEntry } from "../spaces/use-space-entry"
 import { lastBotIn } from "../user/preferences-mirror"
 
@@ -12,10 +13,14 @@ type SpaceLoadingInput = {
 }
 
 export const useSpaceLoading = ({ core, scopes }: SpaceLoadingInput) => {
-	const { roster, spaces, user } = core
+	const { joinedSpaces, roster, spaces, user } = core
 	const { selectedSpaceId } = scopes
 
-	const listedSpaces = spaces.state.spaces.map((space) => space.id).join(" ")
+	const listedSpaces = rosterSpaceIdsOf(
+		spaces.state.spaces,
+		joinedSpaces.state.joinedSpaces,
+		joinedSpaces.hosts.active,
+	).join(" ")
 	const spaceIds = useMemo(
 		() => (listedSpaces === "" ? [] : listedSpaces.split(" ")),
 		[listedSpaces],
