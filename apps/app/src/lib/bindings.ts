@@ -119,6 +119,10 @@ export const commands = {
 	envDelete: (scope: EnvScope_Deserialize, name: string) => typedError<null, EnvError>(__TAURI_INVOKE("env_delete", { scope, name })),
 	envList: (scope: EnvScope_Deserialize) => typedError<EnvEntry_Serialize[], EnvError>(__TAURI_INVOKE("env_list", { scope })),
 	connectionSet: (kind: ConnectionKind, value: string) => typedError<null, EnvError>(__TAURI_INVOKE("connection_set", { kind, value })),
+	joinedSpacesList: () => typedError<JoinedSpace[], JoinedSpaceError>(__TAURI_INVOKE("joined_spaces_list")),
+	joinedSpaceAdd: (link: string, name: string | null) => typedError<JoinedSpace, JoinedSpaceError>(__TAURI_INVOKE("joined_space_add", { link, name })),
+	joinedSpaceConnect: (id: string) => typedError<JoinedSpaceConnection, JoinedSpaceError>(__TAURI_INVOKE("joined_space_connect", { id })),
+	joinedSpaceRemove: (id: string) => typedError<null, JoinedSpaceError>(__TAURI_INVOKE("joined_space_remove", { id })),
 	mcpOauthConnect: (owner: EnvOwner, name: string, url: string) => typedError<null, OauthError_Serialize>(__TAURI_INVOKE("mcp_oauth_connect", { owner, name, url })),
 	mcpOauthCancel: () => typedError<null, OauthError_Serialize>(__TAURI_INVOKE("mcp_oauth_cancel")),
 	mcpOauthDisconnect: (owner: EnvOwner, name: string, url: string) => typedError<Disconnected_Serialize, OauthError_Serialize>(__TAURI_INVOKE("mcp_oauth_disconnect", { owner, name, url })),
@@ -644,12 +648,31 @@ export type Install_Serialize = ({ nothing: {
 	kind: "refused",
 } & InstallRefusal }) & { key?: never; nothing?: never; oauth?: never };
 
+export type JoinedSpace = {
+	id: string,
+	hostUrl: string,
+	remoteSpaceId: string | null,
+	name: string,
+};
+
+export type JoinedSpaceConnection = {
+	id: string,
+	hostUrl: string,
+	token: string,
+	remoteSpaceId: string | null,
+	name: string,
+};
+
+export type JoinedSpaceError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "refusedLink"; part: LinkPart; message: string } | { kind: "unknownJoinedSpace"; id: string } | { kind: "undeliverable"; detail: string };
+
 export type Json = null | boolean | number | null | string | Json[] | { [key in string]: Json };
 
 export type LaunchOutcome = {
 	created: CompanionCreated | null,
 	refused: CompanionSeedRefused | null,
 };
+
+export type LinkPart = "fragment" | "host" | "token";
 
 export type LiveSession = {
 	botId: string,
