@@ -42,6 +42,19 @@ const SWITCHER_SWATCH = "rounded-[3px]"
 
 const SWITCHER_CHEVRON = "size-3 shrink-0 stroke-2!"
 
+const SWITCHER_REMOTE = "size-3 shrink-0 text-muted-foreground"
+
+const ROW_NAME = "min-w-0 truncate"
+
+const ROW_NAME_UNREACHABLE = "text-muted-foreground"
+
+const ROW_REMOTE = "size-3.5 text-muted-foreground"
+
+const ROW_UNREACHABLE =
+	"flex shrink-0 items-center gap-1 whitespace-nowrap text-muted-foreground text-xs"
+
+const ROW_UNREACHABLE_ICON = "size-3.5 text-destructive"
+
 const DOT = "h-2.5 w-2.5 shrink-0 rounded-full"
 
 const DOTS =
@@ -122,19 +135,53 @@ type SpaceSelection = {
 	onReorderSpaces?: (ids: string[]) => void
 }
 
+type SpaceRemote = "connected" | "unreachable"
+
+type SpaceRemoteMarkerProps = {
+	remote: SpaceRemote
+}
+
+const SpaceRemoteMarker = ({ remote }: SpaceRemoteMarkerProps) => {
+	const { t } = useTranslation("bots")
+
+	if (remote === "connected") {
+		return (
+			<Icons.Web
+				aria-label={t("spaces.remote")}
+				className={ROW_REMOTE}
+				data-slot="space-remote"
+				role="img"
+			/>
+		)
+	}
+
+	return (
+		<span className={ROW_UNREACHABLE} data-slot="space-unreachable">
+			<Icons.Alert aria-hidden="true" className={ROW_UNREACHABLE_ICON} />
+			{t("spaces.unreachable")}
+		</span>
+	)
+}
+
 type SpaceSwitcherProps = SpaceSelection & {
+	remoteBySpaceId?: Record<string, SpaceRemote>
 	onCreateSpace?: () => void
+	onJoinSpace?: () => void
 	onOpenSpaceSettings?: () => void
+	onLeaveSpace?: () => void
 }
 
 const SpaceSwitcher = ({
 	spaces,
 	selectedSpaceId,
 	badgesBySpaceId,
+	remoteBySpaceId,
 	onSelectSpace,
 	onReorderSpaces,
 	onCreateSpace,
+	onJoinSpace,
 	onOpenSpaceSettings,
+	onLeaveSpace,
 }: SpaceSwitcherProps) => {
 	const { t } = useTranslation("bots")
 	const selected =
@@ -143,6 +190,7 @@ const SpaceSwitcher = ({
 	if (!selected) return null
 
 	const rank = spaces.indexOf(selected)
+	const isRemote = Boolean(remoteBySpaceId?.[selected.id])
 
 	const moveSelected = (by: number) => {
 		const order = placedOrder(spaces, selected.id, rank + by)
@@ -160,7 +208,9 @@ const SpaceSwitcher = ({
 			<ContextMenuPressTrigger
 				render={
 					<Button
-						aria-label={t("spaces.switch", { name: selected.name })}
+						aria-label={t(isRemote ? "spaces.switchRemote" : "spaces.switch", {
+							name: selected.name,
+						})}
 						className={SWITCHER}
 						data-slot="space-switcher"
 						size="sm"
@@ -170,6 +220,13 @@ const SpaceSwitcher = ({
 						<span className={SWITCHER_NAME} data-slot="space-switcher-name">
 							{selected.name}
 						</span>
+						{isRemote ? (
+							<Icons.Web
+								aria-hidden="true"
+								className={SWITCHER_REMOTE}
+								data-slot="space-switcher-remote"
+							/>
+						) : null}
 						<Icons.Expand aria-hidden="true" className={SWITCHER_CHEVRON} />
 						{elsewhere ? (
 							<BotBadgeDot
@@ -189,25 +246,38 @@ const SpaceSwitcher = ({
 					onValueChange={(value) => onSelectSpace?.(value)}
 					value={selected.id}
 				>
-					{spaces.map((space, index) => (
-						<ContextMenuRadioItem
-							closeOnClick
-							key={space.id}
-							label={space.name}
-							value={space.id}
-						>
-							<SpaceDot
-								badge={badgesBySpaceId?.[space.id]}
-								colour={space.colour}
-							/>
-							<span className="min-w-0 truncate">{space.name}</span>
-							{index < SPACE_RANK_LIMIT ? (
-								<ContextMenuShortcut>
-									{t("spaces.shortcut", { rank: index + 1 })}
-								</ContextMenuShortcut>
-							) : null}
-						</ContextMenuRadioItem>
-					))}
+					{spaces.map((space, index) => {
+						const remote = remoteBySpaceId?.[space.id]
+						const isUnreachable = remote === "unreachable"
+						return (
+							<ContextMenuRadioItem
+								closeOnClick
+								key={space.id}
+								label={space.name}
+								value={space.id}
+							>
+								<SpaceDot
+									badge={badgesBySpaceId?.[space.id]}
+									colour={space.colour}
+									isFilled={!isUnreachable}
+								/>
+								<span
+									className={cn(
+										ROW_NAME,
+										isUnreachable && ROW_NAME_UNREACHABLE,
+									)}
+								>
+									{space.name}
+								</span>
+								{remote ? <SpaceRemoteMarker remote={remote} /> : null}
+								{index < SPACE_RANK_LIMIT ? (
+									<ContextMenuShortcut>
+										{t("spaces.shortcut", { rank: index + 1 })}
+									</ContextMenuShortcut>
+								) : null}
+							</ContextMenuRadioItem>
+						)
+					})}
 				</ContextMenuRadioGroup>
 				<ContextMenuSeparator />
 				{spaces.length > 1 ? (
@@ -233,10 +303,23 @@ const SpaceSwitcher = ({
 					<Icons.Add aria-hidden="true" className="size-3.5" />
 					{t("spaces.create")}
 				</ContextMenuItem>
+				<ContextMenuItem onClick={onJoinSpace}>
+					<Icons.Web aria-hidden="true" className="size-3.5" />
+					{t("spaces.join")}
+				</ContextMenuItem>
 				<ContextMenuItem onClick={onOpenSpaceSettings}>
 					<Icons.Settings aria-hidden="true" className="size-3.5" />
 					{t("spaces.settings")}
 				</ContextMenuItem>
+				{isRemote ? (
+					<>
+						<ContextMenuSeparator />
+						<ContextMenuItem onClick={onLeaveSpace} variant="destructive">
+							<Icons.Leave aria-hidden="true" className="size-3.5" />
+							{t("spaces.leave")}
+						</ContextMenuItem>
+					</>
+				) : null}
 			</ContextMenuContent>
 		</ContextMenu>
 	)
@@ -331,4 +414,10 @@ const SpaceDots = ({
 	)
 }
 
-export { SpaceDot, SpaceDots, SpaceSwitcher, type SpaceSwitcherProps }
+export {
+	SpaceDot,
+	SpaceDots,
+	type SpaceRemote,
+	SpaceSwitcher,
+	type SpaceSwitcherProps,
+}

@@ -907,7 +907,11 @@ navigation-spaceswitcher--keyboard
 navigation-spaceswitcher--long-content
 navigation-spaceswitcher--move-space
 navigation-spaceswitcher--open
+navigation-spaceswitcher--remote-long-names
 navigation-spaceswitcher--single-space
+navigation-spaceswitcher--themes-local-space-menu
+navigation-spaceswitcher--themes-remote-space-trigger
+navigation-spaceswitcher--themes-unreachable-space-menu
 navigation-spaceswitcher--with-dots
 navigation-spaceswitcher--wrapped-dots
 navigation-tabs--default

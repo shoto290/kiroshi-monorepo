@@ -4,6 +4,8 @@ import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_FLOATING_FOCUS_GUARDS,
+	A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+	mergeA11y,
 	settled,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
@@ -11,6 +13,7 @@ import type { BotBadge } from "@workspace/ui/components/bot-badge"
 import type { Space } from "@workspace/ui/components/space"
 import {
 	SpaceDots,
+	type SpaceRemote,
 	SpaceSwitcher,
 	type SpaceSwitcherProps,
 } from "@workspace/ui/components/space-switcher"
@@ -188,7 +191,9 @@ const meta = preview.meta({
 		selectedSpaceId: "vocca",
 		onSelectSpace: fn(),
 		onCreateSpace: fn(),
+		onJoinSpace: fn(),
 		onOpenSpaceSettings: fn(),
+		onLeaveSpace: fn(),
 		onReorderSpaces: fn(),
 	},
 	render: (args) => <SwitcherLine {...args} />,
@@ -713,5 +718,278 @@ export const MoveSpace = meta.story({
 
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+	},
+})
+
+const REMOTE_SPACES: Record<string, SpaceRemote> = {
+	vocca: "connected",
+	veille: "unreachable",
+}
+
+const LONG_REMOTE_SPACES: Space[] = [
+	{ id: "perso", name: "Perso", colour: "blue" },
+	{
+		id: "vocca",
+		name: "Everything the team has not filed anywhere else yet",
+		colour: "green",
+	},
+	{
+		id: "veille",
+		name: "Reading list shared with the whole studio this quarter",
+		colour: "yellow",
+	},
+]
+
+const ARTBOARD =
+	"Measured against the Paper page `Join a Space, remote Spaces`, light on the left and dark on the right through the side-by-side theme layout."
+
+const triggersIn = (root: HTMLElement) =>
+	within(root).getAllByRole("button", { name: /^Change space/ })
+
+const openMenuLikeItsTheme = async (trigger: HTMLElement) => {
+	const before = screen.queryAllByRole("menu")
+	fireEvent.click(trigger)
+	const menu = await settled(
+		await waitFor(() => {
+			const opened = screen
+				.getAllByRole("menu")
+				.find((held) => !before.includes(held))
+			if (!opened) throw new Error("The menu has not opened yet")
+			return opened
+		}),
+	)
+	menu.parentElement?.classList.toggle(
+		"dark",
+		Boolean(trigger.closest(".dark")),
+	)
+	return menu
+}
+
+const closeMenus = async () => {
+	fireEvent.keyDown(document.activeElement ?? document.body, {
+		key: "Escape",
+	})
+	await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+}
+
+const rowNamed = (menu: HTMLElement, name: string) =>
+	within(menu).getByRole("menuitemradio", { name: new RegExp(`^${name}`) })
+
+const expectConnectedRow = async (row: HTMLElement) => {
+	const globe = within(row).getByRole("img", { name: "Remote" })
+	await expect(globe.getBoundingClientRect().width).toBe(14)
+	await expect(globe.nextElementSibling).toHaveAttribute(
+		"data-slot",
+		"context-menu-shortcut",
+	)
+	await expect(slotsIn(row, "space-dot")[0].style.backgroundColor).not.toBe("")
+}
+
+const expectUnreachableRow = async (row: HTMLElement) => {
+	const status = slotsIn(row, "space-unreachable")[0]
+	await expect(status).toHaveTextContent("Unreachable")
+	await expect(status.querySelector("svg")).toHaveAttribute(
+		"aria-hidden",
+		"true",
+	)
+	await expect(status.nextElementSibling).toHaveAttribute(
+		"data-slot",
+		"context-menu-shortcut",
+	)
+	await expect(slotsIn(row, "space-dot")[0].style.backgroundColor).toBe("")
+	await expect(within(row).queryByRole("img", { name: "Remote" })).toBeNull()
+}
+
+const expectRemoteMarkers = async (menu: HTMLElement) => {
+	await expectConnectedRow(rowNamed(menu, "Vocca"))
+	await expectUnreachableRow(rowNamed(menu, "Veille"))
+	await expect(slotsIn(rowNamed(menu, "Perso"), "space-remote")).toHaveLength(0)
+}
+
+const expectJoinBetweenCreateAndSettings = async (menu: HTMLElement) => {
+	const join = within(menu).getByRole("menuitem", { name: "Join a space" })
+	await expect(join.previousElementSibling).toHaveAccessibleName(
+		"Create a space",
+	)
+	await expect(join.nextElementSibling).toHaveAccessibleName(
+		"Open space settings",
+	)
+}
+
+const expectLeaveLast = async (menu: HTMLElement) => {
+	const leave = within(menu).getByRole("menuitem", { name: "Leave space" })
+	await expect(leave).toHaveAttribute("data-variant", "destructive")
+	await expect(leave).toBe(menu.lastElementChild)
+	await expect(leave.previousElementSibling).toHaveAttribute(
+		"role",
+		"separator",
+	)
+}
+
+const SIDE_BY_SIDE_MENU_A11Y = mergeA11y(
+	A11Y_FLOATING_FOCUS_GUARDS,
+	A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+)
+
+export const ThemesLocalSpaceMenu = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { remoteBySpaceId: REMOTE_SPACES, selectedSpaceId: "perso" },
+	parameters: {
+		a11y: SIDE_BY_SIDE_MENU_A11Y,
+		docs: {
+			description: {
+				story: `${ARTBOARD} The menu of a local space that sits beside joined ones (J5 and J6, first menu). Check the connected row carries the 14px globe between its name and its shortcut, that the unreachable row drops its tint, mutes its name and says \`Unreachable\` after a destructive alert, that \`Join a space\` sits between \`Create a space\` and \`Open space settings\`, and that no \`Leave space\` is offered, since a local space is not left. Pick \`ThemesUnreachableSpaceMenu\` for the menu of a joined space.`,
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const [light, dark] = triggersIn(canvasElement)
+		for (const trigger of [light, dark]) {
+			await expect(trigger).toHaveAccessibleName("Change space, Perso open")
+			await expect(slotsIn(trigger, "space-switcher-remote")).toHaveLength(0)
+		}
+
+		const joining = await openMenuLikeItsTheme(light)
+		await userEvent.click(
+			within(joining).getByRole("menuitem", { name: "Join a space" }),
+		)
+		await expect(args.onJoinSpace).toHaveBeenCalledOnce()
+		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+
+		for (const trigger of [light, dark]) {
+			const menu = await openMenuLikeItsTheme(trigger)
+			await expectRemoteMarkers(menu)
+			await expectJoinBetweenCreateAndSettings(menu)
+			await expect(
+				within(menu).queryByRole("menuitem", { name: "Leave space" }),
+			).toBeNull()
+			await expect(within(menu).getAllByRole("separator")).toHaveLength(2)
+		}
+	},
+})
+
+export const ThemesUnreachableSpaceMenu = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { remoteBySpaceId: REMOTE_SPACES, selectedSpaceId: "veille" },
+	parameters: {
+		a11y: SIDE_BY_SIDE_MENU_A11Y,
+		docs: {
+			description: {
+				story: `${ARTBOARD} The menu of a joined space whose host does not answer (J5 and J6, second menu). Check the open row keeps its mark and stays choosable while it reads \`Unreachable\`, that the globe still marks the connected row, and that a rule then the destructive \`Leave space\` close the menu. Both items only report: the confirmation and the join dialog belong to the host. Pick \`ThemesLocalSpaceMenu\` for the menu with nothing to leave.`,
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const [light, dark] = triggersIn(canvasElement)
+
+		const leaving = await openMenuLikeItsTheme(light)
+		await userEvent.click(
+			within(leaving).getByRole("menuitem", { name: "Leave space" }),
+		)
+		await expect(args.onLeaveSpace).toHaveBeenCalledOnce()
+		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+
+		const joining = await openMenuLikeItsTheme(light)
+		await userEvent.click(
+			within(joining).getByRole("menuitem", { name: "Join a space" }),
+		)
+		await expect(args.onJoinSpace).toHaveBeenCalledOnce()
+		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+
+		for (const trigger of [light, dark]) {
+			const menu = await openMenuLikeItsTheme(trigger)
+			await expectRemoteMarkers(menu)
+			await expect(rowNamed(menu, "Veille")).toHaveAttribute(
+				"aria-checked",
+				"true",
+			)
+			await expectJoinBetweenCreateAndSettings(menu)
+			await expectLeaveLast(menu)
+		}
+	},
+})
+
+export const ThemesRemoteSpaceTrigger = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	args: { remoteBySpaceId: REMOTE_SPACES, selectedSpaceId: "vocca" },
+	parameters: {
+		a11y: SIDE_BY_SIDE_MENU_A11Y,
+		docs: {
+			description: {
+				story: `${ARTBOARD} The title bar while a joined space is open (J3). Check a 12px muted globe sits between the name and the chevron with the gap and padding of a local space, and that the button announces the space as remote rather than leaving the globe to speak, since it is hidden from assistive technology. Its menu offers \`Leave space\` last. Pick \`Default\` for a local space.`,
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const [light, dark] = triggersIn(canvasElement)
+		for (const trigger of [light, dark]) {
+			await expect(trigger).toHaveAccessibleName(
+				"Change space, Vocca open, remote",
+			)
+			const globe = slotsIn(trigger, "space-switcher-remote")[0]
+			await expect(globe).toHaveAttribute("aria-hidden", "true")
+			await expect(globe.getBoundingClientRect().width).toBe(12)
+			await expect(globe.previousElementSibling).toHaveAttribute(
+				"data-slot",
+				"space-switcher-name",
+			)
+			await expect(getComputedStyle(trigger).columnGap).toBe("8px")
+			await expect(trigger.getBoundingClientRect().height).toBe(32)
+		}
+
+		const menu = await openMenuLikeItsTheme(light)
+		await expectConnectedRow(rowNamed(menu, "Vocca"))
+		await expectLeaveLast(menu)
+		await userEvent.click(
+			within(menu).getByRole("menuitem", { name: "Leave space" }),
+		)
+		await expect(args.onLeaveSpace).toHaveBeenCalledOnce()
+		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+
+		const joining = await openMenuLikeItsTheme(dark)
+		await userEvent.click(
+			within(joining).getByRole("menuitem", { name: "Join a space" }),
+		)
+		await expect(args.onJoinSpace).toHaveBeenCalledOnce()
+		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+	},
+})
+
+export const RemoteLongNames = meta.story({
+	args: {
+		spaces: LONG_REMOTE_SPACES,
+		remoteBySpaceId: REMOTE_SPACES,
+		selectedSpaceId: "perso",
+	},
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story:
+					"Joined spaces named as sentences, which their owner chose and the reader cannot shorten. Check each name clips to one line with an ellipsis while the globe, the `Unreachable` status and the shortcut keep their full width inside the row. Pick `LongContent` for a long local name on the button.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const menu = await openMenu(
+			canvas.getByRole("button", { name: /^Change space/ }),
+		)
+
+		for (const [name, marker] of [
+			["Everything", "space-remote"],
+			["Reading", "space-unreachable"],
+		]) {
+			const row = rowNamed(menu, name)
+			const label = within(row).getByText(new RegExp(`^${name}`))
+			await expect(label.scrollWidth).toBeGreaterThan(label.clientWidth)
+			const shortcut = slotsIn(row, "context-menu-shortcut")[0]
+			const end = row.getBoundingClientRect().right
+			await expect(shortcut.getBoundingClientRect().right).toBeLessThan(end)
+			await expect(
+				slotsIn(row, marker)[0].getBoundingClientRect().right,
+			).toBeLessThan(shortcut.getBoundingClientRect().left)
+		}
+
+		await closeMenus()
 	},
 })
