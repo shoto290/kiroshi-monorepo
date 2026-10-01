@@ -8,7 +8,12 @@ import {
 	useRef,
 } from "react"
 
-import { type Icon, Icons } from "@workspace/ui/components/icons"
+import {
+	type FillIconName,
+	FillIcons,
+	type Icon,
+	Icons,
+} from "@workspace/ui/components/icons"
 import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { useOverlayScrollbars } from "@workspace/ui/hooks/use-overlay-scrollbars"
 import { cn, mergeRefs } from "@workspace/ui/lib/utils"
@@ -68,7 +73,7 @@ const named = (item: ReactElement, label: string, iconsOnly: boolean) =>
 	)
 
 type SettingsRailItemProps = {
-	icon: Icon
+	icon: FillIconName
 	label: string
 	value: string
 	iconsOnly: boolean
@@ -76,7 +81,7 @@ type SettingsRailItemProps = {
 }
 
 const SettingsRailItem = ({
-	icon: ItemIcon,
+	icon,
 	label,
 	value,
 	iconsOnly,
@@ -85,11 +90,17 @@ const SettingsRailItem = ({
 	named(
 		<Tabs.Tab
 			className={cn(RAIL_ITEM_CLASS, iconsOnly && "justify-center", className)}
+			render={(props, { active }) => {
+				const ItemIcon = (active ? FillIcons : Icons)[icon]
+				return (
+					<button {...props}>
+						<ItemIcon aria-hidden="true" className="size-4 shrink-0" />
+						<span className={iconsOnly ? "sr-only" : undefined}>{label}</span>
+					</button>
+				)
+			}}
 			value={value}
-		>
-			<ItemIcon aria-hidden="true" className="size-4 shrink-0" />
-			<span className={iconsOnly ? "sr-only" : undefined}>{label}</span>
-		</Tabs.Tab>,
+		/>,
 		label,
 		iconsOnly,
 	)

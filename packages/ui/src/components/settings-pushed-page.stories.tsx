@@ -3,7 +3,6 @@ import { useState } from "react"
 import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { Icons } from "@workspace/ui/components/icons"
 import {
 	SettingsPushedPage,
 	type SettingsPushedPageProps,
@@ -15,10 +14,10 @@ import {
 import { cn } from "@workspace/ui/lib/utils"
 
 const SECTIONS = [
-	{ icon: Icons.Docs, label: "Instructions", value: "instructions" },
-	{ icon: Icons.Terminal, label: "Execution", value: "execution" },
-	{ icon: Icons.Settings, label: "Advanced", value: "advanced" },
-]
+	{ icon: "Docs", label: "Instructions", value: "instructions" },
+	{ icon: "Terminal", label: "Execution", value: "execution" },
+	{ icon: "Settings", label: "Advanced", value: "advanced" },
+] as const
 
 const railOf = (iconsOnly: boolean) =>
 	SECTIONS.map((section) => (

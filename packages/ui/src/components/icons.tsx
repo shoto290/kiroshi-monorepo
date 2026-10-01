@@ -73,8 +73,23 @@ import {
 	XIcon,
 } from "@keyline-icons/react"
 import {
+	BellIcon as BellFillIcon,
+	BookOpenIcon as BookOpenFillIcon,
+	CodeIcon as CodeFillIcon,
 	FlagIcon as FlagFillIcon,
+	FolderIcon as FolderFillIcon,
+	HistoryIcon as HistoryFillIcon,
+	ImageIcon as ImageFillIcon,
+	LanguageIcon as LanguageFillIcon,
 	MessageIcon as MessageFillIcon,
+	ServerIcon as ServerFillIcon,
+	SettingsIcon as SettingsFillIcon,
+	ShieldIcon as ShieldFillIcon,
+	SparklesIcon as SparklesFillIcon,
+	TerminalIcon as TerminalFillIcon,
+	TriangleAlertIcon as TriangleAlertFillIcon,
+	UserIcon as UserFillIcon,
+	WrenchIcon as WrenchFillIcon,
 } from "@keyline-icons/react/fill"
 import type { ComponentType } from "react"
 
@@ -252,8 +267,25 @@ const Icons = {
 }
 
 const FillIcons = {
+	Alert: TriangleAlertFillIcon,
+	Bell: BellFillIcon,
 	Conversations: MessageFillIcon,
+	Docs: BookOpenFillIcon,
+	Folder: FolderFillIcon,
+	History: HistoryFillIcon,
+	Image: ImageFillIcon,
+	Json: CodeFillIcon,
+	Language: LanguageFillIcon,
 	Missions: FlagFillIcon,
+	Server: ServerFillIcon,
+	Settings: SettingsFillIcon,
+	Shield: ShieldFillIcon,
+	Skill: SparklesFillIcon,
+	Terminal: TerminalFillIcon,
+	Tool: WrenchFillIcon,
+	User: UserFillIcon,
 } satisfies Partial<Record<keyof typeof Icons, Icon>>
 
-export { FillIcons, type Icon, type IconProps, Icons }
+type FillIconName = keyof typeof FillIcons
+
+export { type FillIconName, FillIcons, type Icon, type IconProps, Icons }

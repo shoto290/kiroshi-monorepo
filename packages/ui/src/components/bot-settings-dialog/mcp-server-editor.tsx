@@ -419,19 +419,19 @@ const McpServerEditor = ({
 			rail={(iconsOnly) => (
 				<>
 					<SettingsRailItem
-						icon={Icons.Server}
+						icon="Server"
 						iconsOnly={iconsOnly}
 						label={t("applications.section.connection")}
 						value={FIRST_SECTION}
 					/>
 					<SettingsRailItem
-						icon={Icons.Shield}
+						icon="Shield"
 						iconsOnly={iconsOnly}
 						label={t("applications.section.secrets")}
 						value="environment"
 					/>
 					<SettingsRailItem
-						icon={Icons.Json}
+						icon="Json"
 						iconsOnly={iconsOnly}
 						label={t("applications.section.advanced")}
 						value="advanced"

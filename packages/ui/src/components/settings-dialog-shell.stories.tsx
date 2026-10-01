@@ -32,19 +32,19 @@ import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
 const railOf = (iconsOnly: boolean) => (
 	<>
 		<SettingsRailItem
-			icon={Icons.Settings}
+			icon="Settings"
 			iconsOnly={iconsOnly}
 			label="General"
 			value="general"
 		/>
 		<SettingsRailItem
-			icon={Icons.Skill}
+			icon="Skill"
 			iconsOnly={iconsOnly}
 			label="Skills"
 			value="skills"
 		/>
 		<SettingsRailItem
-			icon={Icons.Server}
+			icon="Server"
 			iconsOnly={iconsOnly}
 			label="Applications"
 			value="mcp"

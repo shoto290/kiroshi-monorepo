@@ -870,6 +870,7 @@ navigation-settingspushedpage--measured-wide
 navigation-settingsrail--default
 navigation-settingsrail--icons-only
 navigation-settingsrail--scrolling-panel
+navigation-settingsrail--selected-beside-idle
 navigation-settingsrail--with-back
 navigation-sidebar--expanded
 navigation-sidebar--right-side

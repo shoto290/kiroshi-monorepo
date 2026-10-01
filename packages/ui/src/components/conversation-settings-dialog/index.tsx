@@ -74,19 +74,19 @@ const ConversationSettingsDialog = ({
 			rail={(iconsOnly) => (
 				<>
 					<SettingsRailItem
-						icon={Icons.Settings}
+						icon="Settings"
 						iconsOnly={iconsOnly}
 						label={t("conversationSettings.tab.general")}
 						value={FIRST_TAB}
 					/>
 					<SettingsRailItem
-						icon={Icons.User}
+						icon="User"
 						iconsOnly={iconsOnly}
 						label={t("conversationSettings.tab.participants")}
 						value="participants"
 					/>
 					<SettingsRailItem
-						icon={Icons.Docs}
+						icon="Docs"
 						iconsOnly={iconsOnly}
 						label={t("conversationSettings.tab.instructions")}
 						value="instructions"
@@ -94,7 +94,7 @@ const ConversationSettingsDialog = ({
 					<SettingsRailSeparator />
 					<SettingsRailItem
 						className={DANGER_RAIL_ITEM_CLASS}
-						icon={Icons.Alert}
+						icon="Alert"
 						iconsOnly={iconsOnly}
 						label={t("conversationSettings.tab.danger")}
 						value={DANGER_TAB}

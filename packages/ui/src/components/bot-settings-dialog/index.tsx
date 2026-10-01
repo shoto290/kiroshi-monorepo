@@ -24,7 +24,6 @@ import {
 	EnvironmentPanel,
 	type EnvironmentWrite,
 } from "@workspace/ui/components/environment-panel"
-import { Icons } from "@workspace/ui/components/icons"
 import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
 import { HISTORY_TAB } from "@workspace/ui/components/plugin-settings/use-history-session"
 import type { PluginSessionsProps } from "@workspace/ui/components/plugin-settings/use-plugin-sessions"
@@ -129,57 +128,57 @@ const BotSettingsDialog = ({
 			rail={(iconsOnly) => (
 				<>
 					<SettingsRailItem
-						icon={Icons.Settings}
+						icon="Settings"
 						iconsOnly={iconsOnly}
 						label={t("dialog.tab.general")}
 						value={FIRST_TAB}
 					/>
 					<SettingsRailItem
-						icon={Icons.Image}
+						icon="Image"
 						iconsOnly={iconsOnly}
 						label={t("dialog.tab.appearance")}
 						value="appearance"
 					/>
 					<SettingsRailItem
-						icon={Icons.Docs}
+						icon="Docs"
 						iconsOnly={iconsOnly}
 						label={t("dialog.tab.instructions")}
 						value="instructions"
 					/>
 					<SettingsRailItem
-						icon={Icons.Skill}
+						icon="Skill"
 						iconsOnly={iconsOnly}
 						label={t("dialog.tab.skills")}
 						value="skills"
 					/>
 					<SettingsRailItem
-						icon={Icons.Server}
+						icon="Server"
 						iconsOnly={iconsOnly}
 						label={t("dialog.tab.applications")}
 						value="mcp"
 					/>
 					<SettingsRailItem
-						icon={Icons.Json}
+						icon="Json"
 						iconsOnly={iconsOnly}
 						label={t("dialog.tab.secrets")}
 						value="environment"
 					/>
 					{history ? (
 						<SettingsRailItem
-							icon={Icons.History}
+							icon="History"
 							iconsOnly={iconsOnly}
 							label={t("dialog.tab.history")}
 							value={HISTORY_TAB}
 						/>
 					) : null}
 					<SettingsRailItem
-						icon={Icons.Shield}
+						icon="Shield"
 						iconsOnly={iconsOnly}
 						label={t("dialog.tab.approvals")}
 						value="permissions"
 					/>
 					<SettingsRailItem
-						icon={Icons.Terminal}
+						icon="Terminal"
 						iconsOnly={iconsOnly}
 						label={t("dialog.tab.runtime")}
 						value="runtime"
@@ -187,7 +186,7 @@ const BotSettingsDialog = ({
 					<SettingsRailSeparator />
 					<SettingsRailItem
 						className={DANGER_RAIL_ITEM_CLASS}
-						icon={Icons.Alert}
+						icon="Alert"
 						iconsOnly={iconsOnly}
 						label={t("dialog.tab.danger")}
 						value={DANGER_TAB}
