@@ -80,11 +80,6 @@ const DEDICATED_REFUSAL_NOTICES: Record<number, () => void> = {
 			title: i18n.t("chat:screen.notice.unauthorized.title"),
 			description: i18n.t("chat:screen.notice.unauthorized.description"),
 		}),
-	503: () =>
-		raiseFailureNotice({
-			title: i18n.t("chat:screen.notice.desktopOnly.title"),
-			description: i18n.t("chat:screen.notice.desktopOnly.description"),
-		}),
 }
 
 export const raiseRefusalNotice = (message: string, status?: number) => {

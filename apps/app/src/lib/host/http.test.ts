@@ -131,17 +131,6 @@ describe("invoke over http", () => {
 		expect([...new Uint8Array(answer)]).toEqual([7])
 	})
 
-	it("rejects with the host message when the command needs the window", async () => {
-		const message =
-			"desktop-only: the command runs through the desktop window, which is not open"
-		const { host, onRefused } = hostOf({
-			answer: { status: 503, body: message },
-		})
-
-		await expect(host.invoke("agent_models")).rejects.toBe(message)
-		expect(onRefused).toHaveBeenCalledExactlyOnceWith(message, 503)
-	})
-
 	it("hands the status of a host failure to the refusal", async () => {
 		const { host, onRefused } = hostOf({
 			answer: { status: 500, body: "the host broke" },
@@ -208,15 +197,6 @@ describe("invoke over http", () => {
 
 describe("the refusal notice", () => {
 	beforeEach(() => failureNotice.mockClear())
-
-	it("asks for the desktop window when the host answers 503", () => {
-		raiseRefusalNotice("desktop-only", 503)
-
-		expect(failureNotice).toHaveBeenCalledExactlyOnceWith({
-			title: "This needs the desktop window.",
-			description: "Open Kiroshi on the host and try again.",
-		})
-	})
 
 	it("asks to reopen the link when the host answers 401", () => {
 		raiseRefusalNotice("no valid bearer token", 401)

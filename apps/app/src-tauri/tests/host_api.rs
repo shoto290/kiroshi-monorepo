@@ -5,6 +5,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
+use kiroshi_app::agent::contract::TransportError;
+use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::events::{self, BUFFERED_FRAMES};
@@ -120,6 +122,11 @@ impl Server {
 	}
 
 	async fn invoke(&self, command: &str, token: Option<&str>, body: &str) -> (u16, String) {
+		let answer = self.invoke_answer(command, token, body).await;
+		(answer.status, answer.body)
+	}
+
+	async fn invoke_answer(&self, command: &str, token: Option<&str>, body: &str) -> Answer {
 		let mut request = format!(
 			"POST /api/invoke/{command} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\nContent-Length: {}\r\n",
 			body.len()
@@ -129,7 +136,7 @@ impl Server {
 		}
 		request.push_str("\r\n");
 		request.push_str(body);
-		self.sent(request.into_bytes()).await
+		self.exchanged(request.into_bytes()).await
 	}
 
 	async fn upgraded(&self, target: &str, header: &str) -> (u16, Client) {
@@ -216,6 +223,10 @@ struct Answer {
 }
 
 impl Answer {
+	fn seen(&self) -> (u16, Option<String>, String) {
+		(self.status, self.header("content-type").map(str::to_owned), self.body.clone())
+	}
+
 	fn header(&self, name: &str) -> Option<&str> {
 		self.head.lines().find_map(|line| line.strip_prefix(&format!("{name}: ")))
 	}
@@ -431,14 +442,84 @@ async fn a_rejected_command_answers_the_error_the_front_receives() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn without_the_desktop_window_a_command_answers_desktop_only() {
+async fn without_any_window_a_command_answers_what_the_window_answers() {
 	let host = Host::new();
 	let server = host.started();
+	let token = host.token();
+	let edit =
+		json!({ "conversationId": "nowhere", "title": "t", "instructions": "", "sectionId": null });
+	let calls = [
+		("conversation_main_chat", json!({ "botId": "default" })),
+		("conversation_list", json!({ "spaceId": SPACE })),
+		("conversation_update", edit),
+		("no_such_command", json!({})),
+	];
 
-	let (status, body) = server.invoke("conversation_list", Some(&host.token()), &listed()).await;
+	let mut windowless = Vec::new();
+	for (command, body) in &calls {
+		windowless
+			.push(server.invoke_answer(command, Some(&token), &body.to_string()).await.seen());
+	}
+	let window = host.window();
 
-	assert_eq!(status, 503);
-	assert!(body.starts_with("desktop-only"));
+	for ((command, body), answer) in calls.iter().zip(&windowless) {
+		let windowed = server.invoke_answer(command, Some(&token), &body.to_string()).await;
+		assert_eq!(answer, &windowed.seen(), "{command}");
+	}
+	let [chat, rooms, rejected, unknown] = windowless.as_slice() else {
+		panic!("every call answered");
+	};
+	assert_eq!(chat.0, 200);
+	assert_eq!(parsed(&chat.2), direct(&window, calls[0].0, calls[0].1.clone()).expect("a chat"));
+	assert_eq!(rooms.0, 200);
+	assert_eq!(parsed(&rooms.2), direct(&window, calls[1].0, calls[1].1.clone()).expect("rooms"));
+	assert_eq!(rejected.0, 500);
+	assert_eq!(Err(parsed(&rejected.2)), direct(&window, calls[2].0, calls[2].1.clone()));
+	assert_eq!(unknown.0, 404);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_permission_answer_reaches_its_handler_without_any_window() {
+	let host = Host::new();
+	host.app.manage(AgentState::default());
+	let server = host.started();
+	let answer = json!({
+		"scope": {
+			"conversationId": "room",
+			"botId": "default",
+			"runtimeSessionId": "session",
+			"epoch": 1
+		},
+		"id": "permission",
+		"decision": "allowOnce"
+	});
+
+	let (status, body) = server
+		.invoke("agent_respond_to_permission", Some(&host.token()), &answer.to_string())
+		.await;
+
+	let windowed = direct(&host.window(), "agent_respond_to_permission", answer);
+	assert_eq!(status, 500);
+	assert_eq!(Err(parsed(&body)), windowed);
+	assert_eq!(windowed, Err(serde_json::to_value(TransportError::NotStarted).expect("JSON")));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_window_opened_after_a_windowless_call_and_the_api_both_keep_answering() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	assert_eq!(server.invoke("conversation_list", Some(&token), &listed()).await.0, 200);
+
+	let window = host.window();
+
+	direct(&window, "conversation_main_chat", json!({ "botId": "default" })).expect("a chat");
+	let (status, body) = server.invoke("conversation_list", Some(&token), &listed()).await;
+	assert_eq!(status, 200);
+	assert_eq!(
+		parsed(&body),
+		direct(&window, "conversation_list", json!({ "spaceId": SPACE })).expect("the rooms")
+	);
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -259,10 +259,6 @@ const chat = {
 			notAuthenticated: "Vous n’êtes pas connecté",
 			unavailable: "Impossible de joindre l’agent",
 			failed: "Impossible d’envoyer cette demande",
-			desktopOnly: {
-				title: "Il faut la fenêtre de bureau.",
-				description: "Ouvrez Kiroshi sur l’hôte et réessayez.",
-			},
 			unauthorized: {
 				title: "L’hôte a refusé cet appel.",
 				description: "Rouvrez le lien depuis l’application de bureau.",
