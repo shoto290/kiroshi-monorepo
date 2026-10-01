@@ -2,11 +2,13 @@ import { expect, fn, userEvent, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	glyphIn,
 	isInBrowserRunner,
 	realPointer,
 	settled,
 	slotIn,
 } from "@workspace/storybook/story-utils"
+import { Icons } from "@workspace/ui/components/icons"
 import { WindowControls } from "@workspace/ui/components/window-controls"
 import { contrastRatio, type Rgb } from "@workspace/ui/lib/contrast"
 
@@ -179,8 +181,8 @@ export const Maximized = meta.story({
 	},
 	play: async ({ canvas }) => {
 		const restore = canvas.getByRole("button", { name: "Restore" })
-		await expect(restore.querySelector("svg.lucide-copy")).not.toBeNull()
-		await expect(restore.querySelector("svg.lucide-square")).toBeNull()
+		await expect(glyphIn(restore, Icons.Restore)).not.toBeNull()
+		await expect(glyphIn(restore, Icons.Maximize)).toBeNull()
 		await expect(
 			canvas.queryByRole("button", { name: "Maximize" }),
 		).not.toBeInTheDocument()

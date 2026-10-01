@@ -40,10 +40,14 @@ export default defineMain({
 					"@workspace/storybook": new URL("../.storybook", import.meta.url)
 						.pathname,
 					"@workspace/ui": new URL("../src", import.meta.url).pathname,
+					"lucide-react": new URL(
+						"../src/shims/lucide-react.ts",
+						import.meta.url,
+					).pathname,
 				},
 			},
 			optimizeDeps: {
-				include: ["lucide-react", "motion/react", "shiki"],
+				include: ["@keyline-icons/react", "motion/react", "shiki"],
 			},
 		})
 	},
