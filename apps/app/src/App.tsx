@@ -59,7 +59,6 @@ export function App() {
 			collapsedSectionIds,
 		},
 	})
-	const graphPage = useGraphPage()
 	const companionMenu = useCompanionMenuLookup({
 		actions: rosterLines.sidebarActions,
 		conversationRosters: core.roster.state.conversationRosters,
@@ -73,6 +72,13 @@ export function App() {
 		rosters: core.roster.state.rosters,
 		select: core.roster.controller.select,
 		leaveMission: core.openedMission.leave,
+	})
+	const graphPage = useGraphPage({
+		onSelectBot: rosterLines.sidebarActions.onSelectBot,
+		onSelectConversation: rosterLines.sidebarActions.onSelectConversation,
+		selectCompanion,
+		openSidebarTab: sidebarTab.openSidebarTab,
+		missionsBySpaceId: sidebarMissions.panelsBySpaceId,
 	})
 
 	const { preferences, roster, spaces } = core
@@ -105,9 +111,9 @@ export function App() {
 						conversationsBySpaceId={rosterLists.rosterConversationsBySpace}
 						badgesBySpaceId={rosterLists.badgesBySpaceId}
 						railDots={rosterLists.railSignals}
-						missionsBySpaceId={sidebarMissions.panelsBySpaceId}
+						missionsBySpaceId={graphPage.exits.missionsBySpaceId}
 						openPanel={sidebarTab.openTab}
-						onOpenPanelChange={sidebarTab.openSidebarTab}
+						onOpenPanelChange={graphPage.exits.openSidebarTab}
 						isGraphOpen={graphPage.isOpen}
 						onToggleGraph={graphPage.toggle}
 						collapsedSectionIds={collapsedSectionIds}
@@ -117,6 +123,8 @@ export function App() {
 						onOpenSearch={overlay.search.open}
 						{...rosterLines.sidebarActions}
 						onCreateConversation={rosterLines.startConversation}
+						onSelectBot={graphPage.exits.onSelectBot}
+						onSelectConversation={graphPage.exits.onSelectConversation}
 						selectedBotId={rosterView.selectedBotId ?? undefined}
 						selectedConversationId={
 							rosterView.selectedConversationId ?? undefined
@@ -131,7 +139,7 @@ export function App() {
 					value={rosterLines.conversationSeating}
 				>
 					<CompanionMenuProvider menuFor={companionMenu}>
-						<CompanionSelectProvider onSelect={selectCompanion}>
+						<CompanionSelectProvider onSelect={graphPage.exits.selectCompanion}>
 							<SessionApplicationsContext.Provider
 								value={panels.sessionApplications}
 							>
