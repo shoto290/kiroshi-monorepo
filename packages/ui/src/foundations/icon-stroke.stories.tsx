@@ -41,14 +41,12 @@ export const EveryKeylineGlyphDrawsTheIconStroke = meta.story({
 			canvasElement.querySelectorAll<SVGSVGElement>("svg[data-glyph]"),
 		)
 		await expect(glyphs).toHaveLength(KEYLINE_GLYPHS.length)
+		const strokeAt16px =
+			iconStrokeIn(canvasElement) * ICON_GRID_UNITS_PER_PIXEL_AT_16PX
 
 		for (const glyph of glyphs) {
 			const strokeWidth = Number.parseFloat(getComputedStyle(glyph).strokeWidth)
-			const iconStroke = iconStrokeIn(glyph.parentElement ?? document.body)
-			await expect(strokeWidth).toBeCloseTo(
-				iconStroke * ICON_GRID_UNITS_PER_PIXEL_AT_16PX,
-				1,
-			)
+			await expect(strokeWidth).toBeCloseTo(strokeAt16px, 1)
 		}
 	},
 })
