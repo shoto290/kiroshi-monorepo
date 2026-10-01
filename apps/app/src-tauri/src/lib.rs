@@ -63,7 +63,7 @@ pub fn run() {
 		.setup(|app| {
 			app.manage(db::bootstrap(app.handle()));
 			if !window_controls::is_headless(std::env::args()) {
-				window_controls::opened_main(app.handle());
+				window_controls::open_main(app.handle());
 			}
 			app.manage(routines::sentinel::spawn(app.handle().clone()));
 			app.manage(routines::webhook::start(app.handle().clone()));
