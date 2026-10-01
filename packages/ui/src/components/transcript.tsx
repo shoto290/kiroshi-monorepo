@@ -26,6 +26,10 @@ import {
 	useMessageScrollerScrollable,
 } from "@workspace/ui/components/message-scroller"
 import { Button } from "@workspace/ui/components/ui/button"
+import {
+	scrollTraceViewportRef,
+	traceScrollWrite,
+} from "@workspace/ui/lib/scroll-trace"
 import { cn } from "@workspace/ui/lib/utils"
 
 export interface TranscriptItem {
@@ -81,8 +85,6 @@ const NO_ROWS: TranscriptItem[] = []
 const NO_SCROLL_FADE = "[animation-name:none] [mask-image:none]"
 
 const NO_SCROLLBAR_GUTTER = "scrollbar-auto scrollbar-gutter-auto"
-
-const ALWAYS_RENDERED = "[content-visibility:visible]"
 
 const indexOfKey = (rows: TranscriptItem[], key: string | null) =>
 	key === null ? -1 : rows.findIndex((row) => row.key === key)
@@ -176,7 +178,9 @@ const useAnchorRelease = ({
 		wasBusyRef.current = busy
 		if (!hasSettled || !isFollowingRef.current) return
 
-		scrollToEnd({ behavior: "auto" })
+		traceScrollWrite("app-scroll-to-end", () =>
+			scrollToEnd({ behavior: "auto" }),
+		)
 	}, [busy, scrollToEnd])
 }
 
@@ -194,7 +198,7 @@ const useTranscriptHandle = (
 		scrollerRef,
 		() => ({
 			scrollToEnd: (behavior = defaultBehavior) => {
-				scrollToEnd({ behavior })
+				traceScrollWrite("app-scroll-to-end", () => scrollToEnd({ behavior }))
 			},
 			scrollToMessage: (
 				messageId,
@@ -202,7 +206,11 @@ const useTranscriptHandle = (
 				align = "center",
 			) => {
 				const row = rowHolding(rowsRef.current, messageId)
-				return row ? scrollToMessage(row.key, { align, behavior }) : false
+				return row
+					? traceScrollWrite("app-scroll-to-element", () =>
+							scrollToMessage(row.key, { align, behavior }),
+						)
+					: false
 			},
 		}),
 		[defaultBehavior, scrollToEnd, scrollToMessage],
@@ -342,11 +350,11 @@ const TranscriptBody = ({
 	useTranscriptHandle(scrollerRef, rows, behavior)
 
 	const anchorKey = anchorOnSend ? lastAnchorKey(rows) : undefined
-	const lastRowKey = rows.at(-1)?.key
 
 	return (
 		<MessageScroller className={cn("min-h-0", className)} {...props}>
 			<MessageScrollerViewport
+				ref={scrollTraceViewportRef()}
 				aria-label={label ?? t("transcript.label")}
 				className={cn(
 					NO_SCROLL_FADE,
@@ -369,10 +377,7 @@ const TranscriptBody = ({
 					<MessageHighlightProvider messageId={highlightedMessageId}>
 						{rows.map((row) => (
 							<MessageScrollerItem
-								className={cn(
-									"flex flex-col gap-6",
-									row.key === lastRowKey && ALWAYS_RENDERED,
-								)}
+								className="flex flex-col gap-6"
 								key={row.key}
 								messageId={row.key}
 								scrollAnchor={row.key === anchorKey}

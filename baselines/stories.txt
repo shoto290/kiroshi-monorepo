@@ -209,6 +209,7 @@ conversation-message-messagequote--sizes
 conversation-message-messagequote--tones
 conversation-message-messagescroller--at-end
 conversation-message-messagescroller--default
+conversation-message-messagescroller--holds-the-reader-while-scrolling-back
 conversation-message-messagescroller--scrolled-back
 conversation-message-messagesidecontext--bot-side
 conversation-message-messagesidecontext--overridden-by-prop
@@ -222,6 +223,7 @@ conversation-message-transcript--anchors-the-sent-message
 conversation-message-transcript--conversation-rests-without-a-band
 conversation-message-transcript--default
 conversation-message-transcript--disengages
+conversation-message-transcript--disengages-on-scrollbar-drag
 conversation-message-transcript--does-not-follow-without-auto-scroll
 conversation-message-transcript--follows
 conversation-message-transcript--jumps-to-the-newest-page
@@ -235,6 +237,9 @@ conversation-message-transcript--rests-without-a-band
 conversation-message-transcript--return-control-centred-over-viewport
 conversation-message-transcript--returns
 conversation-message-transcript--stream-holds-the-last-line
+conversation-message-transcriptscrollprobe--long-thread
+conversation-message-transcriptscrollprobe--long-thread-streaming
+conversation-message-transcriptscrollprobe--whole-thread
 conversation-message-turn--authored
 conversation-message-turn--companion-menu-off-gutter
 conversation-message-turn--companion-menu-on-gutter
