@@ -131,19 +131,16 @@ const expectListRowGapBetweenEntries = async (canvasElement: HTMLElement) => {
 
 const verticalCentreOf = (box: DOMRect) => box.top + box.height / 2
 
-const iconColourOf = (entry: HTMLElement) => {
-	const icon = entry.querySelector("svg")
-	if (!icon) throw new Error(`No icon in ${entry.getAttribute("aria-label")}`)
-	return getComputedStyle(icon).color
-}
-
-type IconStyle = "fill" | "stroke"
-
 const iconOf = (entry: HTMLElement) => {
 	const icon = entry.querySelector("svg")
 	if (!icon) throw new Error(`No icon in ${entry.getAttribute("aria-label")}`)
 	return icon
 }
+
+const iconColourOf = (entry: HTMLElement) =>
+	getComputedStyle(iconOf(entry)).color
+
+type IconStyle = "fill" | "stroke"
 
 const paintedPathsOf = (entry: HTMLElement) =>
 	Array.from(iconOf(entry).querySelectorAll("path")).filter(
