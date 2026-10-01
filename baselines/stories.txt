@@ -659,6 +659,10 @@ layout-rowanatomy--default
 layout-rowanatomy--in-roster
 layout-rowanatomy--with-blank-identifier
 layout-rowanatomy--with-identifier
+layout-spacegraphscreen--back-to-the-conversation
+layout-spacegraphscreen--dark
+layout-spacegraphscreen--follows-the-pane-width
+layout-spacegraphscreen--in-the-shell
 layout-threadlayout--default
 layout-threadlayout--empty
 layout-threadlayout--error
@@ -700,6 +704,9 @@ navigation-apprail--conversations-selected
 navigation-apprail--current-beside-idle-dark
 navigation-apprail--dark
 navigation-apprail--first-tab-level-with-panel-title
+navigation-apprail--graph-entry
+navigation-apprail--graph-entry-open
+navigation-apprail--graph-entry-open-dark
 navigation-apprail--idle-entry-hovered
 navigation-apprail--keyboard-reach
 navigation-apprail--missions-selected
