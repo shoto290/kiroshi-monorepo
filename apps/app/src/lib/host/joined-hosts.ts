@@ -200,18 +200,14 @@ export const createJoinedHosts = ({
 		})
 	}
 
-	const moveSubscriptions = () => {
-		for (const subscription of subscriptions) {
-			relocate(subscription)
-		}
-	}
-
 	const setActive = (active: string | null) => {
 		if (store.getState().active === active) {
 			return
 		}
 		store.setState({ ...store.getState(), active })
-		moveSubscriptions()
+		for (const subscription of subscriptions) {
+			relocate(subscription)
+		}
 	}
 
 	const activate = async (id: string | null): Promise<void> => {
