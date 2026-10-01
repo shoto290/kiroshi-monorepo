@@ -34,8 +34,10 @@ function MessageScroller({
 const releaseFollowOnScrollbarPress = (
 	event: React.PointerEvent<HTMLDivElement>,
 ) => {
-	if (event.target !== event.currentTarget) return
-	event.currentTarget.dispatchEvent(new WheelEvent("wheel", { bubbles: true }))
+	const viewport = event.currentTarget
+	if (event.target !== viewport) return
+	if (viewport.scrollHeight <= viewport.clientHeight) return
+	viewport.dispatchEvent(new WheelEvent("wheel", { bubbles: true }))
 }
 
 function MessageScrollerViewport({
