@@ -27,6 +27,8 @@ const meta = preview.meta({
 	],
 })
 
+const FIRST_FRAME_TIMEOUT_MS = 5000
+
 const expectSelectedDirection = async (
 	canvasElement: HTMLElement,
 	name: string,
@@ -118,31 +120,22 @@ export const LocalMode = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement)
-		const [atlas] = canvas.getAllByRole("button", {
-			name: "Show Atlas and what it loads",
-		})
-		await waitFor(() => expect(atlas).toBeVisible())
-		atlas?.focus()
-		await userEvent.keyboard("{Enter}")
-		const [showWhole] = await canvas.findAllByRole("button", {
-			name: "Show the whole graph",
-		})
-		await expect(
-			canvasElement.querySelectorAll('[data-slot="space-graph-bot"]'),
-		).toHaveLength(5)
-		showWhole?.focus()
-		await userEvent.keyboard("{Enter}")
-		await waitFor(() =>
-			expect(
-				canvasElement.querySelectorAll('[data-slot="space-graph-bot"]'),
-			).toHaveLength(8),
-		)
-		const [atlasAgain] = canvas.getAllByRole("button", {
-			name: "Show Atlas and what it loads",
-		})
-		await waitFor(() => expect(atlasAgain).toBeVisible())
-		atlasAgain?.focus()
-		await userEvent.keyboard("{Enter}")
-		await canvas.findAllByRole("button", { name: "Show the whole graph" })
+		const pressFirst = async (name: string) => {
+			const [button] = await waitFor(
+				() => canvas.getAllByRole("button", { name }),
+				{ timeout: FIRST_FRAME_TIMEOUT_MS },
+			)
+			button?.focus()
+			await userEvent.keyboard("{Enter}")
+		}
+		const botCount = () =>
+			canvasElement.querySelectorAll('[data-slot="space-graph-bot"]').length
+
+		await pressFirst("Show Atlas and what it loads")
+		await waitFor(() => expect(botCount()).toBe(5))
+		await pressFirst("Show the whole graph")
+		await waitFor(() => expect(botCount()).toBe(8))
+		await pressFirst("Show Atlas and what it loads")
+		await waitFor(() => expect(botCount()).toBe(5))
 	},
 })
