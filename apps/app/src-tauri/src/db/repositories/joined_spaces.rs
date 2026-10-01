@@ -117,7 +117,8 @@ fn stored_in(connection: &Connection) -> Result<Vec<JoinedSpace>, DatabaseError>
 }
 
 fn write_in(connection: &Connection, joined: &[JoinedSpace]) -> Result<(), DatabaseError> {
-	let stored = serde_json::to_string(joined).map_err(|_| unreadable_list())?;
+	let stored = serde_json::to_string(joined)
+		.map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
 	SETTINGS.write(connection, None, JOINED_SPACES_KEY, &stored)
 }
 
