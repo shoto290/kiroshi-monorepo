@@ -58,11 +58,12 @@ fn non_blank(name: String) -> Option<String> {
 
 fn percent_encoded(text: &str) -> String {
 	text.bytes()
-		.map(|byte| match byte {
-			b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+		.map(|byte| {
+			if byte.is_ascii_alphanumeric() || b"-._~".contains(&byte) {
 				char::from(byte).to_string()
+			} else {
+				format!("%{byte:02X}")
 			}
-			_ => format!("%{byte:02X}"),
 		})
 		.collect()
 }
