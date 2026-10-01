@@ -15,6 +15,7 @@ import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
 import { useCompanionSelectGuard } from "@/lib/sidebar/companion-select"
 import { useApplicationScopes } from "@/lib/workspace/use-application-scopes"
+import { useGraphPage } from "@/lib/workspace/use-graph-page"
 import { useRosterLines } from "@/lib/workspace/use-roster-lines"
 import { useRosterLists } from "@/lib/workspace/use-roster-lists"
 import { useRosterView } from "@/lib/workspace/use-roster-view"
@@ -58,6 +59,7 @@ export function App() {
 			collapsedSectionIds,
 		},
 	})
+	const graphPage = useGraphPage()
 	const companionMenu = useCompanionMenuLookup({
 		actions: rosterLines.sidebarActions,
 		conversationRosters: core.roster.state.conversationRosters,
@@ -106,6 +108,8 @@ export function App() {
 						missionsBySpaceId={sidebarMissions.panelsBySpaceId}
 						openPanel={sidebarTab.openTab}
 						onOpenPanelChange={sidebarTab.openSidebarTab}
+						isGraphOpen={graphPage.isOpen}
+						onToggleGraph={graphPage.toggle}
 						collapsedSectionIds={collapsedSectionIds}
 						sectionsBySpaceId={core.sections.state.sections}
 						updateBadge={rosterLines.updateBadge}
@@ -160,6 +164,7 @@ export function App() {
 										}
 										onRetrySpaces={loadSpaces}
 										onToggleSettings={overlay.toggleSettings}
+										openedGraph={graphPage.opened}
 										readerName={preferences.displayName}
 										signIn={drivers.signIn}
 									/>

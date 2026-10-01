@@ -2,6 +2,8 @@ import { useCallback, useSyncExternalStore } from "react"
 
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { Notice } from "@workspace/ui/components/notice"
+import { SPACE_GRAPH } from "@workspace/ui/components/space-graph.fixtures"
+import { SpaceGraphScreen } from "@workspace/ui/components/space-graph-screen"
 import { useCommonCopy } from "@workspace/ui/hooks/use-common-copy"
 
 import { MissionThreadScreen } from "@/components/mission-thread-screen"
@@ -19,6 +21,7 @@ import type { OpenedMissionController } from "@/lib/missions/opened-mission-cont
 import type { Onboarding } from "@/lib/onboarding/use-onboarding"
 import type { SignIn } from "@/lib/onboarding/use-sign-in"
 import type { MessageLandingController } from "@/lib/search/message-landing-controller"
+import type { OpenedGraph } from "@/lib/workspace/use-graph-page"
 
 type WorkspaceBodyProps = {
 	activityPanel: ActivityPanel
@@ -42,6 +45,7 @@ type WorkspaceBodyProps = {
 	missions: OpenedMissionController
 	onboarding?: Onboarding
 	signIn: SignIn
+	openedGraph?: OpenedGraph
 }
 
 const threadOf = ({
@@ -101,6 +105,17 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 				description={t("spaces.unavailable.description")}
 				retry={{ onRetry: props.onRetrySpaces }}
 				title={t("spaces.unavailable.title")}
+			/>
+		)
+	}
+
+	if (props.openedGraph) {
+		return (
+			<SpaceGraphScreen
+				dragRegion="deep"
+				graph={SPACE_GRAPH}
+				insetWindowControls={hasOverlayWindowControls()}
+				onBack={props.openedGraph.onBack}
 			/>
 		)
 	}
