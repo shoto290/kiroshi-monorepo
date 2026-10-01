@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, Runtime, WebviewWindow};
+use tauri::{AppHandle, Manager, Runtime, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
 #[cfg(target_os = "macos")]
 pub use macos::center_in_header;
@@ -73,15 +73,104 @@ async fn declare_maximize_button<R: Runtime>(
 }
 
 #[cfg(not(target_os = "macos"))]
-pub fn center_in_header(_window: &tauri::WebviewWindow) {}
+pub fn center_in_header<R: Runtime>(_window: &WebviewWindow<R>) {}
+
+const MAIN_WINDOW: &str = "main";
+
+const HEADLESS_FLAG: &str = "--headless";
+
+pub fn is_headless(args: impl IntoIterator<Item = String>) -> bool {
+	args.into_iter().any(|arg| arg == HEADLESS_FLAG)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum MainClose {
+	Hidden,
+	Quit,
+}
+
+fn main_close_on(os: &str) -> MainClose {
+	if os == "macos" {
+		MainClose::Hidden
+	} else {
+		MainClose::Quit
+	}
+}
 
 pub fn raise_main<R: Runtime>(app: &AppHandle<R>) {
-	let Some(window) = app.get_webview_window("main") else {
-		return;
+	let Some(window) = app.get_webview_window(MAIN_WINDOW) else {
+		return open_main(app);
 	};
-	let _ = window.unminimize();
-	let _ = window.show();
-	let _ = window.set_focus();
+	if let Err(failure) =
+		window.unminimize().and_then(|()| window.show()).and_then(|()| window.set_focus())
+	{
+		eprintln!("the main window was not raised: {failure}");
+	}
+}
+
+pub fn open_main<R: Runtime>(app: &AppHandle<R>) {
+	let Some(config) = app.config().app.windows.iter().find(|window| window.label == MAIN_WINDOW)
+	else {
+		return eprintln!("the config declares no main window");
+	};
+	match WebviewWindowBuilder::from_config(app, config).and_then(WebviewWindowBuilder::build) {
+		Ok(window) => {
+			center_in_header(&window);
+			#[cfg(windows)]
+			frame(&window);
+			closed_per_platform(&window);
+		}
+		Err(failure) => eprintln!("the main window did not open: {failure}"),
+	}
+}
+
+fn closed_per_platform<R: Runtime>(window: &WebviewWindow<R>) {
+	let subject = window.clone();
+	window.on_window_event(move |event| {
+		let WindowEvent::CloseRequested { api, .. } = event else {
+			return;
+		};
+		api.prevent_close();
+		match main_close_on(std::env::consts::OS) {
+			MainClose::Hidden => {
+				if let Err(failure) = subject.hide() {
+					eprintln!("the main window was not hidden on close: {failure}");
+				}
+			}
+			MainClose::Quit => subject.app_handle().exit(0),
+		}
+	});
+}
+
+#[cfg(test)]
+mod tests {
+	use super::{is_headless, main_close_on, MainClose};
+
+	fn launched_with(args: &[&str]) -> bool {
+		is_headless(args.iter().map(|arg| (*arg).to_owned()))
+	}
+
+	#[test]
+	fn a_launch_carrying_the_headless_flag_is_headless() {
+		assert!(launched_with(&["Kiroshi", "--headless"]));
+	}
+
+	#[test]
+	fn a_launch_without_the_headless_flag_is_not_headless() {
+		assert!(!launched_with(&["Kiroshi"]));
+		assert!(!launched_with(&["Kiroshi", "--headless=false", "headless"]));
+	}
+
+	#[test]
+	fn closing_the_main_window_on_macos_hides_it() {
+		assert_eq!(main_close_on("macos"), MainClose::Hidden);
+	}
+
+	#[test]
+	fn closing_the_main_window_elsewhere_quits() {
+		assert_eq!(main_close_on("windows"), MainClose::Quit);
+		assert_eq!(main_close_on("linux"), MainClose::Quit);
+	}
 }
 
 #[cfg(target_os = "macos")]
@@ -89,14 +178,14 @@ mod macos {
 	use objc2::rc::Retained;
 	use objc2_app_kit::{NSButton, NSView, NSWindow, NSWindowButton, NSWindowStyleMask};
 	use objc2_foundation::NSPoint;
-	use tauri::{WebviewWindow, WindowEvent};
+	use tauri::{Runtime, WebviewWindow, WindowEvent};
 
 	const LEADING_INSET: f64 = 12.0;
 	// Mirrors TITLE_BAR (h-8.5) in packages/ui/src/components/app-sidebar.tsx.
 	const TITLE_BAR_HEIGHT: f64 = 34.0;
 	const CONTROL_DIAMETER: f64 = 14.0;
 
-	pub fn center_in_header(window: &WebviewWindow) {
+	pub fn center_in_header<R: Runtime>(window: &WebviewWindow<R>) {
 		place(window);
 		let subject = window.clone();
 		window.on_window_event(move |event| {
@@ -108,7 +197,7 @@ mod macos {
 		});
 	}
 
-	fn place(window: &WebviewWindow) {
+	fn place<R: Runtime>(window: &WebviewWindow<R>) {
 		let Some(ns_window) = main_window(window) else {
 			return;
 		};
@@ -150,7 +239,7 @@ mod macos {
 		titlebar.frame().size.height
 	}
 
-	fn main_window(window: &WebviewWindow) -> Option<Retained<NSWindow>> {
+	fn main_window<R: Runtime>(window: &WebviewWindow<R>) -> Option<Retained<NSWindow>> {
 		let handle = window.ns_window().ok()?;
 		unsafe { Retained::retain(handle.cast::<NSWindow>()) }
 	}

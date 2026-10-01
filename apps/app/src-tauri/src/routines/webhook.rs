@@ -130,7 +130,7 @@ fn opened<R: Runtime>(
 }
 
 fn link_withdrawal<R: Runtime>(app: AppHandle<R>) -> Box<dyn Fn() + Send + Sync> {
-	Box::new(move || share_link::withdrawn(&app))
+	Box::new(move || web_link_cleared(&app))
 }
 
 fn host_token<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<HostToken>> {
@@ -186,7 +186,7 @@ async fn serving<R: Runtime>(
 ) {
 	let app = calls.app.clone();
 	answering(calls, listener, halted).await;
-	share_link::withdrawn(&app);
+	web_link_cleared(&app);
 }
 
 async fn answering<R: Runtime>(
@@ -808,6 +808,24 @@ mod tests {
 		webhook.stop();
 
 		assert_eq!(answer, share_link::ShareLink::Down);
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn stopping_the_listener_removes_the_web_link_it_left() {
+		let app = a_host("stopped").await;
+		let host = app.path().app_data_dir().expect("the data dir resolves").join("host");
+		fs::create_dir_all(&host).expect("the host dir is made");
+		fs::write(host.join("token"), "a-held-token").expect("the token is written");
+		let link = host.join("web-link.txt");
+
+		let webhook =
+			opened(app.handle().clone(), Arc::new(SystemClock), Arc::new(HeldOpen), listening());
+		assert!(link.exists(), "the bound listener leaves its web link");
+
+		webhook.stop();
+
+		assert!(!link.exists());
 		cleaned(&app);
 	}
 
