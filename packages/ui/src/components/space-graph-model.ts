@@ -139,10 +139,7 @@ export {
 	type GraphNode,
 	linkEnd,
 	neighbourhoodOf,
-	type SpaceGraphBot,
 	type SpaceGraphData,
-	type SpaceGraphPlugin,
-	type SpaceGraphPluginKind,
 	type SpaceGraphScope,
 	toGraph,
 }

@@ -56,9 +56,6 @@ const FIT_MS = 400
 const FIT_PADDING = 48
 const MAX_ZOOM = 3
 
-type GraphNodeObject = NodeObject<GraphNode>
-type GraphLinkObject = LinkObject<GraphNode, GraphLink>
-
 type Palette = {
 	neutral: string
 	ink: string
@@ -318,7 +315,7 @@ const SpaceGraph = ({
 	}
 
 	const paintLink = (
-		link: GraphLinkObject,
+		link: LinkObject<GraphNode, GraphLink>,
 		context: CanvasRenderingContext2D,
 		scale: number,
 	) => {
@@ -338,7 +335,7 @@ const SpaceGraph = ({
 	}
 
 	const paintHitArea = (
-		node: GraphNodeObject,
+		node: NodeObject<GraphNode>,
 		colour: string,
 		context: CanvasRenderingContext2D,
 		scale: number,
