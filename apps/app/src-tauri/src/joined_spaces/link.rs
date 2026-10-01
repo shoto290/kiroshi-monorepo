@@ -6,6 +6,11 @@ use crate::db::repositories::joined_spaces::JoinedSpace;
 const HOST_PARAMETER: &str = "host";
 const TOKEN_PARAMETER: &str = "token";
 const SPACE_PARAMETER: &str = "space";
+const NAME_PARAMETER: &str = "name";
+
+pub fn space_parts(space_id: &str, name: &str) -> String {
+	format!("&{SPACE_PARAMETER}={space_id}&{NAME_PARAMETER}={}", percent_encoded(name))
+}
 
 pub fn joined_space(
 	link: &str,
@@ -18,8 +23,10 @@ pub fn joined_space(
 	let remote_space_id =
 		parameter(fragment, SPACE_PARAMETER).filter(|space| !space.is_empty()).map(str::to_owned);
 	let name = name
-		.map(|given| given.trim().to_owned())
-		.filter(|given| !given.is_empty())
+		.and_then(non_blank)
+		.or_else(|| {
+			parameter(fragment, NAME_PARAMETER).and_then(percent_decoded).and_then(non_blank)
+		})
 		.unwrap_or_else(|| authority_of(&host));
 	Ok(JoinedSpace {
 		id,
@@ -43,6 +50,44 @@ fn parameter<'a>(fragment: &'a str, name: &str) -> Option<&'a str> {
 		.filter_map(|pair| pair.split_once('='))
 		.find(|(key, _)| *key == name)
 		.map(|(_, value)| value)
+}
+
+fn non_blank(name: String) -> Option<String> {
+	Some(name.trim().to_owned()).filter(|trimmed| !trimmed.is_empty())
+}
+
+fn percent_encoded(text: &str) -> String {
+	text.bytes()
+		.map(|byte| {
+			if byte.is_ascii_alphanumeric() || b"-._~".contains(&byte) {
+				char::from(byte).to_string()
+			} else {
+				format!("%{byte:02X}")
+			}
+		})
+		.collect()
+}
+
+fn percent_decoded(text: &str) -> Option<String> {
+	let mut bytes = Vec::with_capacity(text.len());
+	let mut rest = text.as_bytes();
+	while let Some((&byte, after)) = rest.split_first() {
+		if byte != b'%' {
+			bytes.push(byte);
+			rest = after;
+			continue;
+		}
+		let [high, low, after @ ..] = after else {
+			return None;
+		};
+		bytes.push(hex_digit(*high)? * 16 + hex_digit(*low)?);
+		rest = after;
+	}
+	String::from_utf8(bytes).ok()
+}
+
+fn hex_digit(byte: u8) -> Option<u8> {
+	char::from(byte).to_digit(16).and_then(|digit| u8::try_from(digit).ok())
 }
 
 fn host_of(held: Option<&str>) -> Result<Url, JoinedSpaceError> {
@@ -129,6 +174,56 @@ mod tests {
 		.expect("the link");
 
 		assert_eq!(joined.name, "host.test");
+	}
+
+	#[test]
+	fn a_joined_space_link_reads_its_percent_decoded_name_trimmed() {
+		for given in [None, Some(String::new()), Some(" ".to_owned())] {
+			let joined = joined_space(
+				"x#host=https://host.test&token=abc&space=s1&name=%20Studio%20%26%20Co%20",
+				"id".to_owned(),
+				given,
+			)
+			.expect("the link");
+
+			assert_eq!(joined.name, "Studio & Co");
+		}
+	}
+
+	#[test]
+	fn a_given_name_wins_over_the_name_in_the_link() {
+		let joined = joined_space(
+			"x#host=https://host.test&token=abc&name=Studio",
+			"id".to_owned(),
+			Some("Mine".to_owned()),
+		)
+		.expect("the link");
+
+		assert_eq!(joined.name, "Mine");
+	}
+
+	#[test]
+	fn a_missing_blank_or_unreadable_link_name_falls_back_to_the_host() {
+		for name in
+			["", "&name=", "&name=%20%20", "&name=%zz", "&name=%2", "&name=%C3", "&name=%+1"]
+		{
+			let joined =
+				read(&format!("x#host=https://host.test:8443&token=abc{name}")).expect("the link");
+
+			assert_eq!(joined.name, "host.test:8443", "for `{name}`");
+		}
+	}
+
+	#[test]
+	fn the_space_parts_round_trip_through_the_link_reader() {
+		let name = "Studio & Co =#%+é ~._-";
+		let parts = space_parts("s1", name);
+
+		let joined = read(&format!("x#host=https://host.test&token=abc{parts}")).expect("the link");
+
+		assert_eq!(parts, "&space=s1&name=Studio%20%26%20Co%20%3D%23%25%2B%C3%A9%20~._-");
+		assert_eq!(joined.remote_space_id.as_deref(), Some("s1"));
+		assert_eq!(joined.name, name);
 	}
 
 	#[test]

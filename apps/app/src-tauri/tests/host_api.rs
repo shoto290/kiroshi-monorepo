@@ -900,17 +900,20 @@ async fn a_stale_web_link_is_removed_when_no_token_is_held() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn the_share_link_command_answers_the_web_link_without_its_newline_then_none_once_stopped() {
+async fn the_share_link_command_answers_the_web_link_naming_the_space_then_none_once_stopped() {
 	let host = Host::new();
 	let window = host.window();
 	let server = host.started();
 	let written = std::fs::read_to_string(host.web_link_path()).expect("the link is on disk");
 
-	let up = direct(&window, "host_share_link", json!({}));
+	let up = direct(&window, "host_share_link", json!({ "spaceId": "personal" }));
+	let unknown = direct(&window, "host_share_link", json!({ "spaceId": "nowhere" }));
 	drop(server);
-	let down = direct(&window, "host_share_link", json!({}));
+	let down = direct(&window, "host_share_link", json!({ "spaceId": "personal" }));
 
-	let link = written.strip_suffix('\n').expect("the file ends with a newline");
+	let web_link = written.strip_suffix('\n').expect("the file ends with a newline");
+	let link = format!("{web_link}&space=personal&name=Personal");
 	assert_eq!(up, Ok(json!({ "kind": "up", "link": link })));
+	assert_eq!(unknown, Err(json!({ "kind": "unknownSpace", "id": "nowhere" })));
 	assert_eq!(down, Ok(json!({ "kind": "down" })));
 }

@@ -722,24 +722,28 @@ mod tests {
 		std::iter::from_fn(|| hearing.recv_timeout(Duration::from_millis(200)).ok()).collect()
 	}
 
-	fn share_link_of(app: &App<MockRuntime>) -> share_link::ShareLink {
-		share_link::host_share_link(app.handle().clone())
+	async fn share_link_of(app: &App<MockRuntime>) -> share_link::ShareLink {
+		share_link::host_share_link(app.handle().clone(), app.state(), "personal".to_owned())
+			.await
+			.expect("the personal space is known")
 	}
 
 	#[tokio::test]
-	async fn the_share_link_is_the_web_link_without_its_newline_until_the_webhook_stops() {
+	async fn the_share_link_is_the_web_link_naming_the_space_until_the_webhook_stops() {
 		let app = a_host("shared").await;
 		let hearing = presences(&app);
 		let webhook = start(app.handle().clone());
 		let written = fs::read_to_string(host_dir_of(&app).join("web-link.txt"))
 			.expect("the link is on disk");
 
-		let up = share_link_of(&app);
+		let up = share_link_of(&app).await;
 		webhook.stop();
 		webhook.stop();
-		let down = share_link_of(&app);
+		let down = share_link_of(&app).await;
 
-		let link = written.strip_suffix('\n').expect("the file ends with a newline").to_owned();
+		let web_link = written.strip_suffix('\n').expect("the file ends with a newline");
+		assert!(!web_link.contains("space="));
+		let link = format!("{web_link}&space=personal&name=Personal");
 		assert_eq!(up, share_link::ShareLink::Up { link });
 		assert_eq!(down, share_link::ShareLink::Down);
 		assert_eq!(heard(&hearing), vec![r#"{"isUp":true}"#, r#"{"isUp":false}"#]);
@@ -751,17 +755,17 @@ mod tests {
 		let app = a_host("shared-dropped").await;
 		let hearing = presences(&app);
 		let webhook = start(app.handle().clone());
-		let up = share_link_of(&app);
+		let up = share_link_of(&app).await;
 
 		drop(webhook);
 		let mut polls = 0;
-		while polls < 100 && share_link_of(&app) != share_link::ShareLink::Down {
+		while polls < 100 && share_link_of(&app).await != share_link::ShareLink::Down {
 			polls += 1;
 			tokio::time::sleep(Duration::from_millis(20)).await;
 		}
 
 		assert!(matches!(up, share_link::ShareLink::Up { .. }), "got {up:?}");
-		assert_eq!(share_link_of(&app), share_link::ShareLink::Down);
+		assert_eq!(share_link_of(&app).await, share_link::ShareLink::Down);
 		assert_eq!(heard(&hearing), vec![r#"{"isUp":true}"#, r#"{"isUp":false}"#]);
 		cleaned(&app);
 	}
@@ -777,7 +781,7 @@ mod tests {
 			opened(app.handle().clone(), Arc::new(SystemClock), Arc::new(HeldOpen), Err(taken));
 		webhook.stop();
 
-		assert_eq!(share_link_of(&app), share_link::ShareLink::Down);
+		assert_eq!(share_link_of(&app).await, share_link::ShareLink::Down);
 		assert!(heard(&hearing).is_empty());
 		cleaned(&app);
 	}
@@ -789,7 +793,7 @@ mod tests {
 		let hearing = presences(&app);
 
 		let webhook = start(app.handle().clone());
-		let answer = share_link_of(&app);
+		let answer = share_link_of(&app).await;
 		webhook.stop();
 
 		assert_eq!(answer, share_link::ShareLink::Down);
@@ -804,7 +808,7 @@ mod tests {
 		fs::create_dir_all(blocking.join("held")).expect("a directory takes the link's place");
 
 		let webhook = start(app.handle().clone());
-		let answer = share_link_of(&app);
+		let answer = share_link_of(&app).await;
 		webhook.stop();
 
 		assert_eq!(answer, share_link::ShareLink::Down);
