@@ -7,6 +7,7 @@ import { App } from "./App"
 
 import { exposeLiveSessions } from "@/lib/agent/live-sessions-devtools"
 import { revealWindow } from "@/lib/host"
+import { exposeScrollTrace } from "@/lib/perf/scroll-trace-devtools"
 import { applyLanguage, readMirror } from "@/lib/user/preferences-mirror"
 import { warmCodeHighlighter } from "@/lib/warm-highlighter"
 
@@ -21,6 +22,7 @@ try {
 }
 
 exposeLiveSessions()
+exposeScrollTrace()
 
 applyLanguage(readMirror().language)
 
