@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { expect, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -7,6 +8,20 @@ import {
 } from "@workspace/storybook/story-utils"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { buttonVariants } from "@workspace/ui/components/ui/button"
+
+const LeaveSpaceConfirmation = () => {
+	const { t } = useTranslation("common")
+
+	return (
+		<ConfirmDialog
+			confirmLabel={t("spaces.leave.action")}
+			defaultOpen
+			description={t("spaces.leave.description")}
+			onConfirm={fn()}
+			title={t("spaces.leave.title", { name: "Northwind" })}
+		/>
+	)
+}
 
 const confirmation = async () => {
 	const popup = await screen.findByRole("alertdialog")
@@ -151,5 +166,30 @@ export const Rejected = meta.story({
 		).toBeVisible()
 		await expect(popup).toBeVisible()
 		await expect(args.onConfirm).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const LeaveSpace = meta.story({
+	render: () => <LeaveSpaceConfirmation />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The question before a person leaves a joined space, from the switcher. The title names the space, the description says the host keeps everything and the link brings it back, so leaving reads as reversible. Check that Cancel comes first and Leave space wears the destructive colour.",
+			},
+		},
+	},
+	play: async () => {
+		const popup = await confirmation()
+
+		await expect(
+			within(popup).getByRole("heading", { name: "Leave Northwind?" }),
+		).toBeVisible()
+		await expect(popup).toHaveTextContent(
+			"Nothing is deleted on the host. You can join again with its link.",
+		)
+		await expect(
+			within(popup).getByRole("button", { name: "Leave space" }),
+		).toBeEnabled()
 	},
 })
