@@ -44,16 +44,16 @@ const SWITCHER_CHEVRON = "size-3 shrink-0 stroke-2!"
 
 const SWITCHER_REMOTE = "size-3 shrink-0 text-muted-foreground"
 
-const ROW_NAME = "min-w-0 truncate"
+const ROW_NAME = "min-w-0 grow truncate"
 
 const ROW_NAME_UNREACHABLE = "text-muted-foreground"
 
-const ROW_REMOTE = "size-3.5 text-muted-foreground"
+const ROW_REMOTE = "size-3.5 shrink-0 text-muted-foreground"
 
 const ROW_UNREACHABLE =
-	"flex shrink-0 items-center gap-1 whitespace-nowrap text-muted-foreground text-xs"
+	"shrink-0 whitespace-nowrap text-muted-foreground text-xs"
 
-const ROW_UNREACHABLE_ICON = "size-3.5 text-destructive"
+const ROW_UNREACHABLE_ICON = "size-3.5 shrink-0 text-destructive"
 
 const DOT = "h-2.5 w-2.5 shrink-0 rounded-full"
 
@@ -156,10 +156,12 @@ const SpaceRemoteMarker = ({ remote }: SpaceRemoteMarkerProps) => {
 	}
 
 	return (
-		<span className={ROW_UNREACHABLE} data-slot="space-unreachable">
+		<>
 			<Icons.Alert aria-hidden="true" className={ROW_UNREACHABLE_ICON} />
-			{t("spaces.unreachable")}
-		</span>
+			<span className={ROW_UNREACHABLE} data-slot="space-unreachable">
+				{t("spaces.unreachable")}
+			</span>
+		</>
 	)
 }
 

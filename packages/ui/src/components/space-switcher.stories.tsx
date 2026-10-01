@@ -768,27 +768,40 @@ const openMenuLikeItsTheme = async (trigger: HTMLElement) => {
 const rowNamed = (menu: HTMLElement, name: string) =>
 	within(menu).getByRole("menuitemradio", { name: new RegExp(`^${name}`) })
 
+const rowGapOf = (row: HTMLElement) =>
+	Number.parseFloat(getComputedStyle(row).columnGap)
+
+const expectOneRowGapApart = async (
+	row: HTMLElement,
+	before: Element,
+	after: Element,
+) => {
+	await expect(rowGapOf(row)).toBe(8)
+	await expect(
+		after.getBoundingClientRect().left - before.getBoundingClientRect().right,
+	).toBeCloseTo(rowGapOf(row), 1)
+}
+
+const shortcutOf = (row: HTMLElement) =>
+	slotsIn(row, "context-menu-shortcut")[0]
+
 const expectConnectedRow = async (row: HTMLElement) => {
 	const globe = within(row).getByRole("img", { name: "Remote" })
 	await expect(globe.getBoundingClientRect().width).toBe(14)
-	await expect(globe.nextElementSibling).toHaveAttribute(
-		"data-slot",
-		"context-menu-shortcut",
-	)
+	await expect(globe.nextElementSibling).toBe(shortcutOf(row))
+	await expectOneRowGapApart(row, globe, shortcutOf(row))
 	await expect(slotsIn(row, "space-dot")[0].style.backgroundColor).not.toBe("")
 }
 
 const expectUnreachableRow = async (row: HTMLElement) => {
 	const status = slotsIn(row, "space-unreachable")[0]
+	const alert = status.previousElementSibling
+	if (!alert) throw new Error("Nothing draws the alert before the status")
 	await expect(status).toHaveTextContent("Unreachable")
-	await expect(status.querySelector("svg")).toHaveAttribute(
-		"aria-hidden",
-		"true",
-	)
-	await expect(status.nextElementSibling).toHaveAttribute(
-		"data-slot",
-		"context-menu-shortcut",
-	)
+	await expect(alert).toHaveAttribute("aria-hidden", "true")
+	await expectOneRowGapApart(row, alert, status)
+	await expect(status.nextElementSibling).toBe(shortcutOf(row))
+	await expectOneRowGapApart(row, status, shortcutOf(row))
 	await expect(slotsIn(row, "space-dot")[0].style.backgroundColor).toBe("")
 	await expect(within(row).queryByRole("img", { name: "Remote" })).toBeNull()
 }
@@ -975,13 +988,19 @@ export const RemoteLongNames = meta.story({
 			const row = rowNamed(menu, name)
 			const label = within(row).getByText(new RegExp(`^${name}`))
 			await expect(label.scrollWidth).toBeGreaterThan(label.clientWidth)
-			const shortcut = slotsIn(row, "context-menu-shortcut")[0]
+			const shortcut = shortcutOf(row)
 			const end = row.getBoundingClientRect().right
 			await expect(shortcut.getBoundingClientRect().right).toBeLessThan(end)
-			await expect(
-				slotsIn(row, marker)[0].getBoundingClientRect().right,
-			).toBeLessThan(shortcut.getBoundingClientRect().left)
+			const held = slotsIn(row, marker)[0]
+			await expect(held.scrollWidth).toBeLessThanOrEqual(held.clientWidth)
+			await expectOneRowGapApart(row, held, shortcut)
 		}
+		await expect(
+			slotsIn(
+				rowNamed(menu, "Everything"),
+				"space-remote",
+			)[0].getBoundingClientRect().width,
+		).toBe(14)
 
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
