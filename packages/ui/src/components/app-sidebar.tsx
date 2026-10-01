@@ -58,6 +58,7 @@ import { SidebarResizeHandle } from "@workspace/ui/components/sidebar-resize"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"
 import {
 	SpaceDots,
+	type SpaceRemote,
 	SpaceSwitcher,
 } from "@workspace/ui/components/space-switcher"
 import { TooltipButton } from "@workspace/ui/components/tooltip-button"
@@ -1806,6 +1807,9 @@ interface AppSidebarProps
 	onSelectSpace?: (id: string) => void
 	onReorderSpaces?: (ids: string[]) => void
 	onCreateSpace?: () => void
+	onJoinSpace?: () => void
+	onLeaveSpace?: () => void
+	remoteBySpaceId?: Record<string, SpaceRemote>
 	onOpenSpaceSettings?: () => void
 	updateBadge?: ReactNode
 	user?: UserChipIdentity
@@ -1855,6 +1859,9 @@ const AppSidebarBase = ({
 	onSelectSpace,
 	onReorderSpaces,
 	onCreateSpace,
+	onJoinSpace,
+	onLeaveSpace,
+	remoteBySpaceId,
 	onOpenSpaceSettings,
 	updateBadge,
 	user,
@@ -2063,9 +2070,12 @@ const AppSidebarBase = ({
 				<SpaceSwitcher
 					badgesBySpaceId={badgesBySpaceId}
 					onCreateSpace={onCreateSpace}
+					onJoinSpace={onJoinSpace}
+					onLeaveSpace={onLeaveSpace}
 					onOpenSpaceSettings={onOpenSpaceSettings}
 					onReorderSpaces={onReorderSpaces}
 					onSelectSpace={onSelectSpace}
+					remoteBySpaceId={remoteBySpaceId}
 					selectedSpaceId={selectedSpaceId}
 					spaces={spaces}
 				/>
