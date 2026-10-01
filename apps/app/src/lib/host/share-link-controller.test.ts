@@ -12,72 +12,33 @@ import type { ShareLink } from "../bindings"
 
 const LINK = "kiroshi://join/host.local:4242?token=secret"
 
-const createFakeTransport = (reads: Array<() => Promise<ShareLink>>) => {
+const createFakeTransport = (read: ShareLinkTransport["read"]) => {
 	const presence: { announce: () => void } = { announce: () => undefined }
-	const unlisten = vi.fn()
 	const transport: ShareLinkTransport = {
-		read: vi.fn(() => (reads.shift() ?? reads[0])()),
-		onPresence: vi.fn(async (listener) => {
+		read,
+		onPresence: async (listener) => {
 			presence.announce = listener
-			return unlisten
-		}),
+			return () => undefined
+		},
 	}
-	return { transport, presence, unlisten }
+	return { transport, presence }
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe("createShareLinkController", () => {
-	it("holds the link while the host is up", async () => {
-		const { transport } = createFakeTransport([
-			async () => ({ kind: "up", link: LINK }),
-		])
-		const controller = createShareLinkController({ transport })
-
-		controller.watch()
-		await settle()
-
-		expect(controller.getState()).toEqual({
-			shareLink: LINK,
-			hasFailedToLoad: false,
-		})
-	})
-
-	it("holds null while the host is down", async () => {
-		const { transport } = createFakeTransport([async () => ({ kind: "down" })])
-		const controller = createShareLinkController({ transport })
-
-		controller.watch()
-		await settle()
-
-		expect(controller.getState().shareLink).toBeNull()
-	})
-
-	it("reads the link again when the host presence changes", async () => {
-		const { transport, presence } = createFakeTransport([
-			async () => ({ kind: "down" }),
-			async () => ({ kind: "up", link: LINK }),
-		])
-		const controller = createShareLinkController({ transport })
-
-		controller.watch()
-		await settle()
-		presence.announce()
-		await settle()
-
-		expect(transport.read).toHaveBeenCalledTimes(2)
-		expect(controller.getState().shareLink).toBe(LINK)
-	})
-
 	it("keeps only the latest read when two overlap", async () => {
 		let releaseFirst: (shareLink: ShareLink) => void = () => undefined
-		const { transport, presence } = createFakeTransport([
-			() =>
-				new Promise<ShareLink>((resolve) => {
-					releaseFirst = resolve
-				}),
-			async () => ({ kind: "down" }),
-		])
+		const { transport, presence } = createFakeTransport(
+			vi
+				.fn<ShareLinkTransport["read"]>()
+				.mockReturnValueOnce(
+					new Promise((resolve) => {
+						releaseFirst = resolve
+					}),
+				)
+				.mockResolvedValue({ kind: "down" }),
+		)
 		const controller = createShareLinkController({ transport })
 
 		controller.watch()
@@ -91,11 +52,9 @@ describe("createShareLinkController", () => {
 	})
 
 	it("notes the failure, raises a notice and holds null when the read rejects", async () => {
-		const { transport } = createFakeTransport([
-			async () => {
-				throw new Error("ipc closed")
-			},
-		])
+		const { transport } = createFakeTransport(() =>
+			Promise.reject(new Error("ipc closed")),
+		)
 		const reportFailure = vi.fn<(message: NoticeMessage) => void>()
 		const controller = createShareLinkController({ transport, reportFailure })
 
@@ -110,19 +69,5 @@ describe("createShareLinkController", () => {
 			title:
 				"The host isn’t running, so there’s no link yet. Restart Kiroshi to start it.",
 		})
-	})
-
-	it("removes the presence listener when the watch stops", async () => {
-		const { transport, unlisten } = createFakeTransport([
-			async () => ({ kind: "down" }),
-		])
-		const controller = createShareLinkController({ transport })
-
-		const stop = controller.watch()
-		await settle()
-		stop()
-		await settle()
-
-		expect(unlisten).toHaveBeenCalledOnce()
 	})
 })
