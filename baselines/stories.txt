@@ -568,12 +568,9 @@ feedback-progressring--default
 feedback-progressring--values
 feedback-progressring--zero-value
 feedback-skeleton--loading
-feedback-spacegraph--force
-feedback-spacegraph--hubs
+feedback-spacegraph--bots-only
 feedback-spacegraph--local-mode
-feedback-spacegraph--nested
 feedback-spacegraph--orbits
-feedback-spacegraph--rings
 feedback-updatebadge--default
 feedback-updatebadge--empty
 feedback-updatebadge--error
@@ -659,10 +656,13 @@ layout-rowanatomy--default
 layout-rowanatomy--in-roster
 layout-rowanatomy--with-blank-identifier
 layout-rowanatomy--with-identifier
+layout-spacegraphscreen--bots-only
 layout-spacegraphscreen--dark
 layout-spacegraphscreen--escape-closes
+layout-spacegraphscreen--failed
 layout-spacegraphscreen--follows-the-pane-width
 layout-spacegraphscreen--in-the-shell
+layout-spacegraphscreen--loading
 layout-spacegraphscreen--panel-comes-back-at-its-width
 layout-threadlayout--default
 layout-threadlayout--empty

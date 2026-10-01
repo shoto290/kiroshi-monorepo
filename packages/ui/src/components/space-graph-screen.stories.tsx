@@ -4,8 +4,14 @@ import { expect, fn, userEvent, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import { slotIn } from "@workspace/storybook/story-utils"
 import { AppSidebar } from "@workspace/ui/components/app-sidebar"
-import { SPACE_GRAPH } from "@workspace/ui/components/space-graph.fixtures"
-import { SpaceGraphScreen } from "@workspace/ui/components/space-graph-screen"
+import {
+	BOTS_ONLY_GRAPH,
+	OWN_PLUGINS_GRAPH,
+} from "@workspace/ui/components/space-graph.fixtures"
+import {
+	SpaceGraphScreen,
+	type SpaceGraphScreenState,
+} from "@workspace/ui/components/space-graph-screen"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
 const FIRST_FRAME_TIMEOUT_MS = 5000
@@ -15,6 +21,11 @@ const WIDE_PX = 1100
 const NARROW_PX = 800
 
 const SIDEBAR_PX = 333
+
+const READY: SpaceGraphScreenState = {
+	status: "ready",
+	graph: OWN_PLUGINS_GRAPH,
+}
 
 const TogglingShell = () => {
 	const [isGraphOpen, setIsGraphOpen] = useState(false)
@@ -30,9 +41,7 @@ const TogglingShell = () => {
 				}
 				width={SIDEBAR_PX}
 			>
-				{isGraphOpen ? (
-					<SpaceGraphScreen graph={SPACE_GRAPH} onClose={fn()} />
-				) : null}
+				{isGraphOpen ? <SpaceGraphScreen onClose={fn()} state={READY} /> : null}
 			</WorkspaceShell>
 		</div>
 	)
@@ -78,11 +87,11 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The space graph as a page of the main pane, opened from the Space graph entry of the rail in dev builds. The rail and the title bar stay as on every screen; the sidebar panel steps aside and the page carries no header of its own. The graph takes every pixel the pane leaves it and follows the window width. Pressing the rail entry again or Escape closes the page.",
+					"The space graph as a page of the main pane, opened from the Space graph entry of the rail in dev builds. The rail and the title bar stay as on every screen; the sidebar panel steps aside and the page carries no header of its own. The page reads the space while it opens, names every read that failed, and draws the bots alone when they hold nothing. The graph takes every pixel the pane leaves it and follows the window width. Pressing the rail entry again or Escape closes the page.",
 			},
 		},
 	},
-	args: { graph: SPACE_GRAPH, onClose: fn() },
+	args: { state: READY, onClose: fn() },
 	render: (args) => (
 		<div className="flex h-[640px]" data-slot="story-window">
 			<WorkspaceShell
@@ -128,6 +137,72 @@ export const Dark = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		await expectCanvasFillsItsPane(canvasElement)
+	},
+})
+
+export const Loading = meta.story({
+	args: { state: { status: "loading" } },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"While the bots, their skills, their applications and their history are read. Check the spinner and its line sit centred in the pane and the line is announced.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const reading = slotIn(canvasElement, "space-graph-reading")
+		await expect(reading).toHaveAttribute("role", "status")
+		await expect(reading).toHaveTextContent("Reading this space")
+	},
+})
+
+export const Failed = meta.story({
+	args: {
+		state: {
+			status: "failed",
+			failures: [
+				{ read: "skills", botName: "Atlas" },
+				{ read: "history", botName: "Basile" },
+			],
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Two reads refused. Check the notice names each one with the bot it belongs to, and that nothing of the graph is drawn.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const alert = within(canvasElement).getByRole("alert")
+		await expect(alert).toHaveTextContent("Couldn’t draw this space")
+		await expect(alert).toHaveTextContent("Atlas’s skills couldn’t be read.")
+		await expect(alert).toHaveTextContent("Basile’s history couldn’t be read.")
+		await expect(
+			canvasElement.querySelector('[data-slot="space-graph"]'),
+		).toBeNull()
+	},
+})
+
+export const BotsOnly = meta.story({
+	args: { state: { status: "ready", graph: BOTS_ONLY_GRAPH } },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A space whose bots hold no skill and no application: the bots alone on their ring.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expectCanvasFillsItsPane(canvasElement)
+		await waitFor(() =>
+			expect(
+				canvasElement.querySelectorAll('[data-slot="space-graph-bot"]'),
+			).toHaveLength(4),
+		)
 	},
 })
 

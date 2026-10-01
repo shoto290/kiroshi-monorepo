@@ -7,7 +7,7 @@ type SpaceGraphPluginKind = "skill" | "application" | "file"
 type SpaceGraphBot = {
 	id: string
 	name: string
-	blot: BotAvatarBlot
+	blot?: BotAvatarBlot
 	isWorking: boolean
 }
 

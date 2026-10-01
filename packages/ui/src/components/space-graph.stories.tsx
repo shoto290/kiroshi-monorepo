@@ -2,7 +2,10 @@ import { expect, userEvent, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { SpaceGraph } from "@workspace/ui/components/space-graph"
-import { SPACE_GRAPH } from "@workspace/ui/components/space-graph.fixtures"
+import {
+	BOTS_ONLY_GRAPH,
+	OWN_PLUGINS_GRAPH,
+} from "@workspace/ui/components/space-graph.fixtures"
 
 const meta = preview.meta({
 	title: "Feedback/SpaceGraph",
@@ -12,12 +15,12 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What a space loads, drawn as a graph: its bots, and the skills, applications and files each one preloads across the system, user, space and bot scopes. Area follows the preloaded token count, a halo marks a write in the last week, a bot's own nodes wear its colour and shared nodes stay neutral. Four layout directions share the same data and encoding; clicking a bot keeps only its neighbourhood.",
+					"What a space loads, drawn as orbits: each bot pinned on an outer ring as a circle holding the skills and applications of its own plugin, sized by their estimated token count, a halo marking a write in the last week. A ring guide is drawn only for a shared scope that holds a node; clicking a bot keeps only its neighbourhood.",
 			},
 		},
 	},
 	globals: { theme_layout: "side-by-side" },
-	args: { graph: SPACE_GRAPH },
+	args: { graph: OWN_PLUGINS_GRAPH },
 	decorators: [
 		(Story) => (
 			<div className="h-[560px]">
@@ -29,103 +32,47 @@ const meta = preview.meta({
 
 const FIRST_FRAME_TIMEOUT_MS = 5000
 
-const expectSelectedDirection = async (
-	canvasElement: HTMLElement,
-	name: string,
-) => {
-	const tabs = within(canvasElement).getAllByRole("tab", { name })
-	for (const tab of tabs) {
-		await expect(tab).toHaveAttribute("aria-selected", "true")
-	}
-}
-
 const expectBotCount = async (canvasElement: HTMLElement, count: number) => {
-	const bots = canvasElement.querySelectorAll('[data-slot="space-graph-bot"]')
-	await expect(bots).toHaveLength(count * 2)
+	await waitFor(
+		() =>
+			expect(
+				canvasElement.querySelectorAll('[data-slot="space-graph-bot"]'),
+			).toHaveLength(count * 2),
+		{ timeout: FIRST_FRAME_TIMEOUT_MS },
+	)
 }
-
-export const Force = meta.story({
-	args: { defaultDirection: "force" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The Obsidian-like baseline: nothing is pinned, the whole graph floats until it settles. Pick it to judge the raw clustering, and compare with `Hubs` when the bots should hold still.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		await expectSelectedDirection(canvasElement, "Force")
-		await expectBotCount(canvasElement, 4)
-	},
-})
-
-export const Hubs = meta.story({
-	args: { defaultDirection: "hubs" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Bots pinned at fixed places on one ring, their own skills and applications orbiting as satellites, shared nodes pulled toward the centre. Check that a bot sits at the same place after switching away and back.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		await expectSelectedDirection(canvasElement, "Hubs")
-		await expectBotCount(canvasElement, 4)
-	},
-})
-
-export const Rings = meta.story({
-	args: { defaultDirection: "rings" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"One concentric ring per scope: system at the centre, then user, then space, bot plugins and the bots themselves at the edge. Pick it to read where the context weight comes from by scope.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		await expectSelectedDirection(canvasElement, "Rings")
-		await expectBotCount(canvasElement, 4)
-	},
-})
-
-export const Nested = meta.story({
-	args: { defaultDirection: "nested" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Each bot drawn as a circle holding its own plugin files as bubbles sized by tokens, after githubnext/repo-visualizer; shared nodes stay outside every circle, linked to each bot that loads them.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		await expectSelectedDirection(canvasElement, "Nested")
-		await expectBotCount(canvasElement, 4)
-	},
-})
 
 export const Orbits = meta.story({
-	args: { defaultDirection: "orbits" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Rings and Nested mixed: shared nodes sit on their scope ring, system at the centre, then user, then space; each bot is pinned on an outer ring beyond the space ring as a circle holding its own files, linked to every shared node it loads. Check that no file crosses a ring guide or another bot's circle, and that a picked bot keeps its place.",
+					"A space as the app draws it: four bots at rest, each holding its own skills and applications, with no shared scope and so no ring guide. Check that no file crosses another bot's circle and that a picked bot keeps its place.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		await expectSelectedDirection(canvasElement, "Orbits")
+		await expectBotCount(canvasElement, 4)
+		await expect(within(canvasElement).queryByRole("tab")).toBeNull()
+	},
+})
+
+export const BotsOnly = meta.story({
+	args: { graph: BOTS_ONLY_GRAPH },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A space whose bots hold no skill and no application: the bots alone on their ring, with no circle and no link.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
 		await expectBotCount(canvasElement, 4)
 	},
 })
 
 export const LocalMode = meta.story({
-	args: { defaultDirection: "force" },
 	parameters: {
 		docs: {
 			description: {

@@ -10,13 +10,13 @@ const common = {
 	},
 	skipLink: "Skip to the conversation",
 	spaceGraph: {
-		directions: {
-			label: "Layout",
-			force: "Force",
-			hubs: "Hubs",
-			rings: "Rings",
-			nested: "Nested",
-			orbits: "Orbits",
+		reading: "Reading this space",
+		failed: {
+			title: "Couldn’t draw this space",
+			bots: "The companions of this space couldn’t be read.",
+			skills: "{{name}}’s skills couldn’t be read.",
+			applications: "{{name}}’s applications couldn’t be read.",
+			history: "{{name}}’s history couldn’t be read.",
 		},
 		focus: "Show {{name}} and what it loads",
 		showWhole: "Show the whole graph",

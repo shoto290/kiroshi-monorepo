@@ -195,4 +195,12 @@ const SPACE_GRAPH: SpaceGraphData = {
 	],
 }
 
-export { SPACE_GRAPH }
+const OWN_PLUGINS_GRAPH: SpaceGraphData = {
+	...SPACE_GRAPH,
+	bots: SPACE_GRAPH.bots.map((bot) => ({ ...bot, isWorking: false })),
+	plugins: SPACE_GRAPH.plugins.filter((plugin) => plugin.scope === "bot"),
+}
+
+const BOTS_ONLY_GRAPH: SpaceGraphData = { ...OWN_PLUGINS_GRAPH, plugins: [] }
+
+export { BOTS_ONLY_GRAPH, OWN_PLUGINS_GRAPH, SPACE_GRAPH }

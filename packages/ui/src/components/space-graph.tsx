@@ -15,13 +15,11 @@ import {
 import { SILHOUETTE_FOCUS_RING } from "@workspace/ui/components/companion-picture"
 import {
 	applyLayout,
-	drawsCircles,
+	botCircles,
 	type GraphLayout,
 	type GraphMethods,
-	GUIDE_RINGS,
-	nestedCircles,
+	guideRingsOf,
 	pinBots,
-	type SpaceGraphDirection,
 } from "@workspace/ui/components/space-graph-layout"
 import {
 	type GraphLink,
@@ -31,7 +29,6 @@ import {
 	toGraph,
 } from "@workspace/ui/components/space-graph-model"
 import { Button } from "@workspace/ui/components/ui/button"
-import { Tabs, TabsList, TabsTrigger } from "@workspace/ui/components/ui/tabs"
 import {
 	Tooltip,
 	TooltipContent,
@@ -39,14 +36,6 @@ import {
 } from "@workspace/ui/components/ui/tooltip"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
-
-const DIRECTIONS: SpaceGraphDirection[] = [
-	"force",
-	"hubs",
-	"rings",
-	"nested",
-	"orbits",
-]
 
 const HIT_RADIUS_PX = 12
 const HALO_SPREAD = 2.2
@@ -80,7 +69,6 @@ type ElementSize = { width: number; height: number }
 
 type SpaceGraphProps = {
 	graph: SpaceGraphData
-	defaultDirection?: SpaceGraphDirection
 }
 
 const readPalette = (element: HTMLElement): Palette => {
@@ -96,8 +84,11 @@ const readPalette = (element: HTMLElement): Palette => {
 	}
 }
 
+const blotColour = (blot: BotAvatarBlot | undefined, palette: Palette) =>
+	blot ? palette.blots[blot] : palette.neutral
+
 const fillOf = (node: GraphNode, palette: Palette) =>
-	node.owner ? palette.blots[node.owner.blot] : palette.neutral
+	blotColour(node.owner?.blot, palette)
 
 const strokeCircle = (
 	context: CanvasRenderingContext2D,
@@ -190,7 +181,7 @@ const paintCircles = (
 	for (const node of nodes) {
 		if (!node.bot) continue
 		const radius = circles.get(node.id) ?? 0
-		const colour = palette.blots[node.bot.blot]
+		const colour = blotColour(node.bot.blot, palette)
 		const x = node.x ?? 0
 		const y = node.y ?? 0
 		context.save()
@@ -223,14 +214,9 @@ const useElementSize = () => {
 	return { element, measure, size }
 }
 
-const SpaceGraph = ({
-	graph: data,
-	defaultDirection = "force",
-}: SpaceGraphProps) => {
+const SpaceGraph = ({ graph: data }: SpaceGraphProps) => {
 	const { t } = useTranslation("common")
 	const prefersReducedMotion = usePrefersReducedMotion()
-	const [direction, setDirection] =
-		useState<SpaceGraphDirection>(defaultDirection)
 	const [focusedBotId, setFocusedBotId] = useState<string>()
 	const [tip, setTip] = useState<Tip>()
 	const [zoom, setZoom] = useState(1)
@@ -247,12 +233,12 @@ const SpaceGraph = ({
 	const isShown = (node: GraphNode) => !shownIds || shownIds.has(node.id)
 	const layout = useMemo<GraphLayout>(
 		() => ({
-			direction,
 			botIds: data.bots.map((bot) => bot.id),
-			circles: nestedCircles(whole.nodes),
+			circles: botCircles(whole.nodes),
 		}),
-		[direction, data, whole],
+		[data, whole],
 	)
+	const guideRings = useMemo(() => guideRingsOf(whole.nodes), [whole])
 	const shownBots = whole.nodes.filter((node) => node.bot && isShown(node))
 
 	useLayoutEffect(() => {
@@ -305,10 +291,8 @@ const SpaceGraph = ({
 		if (!element.current) return
 		const current = readPalette(element.current)
 		palette.current = current
-		paintGuides(context, scale, current, GUIDE_RINGS[direction])
-		if (drawsCircles(direction)) {
-			paintCircles(context, scale, current, shownBots, layout.circles)
-		}
+		paintGuides(context, scale, current, guideRings)
+		paintCircles(context, scale, current, shownBots, layout.circles)
 	}
 
 	const placeAvatars = (_: CanvasRenderingContext2D, scale: number) => {
@@ -336,7 +320,7 @@ const SpaceGraph = ({
 		scale: number,
 	) => {
 		if (!palette.current) return
-		if (drawsCircles(direction) && link.isOwned) return
+		if (link.isOwned) return
 		const source = link.source as GraphNode
 		const target = link.target as GraphNode
 		context.save()
@@ -366,28 +350,9 @@ const SpaceGraph = ({
 	}
 
 	return (
-		<div
-			className="flex size-full min-h-0 flex-col gap-3"
-			data-slot="space-graph"
-		>
-			<div className="flex flex-wrap items-center gap-3">
-				<Tabs value={direction} onValueChange={setDirection}>
-					<TabsList aria-label={t("spaceGraph.directions.label")}>
-						{DIRECTIONS.map((value) => (
-							<TabsTrigger key={value} value={value}>
-								{t(`spaceGraph.directions.${value}`)}
-							</TabsTrigger>
-						))}
-					</TabsList>
-				</Tabs>
-				{focusedBotId ? (
-					<Button onClick={showWhole} size="sm" variant="outline">
-						{t("spaceGraph.showWhole")}
-					</Button>
-				) : null}
-			</div>
+		<div className="relative size-full min-h-0" data-slot="space-graph">
 			<div
-				className="relative min-h-0 flex-1 overflow-hidden"
+				className="absolute inset-0 overflow-hidden"
 				data-slot="space-graph-canvas"
 				ref={measure}
 			>
@@ -397,7 +362,6 @@ const SpaceGraph = ({
 					cooldownTime={MOVING_COOLDOWN_MS}
 					graphData={whole}
 					height={size.height}
-					key={prefersReducedMotion ? direction : undefined}
 					linkCanvasObject={paintLink}
 					linkVisibility={(link) =>
 						isShown(link.source as GraphNode) &&
@@ -483,6 +447,16 @@ const SpaceGraph = ({
 					) : null}
 				</Tooltip>
 			</div>
+			{focusedBotId ? (
+				<Button
+					className="absolute start-0 top-0"
+					onClick={showWhole}
+					size="sm"
+					variant="outline"
+				>
+					{t("spaceGraph.showWhole")}
+				</Button>
+			) : null}
 		</div>
 	)
 }

@@ -10,13 +10,13 @@ const common = {
 	},
 	skipLink: "Passer à la conversation",
 	spaceGraph: {
-		directions: {
-			label: "Disposition",
-			force: "Force",
-			hubs: "Pôles",
-			rings: "Anneaux",
-			nested: "Imbriqué",
-			orbits: "Orbites",
+		reading: "Lecture de cet espace",
+		failed: {
+			title: "Impossible de dessiner cet espace",
+			bots: "Les compagnons de cet espace n’ont pas pu être lus.",
+			skills: "Les compétences de {{name}} n’ont pas pu être lues.",
+			applications: "Les applications de {{name}} n’ont pas pu être lues.",
+			history: "L’historique de {{name}} n’a pas pu être lu.",
 		},
 		focus: "Afficher {{name}} et ce qu’il charge",
 		showWhole: "Afficher tout le graphe",
