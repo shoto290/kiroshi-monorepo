@@ -1,6 +1,7 @@
 import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
 
 import { toEnvironmentRows } from "@/lib/environment/environment-rows"
+import { useShareLink } from "@/lib/host/use-share-link"
 import { toSpaceSettingsValue } from "@/lib/spaces/space-settings"
 import type { ApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import type { SettingsPanels } from "@/lib/workspace/use-settings-panels"
@@ -28,6 +29,7 @@ export const SpaceSettingsHost = ({
 		settingsTab,
 		spaceApplications,
 	} = scopes
+	const shareLink = useShareLink(isSpaceEditing)
 
 	return selectedSpace ? (
 		<SpaceSettingsDialog
@@ -75,6 +77,7 @@ export const SpaceSettingsHost = ({
 				spaces.controller.describe(selectedSpace.id, value)
 			}
 			open={isSpaceEditing}
+			shareLink={shareLink}
 			{...spaceSkills}
 			value={toSpaceSettingsValue(selectedSpace)}
 		/>
