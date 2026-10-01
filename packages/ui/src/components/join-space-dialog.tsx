@@ -75,7 +75,7 @@ const JoinSpaceDialog = ({
 					)}
 					initialFocus={control}
 				>
-					<form className="flex flex-col gap-4" noValidate onSubmit={join}>
+					<form className="flex flex-col gap-4" onSubmit={join}>
 						<div className="flex flex-col gap-1">
 							<Dialog.Title className="text-base">
 								{t("spaces.join.title")}
@@ -91,7 +91,6 @@ const JoinSpaceDialog = ({
 							<input
 								aria-describedby={messageKey ? messageId : undefined}
 								aria-invalid={isInvalid || undefined}
-								autoComplete="off"
 								className={cn(
 									FIELD_CONTROL_CLASS,
 									"truncate",
@@ -104,7 +103,6 @@ const JoinSpaceDialog = ({
 								readOnly={isJoining}
 								ref={control}
 								spellCheck={false}
-								type="text"
 								value={link}
 							/>
 							{messageKey ? (
