@@ -136,7 +136,8 @@ describe("applicationTransport", () => {
 			application: "linear",
 			scope: "user",
 		})
-		expect(stop).toBe(unsubscribe)
+		stop()
+		expect(unsubscribe).toHaveBeenCalledOnce()
 	})
 })
 

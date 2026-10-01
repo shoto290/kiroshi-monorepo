@@ -14,6 +14,7 @@ import {
 	type HttpHost,
 	raiseRefusalNotice,
 } from "./http"
+import { createJoinedHosts } from "./joined-hosts"
 import {
 	convertFileSrc,
 	invoke as tauriInvoke,
@@ -63,9 +64,28 @@ if (httpHost) {
 	bridgeGeneratedBindings(httpHost, window)
 }
 
-export const invoke: typeof tauriInvoke = httpHost?.invoke ?? tauriInvoke
+const localFileSrc = (path: string): string => {
+	if (isDesktopHost()) {
+		return convertFileSrc(path)
+	}
+	return httpHost ? httpHost.fileSrc(path) : path
+}
 
-export const listen: typeof tauriListen = httpHost?.listen ?? tauriListen
+export const joinedHosts = createJoinedHosts({
+	local: {
+		invoke: httpHost?.invoke ?? tauriInvoke,
+		listen: httpHost?.listen ?? tauriListen,
+		fileSrc: localFileSrc,
+	},
+	join: (id) => commands.joinedSpaceConnect(id),
+	fetch: (input, init) => fetch(input, init),
+	openSocket: (url) => new WebSocket(url),
+	reportFailure: raiseRefusalNotice,
+})
+
+export const invoke: typeof tauriInvoke = joinedHosts.invoke
+
+export const listen = joinedHosts.listen
 
 export function isDesktopHost(): boolean {
 	return httpHost === null && hasTauriInternals()
@@ -128,10 +148,7 @@ export const declareMaximizeButton = async (
 }
 
 export function assetSrc(path: string): string {
-	if (isDesktopHost()) {
-		return convertFileSrc(path)
-	}
-	return httpHost ? httpHost.fileSrc(path) : path
+	return joinedHosts.fileSrc(path)
 }
 
 export function avatarSrc(path: string | null): string | undefined {

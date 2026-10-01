@@ -1,2 +1,3 @@
+exports :: apps/app/src/lib/host/index.ts :: joinedHosts
 exports :: apps/app/src/lib/routines/filter-vocabulary.ts :: NO_FILTER_VOCABULARY_DRIFT
 types :: apps/app/src/lib/routines/routine-contract.ts :: ReportRefusal
