@@ -153,6 +153,7 @@ export const createJoinedSpacesController = ({
 	const stateStore = createStore(initialJoinedSpacesState)
 	const current = stateStore.getState
 	let latestRead = 0
+	let isJoining = false
 
 	const set = (fields: Partial<JoinedSpacesState>) =>
 		stateStore.setState({ ...current(), ...fields })
@@ -174,11 +175,17 @@ export const createJoinedSpacesController = ({
 		}
 	}
 
+	const isHeld = (joined: JoinedSpace) =>
+		current().joinedSpaces.some((held) => held.id === joined.id)
+
+	const shownOf = (listed: JoinedSpace[]) =>
+		isJoining ? listed.filter(isHeld) : listed
+
 	const read = async () => {
 		latestRead += 1
 		const ticket = latestRead
 		try {
-			const joinedSpaces = await transport.list()
+			const joinedSpaces = shownOf(await transport.list())
 			if (ticket === latestRead) {
 				set({ joinedSpaces, hasFailedToLoad: false })
 				connectEach(joinedSpaces)
@@ -264,13 +271,18 @@ export const createJoinedSpacesController = ({
 	}
 
 	const join = async () => {
-		if (current().joinState === "joining") {
+		if (isJoining) {
 			return
 		}
+		isJoining = true
 		set({ joinState: "joining" })
-		await transport
-			.add(current().joinLink.trim())
-			.then(settleJoined, refuseJoin)
+		try {
+			await transport
+				.add(current().joinLink.trim())
+				.then(settleJoined, refuseJoin)
+		} finally {
+			isJoining = false
+		}
 	}
 
 	const leave = async () => {

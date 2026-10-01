@@ -65,6 +65,7 @@ const transportFake = (listed: JoinedSpace[] = []) => {
 		list: vi.fn(async () => held),
 		add: vi.fn(async (_link: string): Promise<JoinedSpace> => {
 			held = [...held, GARAGE]
+			announce()
 			return GARAGE
 		}),
 		remove: vi.fn(async (id: string) => {
@@ -339,6 +340,66 @@ describe("joining a space", () => {
 
 		expect(gear.joined.getState().joinState).toBe("hostUnreachable")
 		expect(gear.wire.transport.remove).toHaveBeenCalledWith(GARAGE.id)
+	})
+})
+
+describe("a changed read during a join", () => {
+	const probingGarage = async () => {
+		const gear = await gearFor()
+		gear.joined.watch()
+		await settle()
+		const shownRows: string[][] = []
+		const shownMarks: string[][] = []
+		gear.joined.subscribe(() => {
+			const { joinedSpaces } = gear.joined.getState()
+			shownRows.push(switcherSpacesOf([], joinedSpaces).map((row) => row.id))
+			shownMarks.push(
+				Object.keys(
+					remoteMarksOf(joinedSpaces, gear.hosts.getState().connections),
+				),
+			)
+		})
+		gear.hosts.answer(GARAGE.id, { status: "connecting" })
+		gear.joined.openJoin()
+		gear.joined.changeJoinLink("kiroshi://192.168.1.20")
+		const joining = gear.joined.join()
+		await settle()
+		gear.wire.announce()
+		await settle()
+		return { ...gear, joining, shownRows, shownMarks }
+	}
+
+	it("lists no row and no mark for the space being probed", async () => {
+		const gear = await probingGarage()
+
+		expect(gear.wire.transport.list).toHaveBeenCalledTimes(3)
+		expect(gear.joined.getState().joinState).toBe("joining")
+		expect(gear.shownRows.flat()).not.toContain("garage")
+		expect(gear.shownMarks.flat()).not.toContain("garage")
+		expect(gear.hosts.connect).toHaveBeenCalledTimes(1)
+	})
+
+	it("shows and selects the row once the probe succeeds", async () => {
+		const gear = await probingGarage()
+
+		gear.hosts.record(GARAGE.id, { status: "up" })
+		await gear.joining
+
+		expect(gear.joined.getState().joinedSpaces).toEqual([GARAGE])
+		expect(gear.spaces.getState().selectedSpaceId).toBe("garage")
+	})
+
+	it("never shows the row when the probe fails", async () => {
+		const gear = await probingGarage()
+
+		gear.hosts.record(GARAGE.id, { status: "down" })
+		gear.wire.announce()
+		await gear.joining
+		await settle()
+
+		expect(gear.joined.getState().joinState).toBe("hostUnreachable")
+		expect(gear.shownRows.flat()).not.toContain("garage")
+		expect(gear.shownMarks.flat()).not.toContain("garage")
 	})
 })
 
