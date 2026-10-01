@@ -1,8 +1,10 @@
 import { OverlayScrollbars } from "overlayscrollbars"
 import type { ComponentType, ReactNode } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
 import type { ExtraProps } from "react-markdown"
 import { expect, waitFor } from "storybook/test"
 
+import type { Icon } from "@workspace/ui/components/icons"
 import {
 	MARKDOWN_CODE_SURFACE_CLASS,
 	MARKDOWN_TYPESET_CLASS,
@@ -85,6 +87,21 @@ export const slotIn = (root: Element, slot: string) => {
 	const node = root.querySelector<HTMLElement>(`[data-slot="${slot}"]`)
 	if (!node) throw new Error(`Nothing here draws a ${slot}`)
 	return node
+}
+
+const strokesOf = (Glyph: Icon) => {
+	const host = document.createElement("div")
+	host.innerHTML = renderToStaticMarkup(<Glyph />)
+	return host.firstElementChild?.innerHTML
+}
+
+export const glyphIn = (root: Element, glyph: Icon) => {
+	const strokes = strokesOf(glyph)
+	return (
+		Array.from(root.querySelectorAll<SVGSVGElement>("svg")).find(
+			(svg) => svg.innerHTML === strokes,
+		) ?? null
+	)
 }
 
 export const holderOf = (root: Element, holds: string) => {

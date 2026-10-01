@@ -6,12 +6,14 @@ import {
 	A11Y_FLOATING_FOCUS_GUARDS,
 	A11Y_SUBMENU_PORTAL_GUARD,
 	FRAME_POLL,
+	glyphIn,
 	mergeA11y,
 	shown,
 	slotIn,
 	slotsIn,
 	withStoryProps,
 } from "@workspace/storybook/story-utils"
+import { Icons } from "@workspace/ui/components/icons"
 import type { MissionState } from "@workspace/ui/components/mission"
 import { MissionCard } from "@workspace/ui/components/mission-card"
 import {
@@ -345,8 +347,8 @@ export const CloseAtOnce = meta.story({
 			name: /^Close/,
 		})
 		await expect(close).not.toHaveAttribute("aria-haspopup")
-		await expect(close.querySelector("svg")).toHaveClass("lucide-x")
-		await expect(close.querySelector("svg")).not.toHaveClass("lucide-check")
+		await expect(glyphIn(close, Icons.Close)).not.toBeNull()
+		await expect(glyphIn(close, Icons.Check)).toBeNull()
 		fireEvent.click(close)
 
 		await expect(args.onClose).toHaveBeenCalledTimes(1)

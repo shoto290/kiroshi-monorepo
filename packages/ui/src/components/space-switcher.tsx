@@ -147,6 +147,7 @@ const SpaceRemoteMarker = ({ remote }: SpaceRemoteMarkerProps) => {
 	if (remote === "connected") {
 		return (
 			<Icons.Web
+				aria-hidden={false}
 				aria-label={t("spaces.remote")}
 				className={ROW_REMOTE}
 				data-slot="space-remote"

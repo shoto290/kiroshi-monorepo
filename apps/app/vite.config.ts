@@ -29,6 +29,10 @@ export default defineConfig({
 		alias: {
 			"@": resolve(__dirname, "./src"),
 			"@workspace/ui": resolve(__dirname, "../../packages/ui/src"),
+			"lucide-react": resolve(
+				__dirname,
+				"../../packages/ui/src/shims/lucide-react.ts",
+			),
 		},
 	},
 })

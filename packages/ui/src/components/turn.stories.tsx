@@ -5,6 +5,7 @@ import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
 	expectCompanionPictureShape,
+	glyphIn,
 	shown,
 	slotIn,
 	slotsIn,
@@ -16,6 +17,7 @@ import {
 	CompanionMenuProvider,
 } from "@workspace/ui/components/companion-menu"
 import { CompanionSelectProvider } from "@workspace/ui/components/companion-select"
+import { Icons } from "@workspace/ui/components/icons"
 import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { Markdown } from "@workspace/ui/components/markdown"
 import type { MessageAuthor } from "@workspace/ui/components/message"
@@ -1098,7 +1100,7 @@ export const ReportedByRoutine = meta.story({
 		await expect(slotIn(cause, "turn-cause-title")).toHaveTextContent(
 			SCHEDULED_CAUSE.routineTitle,
 		)
-		await expect(cause.querySelector(".lucide-calendar")).toHaveAttribute(
+		await expect(glyphIn(cause, Icons.Calendar)).toHaveAttribute(
 			"aria-hidden",
 			"true",
 		)
@@ -1131,7 +1133,7 @@ export const ReportedByUnnamedTrigger = meta.story({
 	play: async ({ canvasElement }) => {
 		const cause = slotIn(canvasElement, "turn-cause")
 
-		await expect(cause.querySelector(".lucide-bell")).toBeVisible()
+		await expect(glyphIn(cause, Icons.Bell)).toBeVisible()
 		await expect(slotIn(cause, "turn-cause-title")).toHaveTextContent(
 			UNNAMED_CAUSE.routineTitle,
 		)
@@ -1188,7 +1190,7 @@ export const ReportedByLongTitle = meta.story({
 	play: async ({ canvasElement }) => {
 		const cause = slotIn(canvasElement, "turn-cause")
 		const title = slotIn(cause, "turn-cause-title")
-		const icon = cause.querySelector<HTMLElement>(".lucide-file-text")
+		const icon = glyphIn(cause, Icons.File)
 
 		if (!icon) throw new globalThis.Error("The line drew no trigger icon")
 
