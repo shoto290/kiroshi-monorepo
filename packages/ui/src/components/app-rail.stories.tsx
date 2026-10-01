@@ -549,3 +549,56 @@ export const CurrentBesideIdleDark = meta.story({
 		await expectHoverBetweenIdleAndCurrent(canvasElement)
 	},
 })
+
+const GRAPH = "Space graph"
+
+export const GraphEntry = meta.story({
+	args: { onToggleGraph: fn() },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The dev build's Space graph entry under Missions, closed. Check it sits muted like Missions, joins the panel group at the list row gap, and reports its press.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const graph = entryNamed(canvasElement, GRAPH)
+		await expect(graph).toHaveAttribute("aria-pressed", "false")
+		await expect(panelEntriesIn(canvasElement)).toEqual([
+			"Conversations",
+			"Missions",
+			GRAPH,
+		])
+		await expectListRowGapBetweenEntries(canvasElement)
+		await userEvent.click(graph)
+		await expect(args.onToggleGraph).toHaveBeenCalledOnce()
+	},
+})
+
+export const GraphEntryOpen = meta.story({
+	args: { isGraphOpen: true, onToggleGraph: fn() },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The Space graph entry while the graph page is open. Check it wears the current fill as a pressed toggle, while Conversations stays the current panel.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expect(entryNamed(canvasElement, GRAPH)).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		)
+		await expect(entryNamed(canvasElement, "Conversations")).toHaveAttribute(
+			"aria-current",
+			"true",
+		)
+	},
+})
+
+export const GraphEntryOpenDark = meta.story({
+	...GraphEntryOpen.input,
+	globals: { theme: "dark" },
+})

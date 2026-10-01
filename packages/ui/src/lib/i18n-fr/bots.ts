@@ -71,6 +71,7 @@ const bots = {
 		missions: "Missions",
 		searchMissions: "Rechercher des missions",
 		spaceSettings: "Réglages de l’espace",
+		graph: "Graphe de l’espace",
 		dot: "{{name}}, nouvelle activité",
 	},
 	spaces: {

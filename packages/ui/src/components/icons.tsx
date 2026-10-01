@@ -44,6 +44,7 @@ import {
 	MinusIcon,
 	MonitorIcon,
 	MoonIcon,
+	NetworkIcon,
 	PanelLeftIcon,
 	PanelRightIcon,
 	PencilIcon,
@@ -245,6 +246,7 @@ const Icons = {
 	X,
 	Conversations: MessageCircleIcon,
 	Missions: FlagIcon,
+	Graph: NetworkIcon,
 }
 
 export { type Icon, type IconProps, Icons }

@@ -1818,6 +1818,8 @@ interface AppSidebarProps
 	railDots?: AppRailDots
 	openPanel?: string
 	onOpenPanelChange?: (panel: AppRailPanel) => void
+	isGraphOpen?: boolean
+	onToggleGraph?: () => void
 	"data-tauri-drag-region"?: string
 }
 
@@ -1867,6 +1869,8 @@ const AppSidebarBase = ({
 	railDots,
 	openPanel: controlledPanel,
 	onOpenPanelChange,
+	isGraphOpen,
+	onToggleGraph,
 	"data-tauri-drag-region": dragRegion,
 	...panel
 }: AppSidebarProps) => {
@@ -2081,10 +2085,12 @@ const AppSidebarBase = ({
 			<AppRail
 				data-tauri-drag-region={dragRegion}
 				dots={railDots}
+				isGraphOpen={isGraphOpen}
 				onOpenSpaceSettings={onOpenSpaceSettings}
 				onOpenYou={onOpenUserSettings}
 				onSelectConversations={() => setOpenPanel("conversations")}
 				onSelectMissions={() => setOpenPanel("missions")}
+				onToggleGraph={onToggleGraph}
 				selected={openPanel}
 				updateBadge={updateBadge}
 				user={user}
