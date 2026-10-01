@@ -121,16 +121,13 @@ const toGraph = (data: SpaceGraphData): Graph => {
 	return { nodes: [...botNodes, ...pluginNodes], links }
 }
 
-const neighbourhoodOf = (graph: Graph, botId: string): Graph => {
-	const links = graph.links.filter(
-		(link) => linkEnd(link.source) === botId || linkEnd(link.target) === botId,
-	)
-	const kept = new Set([
+const neighbourIdsOf = (graph: Graph, botId: string) =>
+	new Set([
 		botId,
-		...links.flatMap((link) => [linkEnd(link.source), linkEnd(link.target)]),
+		...graph.links
+			.filter((link) => linkEnd(link.source) === botId)
+			.map((link) => linkEnd(link.target)),
 	])
-	return { nodes: graph.nodes.filter((node) => kept.has(node.id)), links }
-}
 
 export {
 	freshnessOf,
@@ -138,7 +135,7 @@ export {
 	type GraphLink,
 	type GraphNode,
 	linkEnd,
-	neighbourhoodOf,
+	neighbourIdsOf,
 	type SpaceGraphData,
 	type SpaceGraphScope,
 	toGraph,

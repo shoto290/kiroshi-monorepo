@@ -4,7 +4,7 @@ import { SPACE_GRAPH } from "@workspace/ui/components/space-graph.fixtures"
 import {
 	freshnessOf,
 	linkEnd,
-	neighbourhoodOf,
+	neighbourIdsOf,
 	toGraph,
 } from "@workspace/ui/components/space-graph-model"
 
@@ -57,10 +57,9 @@ describe("freshnessOf", () => {
 	})
 })
 
-describe("neighbourhoodOf", () => {
+describe("neighbourIdsOf", () => {
 	it("keeps the bot and only what it loads", () => {
-		const local = neighbourhoodOf(toGraph(SPACE_GRAPH), "bot-basile")
-		const ids = local.nodes.map((node) => node.id)
+		const ids = neighbourIdsOf(toGraph(SPACE_GRAPH), "bot-basile")
 
 		expect(ids).toContain("bot-basile")
 		expect(ids).toContain("basile-changelog")

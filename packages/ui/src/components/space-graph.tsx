@@ -26,7 +26,7 @@ import {
 import {
 	type GraphLink,
 	type GraphNode,
-	neighbourhoodOf,
+	neighbourIdsOf,
 	type SpaceGraphData,
 	toGraph,
 } from "@workspace/ui/components/space-graph-model"
@@ -241,9 +241,9 @@ const SpaceGraph = ({
 	const needsFit = useRef(true)
 
 	const whole = useMemo(() => toGraph(data), [data])
-	const neighbourIds = (botId: string) =>
-		new Set(neighbourhoodOf(whole, botId).nodes.map((node) => node.id))
-	const shownIds = focusedBotId ? neighbourIds(focusedBotId) : undefined
+	const shownIds = focusedBotId
+		? neighbourIdsOf(whole, focusedBotId)
+		: undefined
 	const isShown = (node: GraphNode) => !shownIds || shownIds.has(node.id)
 	const layout = useMemo<GraphLayout>(
 		() => ({
@@ -290,7 +290,7 @@ const SpaceGraph = ({
 		if (!node.bot) return
 		hideTip()
 		setFocusedBotId(node.id)
-		fitTo(neighbourIds(node.id))
+		fitTo(neighbourIdsOf(whole, node.id))
 	}
 
 	const showWhole = () => {
