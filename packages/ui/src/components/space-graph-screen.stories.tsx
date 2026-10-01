@@ -32,6 +32,7 @@ const expectCanvasFillsItsPane = async (canvasElement: HTMLElement) => {
 		expect(canvas.clientWidth).toBe(pane.clientWidth)
 		expect(canvas.clientHeight).toBe(pane.clientHeight)
 	})
+	return canvas
 }
 
 const meta = preview.meta({
@@ -114,8 +115,7 @@ export const FollowsThePaneWidth = meta.story({
 	play: async ({ canvasElement }) => {
 		const window = slotIn(canvasElement, "story-window")
 		window.style.width = `${WIDE_PX}px`
-		const canvas = await canvasOf(canvasElement)
-		await expectCanvasFillsItsPane(canvasElement)
+		const canvas = await expectCanvasFillsItsPane(canvasElement)
 		const wide = canvas.clientWidth
 		window.style.width = `${NARROW_PX}px`
 		await waitFor(() =>
