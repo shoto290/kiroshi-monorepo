@@ -23,12 +23,15 @@ export type HttpHost = {
 	invoke: <T>(command: string, args?: InvokeArgs) => Promise<T>
 	listen: <T>(event: string, handler: EventCallback<T>) => Promise<UnlistenFn>
 	fileSrc: (path: string) => string
+	openEvents: () => void
 }
 
 type Refusal = {
 	reason: unknown
 	isCommandError: boolean
 }
+
+type Presence = "unknown" | "up" | "down"
 
 type Frame = {
 	event: string
@@ -156,7 +159,7 @@ export const createHttpHost = ({
 	const listeners = new Map<string, Set<EventCallback<unknown>>>()
 	let socket: HostSocket | null = null
 	let failedAttempts = 0
-	let isDown = false
+	let presence: Presence = "unknown"
 
 	const refuse = (reason: unknown, status?: number): never => {
 		onRefused(messageOf(reason), status)
@@ -197,15 +200,15 @@ export const createHttpHost = ({
 
 	const markUp = () => {
 		failedAttempts = 0
-		if (isDown) {
-			isDown = false
+		if (presence !== "up") {
+			presence = "up"
 			onUp()
 		}
 	}
 
 	const markDown = () => {
-		if (!isDown) {
-			isDown = true
+		if (presence !== "down") {
+			presence = "down"
 			onDown()
 		}
 	}
@@ -222,10 +225,14 @@ export const createHttpHost = ({
 		socket = opened
 	}
 
-	const listen = <T>(event: string, handler: EventCallback<T>) => {
+	const openEvents = () => {
 		if (!socket) {
 			connect()
 		}
+	}
+
+	const listen = <T>(event: string, handler: EventCallback<T>) => {
+		openEvents()
 		const heard = listeners.get(event) ?? new Set()
 		const listener = handler as EventCallback<unknown>
 		heard.add(listener)
@@ -252,7 +259,7 @@ export const createHttpHost = ({
 		return url.href
 	}
 
-	return { invoke, listen, fileSrc }
+	return { invoke, listen, fileSrc, openEvents }
 }
 
 export const bridgeGeneratedBindings = (host: HttpHost, target: object) => {
