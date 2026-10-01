@@ -119,6 +119,7 @@ export const commands = {
 	envDelete: (scope: EnvScope_Deserialize, name: string) => typedError<null, EnvError>(__TAURI_INVOKE("env_delete", { scope, name })),
 	envList: (scope: EnvScope_Deserialize) => typedError<EnvEntry_Serialize[], EnvError>(__TAURI_INVOKE("env_list", { scope })),
 	connectionSet: (kind: ConnectionKind, value: string) => typedError<null, EnvError>(__TAURI_INVOKE("connection_set", { kind, value })),
+	hostShareLink: () => __TAURI_INVOKE<ShareLink>("host_share_link"),
 	joinedSpacesList: () => typedError<JoinedSpace[], JoinedSpaceError>(__TAURI_INVOKE("joined_spaces_list")),
 	joinedSpaceAdd: (link: string, name: string | null) => typedError<JoinedSpace, JoinedSpaceError>(__TAURI_INVOKE("joined_space_add", { link, name })),
 	joinedSpaceConnect: (id: string) => typedError<JoinedSpaceConnection, JoinedSpaceError>(__TAURI_INVOKE("joined_space_connect", { id })),
@@ -196,6 +197,8 @@ export const commands = {
 export const ARCHIVE_EXTENSION = "kiroshi" as const;
 
 export const ARCHIVE_FILTER_NAME = "Kiroshi space" as const;
+
+export const HOST_PRESENCE_EVENT = "host://presence" as const;
 
 export const MAXIMIZE_BUTTON_EVENT = "window-maximize-button" as const;
 
@@ -600,6 +603,10 @@ export type Filter_Serialize = {
 export type HistoryAuthor = "user" | "bot";
 
 export type HistoryFileChange = "added" | "modified" | "deleted" | "renamed";
+
+export type HostPresence = {
+	isUp: boolean,
+};
 
 export type Install = Install_Serialize | Install_Deserialize;
 
@@ -1075,6 +1082,8 @@ export type SectionError = { kind: "unavailable"; failure: StorageFailure } | { 
 export type SessionHandle = {
 	resumed: boolean,
 };
+
+export type ShareLink = { kind: "up"; link: string } | { kind: "down" };
 
 export type SidebarTab = "conversations" | "missions" | "companions" | "applications";
 

@@ -24,7 +24,7 @@ use super::silence::Silence;
 use crate::conversations::commands::ready;
 use crate::db;
 use crate::host_api::token::{self, HostToken};
-use crate::host_api::{cors, events, files, invoke};
+use crate::host_api::{cors, events, files, invoke, share_link};
 use crate::missions;
 
 pub const SOURCE_ID: &str = "local-webhook";
@@ -61,6 +61,7 @@ const LOOPBACK_NAMES: [&str; 2] = ["127.0.0.1", "localhost"];
 pub struct Webhook {
 	address: Option<SocketAddr>,
 	stop: signal::Sender<bool>,
+	withdraw_link: Box<dyn Fn() + Send + Sync>,
 }
 
 impl Webhook {
@@ -74,6 +75,7 @@ impl Webhook {
 
 	pub fn stop(&self) {
 		self.stop.send_replace(true);
+		(self.withdraw_link)();
 	}
 
 	#[cfg(test)]
@@ -103,6 +105,7 @@ fn opened<R: Runtime>(
 ) -> Webhook {
 	let (stop, halted) = signal::channel(false);
 	let token = host_token(&app);
+	let withdraw_link = link_withdrawal(app.clone());
 	let calls = Calls {
 		app,
 		clock,
@@ -123,7 +126,11 @@ fn opened<R: Runtime>(
 			None
 		}
 	};
-	Webhook { address, stop }
+	Webhook { address, stop, withdraw_link }
+}
+
+fn link_withdrawal<R: Runtime>(app: AppHandle<R>) -> Box<dyn Fn() + Send + Sync> {
+	Box::new(move || share_link::withdrawn(&app))
 }
 
 fn host_token<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<HostToken>> {
@@ -140,12 +147,17 @@ fn web_link_left<R: Runtime>(app: &AppHandle<R>, token: Option<&HostToken>, addr
 	let Some(token) = token else {
 		return web_link_cleared(app);
 	};
-	if let Err(failure) = token::web_link_written(app, token, address.port()) {
-		eprintln!("no web link was left for the host api: {failure:?}");
+	match token::web_link_written(app, token, address.port()) {
+		Ok(link) => share_link::shared(app, link),
+		Err(failure) => {
+			eprintln!("no web link was left for the host api: {failure:?}");
+			share_link::withdrawn(app);
+		}
 	}
 }
 
 fn web_link_cleared<R: Runtime>(app: &AppHandle<R>) {
+	share_link::withdrawn(app);
 	if let Err(failure) = token::web_link_removed(app) {
 		eprintln!("a stale web link for the host api was left in place: {failure:?}");
 	}
@@ -168,6 +180,16 @@ fn bound() -> Result<StandardListener, std::io::Error> {
 }
 
 async fn serving<R: Runtime>(
+	calls: Calls<R>,
+	listener: StandardListener,
+	halted: signal::Receiver<bool>,
+) {
+	let app = calls.app.clone();
+	answering(calls, listener, halted).await;
+	share_link::withdrawn(&app);
+}
+
+async fn answering<R: Runtime>(
 	calls: Calls<R>,
 	listener: StandardListener,
 	halted: signal::Receiver<bool>,
@@ -351,7 +373,7 @@ mod tests {
 	use std::time::Duration;
 
 	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
-	use tauri::App;
+	use tauri::{App, Listener};
 	use tokio::io::{AsyncReadExt, AsyncWriteExt};
 	use tokio::net::TcpStream;
 
@@ -679,6 +701,113 @@ mod tests {
 
 		assert!(!link.exists());
 		assert_eq!(webhook.address, None);
+		cleaned(&app);
+	}
+
+	fn host_dir_of(app: &App<MockRuntime>) -> PathBuf {
+		let host = app.path().app_data_dir().expect("the data dir resolves").join("host");
+		fs::create_dir_all(&host).expect("the host dir is made");
+		host
+	}
+
+	fn presences(app: &App<MockRuntime>) -> mpsc::Receiver<String> {
+		let (heard, hearing) = mpsc::channel();
+		app.listen(share_link::HOST_PRESENCE_EVENT, move |event| {
+			heard.send(event.payload().to_owned()).expect("the test still listens");
+		});
+		hearing
+	}
+
+	fn heard(hearing: &mpsc::Receiver<String>) -> Vec<String> {
+		std::iter::from_fn(|| hearing.recv_timeout(Duration::from_millis(200)).ok()).collect()
+	}
+
+	fn share_link_of(app: &App<MockRuntime>) -> share_link::ShareLink {
+		share_link::host_share_link(app.handle().clone())
+	}
+
+	#[tokio::test]
+	async fn the_share_link_is_the_web_link_without_its_newline_until_the_webhook_stops() {
+		let app = a_host("shared").await;
+		let hearing = presences(&app);
+		let webhook = start(app.handle().clone());
+		let written = fs::read_to_string(host_dir_of(&app).join("web-link.txt"))
+			.expect("the link is on disk");
+
+		let up = share_link_of(&app);
+		webhook.stop();
+		webhook.stop();
+		let down = share_link_of(&app);
+
+		let link = written.strip_suffix('\n').expect("the file ends with a newline").to_owned();
+		assert_eq!(up, share_link::ShareLink::Up { link });
+		assert_eq!(down, share_link::ShareLink::Down);
+		assert_eq!(heard(&hearing), vec![r#"{"isUp":true}"#, r#"{"isUp":false}"#]);
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn the_share_link_goes_down_once_the_server_returns_without_a_stop() {
+		let app = a_host("shared-dropped").await;
+		let hearing = presences(&app);
+		let webhook = start(app.handle().clone());
+		let up = share_link_of(&app);
+
+		drop(webhook);
+		let mut polls = 0;
+		while polls < 100 && share_link_of(&app) != share_link::ShareLink::Down {
+			polls += 1;
+			tokio::time::sleep(Duration::from_millis(20)).await;
+		}
+
+		assert!(matches!(up, share_link::ShareLink::Up { .. }), "got {up:?}");
+		assert_eq!(share_link_of(&app), share_link::ShareLink::Down);
+		assert_eq!(heard(&hearing), vec![r#"{"isUp":true}"#, r#"{"isUp":false}"#]);
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn no_share_link_is_answered_nor_announced_when_the_listener_cannot_bind() {
+		let app = a_host("unshared-unbound").await;
+		fs::write(host_dir_of(&app).join("token"), "a-held-token").expect("the token is written");
+		let hearing = presences(&app);
+		let taken = std::io::Error::from(ErrorKind::AddrInUse);
+
+		let webhook =
+			opened(app.handle().clone(), Arc::new(SystemClock), Arc::new(HeldOpen), Err(taken));
+		webhook.stop();
+
+		assert_eq!(share_link_of(&app), share_link::ShareLink::Down);
+		assert!(heard(&hearing).is_empty());
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn no_share_link_is_answered_when_no_host_token_is_held() {
+		let app = a_host("unshared-tokenless").await;
+		fs::write(host_dir_of(&app).join("token"), " \n").expect("the blank token is written");
+		let hearing = presences(&app);
+
+		let webhook = start(app.handle().clone());
+		let answer = share_link_of(&app);
+		webhook.stop();
+
+		assert_eq!(answer, share_link::ShareLink::Down);
+		assert!(heard(&hearing).is_empty());
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn no_share_link_is_answered_when_the_web_link_cannot_be_written() {
+		let app = a_host("unshared-unwritable").await;
+		let blocking = host_dir_of(&app).join("web-link.txt");
+		fs::create_dir_all(blocking.join("held")).expect("a directory takes the link's place");
+
+		let webhook = start(app.handle().clone());
+		let answer = share_link_of(&app);
+		webhook.stop();
+
+		assert_eq!(answer, share_link::ShareLink::Down);
 		cleaned(&app);
 	}
 
