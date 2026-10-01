@@ -898,3 +898,19 @@ async fn a_stale_web_link_is_removed_when_no_token_is_held() {
 
 	assert!(!link.exists());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_share_link_command_answers_the_web_link_without_its_newline_then_none_once_stopped() {
+	let host = Host::new();
+	let window = host.window();
+	let server = host.started();
+	let written = std::fs::read_to_string(host.web_link_path()).expect("the link is on disk");
+
+	let up = direct(&window, "host_share_link", json!({}));
+	drop(server);
+	let down = direct(&window, "host_share_link", json!({}));
+
+	let link = written.strip_suffix('\n').expect("the file ends with a newline");
+	assert_eq!(up, Ok(json!({ "kind": "up", "link": link })));
+	assert_eq!(down, Ok(json!({ "kind": "down" })));
+}

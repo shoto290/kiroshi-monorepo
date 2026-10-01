@@ -51,10 +51,12 @@ pub fn web_link_written<R: Runtime>(
 	app: &AppHandle<R>,
 	token: &HostToken,
 	port: u16,
-) -> Result<(), TokenError> {
+) -> Result<String, TokenError> {
 	let path = host_dir(app)?.join(WEB_LINK_NAME);
-	private_files::replace_atomically(&path, web_link(token, port).as_bytes())
-		.map_err(TokenError::Unwritable)
+	let link = web_link(token, port);
+	private_files::replace_atomically(&path, format!("{link}\n").as_bytes())
+		.map_err(TokenError::Unwritable)?;
+	Ok(link)
 }
 
 pub fn web_link_removed<R: Runtime>(app: &AppHandle<R>) -> Result<(), TokenError> {
@@ -65,7 +67,7 @@ pub fn web_link_removed<R: Runtime>(app: &AppHandle<R>) -> Result<(), TokenError
 }
 
 fn web_link(token: &HostToken, port: u16) -> String {
-	format!("{WEB_ORIGIN}/#host=http://127.0.0.1:{port}&token={}\n", token.0)
+	format!("{WEB_ORIGIN}/#host=http://127.0.0.1:{port}&token={}", token.0)
 }
 
 pub fn loaded<R: Runtime>(app: &AppHandle<R>) -> Result<HostToken, TokenError> {
@@ -119,7 +121,7 @@ mod tests {
 		let token = HostToken("abc".to_owned());
 		assert_eq!(
 			web_link(&token, 45367),
-			"http://127.0.0.1:1420/#host=http://127.0.0.1:45367&token=abc\n"
+			"http://127.0.0.1:1420/#host=http://127.0.0.1:45367&token=abc"
 		);
 	}
 
