@@ -73,13 +73,7 @@ export function App() {
 		select: core.roster.controller.select,
 		leaveMission: core.openedMission.leave,
 	})
-	const graphPage = useGraphPage({
-		onSelectBot: rosterLines.sidebarActions.onSelectBot,
-		onSelectConversation: rosterLines.sidebarActions.onSelectConversation,
-		selectCompanion,
-		openSidebarTab: sidebarTab.openSidebarTab,
-		missionsBySpaceId: sidebarMissions.panelsBySpaceId,
-	})
+	const graphPage = useGraphPage(sidebarTab.openSidebarTab)
 
 	const { preferences, roster, spaces } = core
 
@@ -111,9 +105,9 @@ export function App() {
 						conversationsBySpaceId={rosterLists.rosterConversationsBySpace}
 						badgesBySpaceId={rosterLists.badgesBySpaceId}
 						railDots={rosterLists.railSignals}
-						missionsBySpaceId={graphPage.exits.missionsBySpaceId}
+						missionsBySpaceId={sidebarMissions.panelsBySpaceId}
 						openPanel={sidebarTab.openTab}
-						onOpenPanelChange={graphPage.exits.openSidebarTab}
+						onOpenPanelChange={graphPage.switchPanel}
 						isGraphOpen={graphPage.isOpen}
 						onToggleGraph={graphPage.toggle}
 						collapsedSectionIds={collapsedSectionIds}
@@ -123,8 +117,6 @@ export function App() {
 						onOpenSearch={overlay.search.open}
 						{...rosterLines.sidebarActions}
 						onCreateConversation={rosterLines.startConversation}
-						onSelectBot={graphPage.exits.onSelectBot}
-						onSelectConversation={graphPage.exits.onSelectConversation}
 						selectedBotId={rosterView.selectedBotId ?? undefined}
 						selectedConversationId={
 							rosterView.selectedConversationId ?? undefined
@@ -139,7 +131,7 @@ export function App() {
 					value={rosterLines.conversationSeating}
 				>
 					<CompanionMenuProvider menuFor={companionMenu}>
-						<CompanionSelectProvider onSelect={graphPage.exits.selectCompanion}>
+						<CompanionSelectProvider onSelect={selectCompanion}>
 							<SessionApplicationsContext.Provider
 								value={panels.sessionApplications}
 							>

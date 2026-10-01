@@ -112,10 +112,8 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 	if (props.openedGraph) {
 		return (
 			<SpaceGraphScreen
-				dragRegion="deep"
 				graph={SPACE_GRAPH}
-				insetWindowControls={hasOverlayWindowControls()}
-				onBack={props.openedGraph.onBack}
+				onClose={props.openedGraph.onClose}
 			/>
 		)
 	}
