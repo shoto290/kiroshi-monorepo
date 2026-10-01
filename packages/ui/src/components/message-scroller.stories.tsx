@@ -11,7 +11,6 @@ import {
 	MessageScrollerProvider,
 	MessageScrollerViewport,
 } from "@workspace/ui/components/message-scroller"
-import { cn } from "@workspace/ui/lib/utils"
 
 const SHORT_THREAD = [
 	"Where did the nightly run stop?",
@@ -30,22 +29,31 @@ const LONG_THREAD = [
 	"Prepared. Waiting for you to read it before I run anything.",
 ]
 
+const SCROLLED_THREAD = Array.from(
+	{ length: 40 },
+	(_, rank) => `${rank + 1}. ${LONG_THREAD[rank % LONG_THREAD.length]}`,
+)
+
 const BUBBLE =
 	"rounded-xl border border-border bg-card px-4 py-3 text-foreground text-sm"
 
 const FRAME = "h-72 w-[32rem]"
 
-const ALWAYS_RENDERED = "[content-visibility:visible]"
+const NO_SCROLL_ANCHORING = "[overflow-anchor:none]"
 
 type ThreadProps = {
 	lines: string[]
+	viewportClassName?: string
 }
 
-const Thread = ({ lines }: ThreadProps) => (
+const Thread = ({ lines, viewportClassName }: ThreadProps) => (
 	<MessageScrollerProvider autoScroll defaultScrollPosition="end">
 		<div className={FRAME}>
 			<MessageScroller className="min-h-0">
-				<MessageScrollerViewport aria-label="Transcript">
+				<MessageScrollerViewport
+					aria-label="Transcript"
+					className={viewportClassName}
+				>
 					<MessageScrollerContent
 						aria-busy={false}
 						aria-relevant="additions text"
@@ -53,10 +61,7 @@ const Thread = ({ lines }: ThreadProps) => (
 					>
 						{lines.map((line, rank) => (
 							<MessageScrollerItem
-								className={cn(
-									"flex flex-col gap-6",
-									rank === lines.length - 1 && ALWAYS_RENDERED,
-								)}
+								className="flex flex-col gap-6"
 								key={line}
 								messageId={line}
 								scrollAnchor={rank === lines.length - 1}
@@ -92,6 +97,20 @@ const lastItemIn = (canvasElement: HTMLElement) => {
 	return item
 }
 
+const firstItemInView = (canvasElement: HTMLElement) => {
+	const top = viewportIn(canvasElement).getBoundingClientRect().top
+	const item = slotsIn(canvasElement, "message-scroller-item").find(
+		(candidate) => candidate.getBoundingClientRect().top >= top,
+	)
+	if (!item) throw new Error("no item is in view")
+	return item
+}
+
+const nextFrames = () =>
+	new Promise<void>((resolve) => {
+		requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+	})
+
 const meta = preview.meta({
 	title: "Conversation/Message/MessageScroller",
 	component: MessageScroller,
@@ -100,7 +119,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The scrolling machinery under the transcript, composed from the registry primitive: a provider owning the scroll position, a viewport that follows the last message while the reader stays at the end and stops following the moment they scroll back, items that skip painting while off screen, and a button that only comes up when there is something below. It draws no message — what a turn looks like belongs to `Transcript` and to the rows it renders. Reach for these parts when a list must stay pinned to its newest row.",
+					"The scrolling machinery under the transcript, composed from the registry primitive: a provider owning the scroll position, a viewport that follows the last message while the reader stays at the end and stops following the moment they scroll back, items laid out at their real height so nothing above the reader moves when it scrolls into view, and a button that only comes up when there is something below. It draws no message — what a turn looks like belongs to `Transcript` and to the rows it renders. Reach for these parts when a list must stay pinned to its newest row.",
 			},
 		},
 	},
@@ -131,7 +150,7 @@ export const AtEnd = meta.story({
 		docs: {
 			description: {
 				story:
-					"A thread longer than its frame, opened where the transcript opens it: on the newest message. Check that the viewport starts scrolled to the bottom rather than at the oldest turn, that the jump button stays inactive while there is nothing below — offering to jump to a message already on screen is noise — and that the last item is measured on the message it holds rather than on the 10rem box an unpainted item reserves, which is the exemption the transcript gives that one item so the thread lands on the real last line. Same composition as `packages/ui/src/components/transcript.tsx:342`, with the item exemption it sets at `packages/ui/src/components/transcript.tsx:365`.",
+					"A thread longer than its frame, opened where the transcript opens it: on the newest message. Check that the viewport starts scrolled to the bottom rather than at the oldest turn, that the jump button stays inactive while there is nothing below — offering to jump to a message already on screen is noise — and that the last item is measured on the message it holds, so the thread lands on the real last line. Same composition as `packages/ui/src/components/transcript.tsx:342`.",
 			},
 		},
 	},
@@ -151,7 +170,6 @@ export const AtEnd = meta.story({
 		const last = lastItemIn(canvasElement)
 		const message = last.firstElementChild as HTMLElement
 
-		await expect(getComputedStyle(last).contentVisibility).toBe("visible")
 		await expect(last.getBoundingClientRect().height).toBe(
 			message.getBoundingClientRect().height,
 		)
@@ -186,5 +204,43 @@ export const ScrolledBack = meta.story({
 		await waitFor(async () => {
 			await expect(button.dataset.active).toBe("false")
 		}, FRAME_POLL)
+	},
+})
+
+export const HoldsTheReaderWhileScrollingBack = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The reader climbs a long thread half a screen at a time, with scroll anchoring turned off on the viewport the way WebKit leaves it for rows that settle their height. Check that each step moves the message under the reader by exactly the distance scrolled: a row above it that settled to a different height on the way would push it further, which is the jump content-visibility rows caused under WebKit.",
+			},
+		},
+	},
+	render: () => (
+		<Thread lines={SCROLLED_THREAD} viewportClassName={NO_SCROLL_ANCHORING} />
+	),
+	play: async ({ canvasElement }) => {
+		const viewport = viewportIn(canvasElement)
+
+		await waitFor(async () => {
+			await expect(
+				viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight,
+			).toBeLessThan(2)
+		}, FRAME_POLL)
+
+		while (viewport.scrollTop > 0) {
+			const reader = firstItemInView(canvasElement)
+			const readerTop = reader.getBoundingClientRect().top
+			const scrollTop = viewport.scrollTop
+
+			viewport.scrollTop = scrollTop - viewport.clientHeight / 2
+			await nextFrames()
+
+			await expect(reader.getBoundingClientRect().top - readerTop).toBeCloseTo(
+				scrollTop - viewport.scrollTop,
+				0,
+			)
+		}
 	},
 })

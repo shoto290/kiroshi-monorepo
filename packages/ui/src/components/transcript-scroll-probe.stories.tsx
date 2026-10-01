@@ -28,6 +28,7 @@ interface ProbeMessage {
 
 const HISTORY_SIZE = 120
 const WINDOW_SIZE = 60
+const WHOLE_THREAD_SIZE = 240
 const PAGE_SIZE = 20
 const STREAM_TICK_MS = 60
 const TICKS_PER_TURN = 40
@@ -89,9 +90,8 @@ const messageOf = (index: number): ProbeMessage =>
 			}
 		: { id: `probe-${index}`, from: "assistant", text: assistantTextOf(index) }
 
-const HISTORY = Array.from({ length: HISTORY_SIZE }, (_, index) =>
-	messageOf(index),
-)
+const historyOf = (size: number) =>
+	Array.from({ length: size }, (_, index) => messageOf(index))
 
 type ProbeRowProps = {
 	message: ProbeMessage
@@ -143,18 +143,31 @@ const grownBy = (messages: ProbeMessage[], tick: number): ProbeMessage[] => {
 	return [...messages.slice(0, -1), { ...last, text: `${last.text} ${word}` }]
 }
 
-const withinWindow = (messages: ProbeMessage[], isFollowing: boolean) =>
-	isFollowing && messages.length > WINDOW_SIZE
-		? messages.slice(messages.length - WINDOW_SIZE)
+type WindowInput = {
+	messages: ProbeMessage[]
+	isFollowing: boolean
+	windowSize: number
+}
+
+const withinWindow = ({ messages, isFollowing, windowSize }: WindowInput) =>
+	isFollowing && messages.length > windowSize
+		? messages.slice(messages.length - windowSize)
 		: messages
 
 type ProbeThreadProps = {
 	isStreaming: boolean
+	historySize: number
+	windowSize: number
 }
 
-const ProbeThread = ({ isStreaming }: ProbeThreadProps) => {
+const ProbeThread = ({
+	isStreaming,
+	historySize,
+	windowSize,
+}: ProbeThreadProps) => {
+	const [history] = useState(() => historyOf(historySize))
 	const [messages, setMessages] = useState(() =>
-		HISTORY.slice(HISTORY_SIZE - WINDOW_SIZE),
+		history.slice(historySize - windowSize),
 	)
 	const isFollowingRef = useRef(true)
 
@@ -164,18 +177,22 @@ const ProbeThread = ({ isStreaming }: ProbeThreadProps) => {
 		const timer = window.setInterval(() => {
 			tick += 1
 			setMessages((current) =>
-				withinWindow(grownBy(current, tick), isFollowingRef.current),
+				withinWindow({
+					messages: grownBy(current, tick),
+					isFollowing: isFollowingRef.current,
+					windowSize,
+				}),
 			)
 		}, STREAM_TICK_MS)
 		return () => window.clearInterval(timer)
-	}, [isStreaming])
+	}, [isStreaming, windowSize])
 
-	const oldestIndex = HISTORY.findIndex(
+	const oldestIndex = history.findIndex(
 		(message) => message.id === messages[0]?.id,
 	)
 	const loadOlder = () => {
 		const from = Math.max(0, oldestIndex - PAGE_SIZE)
-		setMessages((current) => [...HISTORY.slice(from, oldestIndex), ...current])
+		setMessages((current) => [...history.slice(from, oldestIndex), ...current])
 	}
 
 	return (
@@ -204,7 +221,11 @@ const meta = preview.meta({
 	component: ProbeThread,
 	tags: ["test-only"],
 	parameters: { layout: "fullscreen" },
-	args: { isStreaming: false },
+	args: {
+		isStreaming: false,
+		historySize: HISTORY_SIZE,
+		windowSize: WINDOW_SIZE,
+	},
 	beforeEach: () => installScrollTrace(),
 })
 
@@ -234,6 +255,17 @@ export const LongThreadStreaming = meta.story({
 						.some((entry) => entry.origin === "content-mutation-observer"),
 				).toBe(true),
 			{ timeout: STREAM_TICK_MS * TICKS_PER_TURN * 2 },
+		)
+	},
+})
+
+export const WholeThread = meta.story({
+	args: { historySize: WHOLE_THREAD_SIZE, windowSize: WHOLE_THREAD_SIZE },
+	play: async ({ canvasElement }) => {
+		await waitFor(() =>
+			expect(canvasElement.querySelectorAll("[data-message-id]").length).toBe(
+				WHOLE_THREAD_SIZE,
+			),
 		)
 	},
 })

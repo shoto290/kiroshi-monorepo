@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { FRAME_POLL } from "@workspace/storybook/story-utils"
 import {
 	Transcript,
 	type TranscriptItem,
@@ -66,6 +67,8 @@ const ANSWER_WORDS = (
 ).split(" ")
 
 const SHORT_ANSWER_WORDS = ANSWER_WORDS.slice(0, 1)
+
+const LONG_ANSWER_WORDS = [...ANSWER_WORDS, ...ANSWER_WORDS, ...ANSWER_WORDS]
 
 const STREAM_TICK_MS = 16
 
@@ -140,6 +143,17 @@ const scrollUp = async (viewport: HTMLElement) => {
 		new WheelEvent("wheel", { bubbles: true, deltaY: -200 }),
 	)
 	viewport.scrollTop = 0
+	await settleScroll()
+}
+
+const dragScrollbarUp = async (viewport: HTMLElement) => {
+	await waitFor(
+		() => expect(viewport).toHaveAttribute("data-autoscrolling"),
+		FRAME_POLL,
+	)
+	viewport.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
+	viewport.scrollTop = 0
+	viewport.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }))
 	await settleScroll()
 }
 
@@ -530,6 +544,40 @@ export const Disengages = meta.story({
 			),
 		)
 		await expect(viewport.scrollTop).toBeLessThan(40)
+	},
+})
+
+export const DisengagesOnScrollbarDrag = meta.story({
+	render: (args) => <StreamingDemo {...args} answerWords={LONG_ANSWER_WORDS} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The reader grabs the scrollbar and drags it up while an answer streams, at the moment the viewport is still catching up with the last line. Following stops exactly as it does for a wheel or a touch, the growing answer no longer pulls the viewport back down, and the return control brings the reader back to a viewport that follows the stream again. " +
+					MOUNTED_BY_THE_LAYOUT,
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		const viewport = canvas.getByRole("region", { name: "Conversation" })
+		await atLiveEdge(viewport)
+
+		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
+		await dragScrollbarUp(viewport)
+
+		await waitFor(() => expect(args.onFollowChange).toHaveBeenCalledWith(false))
+		for (let frame = 0; frame < 10; frame += 1) {
+			await settleScroll()
+			await expect(viewport.scrollTop).toBeLessThan(40)
+		}
+		await expect(canvas.queryByText("Streaming")).toBeInTheDocument()
+
+		await userEvent.click(canvas.getByRole("button", RETURN_CONTROL))
+		await atLiveEdge(viewport)
+		while (canvas.queryByText("Streaming")) {
+			await settleScroll()
+			await expect(distanceFromEnd(viewport)).toBeLessThanOrEqual(ONE_LINE)
+		}
 	},
 })
 

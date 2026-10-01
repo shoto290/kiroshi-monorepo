@@ -31,13 +31,25 @@ function MessageScroller({
 	)
 }
 
+const releaseFollowOnScrollbarPress = (
+	event: React.PointerEvent<HTMLDivElement>,
+) => {
+	if (event.target !== event.currentTarget) return
+	event.currentTarget.dispatchEvent(new WheelEvent("wheel", { bubbles: true }))
+}
+
 function MessageScrollerViewport({
 	className,
+	onPointerDown,
 	...props
 }: React.ComponentProps<typeof MessageScrollerPrimitive.Viewport>) {
 	return (
 		<MessageScrollerPrimitive.Viewport
 			data-slot="message-scroller-viewport"
+			onPointerDown={(event) => {
+				releaseFollowOnScrollbarPress(event)
+				onPointerDown?.(event)
+			}}
 			className={cn(
 				"size-full min-h-0 min-w-0 scroll-fade-b scrollbar-thin scrollbar-gutter-stable overflow-y-auto overscroll-contain contain-content data-autoscrolling:scrollbar-thumb-transparent data-autoscrolling:scrollbar-track-transparent data-pending-scroll:invisible",
 				className,
@@ -69,10 +81,7 @@ function MessageScrollerItem({
 		<MessageScrollerPrimitive.Item
 			data-slot="message-scroller-item"
 			scrollAnchor={scrollAnchor}
-			className={cn(
-				"min-w-0 shrink-0 [contain-intrinsic-size:auto_10rem] [content-visibility:auto]",
-				className,
-			)}
+			className={cn("min-w-0 shrink-0", className)}
 			{...props}
 		/>
 	)
