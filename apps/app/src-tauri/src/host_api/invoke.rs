@@ -192,8 +192,6 @@ fn dispatching_window<R: Runtime>(app: &AppHandle<R>) -> Option<WebviewWindow<R>
 	};
 	match WebviewWindowBuilder::new(app, DISPATCHER_WEBVIEW, WebviewUrl::External(blank))
 		.visible(false)
-		.focused(false)
-		.skip_taskbar(true)
 		.build()
 	{
 		Ok(window) => Some(window),
