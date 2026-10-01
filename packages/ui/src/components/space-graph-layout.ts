@@ -12,7 +12,7 @@ import {
 	type SpaceGraphScope,
 } from "@workspace/ui/components/space-graph-model"
 
-type SpaceGraphDirection = "force" | "hubs" | "rings" | "nested"
+type SpaceGraphDirection = "force" | "hubs" | "rings" | "nested" | "orbits"
 
 type GraphMethods = ForceGraphMethods<
 	NodeObject<GraphNode>,
@@ -36,6 +36,7 @@ const RING_LINK_STRENGTH = 0.15
 const CONTAINMENT = 0.5
 const CIRCLE_PACKING = 1.35
 const NESTED_SPACING = 40
+const ORBIT_CLEARANCE = 40
 
 const SCOPE_RINGS: Record<SpaceGraphScope, number> = {
 	system: 40,
@@ -46,11 +47,35 @@ const SCOPE_RINGS: Record<SpaceGraphScope, number> = {
 
 const BOT_EDGE_RING = 370
 
+const GUIDE_RINGS: Record<SpaceGraphDirection, number[]> = {
+	force: [],
+	hubs: [],
+	rings: [...Object.values(SCOPE_RINGS), BOT_EDGE_RING],
+	nested: [],
+	orbits: [SCOPE_RINGS.system, SCOPE_RINGS.user, SCOPE_RINGS.space],
+}
+
 const CHARGE: Record<SpaceGraphDirection, number> = {
 	force: -90,
 	hubs: -60,
 	rings: -20,
 	nested: -10,
+	orbits: -10,
+}
+
+const drawsCircles = (direction: SpaceGraphDirection) =>
+	direction === "nested" || direction === "orbits"
+
+const sharedRing = (node: GraphNode) =>
+	node.owner
+		? undefined
+		: SCOPE_RINGS[node.scope === "bot" ? "space" : node.scope]
+
+const RING_OF: Partial<
+	Record<SpaceGraphDirection, (node: GraphNode) => number | undefined>
+> = {
+	rings: (node) => SCOPE_RINGS[node.scope],
+	orbits: sharedRing,
 }
 
 const ringPoint = (index: number, count: number, radius: number): Point => {
@@ -79,10 +104,19 @@ const nestedRing = ({ botIds, circles }: GraphLayout) => {
 	return (widest + NESTED_SPACING) / Math.sin(Math.PI / botIds.length)
 }
 
+const orbitRing = (layout: GraphLayout) =>
+	Math.max(
+		SCOPE_RINGS.space +
+			ORBIT_CLEARANCE +
+			Math.max(0, ...layout.circles.values()),
+		nestedRing(layout),
+	)
+
 const botRingRadius = (layout: GraphLayout) => {
 	if (layout.direction === "hubs") return HUB_RING
 	if (layout.direction === "rings") return BOT_EDGE_RING
 	if (layout.direction === "nested") return nestedRing(layout)
+	if (layout.direction === "orbits") return orbitRing(layout)
 	return undefined
 }
 
@@ -146,13 +180,14 @@ const pullSharedToCentre = () =>
 		}
 	})
 
-const scopeRings = () =>
+const scopeRings = (ringOf: (node: GraphNode) => number | undefined) =>
 	nodeForce((nodes, alpha) => {
 		const origin = { x: 0, y: 0 }
 		for (const node of nodes) {
+			const ring = ringOf(node)
+			if (ring === undefined) continue
 			const { dx, dy, distance } = offset(origin, node)
-			const pull =
-				((SCOPE_RINGS[node.scope] - distance) / distance) * RING_PULL * alpha
+			const pull = ((ring - distance) / distance) * RING_PULL * alpha
 			nudge(node, dx * pull, dy * pull)
 		}
 	})
@@ -205,13 +240,12 @@ const applyLayout = (
 	layout: GraphLayout,
 ) => {
 	const { direction } = layout
+	const ringOf = RING_OF[direction]
 	pinBots(nodes, layout)
 	graph
 		.d3Force("link")
 		?.distance?.(linkDistance)
-		.strength(
-			direction === "rings" ? RING_LINK_STRENGTH : degreeStrength(links),
-		)
+		.strength(ringOf ? RING_LINK_STRENGTH : degreeStrength(links))
 	graph.d3Force("charge")?.strength?.(CHARGE[direction])
 	graph.d3Force("center")?.strength?.(direction === "force" ? 1 : 0)
 	graph.d3Force("collide", direction === "force" ? null : collide())
@@ -221,20 +255,20 @@ const applyLayout = (
 			? pullSharedToCentre()
 			: null,
 	)
-	graph.d3Force("scope-rings", direction === "rings" ? scopeRings() : null)
+	graph.d3Force("scope-rings", ringOf ? scopeRings(ringOf) : null)
 	graph.d3Force(
 		"circles",
-		direction === "nested" ? containInCircles(layout.circles) : null,
+		drawsCircles(direction) ? containInCircles(layout.circles) : null,
 	)
 }
 
 export {
 	applyLayout,
-	BOT_EDGE_RING,
+	drawsCircles,
 	type GraphLayout,
 	type GraphMethods,
+	GUIDE_RINGS,
 	nestedCircles,
 	pinBots,
-	SCOPE_RINGS,
 	type SpaceGraphDirection,
 }

@@ -15,12 +15,12 @@ import {
 import { SILHOUETTE_FOCUS_RING } from "@workspace/ui/components/companion-picture"
 import {
 	applyLayout,
-	BOT_EDGE_RING,
+	drawsCircles,
 	type GraphLayout,
 	type GraphMethods,
+	GUIDE_RINGS,
 	nestedCircles,
 	pinBots,
-	SCOPE_RINGS,
 	type SpaceGraphDirection,
 } from "@workspace/ui/components/space-graph-layout"
 import {
@@ -40,9 +40,14 @@ import {
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
-const DIRECTIONS: SpaceGraphDirection[] = ["force", "hubs", "rings", "nested"]
+const DIRECTIONS: SpaceGraphDirection[] = [
+	"force",
+	"hubs",
+	"rings",
+	"nested",
+	"orbits",
+]
 
-const AVATAR_SIZE = 40
 const HIT_RADIUS_PX = 12
 const HALO_SPREAD = 2.2
 const HALO_PEAK_ALPHA = 0.55
@@ -162,13 +167,14 @@ const paintGuides = (
 	context: CanvasRenderingContext2D,
 	scale: number,
 	palette: Palette,
+	radii: number[],
 ) => {
 	context.save()
 	context.globalAlpha = GUIDE_ALPHA
 	context.strokeStyle = palette.neutral
 	context.lineWidth = 1 / scale
 	context.setLineDash([4 / scale, 4 / scale])
-	for (const radius of [...Object.values(SCOPE_RINGS), BOT_EDGE_RING]) {
+	for (const radius of radii) {
 		strokeCircle(context, 0, 0, radius)
 	}
 	context.restore()
@@ -227,6 +233,7 @@ const SpaceGraph = ({
 		useState<SpaceGraphDirection>(defaultDirection)
 	const [focusedBotId, setFocusedBotId] = useState<string>()
 	const [tip, setTip] = useState<Tip>()
+	const [zoom, setZoom] = useState(1)
 	const { element, measure, size } = useElementSize()
 	const graphRef = useRef<GraphMethods>(undefined)
 	const palette = useRef<Palette>(undefined)
@@ -234,31 +241,27 @@ const SpaceGraph = ({
 	const needsFit = useRef(true)
 
 	const whole = useMemo(() => toGraph(data), [data])
-	const visible = useMemo(
-		() => (focusedBotId ? neighbourhoodOf(whole, focusedBotId) : whole),
-		[whole, focusedBotId],
-	)
+	const neighbourIds = (botId: string) =>
+		new Set(neighbourhoodOf(whole, botId).nodes.map((node) => node.id))
+	const shownIds = focusedBotId ? neighbourIds(focusedBotId) : undefined
+	const isShown = (node: GraphNode) => !shownIds || shownIds.has(node.id)
 	const layout = useMemo<GraphLayout>(
 		() => ({
 			direction,
 			botIds: data.bots.map((bot) => bot.id),
-			circles: nestedCircles(visible.nodes),
+			circles: nestedCircles(whole.nodes),
 		}),
-		[direction, data, visible],
+		[direction, data, whole],
 	)
-	const graphData = useMemo(
-		() => ({ nodes: visible.nodes, links: visible.links }),
-		[visible],
-	)
-	const visibleBots = visible.nodes.filter((node) => node.bot)
+	const shownBots = whole.nodes.filter((node) => node.bot && isShown(node))
 
 	useLayoutEffect(() => {
 		const graph = graphRef.current
 		if (!graph) return
-		applyLayout(graph, graphData, layout)
+		applyLayout(graph, whole, layout)
 		needsFit.current = true
 		if (!prefersReducedMotion) graph.d3ReheatSimulation()
-	}, [graphData, layout, prefersReducedMotion])
+	}, [whole, layout, prefersReducedMotion])
 
 	const showTip = (node: GraphNode) => {
 		const graph = graphRef.current
@@ -276,10 +279,23 @@ const SpaceGraph = ({
 	const hideTip = () =>
 		setTip((current) => current && { ...current, isOpen: false })
 
+	const fitTo = (ids?: Set<string>) =>
+		graphRef.current?.zoomToFit(
+			prefersReducedMotion ? 0 : FIT_MS,
+			FIT_PADDING,
+			(node) => !ids || ids.has(node.id),
+		)
+
 	const focusBot = (node: GraphNode) => {
 		if (!node.bot) return
 		hideTip()
 		setFocusedBotId(node.id)
+		fitTo(neighbourIds(node.id))
+	}
+
+	const showWhole = () => {
+		setFocusedBotId(undefined)
+		fitTo()
 	}
 
 	const paintFrameBefore = (
@@ -289,21 +305,21 @@ const SpaceGraph = ({
 		if (!element.current) return
 		const current = readPalette(element.current)
 		palette.current = current
-		if (direction === "rings") paintGuides(context, scale, current)
-		if (direction === "nested") {
-			paintCircles(context, scale, current, graphData.nodes, layout.circles)
+		paintGuides(context, scale, current, GUIDE_RINGS[direction])
+		if (drawsCircles(direction)) {
+			paintCircles(context, scale, current, shownBots, layout.circles)
 		}
 	}
 
 	const placeAvatars = (_: CanvasRenderingContext2D, scale: number) => {
 		const graph = graphRef.current
 		if (!graph) return
-		for (const node of visibleBots) {
+		if (scale !== zoom) setZoom(scale)
+		for (const node of shownBots) {
 			const avatar = avatars.current.get(node.id)
 			if (!avatar) continue
 			const point = graph.graph2ScreenCoords(node.x ?? 0, node.y ?? 0)
-			const zoom = (node.radius * 2 * scale) / AVATAR_SIZE
-			avatar.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%) scale(${zoom})`
+			avatar.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`
 			avatar.style.visibility = "visible"
 		}
 	}
@@ -311,7 +327,7 @@ const SpaceGraph = ({
 	const fitOnce = () => {
 		if (!needsFit.current) return
 		needsFit.current = false
-		graphRef.current?.zoomToFit(prefersReducedMotion ? 0 : FIT_MS, FIT_PADDING)
+		fitTo(shownIds)
 	}
 
 	const paintLink = (
@@ -320,7 +336,7 @@ const SpaceGraph = ({
 		scale: number,
 	) => {
 		if (!palette.current) return
-		if (direction === "nested" && link.isOwned) return
+		if (drawsCircles(direction) && link.isOwned) return
 		const source = link.source as GraphNode
 		const target = link.target as GraphNode
 		context.save()
@@ -365,11 +381,7 @@ const SpaceGraph = ({
 					</TabsList>
 				</Tabs>
 				{focusedBotId ? (
-					<Button
-						onClick={() => setFocusedBotId(undefined)}
-						size="sm"
-						variant="outline"
-					>
+					<Button onClick={showWhole} size="sm" variant="outline">
 						{t("spaceGraph.showWhole")}
 					</Button>
 				) : null}
@@ -383,10 +395,14 @@ const SpaceGraph = ({
 					autoPauseRedraw={false}
 					cooldownTicks={prefersReducedMotion ? 0 : undefined}
 					cooldownTime={MOVING_COOLDOWN_MS}
-					graphData={graphData}
+					graphData={whole}
 					height={size.height}
 					key={prefersReducedMotion ? direction : undefined}
 					linkCanvasObject={paintLink}
+					linkVisibility={(link) =>
+						isShown(link.source as GraphNode) &&
+						isShown(link.target as GraphNode)
+					}
 					linkCanvasObjectMode={() => "replace"}
 					maxZoom={MAX_ZOOM}
 					nodeCanvasObject={(node, context, scale) => {
@@ -394,10 +410,11 @@ const SpaceGraph = ({
 							paintNode(node, context, scale, palette.current)
 					}}
 					nodeLabel={() => ""}
+					nodeVisibility={isShown}
 					nodePointerAreaPaint={paintHitArea}
 					onEngineStop={fitOnce}
 					onNodeClick={focusBot}
-					onNodeDragEnd={() => pinBots(graphData.nodes, layout)}
+					onNodeDragEnd={() => pinBots(whole.nodes, layout)}
 					onNodeHover={(node) => (node ? showTip(node) : hideTip())}
 					onRenderFramePost={placeAvatars}
 					onRenderFramePre={paintFrameBefore}
@@ -406,7 +423,7 @@ const SpaceGraph = ({
 					warmupTicks={prefersReducedMotion ? SETTLE_TICKS : 0}
 					width={size.width}
 				/>
-				{visibleBots.map((node) => (
+				{shownBots.map((node) => (
 					<button
 						aria-label={t("spaceGraph.focus", { name: node.name })}
 						className={cn(
@@ -430,7 +447,7 @@ const SpaceGraph = ({
 						<BotIdentityAvatar
 							blot={node.bot?.blot}
 							name={node.name}
-							size={AVATAR_SIZE}
+							size={Math.max(1, Math.round(node.radius * 2 * zoom))}
 							working={node.bot?.isWorking}
 						/>
 					</button>

@@ -16,6 +16,7 @@ const common = {
 			hubs: "Pôles",
 			rings: "Anneaux",
 			nested: "Imbriqué",
+			orbits: "Orbites",
 		},
 		focus: "Afficher {{name}} et ce qu’il charge",
 		showWhole: "Afficher tout le graphe",

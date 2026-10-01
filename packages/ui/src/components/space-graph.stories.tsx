@@ -108,6 +108,22 @@ export const Nested = meta.story({
 	},
 })
 
+export const Orbits = meta.story({
+	args: { defaultDirection: "orbits" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Rings and Nested mixed: shared nodes sit on their scope ring, system at the centre, then user, then space; each bot is pinned on an outer ring beyond the space ring as a circle holding its own files, linked to every shared node it loads. Check that no file crosses a ring guide or another bot's circle, and that a picked bot keeps its place.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expectSelectedDirection(canvasElement, "Orbits")
+		await expectBotCount(canvasElement, 4)
+	},
+})
+
 export const LocalMode = meta.story({
 	args: { defaultDirection: "force" },
 	parameters: {

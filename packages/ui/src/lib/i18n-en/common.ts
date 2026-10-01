@@ -16,6 +16,7 @@ const common = {
 			hubs: "Hubs",
 			rings: "Rings",
 			nested: "Nested",
+			orbits: "Orbits",
 		},
 		focus: "Show {{name}} and what it loads",
 		showWhole: "Show the whole graph",

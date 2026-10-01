@@ -572,6 +572,7 @@ feedback-spacegraph--force
 feedback-spacegraph--hubs
 feedback-spacegraph--local-mode
 feedback-spacegraph--nested
+feedback-spacegraph--orbits
 feedback-spacegraph--rings
 feedback-updatebadge--default
 feedback-updatebadge--empty
