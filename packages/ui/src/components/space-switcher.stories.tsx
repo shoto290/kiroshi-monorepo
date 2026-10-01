@@ -765,13 +765,6 @@ const openMenuLikeItsTheme = async (trigger: HTMLElement) => {
 	return menu
 }
 
-const closeMenus = async () => {
-	fireEvent.keyDown(document.activeElement ?? document.body, {
-		key: "Escape",
-	})
-	await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
-}
-
 const rowNamed = (menu: HTMLElement, name: string) =>
 	within(menu).getByRole("menuitemradio", { name: new RegExp(`^${name}`) })
 
@@ -970,7 +963,7 @@ export const RemoteLongNames = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas }) => {
+	play: async ({ canvas, userEvent }) => {
 		const menu = await openMenu(
 			canvas.getByRole("button", { name: /^Change space/ }),
 		)
@@ -990,6 +983,7 @@ export const RemoteLongNames = meta.story({
 			).toBeLessThan(shortcut.getBoundingClientRect().left)
 		}
 
-		await closeMenus()
+		await userEvent.keyboard("{Escape}")
+		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
 	},
 })
