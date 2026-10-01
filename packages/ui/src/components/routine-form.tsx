@@ -10,16 +10,12 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 
+import { CopyField } from "@workspace/ui/components/copy-field"
 import { Icons } from "@workspace/ui/components/icons"
 import { SettingsField } from "@workspace/ui/components/settings-field"
 import { SettingsSelect } from "@workspace/ui/components/settings-select"
-import {
-	FIELD_CONTROL_CLASS,
-	FIELD_CONTROL_READONLY_CLASS,
-	FIELD_LABEL_CLASS,
-} from "@workspace/ui/components/settings-styles"
+import { FIELD_LABEL_CLASS } from "@workspace/ui/components/settings-styles"
 import { Button } from "@workspace/ui/components/ui/button"
-import { useCopyText } from "@workspace/ui/hooks/use-copy-text"
 import { useFocusFirstInvalid } from "@workspace/ui/hooks/use-focus-first-invalid"
 import { usePendingSubmit } from "@workspace/ui/hooks/use-pending-submit"
 import { cn } from "@workspace/ui/lib/utils"
@@ -170,45 +166,15 @@ type WebhookFieldProps = {
 	describedBy?: string
 }
 
-const WebhookField = ({ label, value, describedBy }: WebhookFieldProps) => {
+const WebhookField = (props: WebhookFieldProps) => {
 	const { t } = useTranslation("chat")
-	const { copied, copy } = useCopyText(value)
-	const id = useId()
 
 	return (
-		<div className="flex flex-col gap-1.5">
-			<label className={FIELD_LABEL_CLASS} htmlFor={id}>
-				{label}
-			</label>
-			<div className="flex items-center gap-1.5">
-				<input
-					aria-describedby={describedBy}
-					className={cn(
-						FIELD_CONTROL_CLASS,
-						FIELD_CONTROL_READONLY_CLASS,
-						"min-w-0 flex-1",
-					)}
-					id={id}
-					readOnly
-					value={value}
-				/>
-				{value ? (
-					<Button
-						aria-label={t("routines.form.webhook.copy", { field: label })}
-						onClick={() => {
-							void copy()
-						}}
-						size="icon-sm"
-						variant="ghost"
-					>
-						{copied ? <Icons.Check /> : <Icons.Copy />}
-					</Button>
-				) : null}
-			</div>
-			<span aria-live="polite" className="sr-only">
-				{copied ? t("routines.form.webhook.copied", { field: label }) : ""}
-			</span>
-		</div>
+		<CopyField
+			{...props}
+			copiedLabel={t("routines.form.webhook.copied", { field: props.label })}
+			copyLabel={t("routines.form.webhook.copy", { field: props.label })}
+		/>
 	)
 }
 

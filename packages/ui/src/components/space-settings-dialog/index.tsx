@@ -23,6 +23,7 @@ import {
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
+import { ShareLink } from "@workspace/ui/components/space-settings-dialog/share-link"
 import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/space-fields"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
 import { Button } from "@workspace/ui/components/ui/button"
@@ -46,6 +47,8 @@ type SpaceSettingsDialogProps = PluginSessionsProps & {
 	isDeletable?: boolean
 	onExport?: () => void
 	onImport?: () => void
+	shareLink?: string | null
+	onShareLinkCopy?: () => void
 	className?: string
 }
 
@@ -64,6 +67,8 @@ const SpaceSettingsDialog = ({
 	isDeletable = true,
 	onExport,
 	onImport,
+	shareLink,
+	onShareLinkCopy,
 	className,
 	...sessionProps
 }: SpaceSettingsDialogProps) => {
@@ -133,6 +138,9 @@ const SpaceSettingsDialog = ({
 		>
 			<SettingsScrollingPanel value={FIRST_TAB}>
 				<SpaceFields onValueChange={onValueChange} value={value} />
+				{shareLink === undefined ? null : (
+					<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
+				)}
 				{onExport || onImport ? (
 					<div className="flex flex-wrap gap-2" data-slot="space-transfer">
 						{onExport ? (

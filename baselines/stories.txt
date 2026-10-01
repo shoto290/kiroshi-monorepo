@@ -579,6 +579,8 @@ forms-checkbox--default
 forms-checkbox--on-dark-surface
 forms-checkbox--states
 forms-checkbox--with-label
+forms-copyfield--default
+forms-copyfield--empty
 forms-input--default
 forms-input--filled
 forms-input--focused
@@ -1303,6 +1305,10 @@ settings-settingsdialogshell--guard-refused
 settings-settingsdialogshell--rail-icons-only
 settings-settingsdialogshell--skill-page-wording
 settings-settingsdialogshell--without-session-closes-unasked
+settings-space-sharelink--at-rest
+settings-space-sharelink--copied
+settings-space-sharelink--copy-focused
+settings-space-sharelink--host-not-up
 settings-space-spacefields--colourless
 settings-space-spacefields--default
 settings-space-spacefields--empty
@@ -1315,6 +1321,7 @@ settings-space-spacesettingsdialog--last-space
 settings-space-spacesettingsdialog--mcp-servers
 settings-space-spacesettingsdialog--mcp-servers-unavailable
 settings-space-spacesettingsdialog--opens-on-an-application
+settings-space-spacesettingsdialog--share-link
 settings-space-spacesettingsdialog--skills
 settings-space-spacesettingsdialog--transfer
 settings-user-appearancefields--dark

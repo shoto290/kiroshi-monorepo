@@ -19,6 +19,7 @@ import {
 	type SpaceSettingsDialogProps,
 	type SpaceSettingsValue,
 } from "@workspace/ui/components/space-settings-dialog"
+import { SHARE_LINK } from "@workspace/ui/components/space-settings-dialog/share-link.fixtures"
 
 const FILLED_SPACE: SpaceSettingsValue = {
 	name: "Release desk",
@@ -160,6 +161,40 @@ export const Transfer = meta.story({
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onImport).toHaveBeenCalledTimes(2)
 		await expect(args.onExport).toHaveBeenCalledOnce()
+	},
+})
+
+export const ShareLink = meta.story({
+	args: {
+		shareLink: SHARE_LINK,
+		onShareLinkCopy: fn(),
+		onExport: fn(),
+		onImport: fn(),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The space tab once the host hands out a link to this space: the share link section sits under Colour and above Export this space and Import a space. Check its place in that order, and that a dialog given no link draws the tab as `Transfer` does. Pick `Settings/Space/ShareLink` for each state of the section.",
+			},
+		},
+	},
+	play: async () => {
+		const dialog = await dialogIn()
+		const colour = within(dialog).getByText("Colour")
+		const field = within(dialog).getByLabelText("Share link")
+		const exportSpace = within(dialog).getByRole("button", {
+			name: "Export this space",
+		})
+
+		await expect(field).toHaveValue(SHARE_LINK)
+		await expect(
+			colour.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy()
+		await expect(
+			field.compareDocumentPosition(exportSpace) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy()
 	},
 })
 
