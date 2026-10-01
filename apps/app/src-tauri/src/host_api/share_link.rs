@@ -10,7 +10,6 @@ pub const HOST_PRESENCE_EVENT: &str = "host://presence";
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ShareLink {
-	#[serde(rename_all = "camelCase")]
 	Up { link: String },
 	#[default]
 	Down,
@@ -22,7 +21,7 @@ impl ShareLink {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
+#[derive(Debug, Clone, Copy, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct HostPresence {
 	pub is_up: bool,
