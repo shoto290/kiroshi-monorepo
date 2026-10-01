@@ -184,6 +184,16 @@ async fn serving<R: Runtime>(
 	listener: StandardListener,
 	halted: signal::Receiver<bool>,
 ) {
+	let app = calls.app.clone();
+	answering(calls, listener, halted).await;
+	share_link::withdrawn(&app);
+}
+
+async fn answering<R: Runtime>(
+	calls: Calls<R>,
+	listener: StandardListener,
+	halted: signal::Receiver<bool>,
+) {
 	let listener = match TcpListener::from_std(listener) {
 		Ok(listener) => listener,
 		Err(failure) => return eprintln!("the local webhook kept no socket: {failure}"),
@@ -732,6 +742,26 @@ mod tests {
 		let link = written.strip_suffix('\n').expect("the file ends with a newline").to_owned();
 		assert_eq!(up, share_link::ShareLink::Up { link });
 		assert_eq!(down, share_link::ShareLink::Down);
+		assert_eq!(heard(&hearing), vec![r#"{"isUp":true}"#, r#"{"isUp":false}"#]);
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn the_share_link_goes_down_once_the_server_returns_without_a_stop() {
+		let app = a_host("shared-dropped").await;
+		let hearing = presences(&app);
+		let webhook = start(app.handle().clone());
+		let up = share_link_of(&app);
+
+		drop(webhook);
+		let mut polls = 0;
+		while polls < 100 && share_link_of(&app) != share_link::ShareLink::Down {
+			polls += 1;
+			tokio::time::sleep(Duration::from_millis(20)).await;
+		}
+
+		assert!(matches!(up, share_link::ShareLink::Up { .. }), "got {up:?}");
+		assert_eq!(share_link_of(&app), share_link::ShareLink::Down);
 		assert_eq!(heard(&hearing), vec![r#"{"isUp":true}"#, r#"{"isUp":false}"#]);
 		cleaned(&app);
 	}
