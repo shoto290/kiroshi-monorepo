@@ -10,8 +10,6 @@ const common = {
 	},
 	skipLink: "Passer à la conversation",
 	spaceGraph: {
-		title: "Graphe de l’espace",
-		back: "Retour à la conversation",
 		directions: {
 			label: "Disposition",
 			force: "Force",

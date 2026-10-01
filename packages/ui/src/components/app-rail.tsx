@@ -29,7 +29,7 @@ const RAIL_GROUP = `flex flex-col ${NAVIGATION_ROW_GAP}`
 const RAIL_SLOT = "flex empty:hidden"
 
 const RAIL_ITEM =
-	"relative size-9 rounded-md text-muted-foreground hover:bg-rail-item-selected/50 hover:text-foreground dark:hover:bg-rail-item-selected/50 aria-[current=true]:bg-rail-item-selected aria-[current=true]:text-foreground dark:aria-[current=true]:bg-rail-item-selected aria-pressed:bg-rail-item-selected aria-pressed:text-foreground dark:aria-pressed:bg-rail-item-selected [&_svg]:size-4.5 [&_svg]:stroke-[1.75]!"
+	"relative size-9 rounded-md text-muted-foreground hover:bg-rail-item-selected/50 hover:text-foreground dark:hover:bg-rail-item-selected/50 aria-[current=true]:bg-rail-item-selected aria-[current=true]:text-foreground dark:aria-[current=true]:bg-rail-item-selected [&_svg]:size-4.5 [&_svg]:stroke-[1.75]!"
 
 const RAIL_DOT =
 	"pointer-events-none absolute -end-px -top-px size-2 rounded-full bg-primary ring-2 ring-(--shell-surface,var(--background)) transition-shadow duration-400 ease-out motion-reduce:transition-none"
@@ -43,7 +43,6 @@ type RailItemProps = {
 	name: string
 	hasDot?: boolean
 	isSelected?: boolean
-	isPressed?: boolean
 	onPress?: () => void
 	children: ReactNode
 }
@@ -52,7 +51,6 @@ const RailItem = ({
 	name,
 	hasDot,
 	isSelected,
-	isPressed,
 	onPress,
 	children,
 }: RailItemProps) => {
@@ -64,7 +62,6 @@ const RailItem = ({
 			<TooltipButton
 				aria-current={isSelected ? "true" : undefined}
 				aria-label={spokenName}
-				aria-pressed={isPressed}
 				className={RAIL_ITEM}
 				data-slot="app-rail-item"
 				onClick={onPress}
@@ -131,7 +128,7 @@ const AppRail = ({
 	const { t } = useTranslation("bots")
 	const panelEntry = (entry: AppRailPanel) => ({
 		hasDot: dots?.[entry],
-		isSelected: selected === entry,
+		isSelected: !isGraphOpen && selected === entry,
 		name: t(`rail.${entry}`),
 	})
 
@@ -154,7 +151,7 @@ const AppRail = ({
 				</RailItem>
 				{onToggleGraph ? (
 					<RailItem
-						isPressed={isGraphOpen}
+						isSelected={isGraphOpen}
 						name={t("rail.graph")}
 						onPress={onToggleGraph}
 					>

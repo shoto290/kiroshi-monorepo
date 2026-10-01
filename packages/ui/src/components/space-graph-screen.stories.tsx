@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { expect, fn, userEvent, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -12,6 +13,40 @@ const FIRST_FRAME_TIMEOUT_MS = 5000
 const WIDE_PX = 1100
 
 const NARROW_PX = 800
+
+const SIDEBAR_PX = 333
+
+const TogglingShell = () => {
+	const [isGraphOpen, setIsGraphOpen] = useState(false)
+	return (
+		<div className="flex h-[640px]">
+			<WorkspaceShell
+				sidebar={
+					<AppSidebar
+						bots={[]}
+						isGraphOpen={isGraphOpen}
+						onToggleGraph={() => setIsGraphOpen((open) => !open)}
+					/>
+				}
+				width={SIDEBAR_PX}
+			>
+				{isGraphOpen ? (
+					<SpaceGraphScreen graph={SPACE_GRAPH} onClose={fn()} />
+				) : null}
+			</WorkspaceShell>
+		</div>
+	)
+}
+
+const currentEntriesIn = (canvasElement: HTMLElement) =>
+	Array.from(
+		canvasElement.querySelectorAll<HTMLElement>(
+			'[data-slot="app-rail-item"][aria-current="true"]',
+		),
+	).map((entry) => entry.getAttribute("aria-label"))
+
+const panelWidthIn = (canvasElement: HTMLElement) =>
+	slotIn(canvasElement, "sidebar-container").getBoundingClientRect().width
 
 const canvasOf = async (canvasElement: HTMLElement) =>
 	waitFor(
@@ -43,11 +78,11 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The space graph as a page of the main pane, under the app header and beside the sidebar, opened from the Space graph entry of the rail. The graph takes every pixel the pane leaves it and follows the window and the sidebar width; the back button returns to the conversation the reader left.",
+					"The space graph as a page of the main pane, opened from the Space graph entry of the rail in dev builds. The rail and the title bar stay as on every screen; the sidebar panel steps aside and the page carries no header of its own. The graph takes every pixel the pane leaves it and follows the window width. Pressing the rail entry again or Escape closes the page.",
 			},
 		},
 	},
-	args: { graph: SPACE_GRAPH, onBack: fn() },
+	args: { graph: SPACE_GRAPH, onClose: fn() },
 	render: (args) => (
 		<div className="flex h-[640px]" data-slot="story-window">
 			<WorkspaceShell
@@ -64,21 +99,19 @@ export const InTheShell = meta.story({
 		docs: {
 			description: {
 				story:
-					"The page as the app opens it in light. Check the header carries the back button and the title, the rail shows Space graph pressed beside the current Conversations entry, and the canvas reaches the edges of its pane with no frame of its own.",
+					"The page as the app opens it in light. Check the rail and the title bar hold their places, Space graph is pressed in the rail, no sidebar panel sits beside the rail, no header sits above the graph, and the canvas reaches the edges of its pane with no frame of its own.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const page = within(canvasElement)
+		await expect(slotIn(canvasElement, "app-rail")).toBeVisible()
+		await expect(slotIn(canvasElement, "app-title-bar")).toBeVisible()
+		await expect(page.queryByRole("complementary")).toBeNull()
 		await expect(
-			page.getByRole("heading", { level: 1, name: "Space graph" }),
-		).toBeVisible()
-		await expect(
-			page.getByRole("button", { name: "Space graph" }),
-		).toHaveAttribute("aria-pressed", "true")
-		await expect(
-			page.getByRole("button", { name: "Conversations" }),
-		).toHaveAttribute("aria-current", "true")
+			canvasElement.querySelector('[data-slot="app-header"]'),
+		).toBeNull()
+		await expect(currentEntriesIn(canvasElement)).toEqual(["Space graph"])
 		await expectCanvasFillsItsPane(canvasElement)
 	},
 })
@@ -98,15 +131,12 @@ export const Dark = meta.story({
 	},
 })
 
-export const BackToTheConversation = meta.story({
+export const EscapeCloses = meta.story({
 	tags: ["test-only"],
 	play: async ({ args, canvasElement }) => {
-		await userEvent.click(
-			within(canvasElement).getByRole("button", {
-				name: "Back to the conversation",
-			}),
-		)
-		await expect(args.onBack).toHaveBeenCalledOnce()
+		await canvasOf(canvasElement)
+		await userEvent.keyboard("{Escape}")
+		await expect(args.onClose).toHaveBeenCalledOnce()
 	},
 })
 
@@ -122,5 +152,20 @@ export const FollowsThePaneWidth = meta.story({
 			expect(wide - canvas.clientWidth).toBe(WIDE_PX - NARROW_PX),
 		)
 		await expectCanvasFillsItsPane(canvasElement)
+	},
+})
+
+export const PanelComesBackAtItsWidth = meta.story({
+	tags: ["test-only"],
+	render: () => <TogglingShell />,
+	play: async ({ canvasElement }) => {
+		const page = within(canvasElement)
+		const before = panelWidthIn(canvasElement)
+		await userEvent.click(page.getByRole("button", { name: "Space graph" }))
+		await waitFor(() => expect(page.queryByRole("complementary")).toBeNull())
+		await expect(currentEntriesIn(canvasElement)).toEqual(["Space graph"])
+		await userEvent.click(page.getByRole("button", { name: "Space graph" }))
+		await waitFor(() => expect(panelWidthIn(canvasElement)).toBe(before))
+		await expect(currentEntriesIn(canvasElement)).toEqual(["Conversations"])
 	},
 })

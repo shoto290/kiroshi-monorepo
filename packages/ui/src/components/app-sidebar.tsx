@@ -2095,35 +2095,37 @@ const AppSidebarBase = ({
 				updateBadge={updateBadge}
 				user={user}
 			/>
-			<Sidebar
-				{...panel}
-				aria-busy={shown.some(isBusy) || shownRooms.some(isBusy)}
-				aria-label={panelName}
-				className={PANEL}
-				collapsible="icon"
-				role="complementary"
-			>
-				<SidebarHeader className={HEADER}>
-					<div className={HEADER_ROW}>
-						<h2 className={HEADER_TITLE}>{panelName}</h2>
-						{isRosterOpen ? rosterActions : null}
-						{isMissionsOpen ? missionsActions : null}
-					</div>
-				</SidebarHeader>
-				{listContent}
-				{spaces.length > 1 ? (
-					<SidebarFooter className={FOOTER_INSET}>
-						<SpaceDots
-							badgesBySpaceId={badgesBySpaceId}
-							onReorderSpaces={onReorderSpaces}
-							onSelectSpace={onSelectSpace}
-							selectedSpaceId={selectedSpaceId}
-							spaces={spaces}
-						/>
-					</SidebarFooter>
-				) : null}
-				<SidebarResizeHandle side="left" />
-			</Sidebar>
+			{isGraphOpen ? null : (
+				<Sidebar
+					{...panel}
+					aria-busy={shown.some(isBusy) || shownRooms.some(isBusy)}
+					aria-label={panelName}
+					className={PANEL}
+					collapsible="icon"
+					role="complementary"
+				>
+					<SidebarHeader className={HEADER}>
+						<div className={HEADER_ROW}>
+							<h2 className={HEADER_TITLE}>{panelName}</h2>
+							{isRosterOpen ? rosterActions : null}
+							{isMissionsOpen ? missionsActions : null}
+						</div>
+					</SidebarHeader>
+					{listContent}
+					{spaces.length > 1 ? (
+						<SidebarFooter className={FOOTER_INSET}>
+							<SpaceDots
+								badgesBySpaceId={badgesBySpaceId}
+								onReorderSpaces={onReorderSpaces}
+								onSelectSpace={onSelectSpace}
+								selectedSpaceId={selectedSpaceId}
+								spaces={spaces}
+							/>
+						</SidebarFooter>
+					) : null}
+					<SidebarResizeHandle side="left" />
+				</Sidebar>
+			)}
 			<span className="sr-only" role="status">
 				{announcementFor(t, selectedBot, selectedConversation)}
 			</span>

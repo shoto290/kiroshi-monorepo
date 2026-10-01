@@ -552,6 +552,13 @@ export const CurrentBesideIdleDark = meta.story({
 
 const GRAPH = "Space graph"
 
+const currentEntriesIn = (canvasElement: HTMLElement) =>
+	Array.from(
+		canvasElement.querySelectorAll<HTMLElement>(
+			'[data-slot="app-rail-item"][aria-current="true"]',
+		),
+	).map((entry) => entry.getAttribute("aria-label"))
+
 export const GraphEntry = meta.story({
 	args: { onToggleGraph: fn() },
 	parameters: {
@@ -564,7 +571,7 @@ export const GraphEntry = meta.story({
 	},
 	play: async ({ args, canvasElement, userEvent }) => {
 		const graph = entryNamed(canvasElement, GRAPH)
-		await expect(graph).toHaveAttribute("aria-pressed", "false")
+		await expect(currentEntriesIn(canvasElement)).toEqual(["Conversations"])
 		await expect(panelEntriesIn(canvasElement)).toEqual([
 			"Conversations",
 			"Missions",
@@ -576,29 +583,22 @@ export const GraphEntry = meta.story({
 	},
 })
 
-export const GraphEntryOpen = meta.story({
-	args: { isGraphOpen: true, onToggleGraph: fn() },
+export const GraphEntrySelected = meta.story({
+	args: { isGraphOpen: true, selected: "missions", onToggleGraph: fn() },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The Space graph entry while the graph page is open. Check it wears the current fill as a pressed toggle, while Conversations stays the current panel.",
+					"The rail while the graph page is open over the Missions panel. Check Space graph wears the current fill and is the only current entry, Missions and Conversations stay muted, and Missions takes the fill back once the page closes.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		await expect(entryNamed(canvasElement, GRAPH)).toHaveAttribute(
-			"aria-pressed",
-			"true",
-		)
-		await expect(entryNamed(canvasElement, "Conversations")).toHaveAttribute(
-			"aria-current",
-			"true",
-		)
+		await expect(currentEntriesIn(canvasElement)).toEqual([GRAPH])
 	},
 })
 
-export const GraphEntryOpenDark = meta.story({
-	...GraphEntryOpen.input,
+export const GraphEntrySelectedDark = meta.story({
+	...GraphEntrySelected.input,
 	globals: { theme: "dark" },
 })
