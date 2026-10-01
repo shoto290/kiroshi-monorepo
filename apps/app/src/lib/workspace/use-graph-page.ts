@@ -71,6 +71,6 @@ export const useGraphPage = (exits: GraphExits) => {
 	if (!IS_GRAPH_PAGE_ENABLED) {
 		return { isOpen: false, exits }
 	}
-	const opened: OpenedGraph | undefined = isOpen ? { onBack: close } : undefined
+	const opened = isOpen ? { onBack: close } : undefined
 	return { isOpen, toggle, opened, exits: closingExits }
 }
