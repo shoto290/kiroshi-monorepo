@@ -21,6 +21,7 @@ pub mod routines;
 pub mod search;
 pub mod sections;
 pub mod spaces;
+pub mod termination;
 pub mod user;
 mod private_files;
 mod window_controls;
@@ -61,10 +62,8 @@ pub fn run() {
 		.manage(missions::commands::AnnouncedRunning::default())
 		.setup(|app| {
 			app.manage(db::bootstrap(app.handle()));
-			if let Some(window) = app.get_webview_window("main") {
-				window_controls::center_in_header(&window);
-				#[cfg(windows)]
-				window_controls::frame(&window);
+			if !window_controls::is_headless(std::env::args()) {
+				window_controls::opened_main(app.handle());
 			}
 			app.manage(routines::sentinel::spawn(app.handle().clone()));
 			app.manage(routines::webhook::start(app.handle().clone()));
@@ -78,13 +77,17 @@ pub fn run() {
 			tauri::async_runtime::spawn(async move {
 				missions::commands::install_hooks_at_launch(&handle).await;
 			});
+			tauri::async_runtime::spawn(termination::exited_on_termination(app.handle().clone()));
 			Ok(())
 		})
 		.invoke_handler(builder().invoke_handler())
 		.build(tauri::generate_context!())
 		.expect("error while building tauri application")
-		.run(|app, event| {
-			if matches!(event, RunEvent::Exit) {
+		.run(|app, event| match event {
+			RunEvent::ExitRequested { code: None, api, .. } => api.prevent_exit(),
+			#[cfg(target_os = "macos")]
+			RunEvent::Reopen { .. } => window_controls::raise_main(app),
+			RunEvent::Exit => {
 				if let Some(sentinel) = app.try_state::<routines::sentinel::Sentinel>() {
 					sentinel.stop();
 				}
@@ -103,5 +106,6 @@ pub fn run() {
 					app.state::<AgentState>().inner(),
 				));
 			}
+			_ => {}
 		})
 }

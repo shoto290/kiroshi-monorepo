@@ -18,6 +18,8 @@
 		},
 		"windows": [
 			{
+				"label": "main",
+				"create": false,
 				"title": "Kiroshi",
 				"dragDropEnabled": false,
 				"visible": false,

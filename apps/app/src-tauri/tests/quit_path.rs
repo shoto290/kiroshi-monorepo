@@ -8,6 +8,7 @@ use kiroshi_app::agent::commands::terminate_session;
 use kiroshi_app::agent::session::{EventSink, Session, SessionOptions};
 use kiroshi_app::agent::sidecar::{Sidecar, SidecarOptions};
 use kiroshi_app::agent::AgentState;
+use kiroshi_app::termination::termination_requested;
 use tokio::sync::mpsc;
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
@@ -66,4 +67,23 @@ async fn quitting_during_a_startup_sweeps_the_group_it_cannot_see_yet() {
 
 	starting.abort();
 	let _ = std::fs::remove_file(&pid_file);
+}
+
+async fn termination_requested_by(signal: libc::c_int) {
+	let requested = termination_requested().expect("the termination signals are listened to");
+	assert_eq!(unsafe { libc::raise(signal) }, 0, "the signal is raised");
+	tokio::time::timeout(DEADLINE, requested)
+		.await
+		.expect("the signal requests the termination")
+		.expect("the signal is read");
+}
+
+#[tokio::test]
+async fn a_sigterm_requests_the_termination_the_quit_path_runs_on() {
+	termination_requested_by(libc::SIGTERM).await;
+}
+
+#[tokio::test]
+async fn a_sigint_requests_the_termination_the_quit_path_runs_on() {
+	termination_requested_by(libc::SIGINT).await;
 }
