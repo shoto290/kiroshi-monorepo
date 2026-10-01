@@ -2,7 +2,6 @@ import { useCallback, useSyncExternalStore } from "react"
 
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { Notice } from "@workspace/ui/components/notice"
-import { SPACE_GRAPH } from "@workspace/ui/components/space-graph.fixtures"
 import { SpaceGraphScreen } from "@workspace/ui/components/space-graph-screen"
 import { useCommonCopy } from "@workspace/ui/hooks/use-common-copy"
 
@@ -112,8 +111,8 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 	if (props.openedGraph) {
 		return (
 			<SpaceGraphScreen
-				graph={SPACE_GRAPH}
 				onClose={props.openedGraph.onClose}
+				state={props.openedGraph.state}
 			/>
 		)
 	}

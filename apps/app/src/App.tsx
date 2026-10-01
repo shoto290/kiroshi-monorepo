@@ -73,7 +73,11 @@ export function App() {
 		select: core.roster.controller.select,
 		leaveMission: core.openedMission.leave,
 	})
-	const graphPage = useGraphPage(sidebarTab.openSidebarTab)
+	const graphPage = useGraphPage({
+		store: core.store,
+		space: scopes.selectedSpace,
+		openSidebarTab: sidebarTab.openSidebarTab,
+	})
 
 	const { preferences, roster, spaces } = core
 
