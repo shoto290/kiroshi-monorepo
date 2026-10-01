@@ -84,11 +84,16 @@ const bots = {
 	spaces: {
 		label: "Spaces",
 		switch: "Change space, {{name}} open",
+		switchRemote: "Change space, {{name}} open, remote",
 		open: "Open {{name}}",
 		moveUp: "Move up",
 		moveDown: "Move down",
 		create: "Create a space",
+		join: "Join a space",
 		settings: "Open space settings",
+		leave: "Leave space",
+		remote: "Remote",
+		unreachable: "Unreachable",
 		shortcut: "⌘{{rank}}",
 		remove: {
 			lastSpace: "A companion needs at least one space.",

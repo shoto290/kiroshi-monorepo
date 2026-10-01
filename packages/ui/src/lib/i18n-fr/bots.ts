@@ -76,11 +76,16 @@ const bots = {
 	spaces: {
 		label: "Espaces",
 		switch: "Changer d’espace, {{name}} ouvert",
+		switchRemote: "Changer d’espace, {{name}} ouvert, distant",
 		open: "Ouvrir {{name}}",
 		moveUp: "Monter",
 		moveDown: "Descendre",
 		create: "Créer un espace",
+		join: "Rejoindre un espace",
 		settings: "Ouvrir les réglages de l’espace",
+		leave: "Quitter l’espace",
+		remote: "Distant",
+		unreachable: "Injoignable",
 		shortcut: "⌘{{rank}}",
 		remove: {
 			lastSpace: "Un compagnon a besoin d’au moins un espace.",
