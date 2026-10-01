@@ -53,7 +53,9 @@ const boxOf = (element: Element) => {
 }
 
 const labelPlacementOf = (item: HTMLElement) => {
-	const { top, left, height } = boxOf(item.querySelector("span") ?? item)
+	const label = item.querySelector("span")
+	if (!label) throw new Error(`No label in ${item.textContent}`)
+	const { top, left, height } = label.getBoundingClientRect()
 	return { top, left, height }
 }
 
