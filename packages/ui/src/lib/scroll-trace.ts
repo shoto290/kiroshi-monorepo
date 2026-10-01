@@ -83,7 +83,6 @@ type ScrollTrace = {
 	entries: () => ScrollTraceEntry[]
 	toggles: () => AutoscrollingToggle[]
 	report: () => string
-	clear: () => void
 }
 
 declare global {
@@ -825,12 +824,6 @@ const traceApi = (active: Recorder): ScrollTrace => {
 		toggles: () => active.toggles,
 		report: () =>
 			[`${navigator.userAgent}`, ...sessions().map(summaryTable)].join("\n\n"),
-		clear: () => {
-			active.entries = []
-			active.toggles = []
-			active.sessions = []
-			active.writes = []
-		},
 	}
 }
 
