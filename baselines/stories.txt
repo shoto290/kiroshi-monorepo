@@ -235,6 +235,8 @@ conversation-message-transcript--rests-without-a-band
 conversation-message-transcript--return-control-centred-over-viewport
 conversation-message-transcript--returns
 conversation-message-transcript--stream-holds-the-last-line
+conversation-message-transcriptscrollprobe--long-thread
+conversation-message-transcriptscrollprobe--long-thread-streaming
 conversation-message-turn--authored
 conversation-message-turn--companion-menu-off-gutter
 conversation-message-turn--companion-menu-on-gutter

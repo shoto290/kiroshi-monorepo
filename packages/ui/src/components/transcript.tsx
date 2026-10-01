@@ -26,6 +26,10 @@ import {
 	useMessageScrollerScrollable,
 } from "@workspace/ui/components/message-scroller"
 import { Button } from "@workspace/ui/components/ui/button"
+import {
+	scrollTraceViewportRef,
+	traceScrollWrite,
+} from "@workspace/ui/lib/scroll-trace"
 import { cn } from "@workspace/ui/lib/utils"
 
 export interface TranscriptItem {
@@ -176,7 +180,9 @@ const useAnchorRelease = ({
 		wasBusyRef.current = busy
 		if (!hasSettled || !isFollowingRef.current) return
 
-		scrollToEnd({ behavior: "auto" })
+		traceScrollWrite("app-scroll-to-end", () =>
+			scrollToEnd({ behavior: "auto" }),
+		)
 	}, [busy, scrollToEnd])
 }
 
@@ -194,7 +200,7 @@ const useTranscriptHandle = (
 		scrollerRef,
 		() => ({
 			scrollToEnd: (behavior = defaultBehavior) => {
-				scrollToEnd({ behavior })
+				traceScrollWrite("app-scroll-to-end", () => scrollToEnd({ behavior }))
 			},
 			scrollToMessage: (
 				messageId,
@@ -202,7 +208,11 @@ const useTranscriptHandle = (
 				align = "center",
 			) => {
 				const row = rowHolding(rowsRef.current, messageId)
-				return row ? scrollToMessage(row.key, { align, behavior }) : false
+				return row
+					? traceScrollWrite("app-scroll-to-element", () =>
+							scrollToMessage(row.key, { align, behavior }),
+						)
+					: false
 			},
 		}),
 		[defaultBehavior, scrollToEnd, scrollToMessage],
@@ -347,6 +357,7 @@ const TranscriptBody = ({
 	return (
 		<MessageScroller className={cn("min-h-0", className)} {...props}>
 			<MessageScrollerViewport
+				ref={scrollTraceViewportRef()}
 				aria-label={label ?? t("transcript.label")}
 				className={cn(
 					NO_SCROLL_FADE,
