@@ -94,7 +94,10 @@ const JoinSpaceDialog = ({
 								className={cn(
 									FIELD_CONTROL_CLASS,
 									"truncate",
-									isInvalid && FIELD_CONTROL_INVALID_CLASS,
+									isInvalid && [
+										FIELD_CONTROL_INVALID_CLASS,
+										"ring-3 ring-destructive/30",
+									],
 									isJoining && FIELD_CONTROL_READONLY_CLASS,
 								)}
 								id={controlId}

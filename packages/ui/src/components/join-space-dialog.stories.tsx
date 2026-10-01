@@ -98,7 +98,7 @@ export const InvalidLink = meta.story({
 			},
 		},
 	},
-	play: async () => {
+	play: async ({ userEvent }) => {
 		const popup = await joinDialog()
 		const control = within(popup).getByRole("textbox", { name: "Link" })
 		const alert = within(popup).getByRole("alert")
@@ -111,6 +111,11 @@ export const InvalidLink = meta.story({
 		await expect(
 			within(popup).getByRole("button", { name: "Join" }),
 		).toBeEnabled()
+
+		await waitFor(() => expect(control).toHaveFocus())
+		await userEvent.tab()
+		await expect(control).not.toHaveFocus()
+		await expect(getComputedStyle(control).boxShadow).not.toBe("none")
 	},
 })
 
