@@ -7,9 +7,10 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::Router;
 use serde_json::{Map, Value};
+use std::sync::{Mutex, PoisonError};
 use tauri::ipc::{CallbackFn, InvokeBody, InvokeError, InvokeResponse, InvokeResponseBody};
 use tauri::webview::InvokeRequest;
-use tauri::{Manager, Runtime, WebviewWindow};
+use tauri::{AppHandle, Manager, Runtime, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tokio::sync::oneshot;
 
 use crate::routines::webhook::{named_here, Calls};
@@ -19,6 +20,18 @@ pub const PATH: &str = "/api/invoke/{command}";
 pub const MAX_BODY_BYTES: usize = 128 * 1024 * 1024;
 
 const MAIN_WEBVIEW: &str = "main";
+
+pub(crate) const DISPATCHER_WEBVIEW: &str = "dispatcher";
+
+const BLANK_PAGE: &str = "about:blank";
+
+const LOCAL_ORIGIN: &str = if cfg!(any(windows, target_os = "android")) {
+	"http://tauri.localhost"
+} else {
+	"tauri://localhost"
+};
+
+static DISPATCHER_OPENING: Mutex<()> = Mutex::new(());
 
 const BEARER: &str = "Bearer ";
 
@@ -39,11 +52,6 @@ const TOO_LARGE: (StatusCode, &str) =
 
 const UNREADABLE: (StatusCode, &str) =
 	(StatusCode::BAD_REQUEST, "the call carried no readable JSON arguments");
-
-const DESKTOP_ONLY: (StatusCode, &str) = (
-	StatusCode::SERVICE_UNAVAILABLE,
-	"desktop-only: the command runs through the desktop window, which is not open",
-);
 
 const UNANSWERED: (StatusCode, &str) =
 	(StatusCode::INTERNAL_SERVER_ERROR, "the command gave no answer");
@@ -105,10 +113,7 @@ async fn invoked<R: Runtime>(
 	let Some(arguments) = arguments else {
 		return UNREADABLE.into_response();
 	};
-	let Some(webview) = calls.app.get_webview_window(MAIN_WEBVIEW) else {
-		return DESKTOP_ONLY.into_response();
-	};
-	match dispatched(webview, command.clone(), arguments).await {
+	match dispatched(calls.app.clone(), command.clone(), arguments).await {
 		Some(response) => answered(&command, response),
 		None => UNANSWERED.into_response(),
 	}
@@ -136,14 +141,14 @@ fn unread(rejection: BytesRejection) -> Response {
 }
 
 async fn dispatched<R: Runtime>(
-	webview: WebviewWindow<R>,
+	app: AppHandle<R>,
 	command: String,
 	arguments: Value,
 ) -> Option<InvokeResponse> {
-	let url = match webview.url() {
+	let url = match LOCAL_ORIGIN.parse::<Url>() {
 		Ok(url) => url,
 		Err(failure) => {
-			eprintln!("the desktop window gave no address to invoke {command} from: {failure}");
+			eprintln!("the host gave no local address to invoke {command} from: {failure}");
 			return None;
 		}
 	};
@@ -154,7 +159,7 @@ async fn dispatched<R: Runtime>(
 		url,
 		body: InvokeBody::Json(arguments),
 		headers: HeaderMap::new(),
-		invoke_key: webview.app_handle().invoke_key().to_owned(),
+		invoke_key: app.invoke_key().to_owned(),
 	};
 	let (answer, answering) = oneshot::channel();
 	let responder = Box::new(move |_, _, response, _, _| {
@@ -162,8 +167,39 @@ async fn dispatched<R: Runtime>(
 			eprintln!("the command {command} answered after its caller left");
 		}
 	});
-	tauri::async_runtime::spawn_blocking(move || webview.on_message(request, responder));
+	tauri::async_runtime::spawn_blocking(move || {
+		if let Some(webview) = dispatching_window(&app) {
+			webview.on_message(request, responder);
+		}
+	});
 	answering.await.ok()
+}
+
+fn dispatching_window<R: Runtime>(app: &AppHandle<R>) -> Option<WebviewWindow<R>> {
+	if let Some(window) = app.get_webview_window(MAIN_WEBVIEW) {
+		return Some(window);
+	}
+	let _opening = DISPATCHER_OPENING.lock().unwrap_or_else(PoisonError::into_inner);
+	if let Some(window) = app.get_webview_window(DISPATCHER_WEBVIEW) {
+		return Some(window);
+	}
+	let blank = match BLANK_PAGE.parse::<Url>() {
+		Ok(blank) => blank,
+		Err(failure) => {
+			eprintln!("the dispatcher window gave no blank page to open: {failure}");
+			return None;
+		}
+	};
+	match WebviewWindowBuilder::new(app, DISPATCHER_WEBVIEW, WebviewUrl::External(blank))
+		.visible(false)
+		.build()
+	{
+		Ok(window) => Some(window),
+		Err(failure) => {
+			eprintln!("the dispatcher window did not open: {failure}");
+			None
+		}
+	}
 }
 
 fn answered(command: &str, response: InvokeResponse) -> Response {
