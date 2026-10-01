@@ -7,6 +7,25 @@ const common = {
 			title: "Impossible de charger vos espaces",
 			description: "Vos compagnons sont toujours là.",
 		},
+		join: {
+			title: "Rejoindre un espace",
+			description:
+				"Collez le lien du Kiroshi qui l’héberge. Ses compagnons et ses conversations s’ouvrent ici.",
+			label: "Lien",
+			placeholder: "Collez un lien",
+			invalidLink:
+				"Ce n’est pas un lien Kiroshi. Copiez-le à nouveau depuis l’hôte.",
+			hostUnreachable:
+				"Impossible de joindre l’hôte. Vérifiez qu’il est ouvert, puis réessayez.",
+			action: "Rejoindre",
+			joining: "Connexion…",
+		},
+		leave: {
+			title: "Quitter {{name}} ?",
+			description:
+				"Rien n’est supprimé sur l’hôte. Vous pourrez le rejoindre à nouveau avec son lien.",
+			action: "Quitter l’espace",
+		},
 	},
 	skipLink: "Passer à la conversation",
 	companion: {
