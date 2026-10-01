@@ -21,7 +21,7 @@ pub const MAX_BODY_BYTES: usize = 128 * 1024 * 1024;
 
 const MAIN_WEBVIEW: &str = "main";
 
-const DISPATCHER_WEBVIEW: &str = "dispatcher";
+pub(crate) const DISPATCHER_WEBVIEW: &str = "dispatcher";
 
 const BLANK_PAGE: &str = "about:blank";
 

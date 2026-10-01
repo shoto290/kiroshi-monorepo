@@ -42,6 +42,7 @@ pub fn run() {
 						| tauri_plugin_window_state::StateFlags::POSITION
 						| tauri_plugin_window_state::StateFlags::MAXIMIZED,
 				)
+				.with_denylist(&[host_api::invoke::DISPATCHER_WEBVIEW])
 				.build(),
 		)
 		.plugin(tauri_plugin_updater::Builder::new().build())
