@@ -203,6 +203,9 @@ export const createJoinedSpacesController = ({
 		}
 	}
 
+	const heldWithout = (id: string) =>
+		current().joinedSpaces.filter((held) => held.id !== id)
+
 	const joinedOfRow = (rowId: string | null) =>
 		current().joinedSpaces.find((joined) => rowIdOf(joined) === rowId)
 
@@ -230,10 +233,7 @@ export const createJoinedSpacesController = ({
 
 	const welcome = (joined: JoinedSpace) => {
 		set({
-			joinedSpaces: [
-				...current().joinedSpaces.filter((held) => held.id !== joined.id),
-				joined,
-			],
+			joinedSpaces: [...heldWithout(joined.id), joined],
 			isJoinOpen: false,
 			joinLink: "",
 			joinState: "idle",
@@ -244,9 +244,7 @@ export const createJoinedSpacesController = ({
 	const withdraw = async (joined: JoinedSpace) => {
 		hosts.forget(joined.id)
 		set({
-			joinedSpaces: current().joinedSpaces.filter(
-				(held) => held.id !== joined.id,
-			),
+			joinedSpaces: heldWithout(joined.id),
 			joinState: "hostUnreachable",
 		})
 		reportFailure({ title: i18n.t("common:spaces.join.hostUnreachable") })
@@ -288,12 +286,11 @@ export const createJoinedSpacesController = ({
 		})
 		hosts.forget(leaving.id)
 		set({
-			joinedSpaces: current().joinedSpaces.filter(
-				(held) => held.id !== leaving.id,
-			),
+			joinedSpaces: heldWithout(leaving.id),
 		})
-		const firstLocal = spaces.getState().spaces[0]
-		if (spaces.getState().selectedSpaceId === rowIdOf(leaving) && firstLocal) {
+		const { spaces: localSpaces, selectedSpaceId } = spaces.getState()
+		const [firstLocal] = localSpaces
+		if (selectedSpaceId === rowIdOf(leaving) && firstLocal) {
 			selectSpace(firstLocal.id)
 		}
 	}
