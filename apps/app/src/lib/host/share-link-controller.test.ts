@@ -8,7 +8,14 @@ import {
 	type ShareLinkTransport,
 } from "./share-link-controller"
 
-import type { ShareLink } from "../bindings"
+import { commands, type ShareLink } from "../bindings"
+
+vi.mock("./index", () => ({ listen: vi.fn(async () => () => undefined) }))
+
+vi.mock("../bindings", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../bindings")>()),
+	commands: { hostShareLink: vi.fn() },
+}))
 
 const LINK = "kiroshi://join/host.local:4242?token=secret"
 
@@ -41,7 +48,7 @@ describe("createShareLinkController", () => {
 		)
 		const controller = createShareLinkController({ transport })
 
-		controller.watch()
+		controller.watch("s1")
 		await settle()
 		presence.announce()
 		await settle()
@@ -51,6 +58,40 @@ describe("createShareLinkController", () => {
 		expect(controller.getState().shareLink).toBeNull()
 	})
 
+	it("reads the link of the watched space on every presence change", async () => {
+		const read = vi
+			.fn<ShareLinkTransport["read"]>()
+			.mockResolvedValue({ kind: "down" })
+		const { transport, presence } = createFakeTransport(read)
+		const controller = createShareLinkController({ transport })
+
+		controller.watch("s1")
+		await settle()
+		presence.announce()
+		await settle()
+
+		expect(read.mock.calls).toEqual([["s1"], ["s1"]])
+	})
+
+	it("notes the failure and raises a notice when the host answers an error", async () => {
+		vi.mocked(commands.hostShareLink).mockResolvedValue({
+			status: "error",
+			error: { kind: "unknownSpace", id: "s1" },
+		})
+		const reportFailure = vi.fn<(message: NoticeMessage) => void>()
+		const controller = createShareLinkController({ reportFailure })
+
+		controller.watch("s1")
+		await settle()
+
+		expect(commands.hostShareLink).toHaveBeenCalledWith("s1")
+		expect(controller.getState()).toEqual({
+			shareLink: null,
+			hasFailedToLoad: true,
+		})
+		expect(reportFailure).toHaveBeenCalledOnce()
+	})
+
 	it("notes the failure, raises a notice and holds null when the read rejects", async () => {
 		const { transport } = createFakeTransport(() =>
 			Promise.reject(new Error("ipc closed")),
@@ -58,7 +99,7 @@ describe("createShareLinkController", () => {
 		const reportFailure = vi.fn<(message: NoticeMessage) => void>()
 		const controller = createShareLinkController({ transport, reportFailure })
 
-		controller.watch()
+		controller.watch("s1")
 		await settle()
 
 		expect(controller.getState()).toEqual({

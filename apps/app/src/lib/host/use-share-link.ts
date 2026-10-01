@@ -5,14 +5,16 @@ import { createShareLinkController } from "./share-link-controller"
 
 import { useController } from "../use-controller"
 
-export const useShareLink = (isOpen: boolean): string | null | undefined => {
+export const useShareLink = (
+	openSpaceId: string | null,
+): string | null | undefined => {
 	const { state, controller } = useController(createShareLinkController)
 	const isShared = isDesktopHost()
-	const isWatched = isOpen && isShared
+	const watchedSpaceId = isShared ? openSpaceId : null
 
 	useEffect(
-		() => (isWatched ? controller.watch() : undefined),
-		[controller, isWatched],
+		() => (watchedSpaceId ? controller.watch(watchedSpaceId) : undefined),
+		[controller, watchedSpaceId],
 	)
 
 	return isShared ? state.shareLink : undefined

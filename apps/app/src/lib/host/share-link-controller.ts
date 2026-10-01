@@ -20,14 +20,14 @@ type ShareLinkState = {
 }
 
 export type ShareLinkTransport = {
-	read: () => Promise<ShareLink>
+	read: (spaceId: string) => Promise<ShareLink>
 	onPresence: (listener: () => void) => Promise<() => void>
 }
 
 type ShareLinkController = {
 	getState: () => ShareLinkState
 	subscribe: (listener: () => void) => () => void
-	watch: () => () => void
+	watch: (spaceId: string) => () => void
 }
 
 type ShareLinkControllerOptions = {
@@ -36,7 +36,13 @@ type ShareLinkControllerOptions = {
 }
 
 const shareLinkTransport: ShareLinkTransport = {
-	read: () => commands.hostShareLink(),
+	read: async (spaceId) => {
+		const result = await commands.hostShareLink(spaceId)
+		if (result.status === "error") {
+			throw new Error(result.error.kind)
+		}
+		return result.data
+	},
 	onPresence: (listener) =>
 		listen<HostPresence>(HOST_PRESENCE_EVENT, () => listener()),
 }
@@ -61,11 +67,11 @@ export const createShareLinkController = ({
 		reportFailure({ title: i18n.t("settings:space.share.hostDown") })
 	}
 
-	const read = () => {
+	const read = (spaceId: string) => {
 		latestRead += 1
 		const ticket = latestRead
 		const isLatest = () => ticket === latestRead
-		void transport.read().then(
+		void transport.read(spaceId).then(
 			(shareLink) => {
 				if (isLatest()) {
 					stateStore.setState({
@@ -80,9 +86,11 @@ export const createShareLinkController = ({
 		)
 	}
 
-	const watch = () => {
-		read()
-		const detach = transport.onPresence(read).catch(noteFailedLoad)
+	const watch = (spaceId: string) => {
+		read(spaceId)
+		const detach = transport
+			.onPresence(() => read(spaceId))
+			.catch(noteFailedLoad)
 		return () => {
 			latestRead += 1
 			void detach.then((unlisten) => unlisten?.())

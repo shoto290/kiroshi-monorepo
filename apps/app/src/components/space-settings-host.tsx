@@ -29,7 +29,9 @@ export const SpaceSettingsHost = ({
 		settingsTab,
 		spaceApplications,
 	} = scopes
-	const shareLink = useShareLink(isSpaceEditing)
+	const shareLink = useShareLink(
+		isSpaceEditing ? (selectedSpace?.id ?? null) : null,
+	)
 
 	return selectedSpace ? (
 		<SpaceSettingsDialog

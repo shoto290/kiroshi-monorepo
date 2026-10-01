@@ -25,16 +25,18 @@ type PresenceHandler = (event: { payload: HostPresence }) => void
 const presence: { announce: PresenceHandler } = { announce: () => undefined }
 const unlisten = vi.fn()
 
-const renderShareLink = (isOpen: boolean) =>
-	renderHook(({ isOpen }) => useShareLink(isOpen), {
-		initialProps: { isOpen },
+const SPACE_ID = "s1"
+
+const renderShareLink = (openSpaceId: string | null) =>
+	renderHook(({ openSpaceId }) => useShareLink(openSpaceId), {
+		initialProps: { openSpaceId },
 	})
 
 beforeEach(() => {
 	vi.mocked(isDesktopHost).mockReturnValue(true)
 	vi.mocked(commands.hostShareLink).mockResolvedValue({
-		kind: "up",
-		link: LINK,
+		status: "ok",
+		data: { kind: "up", link: LINK },
 	})
 	vi.mocked(listen).mockImplementation(async (event, handler) => {
 		if (event === HOST_PRESENCE_EVENT) {
@@ -51,17 +53,21 @@ afterEach(async () => {
 })
 
 describe("useShareLink", () => {
-	it("reads the link when the dialog opens in the desktop window", async () => {
-		const { result } = renderShareLink(true)
+	it("reads the link of the open space when the dialog opens in the desktop window", async () => {
+		const { result } = renderShareLink(SPACE_ID)
 
 		await act(async () => undefined)
 
+		expect(commands.hostShareLink).toHaveBeenCalledWith(SPACE_ID)
 		expect(result.current).toBe(LINK)
 	})
 
 	it("passes null while the host is down", async () => {
-		vi.mocked(commands.hostShareLink).mockResolvedValue({ kind: "down" })
-		const { result } = renderShareLink(true)
+		vi.mocked(commands.hostShareLink).mockResolvedValue({
+			status: "ok",
+			data: { kind: "down" },
+		})
+		const { result } = renderShareLink(SPACE_ID)
 
 		await act(async () => undefined)
 
@@ -69,8 +75,11 @@ describe("useShareLink", () => {
 	})
 
 	it("reads again on a presence change without taking the link from the payload", async () => {
-		vi.mocked(commands.hostShareLink).mockResolvedValueOnce({ kind: "down" })
-		const { result } = renderShareLink(true)
+		vi.mocked(commands.hostShareLink).mockResolvedValueOnce({
+			status: "ok",
+			data: { kind: "down" },
+		})
+		const { result } = renderShareLink(SPACE_ID)
 		await act(async () => undefined)
 
 		await act(async () => presence.announce({ payload: { isUp: false } }))
@@ -80,18 +89,29 @@ describe("useShareLink", () => {
 	})
 
 	it("subscribes once per mount across re-renders", async () => {
-		const { rerender } = renderShareLink(true)
+		const { rerender } = renderShareLink(SPACE_ID)
 		await act(async () => undefined)
 
-		rerender({ isOpen: true })
-		rerender({ isOpen: true })
+		rerender({ openSpaceId: SPACE_ID })
+		rerender({ openSpaceId: SPACE_ID })
 		await act(async () => undefined)
 
 		expect(listen).toHaveBeenCalledOnce()
 	})
 
+	it("reads the link of the next space when the open space changes", async () => {
+		const { rerender } = renderShareLink(SPACE_ID)
+		await act(async () => undefined)
+
+		rerender({ openSpaceId: "s2" })
+		await act(async () => undefined)
+
+		expect(commands.hostShareLink).toHaveBeenLastCalledWith("s2")
+		expect(unlisten).toHaveBeenCalledOnce()
+	})
+
 	it("removes the presence listener when the dialog unmounts", async () => {
-		const { unmount } = renderShareLink(true)
+		const { unmount } = renderShareLink(SPACE_ID)
 		await act(async () => undefined)
 
 		unmount()
@@ -102,7 +122,7 @@ describe("useShareLink", () => {
 
 	it("passes undefined outside the desktop window and reads nothing", async () => {
 		vi.mocked(isDesktopHost).mockReturnValue(false)
-		const { result } = renderShareLink(true)
+		const { result } = renderShareLink(SPACE_ID)
 
 		await act(async () => undefined)
 
@@ -112,7 +132,7 @@ describe("useShareLink", () => {
 	})
 
 	it("reads nothing while the dialog is closed", async () => {
-		renderShareLink(false)
+		renderShareLink(null)
 
 		await act(async () => undefined)
 
