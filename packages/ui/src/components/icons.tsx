@@ -72,6 +72,10 @@ import {
 	WrenchIcon,
 	XIcon,
 } from "@keyline-icons/react"
+import {
+	FlagIcon as FlagFillIcon,
+	MessageIcon as MessageFillIcon,
+} from "@keyline-icons/react/fill"
 import type { ComponentType } from "react"
 
 type Icon = ComponentType<IconProps>
@@ -247,4 +251,9 @@ const Icons = {
 	Missions: FlagIcon,
 }
 
-export { type Icon, type IconProps, Icons }
+const FillIcons = {
+	Conversations: MessageFillIcon,
+	Missions: FlagFillIcon,
+} satisfies Partial<Record<keyof typeof Icons, Icon>>
+
+export { FillIcons, type Icon, type IconProps, Icons }

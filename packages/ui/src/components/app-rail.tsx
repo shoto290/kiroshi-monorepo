@@ -3,7 +3,7 @@
 import type { ComponentProps, ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Icons } from "@workspace/ui/components/icons"
+import { FillIcons, Icons } from "@workspace/ui/components/icons"
 import {
 	AvatarFrame,
 	displayNameOf,
@@ -18,6 +18,11 @@ type AppRailPanel = "conversations" | "missions"
 type AppRailEntry = AppRailPanel | "settings" | "you"
 
 type AppRailDots = Partial<Record<AppRailEntry, boolean>>
+
+const PANEL_ICON = {
+	conversations: "Conversations",
+	missions: "Missions",
+} as const satisfies Record<AppRailPanel, keyof typeof FillIcons>
 
 const RAIL =
 	"flex w-13 shrink-0 flex-col justify-between gap-1 px-2 pt-1.75 pb-[calc(var(--shell-inset)-var(--spacing))]"
@@ -122,11 +127,16 @@ const AppRail = ({
 	...props
 }: AppRailProps) => {
 	const { t } = useTranslation("bots")
-	const panelEntry = (entry: AppRailPanel) => ({
-		hasDot: dots?.[entry],
-		isSelected: selected === entry,
-		name: t(`rail.${entry}`),
-	})
+	const panelEntry = (entry: AppRailPanel) => {
+		const isSelected = selected === entry
+		const PanelIcon = (isSelected ? FillIcons : Icons)[PANEL_ICON[entry]]
+		return {
+			children: <PanelIcon aria-hidden="true" />,
+			hasDot: dots?.[entry],
+			isSelected,
+			name: t(`rail.${entry}`),
+		}
+	}
 
 	return (
 		<nav
@@ -139,12 +149,8 @@ const AppRail = ({
 				<RailItem
 					{...panelEntry("conversations")}
 					onPress={onSelectConversations}
-				>
-					<Icons.Conversations aria-hidden="true" />
-				</RailItem>
-				<RailItem {...panelEntry("missions")} onPress={onSelectMissions}>
-					<Icons.Missions aria-hidden="true" />
-				</RailItem>
+				/>
+				<RailItem {...panelEntry("missions")} onPress={onSelectMissions} />
 			</ul>
 			<ul className={RAIL_GROUP}>
 				{updateBadge ? (
