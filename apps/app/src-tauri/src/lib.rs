@@ -11,6 +11,7 @@ pub mod environment;
 pub mod events;
 pub mod file_store;
 pub mod host_api;
+pub mod joined_spaces;
 pub mod json;
 pub mod mcp_oauth;
 pub mod missions;

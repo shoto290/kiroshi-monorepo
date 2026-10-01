@@ -2,8 +2,9 @@ use tauri::{ipc::Invoke, Runtime};
 use tauri_specta::{collect_commands, Builder, Commands};
 
 use crate::{
-	agent, applications, attachments, companions, conversations, environment, mcp_oauth, missions,
-	notifications, plugins, routines, search, sections, spaces, user, window_controls,
+	agent, applications, attachments, companions, conversations, environment, joined_spaces,
+	mcp_oauth, missions, notifications, plugins, routines, search, sections, spaces, user,
+	window_controls,
 };
 
 pub fn builder() -> Builder<tauri::Wry> {
@@ -88,6 +89,10 @@ fn commands<R: Runtime>() -> Commands<R> {
 		environment::commands::env_delete::<tauri::Wry>,
 		environment::commands::env_list::<tauri::Wry>,
 		environment::commands::connection_set::<tauri::Wry>,
+		joined_spaces::commands::joined_spaces_list,
+		joined_spaces::commands::joined_space_add::<tauri::Wry>,
+		joined_spaces::commands::joined_space_connect,
+		joined_spaces::commands::joined_space_remove::<tauri::Wry>,
 		mcp_oauth::commands::mcp_oauth_connect::<tauri::Wry>,
 		mcp_oauth::commands::mcp_oauth_cancel::<tauri::Wry>,
 		mcp_oauth::commands::mcp_oauth_disconnect::<tauri::Wry>,
