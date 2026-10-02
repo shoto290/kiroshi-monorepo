@@ -41,7 +41,7 @@ export type JoinedSpacesController = {
 	join: () => Promise<void>
 	askToLeave: () => void
 	setLeaveOpen: (isLeaveOpen: boolean) => void
-	leave: () => Promise<void>
+	leave: (id: string) => Promise<void>
 }
 
 export type JoinedSpacesTransport = {
@@ -57,7 +57,7 @@ type JoinedSpacesHosts = Pick<
 >
 
 type JoinedSpacesControllerOptions = {
-	spaces: Pick<SpacesController, "getState" | "select">
+	spaces: Pick<SpacesController, "getState" | "select" | "setSettingsOpen">
 	hosts?: JoinedSpacesHosts
 	transport?: JoinedSpacesTransport
 	reportFailure?: (notice: NoticeMessage) => void
@@ -104,6 +104,12 @@ const rowIdOf = (joined: JoinedSpace): string =>
 
 const isUnreachable = (connection: JoinedHostState | undefined) =>
 	connection?.status === "down" || connection?.status === "refused"
+
+export const joinedSpaceOfRow = (
+	joinedSpaces: JoinedSpace[],
+	rowId: string | null,
+): JoinedSpace | undefined =>
+	joinedSpaces.find((joined) => rowIdOf(joined) === rowId)
 
 export const switcherSpacesOf = (
 	spaces: Space[],
@@ -214,7 +220,7 @@ export const createJoinedSpacesController = ({
 		current().joinedSpaces.filter((held) => held.id !== id)
 
 	const joinedOfRow = (rowId: string | null) =>
-		current().joinedSpaces.find((joined) => rowIdOf(joined) === rowId)
+		joinedSpaceOfRow(current().joinedSpaces, rowId)
 
 	const selectSpace = (id: string) => {
 		spaces.select(id)
@@ -285,10 +291,8 @@ export const createJoinedSpacesController = ({
 		}
 	}
 
-	const leave = async () => {
-		const leaving = current().joinedSpaces.find(
-			(joined) => joined.id === current().leavingId,
-		)
+	const leave = async (id: string) => {
+		const leaving = current().joinedSpaces.find((joined) => joined.id === id)
 		if (!leaving) {
 			return
 		}
@@ -300,6 +304,7 @@ export const createJoinedSpacesController = ({
 		set({
 			joinedSpaces: heldWithout(leaving.id),
 		})
+		spaces.setSettingsOpen(false)
 		const { spaces: localSpaces, selectedSpaceId } = spaces.getState()
 		const [firstLocal] = localSpaces
 		if (selectedSpaceId === rowIdOf(leaving) && firstLocal) {

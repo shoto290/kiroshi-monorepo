@@ -413,10 +413,11 @@ describe("leaving a space", () => {
 		return gear
 	}
 
-	it("removes the selected space and selects the first local one", async () => {
+	it("removes the selected space, closes its settings and selects the first local one", async () => {
 		const gear = await leavingGarage()
+		gear.spaces.setSettingsOpen(true)
 
-		await gear.joined.leave()
+		await gear.joined.leave(GARAGE.id)
 
 		expect(gear.wire.transport.remove).toHaveBeenCalledWith(GARAGE.id)
 		expect(gear.hosts.forget).toHaveBeenCalledWith(GARAGE.id)
@@ -424,6 +425,7 @@ describe("leaving a space", () => {
 		expect(gear.joined.getState().joinedSpaces).toEqual([])
 		expect(gear.spaces.getState().selectedSpaceId).toBe(firstLocal?.id)
 		expect(gear.hosts.activate).toHaveBeenLastCalledWith(null)
+		expect(gear.spaces.getState().isSettingsOpen).toBe(false)
 	})
 
 	it("keeps the selection when the space left is not the selected one", async () => {
@@ -431,7 +433,7 @@ describe("leaving a space", () => {
 		gear.joined.selectSpace(gear.home.id)
 		gear.hosts.activate.mockClear()
 
-		await gear.joined.leave()
+		await gear.joined.leave(GARAGE.id)
 
 		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
 		expect(gear.hosts.activate).not.toHaveBeenCalled()
@@ -441,7 +443,7 @@ describe("leaving a space", () => {
 		const gear = await leavingGarage()
 		gear.wire.transport.remove.mockRejectedValueOnce(new Error("disk full"))
 
-		await expect(gear.joined.leave()).rejects.toThrow("disk full")
+		await expect(gear.joined.leave(GARAGE.id)).rejects.toThrow("disk full")
 
 		expect(gear.joined.getState().joinedSpaces).toEqual([GARAGE])
 		expect(gear.hosts.forget).not.toHaveBeenCalled()

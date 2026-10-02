@@ -31,7 +31,7 @@ export const JoinedSpaceDialogs = ({
 			<ConfirmDialog
 				confirmLabel={i18n.t("common:spaces.leave.action")}
 				description={i18n.t("common:spaces.leave.description")}
-				onConfirm={controller.leave}
+				onConfirm={() => (leaving ? controller.leave(leaving.id) : undefined)}
 				onOpenChange={controller.setLeaveOpen}
 				open={state.isLeaveOpen}
 				title={i18n.t("common:spaces.leave.title", {
