@@ -9,13 +9,14 @@ import {
 	waitFor,
 	within,
 } from "@testing-library/react"
-import { createElement, Fragment } from "react"
+import { createElement, Fragment, useState } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { NoticeSurface } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import { SpaceSettingsHost } from "@/components/space-settings-host"
+import { APPLICATIONS_TAB } from "@/lib/applications/connection-settings"
 import type { JoinedSpace } from "@/lib/bindings"
 import { createFakeTranscriptStore } from "@/lib/conversations/fake-transcript-store"
 import {
@@ -78,7 +79,16 @@ const gearWithGarage = async () => {
 	return { home, spaces, joined, transport }
 }
 
-const SpaceSettingsHarness = ({ spaces, joined }: Gear) => {
+type SpaceSettingsHarnessProps = Gear & {
+	openedTab?: string
+}
+
+const SpaceSettingsHarness = ({
+	spaces,
+	joined,
+	openedTab,
+}: SpaceSettingsHarnessProps) => {
+	const [settingsTab, setSettingsTab] = useState(openedTab)
 	const spacesState = useControllerState(spaces)
 	const joinedState = useControllerState(joined)
 	const { selectedSpaceId } = spacesState
@@ -93,7 +103,7 @@ const SpaceSettingsHarness = ({ spaces, joined }: Gear) => {
 	} as unknown as WorkspaceCore
 	const panels = {
 		applicationToOpenOn: () => undefined,
-		closeSettingsTab: () => undefined,
+		closeSettingsTab: () => setSettingsTab(undefined),
 		spaceHistory: { days: [], oldestDate: "2026-01-01", onUndo: vi.fn() },
 		spaceSkills: { skills: [] },
 	} as unknown as SettingsPanels
@@ -104,6 +114,7 @@ const SpaceSettingsHarness = ({ spaces, joined }: Gear) => {
 		),
 		selectedSpaceId,
 		setOpenedMcpServer: vi.fn(),
+		settingsTab,
 		spaceApplications: { mcpServers: [] },
 	} as unknown as ApplicationScopes
 	return createElement(
@@ -114,10 +125,10 @@ const SpaceSettingsHarness = ({ spaces, joined }: Gear) => {
 	)
 }
 
-const openSettingsOf = (gear: Gear, rowId: string) => {
+const openSettingsOf = (gear: Gear, rowId: string, openedTab?: string) => {
 	gear.joined.selectSpace(rowId)
 	gear.spaces.setSettingsOpen(true)
-	render(createElement(SpaceSettingsHarness, gear))
+	render(createElement(SpaceSettingsHarness, { ...gear, openedTab }))
 	return screen.getByRole("dialog")
 }
 
@@ -170,6 +181,25 @@ describe("SpaceSettingsHost on a joined space", () => {
 		expect(gear.joined.getState().joinedSpaces).toEqual([])
 		const [firstLocal] = gear.spaces.getState().spaces
 		expect(gear.spaces.getState().selectedSpaceId).toBe(firstLocal?.id)
+	})
+
+	it("resets the settings tab so the next Settings opens on the first tab", async () => {
+		const gear = await gearWithGarage()
+		const dialog = openSettingsOf(gear, "garage", APPLICATIONS_TAB)
+
+		await confirmLeave(dialog)
+		await waitFor(() =>
+			expect(screen.queryByRole("dialog", { hidden: true })).toBeNull(),
+		)
+		act(() => gear.spaces.setSettingsOpen(true))
+
+		const reopened = await screen.findByRole("dialog")
+		expect(
+			within(reopened).getByRole("tab", {
+				name: i18n.t("settings:rail.space"),
+				selected: true,
+			}),
+		).toBeTruthy()
 	})
 
 	it("keeps the space and raises the refusal when the leave fails", async () => {

@@ -45,6 +45,11 @@ export const SpaceSettingsHost = ({
 		return null
 	}
 
+	const close = () => {
+		closeSettingsTab()
+		spaces.controller.setSettingsOpen(false)
+	}
+
 	const sharedProps = {
 		environment: toEnvironmentRows(spaceEnvironment.state.entries),
 		hasEnvironmentFailedToRead: spaceEnvironment.state.hasFailedToRead,
@@ -67,10 +72,7 @@ export const SpaceSettingsHost = ({
 			),
 		serverEnvironment: serverEnvironmentSection,
 		history: spaceHistory,
-		onClose: () => {
-			closeSettingsTab()
-			spaces.controller.setSettingsOpen(false)
-		},
+		onClose: close,
 		onEnvironmentDelete: spaceEnvironment.controller.remove,
 		onEnvironmentSet: ({ name, value }: EnvironmentWrite) =>
 			spaceEnvironment.controller.set(name, value),
@@ -104,7 +106,7 @@ export const SpaceSettingsHost = ({
 		<SpaceSettingsDialog
 			{...sharedProps}
 			host={joinedSpace.hostUrl}
-			onLeave={() => joinedSpaces.controller.leave(joinedSpace.id)}
+			onLeave={() => joinedSpaces.controller.leave(joinedSpace.id).then(close)}
 			value={{ name: joinedSpace.name }}
 		/>
 	) : null
