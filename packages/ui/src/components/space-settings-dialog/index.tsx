@@ -143,27 +143,29 @@ const SpaceSettingsDialog = ({
 		>
 			<SettingsScrollingPanel value={FIRST_TAB}>
 				{host === undefined ? (
-					<SpaceFields onValueChange={onValueChange} value={value} />
+					<>
+						<SpaceFields onValueChange={onValueChange} value={value} />
+						{shareLink === undefined ? null : (
+							<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
+						)}
+						{onExport || onImport ? (
+							<div className="flex flex-wrap gap-2" data-slot="space-transfer">
+								{onExport ? (
+									<Button onClick={onExport} size="sm" variant="outline">
+										{t("space.transfer.export")}
+									</Button>
+								) : null}
+								{onImport ? (
+									<Button onClick={onImport} size="sm" variant="outline">
+										{t("space.transfer.import")}
+									</Button>
+								) : null}
+							</div>
+						) : null}
+					</>
 				) : (
 					<JoinedSpaceFields host={host} name={spaceName} />
 				)}
-				{host !== undefined || shareLink === undefined ? null : (
-					<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
-				)}
-				{host === undefined && (onExport || onImport) ? (
-					<div className="flex flex-wrap gap-2" data-slot="space-transfer">
-						{onExport ? (
-							<Button onClick={onExport} size="sm" variant="outline">
-								{t("space.transfer.export")}
-							</Button>
-						) : null}
-						{onImport ? (
-							<Button onClick={onImport} size="sm" variant="outline">
-								{t("space.transfer.import")}
-							</Button>
-						) : null}
-					</div>
-				) : null}
 			</SettingsScrollingPanel>
 
 			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="environment">
