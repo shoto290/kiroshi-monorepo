@@ -12,6 +12,7 @@ type DangerZoneProps = {
 	onDelete: () => void
 	disabledReason?: string
 	defaultConfirming?: boolean
+	icon?: keyof typeof Icons
 }
 
 const DangerZone = ({
@@ -21,35 +22,40 @@ const DangerZone = ({
 	onDelete,
 	disabledReason,
 	defaultConfirming,
-}: DangerZoneProps) => (
-	<div className={DANGER_BLOCK_CLASS} data-slot="danger-zone">
-		<div className="flex flex-col gap-1">
-			<span className="font-medium text-destructive text-sm">
-				{deleteLabel}
-			</span>
-			<p className="text-muted-foreground text-sm">
-				{disabledReason ?? description}
-			</p>
-		</div>
-		<ConfirmDialog
-			confirmLabel={deleteLabel}
-			defaultOpen={defaultConfirming}
-			description={description}
-			isTriggerDisabled={Boolean(disabledReason)}
-			onConfirm={onDelete}
-			title={confirmTitle}
-			trigger={
-				<>
-					<Icons.Delete aria-hidden="true" className="size-3.5" />
+	icon = "Delete",
+}: DangerZoneProps) => {
+	const Glyph = Icons[icon]
+
+	return (
+		<div className={DANGER_BLOCK_CLASS} data-slot="danger-zone">
+			<div className="flex flex-col gap-1">
+				<span className="font-medium text-destructive text-sm">
 					{deleteLabel}
-				</>
-			}
-			triggerClassName={buttonVariants({
-				variant: "destructive",
-				size: "sm",
-			})}
-		/>
-	</div>
-)
+				</span>
+				<p className="text-muted-foreground text-sm">
+					{disabledReason ?? description}
+				</p>
+			</div>
+			<ConfirmDialog
+				confirmLabel={deleteLabel}
+				defaultOpen={defaultConfirming}
+				description={description}
+				isTriggerDisabled={Boolean(disabledReason)}
+				onConfirm={onDelete}
+				title={confirmTitle}
+				trigger={
+					<>
+						<Glyph aria-hidden="true" className="size-3.5" />
+						{deleteLabel}
+					</>
+				}
+				triggerClassName={buttonVariants({
+					variant: "destructive",
+					size: "sm",
+				})}
+			/>
+		</div>
+	)
+}
 
 export { DangerZone }

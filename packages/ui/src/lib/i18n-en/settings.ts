@@ -75,6 +75,10 @@ const settings = {
 			label: "Name",
 			placeholder: "No name",
 		},
+		host: {
+			label: "Host",
+			hint: "This space lives on another Kiroshi. Its name is set there.",
+		},
 		colour: {
 			label: "Colour",
 			none: "No colour",

@@ -1325,6 +1325,7 @@ settings-settingsdialogshell--guard-refused
 settings-settingsdialogshell--rail-icons-only
 settings-settingsdialogshell--skill-page-wording
 settings-settingsdialogshell--without-session-closes-unasked
+settings-space-joinedspacefields--default
 settings-space-sharelink--at-rest
 settings-space-sharelink--copied
 settings-space-sharelink--copy-focused
@@ -1337,6 +1338,9 @@ settings-space-spacesettingsdialog--danger
 settings-space-spacesettingsdialog--default
 settings-space-spacesettingsdialog--environment
 settings-space-spacesettingsdialog--history
+settings-space-spacesettingsdialog--joined-danger
+settings-space-spacesettingsdialog--joined-space
+settings-space-spacesettingsdialog--joined-themes
 settings-space-spacesettingsdialog--last-space
 settings-space-spacesettingsdialog--mcp-servers
 settings-space-spacesettingsdialog--mcp-servers-unavailable

@@ -22,6 +22,7 @@ import {
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
+import { JoinedSpaceFields } from "@workspace/ui/components/space-settings-dialog/joined-space-fields"
 import { ShareLink } from "@workspace/ui/components/space-settings-dialog/share-link"
 import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/space-fields"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
@@ -48,6 +49,8 @@ type SpaceSettingsDialogProps = PluginSessionsProps & {
 	onImport?: () => void
 	shareLink?: string | null
 	onShareLinkCopy?: () => void
+	host?: string
+	onLeave?: () => void
 	className?: string
 }
 
@@ -68,10 +71,13 @@ const SpaceSettingsDialog = ({
 	onImport,
 	shareLink,
 	onShareLinkCopy,
+	host,
+	onLeave,
 	className,
 	...sessionProps
 }: SpaceSettingsDialogProps) => {
 	const { t } = useTranslation("settings")
+	const { t: tCommon } = useTranslation("common")
 	const spaceName = value.name.trim() || t("space.untitled")
 	const { pages, sessions } = usePluginSessions({
 		...sessionProps,
@@ -136,11 +142,15 @@ const SpaceSettingsDialog = ({
 			tab={tab ?? FIRST_TAB}
 		>
 			<SettingsScrollingPanel value={FIRST_TAB}>
-				<SpaceFields onValueChange={onValueChange} value={value} />
-				{shareLink === undefined ? null : (
+				{host === undefined ? (
+					<SpaceFields onValueChange={onValueChange} value={value} />
+				) : (
+					<JoinedSpaceFields host={host} name={spaceName} />
+				)}
+				{host !== undefined || shareLink === undefined ? null : (
 					<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
 				)}
-				{onExport || onImport ? (
+				{host === undefined && (onExport || onImport) ? (
 					<div className="flex flex-wrap gap-2" data-slot="space-transfer">
 						{onExport ? (
 							<Button onClick={onExport} size="sm" variant="outline">
@@ -179,15 +189,25 @@ const SpaceSettingsDialog = ({
 			</SettingsScrollingPanel>
 
 			<SettingsScrollingPanel value={DANGER_TAB}>
-				<DangerZone
-					confirmTitle={t("space.danger.confirm.title", {
-						name: spaceName,
-					})}
-					deleteLabel={t("space.danger.delete")}
-					description={t("space.danger.description")}
-					disabledReason={isDeletable ? undefined : t("space.danger.last")}
-					onDelete={onDelete}
-				/>
+				{host === undefined ? (
+					<DangerZone
+						confirmTitle={t("space.danger.confirm.title", {
+							name: spaceName,
+						})}
+						deleteLabel={t("space.danger.delete")}
+						description={t("space.danger.description")}
+						disabledReason={isDeletable ? undefined : t("space.danger.last")}
+						onDelete={onDelete}
+					/>
+				) : (
+					<DangerZone
+						confirmTitle={tCommon("spaces.leave.title", { name: spaceName })}
+						deleteLabel={tCommon("spaces.leave.action")}
+						description={tCommon("spaces.leave.description")}
+						icon="Leave"
+						onDelete={() => onLeave?.()}
+					/>
+				)}
 			</SettingsScrollingPanel>
 		</SettingsDialogShell>
 	)

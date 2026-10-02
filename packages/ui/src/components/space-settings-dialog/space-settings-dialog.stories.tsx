@@ -1,14 +1,20 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	glyphIn,
+	probedStyleOf,
+	slotIn,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
 import { BLOT_TINTS } from "@workspace/ui/components/bot-settings"
+import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
 import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import { SPACE_ENVIRONMENT } from "@workspace/ui/components/environment.fixtures"
+import { Icons } from "@workspace/ui/components/icons"
 import {
 	HISTORY_DAYS,
 	HISTORY_OLDEST_DATE,
@@ -19,6 +25,7 @@ import {
 	type SpaceSettingsDialogProps,
 	type SpaceSettingsValue,
 } from "@workspace/ui/components/space-settings-dialog"
+import { JoinedSpaceFields } from "@workspace/ui/components/space-settings-dialog/joined-space-fields"
 import { SHARE_LINK } from "@workspace/ui/components/space-settings-dialog/share-link.fixtures"
 
 const FILLED_SPACE: SpaceSettingsValue = {
@@ -440,5 +447,196 @@ export const LastSpace = meta.story({
 		fireEvent.click(trigger)
 		await expect(screen.queryByRole("alertdialog")).toBe(null)
 		await expect(args.onDelete).not.toHaveBeenCalled()
+	},
+})
+
+const JOINED_SPACE: SpaceSettingsValue = { name: "Northwind" }
+
+const JOINED_HOST = "http://192.168.1.24:45367"
+
+const JOINED_HINT =
+	"This space lives on another Kiroshi. Its name is set there."
+
+const LEAVE_DESCRIPTION =
+	"Nothing is deleted on the host. You can join again with its link."
+
+const RAIL = [
+	"Space",
+	"Secrets",
+	"Skills",
+	"Applications",
+	"History",
+	"Danger zone",
+]
+
+const JOINED_ARGS = {
+	value: JOINED_SPACE,
+	host: JOINED_HOST,
+	onLeave: fn(),
+	shareLink: SHARE_LINK,
+	onShareLinkCopy: fn(),
+	onExport: fn(),
+	onImport: fn(),
+}
+
+const leaveIn = async (dialog: HTMLElement) => {
+	await within(dialog).findByRole("tab", { name: "Danger zone" })
+	const panel = await within(dialog).findByRole("tabpanel", {
+		name: "Danger zone",
+	})
+	return within(panel).getByRole("button", { name: "Leave space" })
+}
+
+const leaveConfirmation = async () => {
+	const popup = await screen.findByRole("alertdialog")
+	await waitFor(() => expect(popup).toBeVisible())
+	return popup
+}
+
+export const JoinedSpace = meta.story({
+	args: JOINED_ARGS,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The space tab of a space joined from another Kiroshi, artboard J10. It lives on the host, so its name and the host it lives on are read-only here, the host carrying why. It has no colour, no share link and nothing to export or import, even when the app passes them. The rail is the local one, entry for entry. Pick `JoinedDanger` for the way out, `JoinedThemes` for both panels in light and dark.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const dialog = await dialogIn()
+		await expect(
+			within(dialog)
+				.getAllByRole("tab")
+				.map((tab) => tab.textContent),
+		).toEqual(RAIL)
+
+		const name = within(dialog).getByLabelText("Name")
+		await expect(name).toHaveValue("Northwind")
+		await expect(name).toHaveAttribute("readonly")
+		await userEvent.type(name, "!")
+		await expect(name).toHaveValue("Northwind")
+		await expect(args.onValueChange).not.toHaveBeenCalled()
+
+		const host = within(dialog).getByLabelText("Host")
+		await expect(host).toHaveValue(JOINED_HOST)
+		await expect(host).toHaveAttribute("readonly")
+		await expect(host).toHaveAccessibleDescription(JOINED_HINT)
+
+		await expect(within(dialog).queryByRole("radio")).toBe(null)
+		await expect(within(dialog).queryByText("Colour")).toBe(null)
+		await expect(within(dialog).queryByLabelText("Share link")).toBe(null)
+		await expect(
+			within(dialog).queryByRole("button", { name: "Export this space" }),
+		).toBe(null)
+		await expect(
+			within(dialog).queryByRole("button", { name: "Import a space" }),
+		).toBe(null)
+	},
+})
+
+export const JoinedDanger = meta.story({
+	args: { ...JOINED_ARGS, tab: "danger" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The danger zone of a joined space, artboard J12: one block on the geometry of the local Delete block, saying what leaving keeps on the host, and a destructive Leave space button led by the leave glyph. There is no Delete block, the space is not this machine's to delete. Pressing it asks J4, naming the space, Cancel first. Check that cancelling reports nothing and that confirming reports `onLeave` once. Pick `Danger` for the local space.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const dialog = await dialogIn()
+		const leave = await leaveIn(dialog)
+		const panel = within(dialog).getByRole("tabpanel", { name: "Danger zone" })
+
+		await expect(
+			within(panel).queryByRole("button", { name: "Delete space" }),
+		).toBe(null)
+		await expect(panel).toHaveTextContent(LEAVE_DESCRIPTION)
+		await expect(glyphIn(leave, Icons.Leave)).not.toBe(null)
+
+		await userEvent.click(leave)
+		const asked = await leaveConfirmation()
+		await expect(
+			within(asked).getByRole("heading", { name: "Leave Northwind?" }),
+		).toBeVisible()
+		await expect(asked).toHaveTextContent(LEAVE_DESCRIPTION)
+		await expect(
+			within(asked)
+				.getAllByRole("button")
+				.map((button) => button.textContent),
+		).toEqual(["Cancel", "Leave space"])
+
+		await userEvent.click(within(asked).getByRole("button", { name: "Cancel" }))
+		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
+		await expect(args.onLeave).not.toHaveBeenCalled()
+
+		await userEvent.click(leave)
+		const confirmed = await leaveConfirmation()
+		await userEvent.click(
+			within(confirmed).getByRole("button", { name: "Leave space" }),
+		)
+		await expect(args.onLeave).toHaveBeenCalledOnce()
+		await expect(args.onDelete).not.toHaveBeenCalled()
+	},
+})
+
+const JoinedPanels = () => {
+	const { t } = useTranslation("common")
+
+	return (
+		<div className="flex flex-col gap-5">
+			<JoinedSpaceFields host={JOINED_HOST} name={JOINED_SPACE.name} />
+			<DangerZone
+				confirmTitle={t("spaces.leave.title", { name: JOINED_SPACE.name })}
+				deleteLabel={t("spaces.leave.action")}
+				description={t("spaces.leave.description")}
+				icon="Leave"
+				onDelete={fn()}
+			/>
+		</div>
+	)
+}
+
+export const JoinedThemes = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Both joined panels, the Space tab over the Danger zone, in light and dark side by side as artboard J11 lays them. Each read-only control keeps the box of an editable field, a 1px `input` outline at 14px / 20px inside 8px block and 12px inline padding, with the `muted` fill dropped. The hint sits under Host at 12px / 16px in `muted-foreground`.",
+			},
+		},
+	},
+	render: () => <JoinedPanels />,
+	play: async ({ canvasElement }) => {
+		const columns = slotsIn(canvasElement, "joined-space-fields")
+		await expect(columns).toHaveLength(2)
+
+		for (const fields of columns) {
+			const theme = fields.parentElement?.parentElement ?? canvasElement
+			for (const control of fields.querySelectorAll("input")) {
+				const style = getComputedStyle(control)
+				await expect(style.borderTopWidth).toBe("1px")
+				await expect(style.borderTopColor).toBe(
+					probedStyleOf("border-input", "borderTopColor", theme),
+				)
+				await expect(style.paddingBlockStart).toBe("8px")
+				await expect(style.paddingInlineStart).toBe("12px")
+				await expect(style.fontSize).toBe("14px")
+				await expect(style.lineHeight).toBe("20px")
+				await expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)")
+			}
+
+			const hint = within(fields).getByText(JOINED_HINT)
+			await expect(getComputedStyle(hint).fontSize).toBe("12px")
+			await expect(getComputedStyle(hint).lineHeight).toBe("16px")
+
+			const zone = slotIn(theme, "danger-zone")
+			await expect(
+				within(zone).getByRole("button", { name: "Leave space" }),
+			).toBeEnabled()
+		}
 	},
 })
