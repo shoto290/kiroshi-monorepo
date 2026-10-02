@@ -19,7 +19,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The one action a settings panel cannot undo, kept behind a question — the same group a companion, a conversation and a space all end on. It states what leaves before the reader presses anything, then names the thing again in the confirmation, so a reader who opened the wrong settings finds out there rather than after. The destructive tone is carried by a hairline border rather than a fill, so the group reads as serious without shouting over the panel above it. It carries no copy of its own: the heading, the sentence and the confirmation title all arrive as props, which is what lets one group serve every panel. The question is its own — the group opens and closes it, and `onDelete` fires only on the second press. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
+					"The one action a settings panel cannot undo, kept behind a question — the same group a companion, a conversation and a space all end on. It states what leaves before the reader presses anything, then names the thing again in the confirmation, so a reader who opened the wrong settings finds out there rather than after. The destructive tone is carried by a hairline border rather than a fill, so the group reads as serious without shouting over the panel above it. It carries no copy of its own: the heading, the sentence and the confirmation title all arrive as props, which is what lets one group serve every panel. The question is its own — the group opens and closes it, and `onConfirm` fires only on the second press. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
 			},
 		},
 	},
@@ -31,11 +31,11 @@ const meta = preview.meta({
 		),
 	],
 	args: {
-		deleteLabel: "Delete companion",
+		actionLabel: "Delete companion",
 		description:
 			"Its avatar, instructions and working directory go with it. This cannot be undone.",
 		confirmTitle: "Delete Nest Keeper?",
-		onDelete: fn(),
+		onConfirm: fn(),
 	},
 	argTypes: {
 		defaultConfirming: { control: false },
@@ -47,7 +47,7 @@ export const Playground = meta.story({
 		docs: {
 			description: {
 				story:
-					"Knob story for the group. Change `deleteLabel` and check that it reaches the heading, the trigger and the confirmation's own button at once — they are one word by design, so the reader agrees to exactly what they pressed. `confirmTitle` is separate because only the question names the thing. Pick `Confirming` for the group mounted with the question already up: `defaultConfirming` is read once, as the group mounts, so it is not a knob to flip here.",
+					"Knob story for the group. Change `actionLabel` and check that it reaches the heading, the trigger and the confirmation's own button at once — they are one word by design, so the reader agrees to exactly what they pressed. `confirmTitle` is separate because only the question names the thing. Pick `Confirming` for the group mounted with the question already up: `defaultConfirming` is read once, as the group mounts, so it is not a knob to flip here.",
 			},
 		},
 	},
@@ -87,7 +87,7 @@ export const Confirming = meta.story({
 
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
-		await expect(args.onDelete).not.toHaveBeenCalled()
+		await expect(args.onConfirm).not.toHaveBeenCalled()
 	},
 })
 
@@ -109,7 +109,7 @@ export const Cancelled = meta.story({
 		await userEvent.click(within(popup).getByRole("button", { name: "Cancel" }))
 
 		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
-		await expect(args.onDelete).not.toHaveBeenCalled()
+		await expect(args.onConfirm).not.toHaveBeenCalled()
 		await expect(
 			canvas.getByRole("button", { name: "Delete companion" }),
 		).toBeVisible()
@@ -121,7 +121,7 @@ export const Deleted = meta.story({
 		docs: {
 			description: {
 				story:
-					"The accepted path, and the only one that reports anything. The second press closes the question and fires `onDelete` once — the group deletes nothing itself, it only says the reader agreed, which leaves the screen free to close the settings, undo, or fail loudly. Check that the count is exactly one however fast the button is pressed.",
+					"The accepted path, and the only one that reports anything. The second press closes the question and fires `onConfirm` once — the group deletes nothing itself, it only says the reader agreed, which leaves the screen free to close the settings, undo, or fail loudly. Check that the count is exactly one however fast the button is pressed.",
 			},
 		},
 	},
@@ -136,13 +136,13 @@ export const Deleted = meta.story({
 		)
 
 		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
-		await expect(args.onDelete).toHaveBeenCalledTimes(1)
+		await expect(args.onConfirm).toHaveBeenCalledTimes(1)
 	},
 })
 
 export const Inert = meta.story({
 	args: {
-		deleteLabel: "Delete space",
+		actionLabel: "Delete space",
 		confirmTitle: "Delete Release desk?",
 		disabledReason: "You can’t delete your last space.",
 	},
@@ -158,6 +158,6 @@ export const Inert = meta.story({
 		await expect(
 			canvas.getByRole("button", { name: "Delete space" }),
 		).toBeDisabled()
-		await expect(args.onDelete).not.toHaveBeenCalled()
+		await expect(args.onConfirm).not.toHaveBeenCalled()
 	},
 })

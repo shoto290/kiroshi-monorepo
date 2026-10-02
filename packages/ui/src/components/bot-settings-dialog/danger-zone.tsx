@@ -6,20 +6,20 @@ import { DANGER_BLOCK_CLASS } from "@workspace/ui/components/settings-styles"
 import { buttonVariants } from "@workspace/ui/components/ui/button"
 
 type DangerZoneProps = {
-	deleteLabel: string
+	actionLabel: string
 	description: string
 	confirmTitle: string
-	onDelete: () => void
+	onConfirm: () => void
 	disabledReason?: string
 	defaultConfirming?: boolean
 	icon?: keyof typeof Icons
 }
 
 const DangerZone = ({
-	deleteLabel,
+	actionLabel,
 	description,
 	confirmTitle,
-	onDelete,
+	onConfirm,
 	disabledReason,
 	defaultConfirming,
 	icon = "Delete",
@@ -30,23 +30,23 @@ const DangerZone = ({
 		<div className={DANGER_BLOCK_CLASS} data-slot="danger-zone">
 			<div className="flex flex-col gap-1">
 				<span className="font-medium text-destructive text-sm">
-					{deleteLabel}
+					{actionLabel}
 				</span>
 				<p className="text-muted-foreground text-sm">
 					{disabledReason ?? description}
 				</p>
 			</div>
 			<ConfirmDialog
-				confirmLabel={deleteLabel}
+				confirmLabel={actionLabel}
 				defaultOpen={defaultConfirming}
 				description={description}
 				isTriggerDisabled={Boolean(disabledReason)}
-				onConfirm={onDelete}
+				onConfirm={onConfirm}
 				title={confirmTitle}
 				trigger={
 					<>
 						<Glyph aria-hidden="true" className="size-3.5" />
-						{deleteLabel}
+						{actionLabel}
 					</>
 				}
 				triggerClassName={buttonVariants({

@@ -32,6 +32,28 @@ const FIRST_TAB = "space"
 
 const DANGER_TAB = "danger"
 
+type LocalSpace = {
+	host?: never
+	onLeave?: never
+	onDelete: () => void
+	isDeletable?: boolean
+	onExport?: () => void
+	onImport?: () => void
+	shareLink?: string | null
+	onShareLinkCopy?: () => void
+}
+
+type JoinedSpace = {
+	host: string
+	onLeave: () => void
+	onDelete?: never
+	isDeletable?: never
+	onExport?: never
+	onImport?: never
+	shareLink?: never
+	onShareLinkCopy?: never
+}
+
 type SpaceSettingsDialogProps = PluginSessionsProps & {
 	open: boolean
 	onClose: () => void
@@ -43,16 +65,8 @@ type SpaceSettingsDialogProps = PluginSessionsProps & {
 	onEnvironmentDelete: (name: string) => void | Promise<void>
 	tab?: string
 	history: PluginHistory
-	onDelete: () => void
-	isDeletable?: boolean
-	onExport?: () => void
-	onImport?: () => void
-	shareLink?: string | null
-	onShareLinkCopy?: () => void
-	host?: string
-	onLeave?: () => void
 	className?: string
-}
+} & (LocalSpace | JoinedSpace)
 
 const SpaceSettingsDialog = ({
 	open,
@@ -196,18 +210,18 @@ const SpaceSettingsDialog = ({
 						confirmTitle={t("space.danger.confirm.title", {
 							name: spaceName,
 						})}
-						deleteLabel={t("space.danger.delete")}
+						actionLabel={t("space.danger.delete")}
 						description={t("space.danger.description")}
 						disabledReason={isDeletable ? undefined : t("space.danger.last")}
-						onDelete={onDelete}
+						onConfirm={onDelete}
 					/>
 				) : (
 					<DangerZone
 						confirmTitle={tCommon("spaces.leave.title", { name: spaceName })}
-						deleteLabel={tCommon("spaces.leave.action")}
+						actionLabel={tCommon("spaces.leave.action")}
 						description={tCommon("spaces.leave.description")}
 						icon="Leave"
-						onDelete={() => onLeave?.()}
+						onConfirm={onLeave}
 					/>
 				)}
 			</SettingsScrollingPanel>

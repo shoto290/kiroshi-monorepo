@@ -136,9 +136,9 @@ const ConversationSettingsDialog = ({
 					confirmTitle={t("conversationSettings.danger.confirm.title", {
 						name: conversationName,
 					})}
-					deleteLabel={t("conversationSettings.danger.delete")}
+					actionLabel={t("conversationSettings.danger.delete")}
 					description={t("conversationSettings.danger.description")}
-					onDelete={onDelete}
+					onConfirm={onDelete}
 				/>
 			</SettingsScrollingPanel>
 		</SettingsDialogShell>

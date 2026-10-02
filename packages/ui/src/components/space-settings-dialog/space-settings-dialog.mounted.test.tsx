@@ -32,7 +32,9 @@ const SERVER_ENVIRONMENT_SECTION = {
 	onDelete: vi.fn(),
 }
 
-const spaceDialog = (overrides: Partial<SpaceSettingsDialogProps> = {}) =>
+const spaceDialog = (
+	overrides: Partial<Omit<SpaceSettingsDialogProps, "host" | "onLeave">> = {},
+) =>
 	render(
 		<SpaceSettingsDialog
 			environment={SPACE_ENVIRONMENT}

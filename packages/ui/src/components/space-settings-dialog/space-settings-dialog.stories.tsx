@@ -473,10 +473,7 @@ const JOINED_ARGS = {
 	value: JOINED_SPACE,
 	host: JOINED_HOST,
 	onLeave: fn(),
-	shareLink: SHARE_LINK,
-	onShareLinkCopy: fn(),
-	onExport: fn(),
-	onImport: fn(),
+	onDelete: undefined,
 }
 
 const leaveIn = async (dialog: HTMLElement) => {
@@ -499,7 +496,7 @@ export const JoinedSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The space tab of a space joined from another Kiroshi, artboard J10. It lives on the host, so its name and the host it lives on are read-only here, the host carrying why. It has no colour, no share link and nothing to export or import, even when the app passes them. The rail is the local one, entry for entry. Pick `JoinedDanger` for the way out, `JoinedThemes` for both panels in light and dark.",
+					"The space tab of a space joined from another Kiroshi, artboard J10. It lives on the host, so its name and the host it lives on are read-only here, the host carrying why. It has no colour, no share link and nothing to export or import: the props type refuses them once a host is set. The rail is the local one, entry for entry. Pick `JoinedDanger` for the way out, `JoinedThemes` for both panels in light and dark.",
 			},
 		},
 	},
@@ -578,7 +575,6 @@ export const JoinedDanger = meta.story({
 			within(confirmed).getByRole("button", { name: "Leave space" }),
 		)
 		await expect(args.onLeave).toHaveBeenCalledOnce()
-		await expect(args.onDelete).not.toHaveBeenCalled()
 	},
 })
 
@@ -590,10 +586,10 @@ const JoinedPanels = () => {
 			<JoinedSpaceFields host={JOINED_HOST} name={JOINED_SPACE.name} />
 			<DangerZone
 				confirmTitle={t("spaces.leave.title", { name: JOINED_SPACE.name })}
-				deleteLabel={t("spaces.leave.action")}
+				actionLabel={t("spaces.leave.action")}
 				description={t("spaces.leave.description")}
 				icon="Leave"
-				onDelete={fn()}
+				onConfirm={fn()}
 			/>
 		</div>
 	)
