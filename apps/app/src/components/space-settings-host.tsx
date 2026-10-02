@@ -50,6 +50,15 @@ export const SpaceSettingsHost = ({
 		spaces.controller.setSettingsOpen(false)
 	}
 
+	const closeIfDeleted = (spaceId: string) => {
+		const isStillHeld = spaces.controller
+			.getState()
+			.spaces.some((space) => space.id === spaceId)
+		if (!isStillHeld) {
+			close()
+		}
+	}
+
 	const sharedProps = {
 		environment: toEnvironmentRows(spaceEnvironment.state.entries),
 		hasEnvironmentFailedToRead: spaceEnvironment.state.hasFailedToRead,
@@ -88,7 +97,9 @@ export const SpaceSettingsHost = ({
 				{...sharedProps}
 				isDeletable={spaces.state.spaces.length > 1}
 				onDelete={() => {
-					void spaces.controller.remove(selectedSpace.id)
+					void spaces.controller
+						.remove(selectedSpace.id)
+						.then(() => closeIfDeleted(selectedSpace.id))
 				}}
 				onExport={() => {
 					void spaces.controller.exportSpace(selectedSpace.id)

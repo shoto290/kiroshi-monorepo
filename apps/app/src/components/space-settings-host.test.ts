@@ -146,6 +146,20 @@ const confirmLeave = async (dialog: HTMLElement) => {
 	})
 }
 
+const confirmDelete = async (dialog: HTMLElement) => {
+	const deleteAction = i18n.t("settings:space.danger.delete")
+	fireEvent.click(
+		within(dialog).getByRole("tab", { name: i18n.t("settings:rail.danger") }),
+	)
+	fireEvent.click(
+		await within(dialog).findByRole("button", { name: deleteAction }),
+	)
+	const confirm = await screen.findByRole("alertdialog")
+	await act(async () => {
+		fireEvent.click(within(confirm).getByRole("button", { name: deleteAction }))
+	})
+}
+
 afterEach(() => {
 	cleanup()
 })
@@ -229,6 +243,26 @@ describe("SpaceSettingsHost on a local space", () => {
 		expect(
 			within(dialog).getByRole("button", {
 				name: i18n.t("settings:space.transfer.export"),
+			}),
+		).toBeTruthy()
+	})
+
+	it("resets the settings tab once the space is deleted, so the next Settings opens on the first tab", async () => {
+		const gear = await gearWithGarage()
+		await gear.spaces.create()
+		const dialog = openSettingsOf(gear, gear.home.id, APPLICATIONS_TAB)
+
+		await confirmDelete(dialog)
+		await waitFor(() =>
+			expect(screen.queryByRole("dialog", { hidden: true })).toBeNull(),
+		)
+		act(() => gear.spaces.setSettingsOpen(true))
+
+		const reopened = await screen.findByRole("dialog")
+		expect(
+			within(reopened).getByRole("tab", {
+				name: i18n.t("settings:rail.space"),
+				selected: true,
 			}),
 		).toBeTruthy()
 	})
