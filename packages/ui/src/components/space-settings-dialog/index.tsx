@@ -22,6 +22,7 @@ import {
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
+import { JoinedSpaceFields } from "@workspace/ui/components/space-settings-dialog/joined-space-fields"
 import { ShareLink } from "@workspace/ui/components/space-settings-dialog/share-link"
 import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/space-fields"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
@@ -30,6 +31,28 @@ import { Button } from "@workspace/ui/components/ui/button"
 const FIRST_TAB = "space"
 
 const DANGER_TAB = "danger"
+
+type LocalSpace = {
+	host?: never
+	onLeave?: never
+	onDelete: () => void
+	isDeletable?: boolean
+	onExport?: () => void
+	onImport?: () => void
+	shareLink?: string | null
+	onShareLinkCopy?: () => void
+}
+
+type JoinedSpace = {
+	host: string
+	onLeave: () => void
+	onDelete?: never
+	isDeletable?: never
+	onExport?: never
+	onImport?: never
+	shareLink?: never
+	onShareLinkCopy?: never
+}
 
 type SpaceSettingsDialogProps = PluginSessionsProps & {
 	open: boolean
@@ -42,14 +65,8 @@ type SpaceSettingsDialogProps = PluginSessionsProps & {
 	onEnvironmentDelete: (name: string) => void | Promise<void>
 	tab?: string
 	history: PluginHistory
-	onDelete: () => void
-	isDeletable?: boolean
-	onExport?: () => void
-	onImport?: () => void
-	shareLink?: string | null
-	onShareLinkCopy?: () => void
 	className?: string
-}
+} & (LocalSpace | JoinedSpace)
 
 const SpaceSettingsDialog = ({
 	open,
@@ -68,10 +85,13 @@ const SpaceSettingsDialog = ({
 	onImport,
 	shareLink,
 	onShareLinkCopy,
+	host,
+	onLeave,
 	className,
 	...sessionProps
 }: SpaceSettingsDialogProps) => {
 	const { t } = useTranslation("settings")
+	const { t: tCommon } = useTranslation("common")
 	const spaceName = value.name.trim() || t("space.untitled")
 	const { pages, sessions } = usePluginSessions({
 		...sessionProps,
@@ -136,24 +156,30 @@ const SpaceSettingsDialog = ({
 			tab={tab ?? FIRST_TAB}
 		>
 			<SettingsScrollingPanel value={FIRST_TAB}>
-				<SpaceFields onValueChange={onValueChange} value={value} />
-				{shareLink === undefined ? null : (
-					<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
+				{host === undefined ? (
+					<>
+						<SpaceFields onValueChange={onValueChange} value={value} />
+						{shareLink === undefined ? null : (
+							<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
+						)}
+						{onExport || onImport ? (
+							<div className="flex flex-wrap gap-2" data-slot="space-transfer">
+								{onExport ? (
+									<Button onClick={onExport} size="sm" variant="outline">
+										{t("space.transfer.export")}
+									</Button>
+								) : null}
+								{onImport ? (
+									<Button onClick={onImport} size="sm" variant="outline">
+										{t("space.transfer.import")}
+									</Button>
+								) : null}
+							</div>
+						) : null}
+					</>
+				) : (
+					<JoinedSpaceFields host={host} name={spaceName} />
 				)}
-				{onExport || onImport ? (
-					<div className="flex flex-wrap gap-2" data-slot="space-transfer">
-						{onExport ? (
-							<Button onClick={onExport} size="sm" variant="outline">
-								{t("space.transfer.export")}
-							</Button>
-						) : null}
-						{onImport ? (
-							<Button onClick={onImport} size="sm" variant="outline">
-								{t("space.transfer.import")}
-							</Button>
-						) : null}
-					</div>
-				) : null}
 			</SettingsScrollingPanel>
 
 			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="environment">
@@ -179,15 +205,25 @@ const SpaceSettingsDialog = ({
 			</SettingsScrollingPanel>
 
 			<SettingsScrollingPanel value={DANGER_TAB}>
-				<DangerZone
-					confirmTitle={t("space.danger.confirm.title", {
-						name: spaceName,
-					})}
-					deleteLabel={t("space.danger.delete")}
-					description={t("space.danger.description")}
-					disabledReason={isDeletable ? undefined : t("space.danger.last")}
-					onDelete={onDelete}
-				/>
+				{host === undefined ? (
+					<DangerZone
+						confirmTitle={t("space.danger.confirm.title", {
+							name: spaceName,
+						})}
+						actionLabel={t("space.danger.delete")}
+						description={t("space.danger.description")}
+						disabledReason={isDeletable ? undefined : t("space.danger.last")}
+						onConfirm={onDelete}
+					/>
+				) : (
+					<DangerZone
+						confirmTitle={tCommon("spaces.leave.title", { name: spaceName })}
+						actionLabel={tCommon("spaces.leave.action")}
+						description={tCommon("spaces.leave.description")}
+						icon="Leave"
+						onConfirm={onLeave}
+					/>
+				)}
 			</SettingsScrollingPanel>
 		</SettingsDialogShell>
 	)

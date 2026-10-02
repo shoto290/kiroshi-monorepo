@@ -6,50 +6,56 @@ import { DANGER_BLOCK_CLASS } from "@workspace/ui/components/settings-styles"
 import { buttonVariants } from "@workspace/ui/components/ui/button"
 
 type DangerZoneProps = {
-	deleteLabel: string
+	actionLabel: string
 	description: string
 	confirmTitle: string
-	onDelete: () => void
+	onConfirm: () => void
 	disabledReason?: string
 	defaultConfirming?: boolean
+	icon?: keyof typeof Icons
 }
 
 const DangerZone = ({
-	deleteLabel,
+	actionLabel,
 	description,
 	confirmTitle,
-	onDelete,
+	onConfirm,
 	disabledReason,
 	defaultConfirming,
-}: DangerZoneProps) => (
-	<div className={DANGER_BLOCK_CLASS} data-slot="danger-zone">
-		<div className="flex flex-col gap-1">
-			<span className="font-medium text-destructive text-sm">
-				{deleteLabel}
-			</span>
-			<p className="text-muted-foreground text-sm">
-				{disabledReason ?? description}
-			</p>
+	icon = "Delete",
+}: DangerZoneProps) => {
+	const Glyph = Icons[icon]
+
+	return (
+		<div className={DANGER_BLOCK_CLASS} data-slot="danger-zone">
+			<div className="flex flex-col gap-1">
+				<span className="font-medium text-destructive text-sm">
+					{actionLabel}
+				</span>
+				<p className="text-muted-foreground text-sm">
+					{disabledReason ?? description}
+				</p>
+			</div>
+			<ConfirmDialog
+				confirmLabel={actionLabel}
+				defaultOpen={defaultConfirming}
+				description={description}
+				isTriggerDisabled={Boolean(disabledReason)}
+				onConfirm={onConfirm}
+				title={confirmTitle}
+				trigger={
+					<>
+						<Glyph aria-hidden="true" className="size-3.5" />
+						{actionLabel}
+					</>
+				}
+				triggerClassName={buttonVariants({
+					variant: "destructive",
+					size: "sm",
+				})}
+			/>
 		</div>
-		<ConfirmDialog
-			confirmLabel={deleteLabel}
-			defaultOpen={defaultConfirming}
-			description={description}
-			isTriggerDisabled={Boolean(disabledReason)}
-			onConfirm={onDelete}
-			title={confirmTitle}
-			trigger={
-				<>
-					<Icons.Delete aria-hidden="true" className="size-3.5" />
-					{deleteLabel}
-				</>
-			}
-			triggerClassName={buttonVariants({
-				variant: "destructive",
-				size: "sm",
-			})}
-		/>
-	</div>
-)
+	)
+}
 
 export { DangerZone }
