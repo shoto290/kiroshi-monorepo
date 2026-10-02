@@ -1,7 +1,10 @@
+import type { EnvironmentWrite } from "@workspace/ui/components/environment-panel"
+import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
 import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
 
 import { toEnvironmentRows } from "@/lib/environment/environment-rows"
 import { useShareLink } from "@/lib/host/use-share-link"
+import { joinedSpaceOfRow } from "@/lib/spaces/joined-spaces-controller"
 import { toSpaceSettingsValue } from "@/lib/spaces/space-settings"
 import type { ApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import type { SettingsPanels } from "@/lib/workspace/use-settings-panels"
@@ -18,12 +21,13 @@ export const SpaceSettingsHost = ({
 	panels,
 	scopes,
 }: SpaceSettingsHostProps) => {
-	const { spaceEnvironment, spaceMcpServers, spaces } = core
+	const { joinedSpaces, spaceEnvironment, spaceMcpServers, spaces } = core
 	const { applicationToOpenOn, closeSettingsTab, spaceHistory, spaceSkills } =
 		panels
 	const {
 		isSpaceEditing,
 		selectedSpace,
+		selectedSpaceId,
 		serverEnvironmentSection,
 		setOpenedMcpServer,
 		settingsTab,
@@ -32,56 +36,76 @@ export const SpaceSettingsHost = ({
 	const shareLink = useShareLink(
 		isSpaceEditing ? (selectedSpace?.id ?? null) : null,
 	)
+	const joinedSpace = joinedSpaceOfRow(
+		joinedSpaces.state.joinedSpaces,
+		selectedSpaceId,
+	)
 
-	return selectedSpace ? (
+	if (!selectedSpaceId) {
+		return null
+	}
+
+	const sharedProps = {
+		environment: toEnvironmentRows(spaceEnvironment.state.entries),
+		hasEnvironmentFailedToRead: spaceEnvironment.state.hasFailedToRead,
+		haveMcpServersFailedToLoad: spaceMcpServers.state.hasFailedToLoad,
+		...spaceApplications,
+		mcpServerToOpen: applicationToOpenOn({
+			kind: "space",
+			id: selectedSpaceId,
+		}),
+		tab: settingsTab,
+		onMcpServerOpen: (name: string | null) =>
+			setOpenedMcpServer(
+				name
+					? {
+							kind: "server",
+							name,
+							owner: { kind: "space", id: selectedSpaceId },
+						}
+					: null,
+			),
+		serverEnvironment: serverEnvironmentSection,
+		history: spaceHistory,
+		onClose: () => {
+			closeSettingsTab()
+			spaces.controller.setSettingsOpen(false)
+		},
+		onEnvironmentDelete: spaceEnvironment.controller.remove,
+		onEnvironmentSet: ({ name, value }: EnvironmentWrite) =>
+			spaceEnvironment.controller.set(name, value),
+		onValueChange: (value: SpaceSettingsValue) =>
+			spaces.controller.describe(selectedSpaceId, value),
+		open: isSpaceEditing,
+		...spaceSkills,
+	}
+
+	if (selectedSpace) {
+		return (
+			<SpaceSettingsDialog
+				{...sharedProps}
+				isDeletable={spaces.state.spaces.length > 1}
+				onDelete={() => {
+					void spaces.controller.remove(selectedSpace.id)
+				}}
+				onExport={() => {
+					void spaces.controller.exportSpace(selectedSpace.id)
+				}}
+				onImport={() => {
+					void spaces.controller.importSpace()
+				}}
+				shareLink={shareLink}
+				value={toSpaceSettingsValue(selectedSpace)}
+			/>
+		)
+	}
+
+	return joinedSpace ? (
 		<SpaceSettingsDialog
-			environment={toEnvironmentRows(spaceEnvironment.state.entries)}
-			hasEnvironmentFailedToRead={spaceEnvironment.state.hasFailedToRead}
-			haveMcpServersFailedToLoad={spaceMcpServers.state.hasFailedToLoad}
-			{...spaceApplications}
-			mcpServerToOpen={applicationToOpenOn({
-				kind: "space",
-				id: selectedSpace.id,
-			})}
-			tab={settingsTab}
-			onMcpServerOpen={(name) =>
-				setOpenedMcpServer(
-					name
-						? {
-								kind: "server",
-								name,
-								owner: { kind: "space", id: selectedSpace.id },
-							}
-						: null,
-				)
-			}
-			serverEnvironment={serverEnvironmentSection}
-			history={spaceHistory}
-			isDeletable={spaces.state.spaces.length > 1}
-			onClose={() => {
-				closeSettingsTab()
-				spaces.controller.setSettingsOpen(false)
-			}}
-			onDelete={() => {
-				void spaces.controller.remove(selectedSpace.id)
-			}}
-			onExport={() => {
-				void spaces.controller.exportSpace(selectedSpace.id)
-			}}
-			onImport={() => {
-				void spaces.controller.importSpace()
-			}}
-			onEnvironmentDelete={spaceEnvironment.controller.remove}
-			onEnvironmentSet={({ name, value }) =>
-				spaceEnvironment.controller.set(name, value)
-			}
-			onValueChange={(value) =>
-				spaces.controller.describe(selectedSpace.id, value)
-			}
-			open={isSpaceEditing}
-			shareLink={shareLink}
-			{...spaceSkills}
-			value={toSpaceSettingsValue(selectedSpace)}
+			{...sharedProps}
+			host={joinedSpace.hostUrl}
+			onLeave={() => joinedSpaces.controller.leave(joinedSpace.id)}
+			value={{ name: joinedSpace.name }}
 		/>
 	) : null
 }
