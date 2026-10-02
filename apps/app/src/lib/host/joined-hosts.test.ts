@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 import type { HostSocket } from "./http"
 import {
 	createJoinedHosts,
+	JOINED_SPACE_CHANGED_EVENT,
 	type JoinedHostsOptions,
 	LOCAL_COMMANDS,
 } from "./joined-hosts"
@@ -59,6 +60,7 @@ const joinedHostsOf = ({ join }: Seed = {}) => {
 	const sockets: ReturnType<typeof socketStub>[] = []
 	const socketUrls: string[] = []
 	const reportFailure = vi.fn()
+	const reportHostDown = vi.fn()
 	const joinSpy = vi.fn(join ?? (async (id: string) => joinedConnection(id)))
 	const hosts = createJoinedHosts({
 		local,
@@ -71,6 +73,7 @@ const joinedHostsOf = ({ join }: Seed = {}) => {
 			return stub.socket
 		},
 		reportFailure,
+		reportHostDown,
 	})
 	return {
 		hosts,
@@ -80,6 +83,7 @@ const joinedHostsOf = ({ join }: Seed = {}) => {
 		sockets,
 		socketUrls,
 		reportFailure,
+		reportHostDown,
 		join: joinSpy,
 	}
 }
@@ -334,5 +338,80 @@ describe("listening across hosts", () => {
 
 		expect(localUnlisten).toHaveBeenCalledOnce()
 		expect(local.listen).toHaveBeenCalledOnce()
+	})
+})
+
+describe("a joined space event", () => {
+	it("stays on the local host while a joined host is active", async () => {
+		const { hosts, local } = joinedHostsOf()
+		await hosts.activate("garage")
+
+		await hosts.listen(JOINED_SPACE_CHANGED_EVENT, vi.fn())
+
+		expect(local.listen).toHaveBeenCalledWith(
+			JOINED_SPACE_CHANGED_EVENT,
+			expect.any(Function),
+		)
+	})
+})
+
+describe("a failing selected host", () => {
+	it("raises a notice when the active joined host goes down", async () => {
+		const { hosts, sockets, reportHostDown } = joinedHostsOf()
+		await hosts.activate("garage")
+
+		sockets[0]?.drop()
+
+		expect(hosts.getState().connections.garage).toEqual({ status: "down" })
+		expect(reportHostDown).toHaveBeenCalledOnce()
+	})
+
+	it("raises no notice when a joined host that is not selected goes down", async () => {
+		const { hosts, sockets, reportHostDown } = joinedHostsOf()
+		await hosts.connect("garage")
+
+		sockets[0]?.drop()
+
+		expect(hosts.getState().connections.garage).toEqual({ status: "down" })
+		expect(reportHostDown).not.toHaveBeenCalled()
+	})
+
+	it("raises a notice when an unreachable joined host is selected", async () => {
+		const { hosts, sockets, reportHostDown } = joinedHostsOf()
+		await hosts.connect("garage")
+		sockets[0]?.drop()
+
+		await hosts.activate("garage")
+
+		expect(reportHostDown).toHaveBeenCalledOnce()
+	})
+})
+
+describe("forgetting a joined host", () => {
+	it("closes its socket, drops its state and stops reconnecting", async () => {
+		vi.useFakeTimers()
+		const { hosts, sockets } = joinedHostsOf()
+		await hosts.connect("garage")
+		const closing = vi.spyOn(sockets[0]?.socket as HostSocket, "close")
+
+		hosts.forget("garage")
+		sockets[0]?.drop()
+		await vi.runAllTimersAsync()
+
+		expect(closing).toHaveBeenCalledOnce()
+		expect(hosts.getState().connections).toEqual({})
+		expect(sockets).toHaveLength(1)
+		vi.useRealTimers()
+	})
+
+	it("goes back to the local host when the forgotten host was active", async () => {
+		const { hosts, local } = joinedHostsOf()
+		await hosts.activate("garage")
+
+		hosts.forget("garage")
+		await hosts.invoke("bots")
+
+		expect(hosts.getState().active).toBeNull()
+		expect(local.invoke).toHaveBeenCalledWith("bots")
 	})
 })

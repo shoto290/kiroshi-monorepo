@@ -24,6 +24,7 @@ export type HttpHost = {
 	listen: <T>(event: string, handler: EventCallback<T>) => Promise<UnlistenFn>
 	fileSrc: (path: string) => string
 	openEvents: () => void
+	close: () => void
 }
 
 type Refusal = {
@@ -160,6 +161,7 @@ export const createHttpHost = ({
 	let socket: HostSocket | null = null
 	let failedAttempts = 0
 	let presence: Presence = "unknown"
+	let isClosed = false
 
 	const refuse = (reason: unknown, status?: number): never => {
 		onRefused(messageOf(reason), status)
@@ -218,6 +220,9 @@ export const createHttpHost = ({
 		opened.onopen = markUp
 		opened.onmessage = (message) => deliver(message.data)
 		opened.onclose = () => {
+			if (isClosed) {
+				return
+			}
 			markDown()
 			setTimeout(connect, reconnectDelay(failedAttempts))
 			failedAttempts += 1
@@ -259,7 +264,12 @@ export const createHttpHost = ({
 		return url.href
 	}
 
-	return { invoke, listen, fileSrc, openEvents }
+	const close = () => {
+		isClosed = true
+		socket?.close()
+	}
+
+	return { invoke, listen, fileSrc, openEvents, close }
 }
 
 export const bridgeGeneratedBindings = (host: HttpHost, target: object) => {

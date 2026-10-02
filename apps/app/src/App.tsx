@@ -14,6 +14,7 @@ import { ConversationSeatingContext } from "@/lib/conversations/use-conversation
 import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
 import { useCompanionSelectGuard } from "@/lib/sidebar/companion-select"
+import { useSwitcherSpaces } from "@/lib/spaces/use-joined-spaces"
 import { useApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import { useRosterLines } from "@/lib/workspace/use-roster-lines"
 import { useRosterLists } from "@/lib/workspace/use-roster-lists"
@@ -73,6 +74,11 @@ export function App() {
 		leaveMission: core.openedMission.leave,
 	})
 
+	const switcher = useSwitcherSpaces(
+		core.spaces.state.spaces,
+		core.joinedSpaces,
+	)
+
 	const { preferences, roster, spaces } = core
 
 	if (!rosterView.hasLoaded) {
@@ -118,7 +124,8 @@ export function App() {
 							rosterView.selectedConversationId ?? undefined
 						}
 						selectedSpaceId={scopes.selectedSpaceId ?? undefined}
-						spaces={spaces.state.spaces}
+						spaces={switcher.spaces}
+						remoteBySpaceId={switcher.remoteBySpaceId}
 						user={overlay.userSettings}
 					/>
 				}
