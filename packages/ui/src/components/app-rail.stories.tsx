@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react"
+import { type CSSProperties, useState } from "react"
 import { expect, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -131,11 +131,24 @@ const expectListRowGapBetweenEntries = async (canvasElement: HTMLElement) => {
 
 const verticalCentreOf = (box: DOMRect) => box.top + box.height / 2
 
-const iconColourOf = (entry: HTMLElement) => {
+const iconOf = (entry: HTMLElement) => {
 	const icon = entry.querySelector("svg")
 	if (!icon) throw new Error(`No icon in ${entry.getAttribute("aria-label")}`)
-	return getComputedStyle(icon).color
+	return icon
 }
+
+const iconColourOf = (entry: HTMLElement) =>
+	getComputedStyle(iconOf(entry)).color
+
+type IconStyle = "fill" | "stroke"
+
+const paintedPathsOf = (entry: HTMLElement) =>
+	Array.from(iconOf(entry).querySelectorAll("path")).filter(
+		(path) => getComputedStyle(path).fill !== "none",
+	)
+
+const iconStyleOf = (entry: HTMLElement): IconStyle =>
+	paintedPathsOf(entry).length > 0 ? "fill" : "stroke"
 
 const fillOf = (entry: HTMLElement) => getComputedStyle(entry).backgroundColor
 
@@ -171,10 +184,12 @@ const expectOnlySelected = async (
 			await expect(entry).toHaveAttribute("aria-current", "true")
 			await expect(fillOf(entry)).toBe(selectedFill)
 			await expect(iconColourOf(entry)).toBe(selectedInk)
+			await expect(iconStyleOf(entry)).toBe("fill")
 		} else {
 			await expect(entry).not.toHaveAttribute("aria-current")
 			await expect(fillOf(entry)).toBe(NO_FILL)
 			await expect(iconColourOf(entry)).toBe(idleInk)
+			await expect(iconStyleOf(entry)).toBe("stroke")
 		}
 	}
 }
@@ -231,6 +246,7 @@ const expectHoverBetweenIdleAndCurrent = async (canvasElement: HTMLElement) => {
 	const pointer = await realPointer()
 	await pointer.hover(idle)
 	await waitFor(() => expect(fillOf(idle)).toBe(hoverFill))
+	await expect(iconStyleOf(idle)).toBe("stroke")
 	await expect(hoverFill).not.toBe(currentFill)
 	await pointer.hover(current)
 	await waitFor(() => expect(fillOf(current)).toBe(currentFill))
@@ -288,6 +304,101 @@ export const ConversationsSelected = meta.story({
 })
 
 export const MissionsSelected = meta.story(selecting("missions"))
+
+const SelectableRail = (args: AppRailProps) => {
+	const [selected, setSelected] = useState(args.selected)
+	return renderRail({
+		...args,
+		selected,
+		onSelectConversations: () => setSelected("conversations"),
+		onSelectMissions: () => setSelected("missions"),
+	})
+}
+
+export const SelectionMovesToMissions = meta.story({
+	tags: ["test-only"],
+	render: (args) => <SelectableRail {...args} />,
+	play: async ({ canvasElement, userEvent }) => {
+		await expectOnlySelected(canvasElement, "conversations")
+		await userEvent.click(entryNamed(canvasElement, ENTRY_NAMES.missions))
+		await waitFor(() => expectOnlySelected(canvasElement, "missions"))
+	},
+})
+
+const renderBothIconStates = (args: AppRailProps) => (
+	<div className="flex h-[32rem] gap-8 bg-background">
+		{PANELS.map((panel) => (
+			<div className="flex" data-selected-panel={panel} key={panel}>
+				<AppRail {...args} selected={panel} />
+			</div>
+		))}
+	</div>
+)
+
+const railSelecting = (canvasElement: HTMLElement, panel: AppRailPanel) => {
+	const column = canvasElement.querySelector<HTMLElement>(
+		`[data-selected-panel="${panel}"]`,
+	)
+	if (!column) throw new Error(`No rail selecting ${panel}`)
+	return column
+}
+
+const iconOffsetIn = (entry: HTMLElement) => {
+	const entryBox = entry.getBoundingClientRect()
+	const iconBox = iconOf(entry).getBoundingClientRect()
+	return {
+		top: iconBox.top - entryBox.top,
+		left: iconBox.left - entryBox.left,
+		width: iconBox.width,
+		height: iconBox.height,
+	}
+}
+
+const expectSameGlyphInTwoStyles = async (
+	canvasElement: HTMLElement,
+	panel: AppRailPanel,
+) => {
+	const idlePanel = PANELS.find((other) => other !== panel)
+	if (!idlePanel) throw new Error("No idle panel entry")
+	const name = ENTRY_NAMES[panel]
+	const current = entryNamed(railSelecting(canvasElement, panel), name)
+	const idle = entryNamed(railSelecting(canvasElement, idlePanel), name)
+	await expect(current).toHaveAttribute("aria-current", "true")
+	await expect(idle).not.toHaveAttribute("aria-current")
+	await expect(iconOf(current).outerHTML).not.toBe(iconOf(idle).outerHTML)
+	await expect(iconStyleOf(current)).toBe("fill")
+	await expect(iconStyleOf(idle)).toBe("stroke")
+	await expect(iconOffsetIn(current)).toEqual(iconOffsetIn(idle))
+	await expect(getComputedStyle(iconOf(current)).strokeWidth).toBe(
+		getComputedStyle(iconOf(idle)).strokeWidth,
+	)
+	await expect(current.getBoundingClientRect().height).toBe(
+		idle.getBoundingClientRect().height,
+	)
+	for (const path of paintedPathsOf(current)) {
+		await expect(getComputedStyle(path).fill).toBe(iconColourOf(current))
+	}
+}
+
+export const IconStatesSideBySide = meta.story({
+	render: renderBothIconStates,
+	parameters: {
+		a11y: {
+			config: { rules: [{ id: "landmark-unique", reviewOnFail: true }] },
+		},
+		docs: {
+			description: {
+				story:
+					"Each panel icon in both of its states: the left rail opens Conversations, the right one Missions. Check the current entry draws the filled glyph and the idle one the stroked glyph, at the same size and in the ink of its entry, and that the flag pole keeps the stroke width of the idle flag.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const panel of PANELS) {
+			await expectSameGlyphInTwoStyles(canvasElement, panel)
+		}
+	},
+})
 
 export const IdleEntryHovered = meta.story({
 	parameters: {
@@ -476,7 +587,9 @@ export const KeyboardReach = meta.story({
 		await expect(first).toHaveAttribute("type", "button")
 		await expect(getComputedStyle(first).boxShadow).not.toBe("none")
 		await userEvent.tab()
-		await expect(entryNamed(canvasElement, "Missions")).toHaveFocus()
+		const missions = entryNamed(canvasElement, "Missions")
+		await expect(missions).toHaveFocus()
+		await expect(iconStyleOf(missions)).toBe("stroke")
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onSelectMissions).toHaveBeenCalledTimes(1)
 		for (const entry of railEntriesIn(canvasElement).slice(PANELS.length)) {

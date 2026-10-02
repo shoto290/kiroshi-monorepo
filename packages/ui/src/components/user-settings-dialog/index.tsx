@@ -146,45 +146,45 @@ const UserSettingsDialog = ({
 			rail={(iconsOnly) => (
 				<>
 					<SettingsRailItem
-						icon={Icons.User}
+						icon="User"
 						iconsOnly={iconsOnly}
 						label={t("rail.profile")}
 						value={FIRST_TAB}
 					/>
 					<SettingsRailItem
-						icon={Icons.Image}
+						icon="Image"
 						iconsOnly={iconsOnly}
 						label={t("rail.appearance")}
 						value="appearance"
 					/>
 					<SettingsRailItem
-						icon={Icons.Bell}
+						icon="Bell"
 						iconsOnly={iconsOnly}
 						label={t("rail.notifications")}
 						value="notifications"
 					/>
 					<SettingsRailItem
-						icon={Icons.Language}
+						icon="Language"
 						iconsOnly={iconsOnly}
 						label={t("rail.language")}
 						value="language"
 					/>
 					<SettingsRailItem
-						icon={Icons.Skill}
+						icon="Skill"
 						iconsOnly={iconsOnly}
 						label={t("rail.skills")}
 						value="skills"
 					/>
 					{applications ? (
 						<SettingsRailItem
-							icon={Icons.Server}
+							icon="Server"
 							iconsOnly={iconsOnly}
 							label={t("rail.applications")}
 							value={APPLICATIONS_TAB}
 						/>
 					) : null}
 					<SettingsRailItem
-						icon={Icons.History}
+						icon="History"
 						iconsOnly={iconsOnly}
 						label={t("rail.history")}
 						value={HISTORY_TAB}

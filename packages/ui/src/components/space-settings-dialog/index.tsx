@@ -9,7 +9,6 @@ import {
 	EnvironmentPanel,
 	type EnvironmentWrite,
 } from "@workspace/ui/components/environment-panel"
-import { Icons } from "@workspace/ui/components/icons"
 import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
 import { HISTORY_TAB } from "@workspace/ui/components/plugin-settings/use-history-session"
 import type { PluginSessionsProps } from "@workspace/ui/components/plugin-settings/use-plugin-sessions"
@@ -94,31 +93,31 @@ const SpaceSettingsDialog = ({
 			rail={(iconsOnly) => (
 				<>
 					<SettingsRailItem
-						icon={Icons.Folder}
+						icon="Folder"
 						iconsOnly={iconsOnly}
 						label={t("rail.space")}
 						value={FIRST_TAB}
 					/>
 					<SettingsRailItem
-						icon={Icons.Json}
+						icon="Json"
 						iconsOnly={iconsOnly}
 						label={t("rail.secrets")}
 						value="environment"
 					/>
 					<SettingsRailItem
-						icon={Icons.Skill}
+						icon="Skill"
 						iconsOnly={iconsOnly}
 						label={t("rail.skills")}
 						value="skills"
 					/>
 					<SettingsRailItem
-						icon={Icons.Server}
+						icon="Server"
 						iconsOnly={iconsOnly}
 						label={t("rail.applications")}
 						value="mcp"
 					/>
 					<SettingsRailItem
-						icon={Icons.History}
+						icon="History"
 						iconsOnly={iconsOnly}
 						label={t("rail.history")}
 						value={HISTORY_TAB}
@@ -126,7 +125,7 @@ const SpaceSettingsDialog = ({
 					<SettingsRailSeparator />
 					<SettingsRailItem
 						className={DANGER_RAIL_ITEM_CLASS}
-						icon={Icons.Alert}
+						icon="Alert"
 						iconsOnly={iconsOnly}
 						label={t("rail.danger")}
 						value={DANGER_TAB}

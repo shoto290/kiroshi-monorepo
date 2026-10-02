@@ -702,11 +702,13 @@ navigation-apprail--conversations-selected
 navigation-apprail--current-beside-idle-dark
 navigation-apprail--dark
 navigation-apprail--first-tab-level-with-panel-title
+navigation-apprail--icon-states-side-by-side
 navigation-apprail--idle-entry-hovered
 navigation-apprail--keyboard-reach
 navigation-apprail--missions-selected
 navigation-apprail--on-tinted-space
 navigation-apprail--removed-panel-falls-back-to-conversations
+navigation-apprail--selection-moves-to-missions
 navigation-apprail--space-settings-gear-hovered
 navigation-apprail--update-available
 navigation-apprail--update-available-dark
@@ -868,6 +870,7 @@ navigation-settingspushedpage--measured-wide
 navigation-settingsrail--default
 navigation-settingsrail--icons-only
 navigation-settingsrail--scrolling-panel
+navigation-settingsrail--selected-beside-idle
 navigation-settingsrail--with-back
 navigation-sidebar--expanded
 navigation-sidebar--right-side

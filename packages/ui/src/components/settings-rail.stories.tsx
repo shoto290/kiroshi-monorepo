@@ -1,10 +1,17 @@
 import { Tabs } from "@base-ui/react/tabs"
+import { renderToStaticMarkup } from "react-dom/server"
 import { expect, screen, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { hasOverlayScrollbars, slotsIn } from "@workspace/storybook/story-utils"
-import { Icons } from "@workspace/ui/components/icons"
 import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	hasOverlayScrollbars,
+	slotsIn,
+	tokenStyleIn,
+} from "@workspace/storybook/story-utils"
+import { FillIcons, type Icon, Icons } from "@workspace/ui/components/icons"
+import {
+	DANGER_RAIL_ITEM_CLASS,
 	SETTINGS_PANEL_CLASS,
 	SettingsRail,
 	SettingsRailBack,
@@ -15,12 +22,74 @@ import {
 } from "@workspace/ui/components/settings-rail"
 
 const GROUPS = [
-	{ icon: Icons.User, label: "Profile", value: "profile" },
-	{ icon: Icons.Image, label: "Appearance", value: "appearance" },
-	{ icon: Icons.Terminal, label: "Runtime", value: "runtime" },
-]
+	{ icon: "User", label: "Profile", value: "profile" },
+	{ icon: "Image", label: "Appearance", value: "appearance" },
+	{ icon: "Terminal", label: "Runtime", value: "runtime" },
+] as const
 
-const DANGER = { icon: Icons.Alert, label: "Danger zone", value: "danger" }
+const DANGER = { icon: "Alert", label: "Danger zone", value: "danger" } as const
+
+const iconIn = (item: HTMLElement) => {
+	const icon = item.querySelector("svg")
+	if (!icon) throw new Error(`No icon in ${item.textContent}`)
+	return icon
+}
+
+const glyphOf = (root: ParentNode) =>
+	Array.from(root.querySelectorAll("path"), (path) => path.getAttribute("d"))
+
+const glyphDrawnBy = (Glyph: Icon) => {
+	const template = document.createElement("template")
+	template.innerHTML = renderToStaticMarkup(<Glyph />)
+	return glyphOf(template.content)
+}
+
+const expectDrawnWith = async (item: HTMLElement, Glyph: Icon) =>
+	expect(glyphOf(iconIn(item))).toEqual(glyphDrawnBy(Glyph))
+
+const boxOf = (element: Element) => {
+	const { top, left, width, height } = element.getBoundingClientRect()
+	return { top, left, width, height }
+}
+
+const labelPlacementOf = (item: HTMLElement) => {
+	const label = item.querySelector("span")
+	if (!label) throw new Error(`No label in ${item.textContent}`)
+	const { top, left, height } = label.getBoundingClientRect()
+	return { top, left, height }
+}
+
+const layoutOf = (item: HTMLElement) => ({
+	row: boxOf(item),
+	icon: boxOf(iconIn(item)),
+	label: labelPlacementOf(item),
+})
+
+type SwapStep = {
+	canvas: { getByRole: (role: "tab", options: { name: string }) => HTMLElement }
+	userEvent: { click: (element: HTMLElement) => Promise<void> }
+}
+
+const expectIconSwapsWithSelection = async ({
+	canvas,
+	userEvent,
+}: SwapStep) => {
+	const profile = canvas.getByRole("tab", { name: "Profile" })
+	const appearance = canvas.getByRole("tab", { name: "Appearance" })
+	await expectDrawnWith(profile, FillIcons.User)
+	await expectDrawnWith(appearance, Icons.Image)
+	const selectedIcon = iconIn(profile).outerHTML
+	const profileLayout = layoutOf(profile)
+	const appearanceLayout = layoutOf(appearance)
+
+	await userEvent.click(appearance)
+	await expect(appearance).toHaveAttribute("aria-selected", "true")
+	await expectDrawnWith(profile, Icons.User)
+	await expectDrawnWith(appearance, FillIcons.Image)
+	await expect(iconIn(profile).outerHTML).not.toBe(selectedIcon)
+	await expect(layoutOf(profile)).toEqual(profileLayout)
+	await expect(layoutOf(appearance)).toEqual(appearanceLayout)
+}
 
 const renderRail = (args: SettingsRailProps) => (
 	<Tabs.Root
@@ -40,6 +109,7 @@ const renderRail = (args: SettingsRailProps) => (
 			))}
 			<SettingsRailSeparator />
 			<SettingsRailItem
+				className={DANGER_RAIL_ITEM_CLASS}
 				icon={DANGER.icon}
 				iconsOnly={args.iconsOnly}
 				label={DANGER.label}
@@ -97,8 +167,11 @@ export const WithBack = meta.story({
 	},
 	play: async ({ canvas, userEvent }) => {
 		const back = canvas.getByRole("button", { name: "All skills" })
+		await expectDrawnWith(back, Icons.Previous)
 
+		await userEvent.hover(back)
 		back.focus()
+		await expectDrawnWith(back, Icons.Previous)
 		await userEvent.tab()
 		await expect(canvas.getByRole("tab", { name: "Profile" })).toHaveFocus()
 	},
@@ -146,6 +219,33 @@ export const IconsOnly = meta.story({
 		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
 			"Appearance",
 		)
+		await expectIconSwapsWithSelection({ canvas, userEvent })
+	},
+})
+
+export const SelectedBesideIdle = meta.story({
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The open group beside the ones at rest. Check that the open group draws its icon filled while every other group keeps the stroked one, that opening Appearance fills its image and returns Profile to stroke without moving a row, an icon or a name, and that the danger zone keeps its red whether open or not. Pick `IconsOnly` for the same switch in the narrow rail. The app assembles it at `apps/app/src/App.tsx:991`.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		await expectIconSwapsWithSelection({ canvas, userEvent })
+
+		const [rail] = slotsIn(canvasElement, "settings-rail")
+		const danger = canvas.getByRole("tab", { name: DANGER.label })
+		const destructive = tokenStyleIn(rail, "text-destructive", "color")
+		await expectDrawnWith(danger, Icons.Alert)
+		await expect(getComputedStyle(iconIn(danger)).color).toBe(destructive)
+
+		await userEvent.click(danger)
+		await expect(danger).toHaveAttribute("aria-selected", "true")
+		await expectDrawnWith(danger, FillIcons.Alert)
+		await expect(getComputedStyle(iconIn(danger)).color).toBe(destructive)
 	},
 })
 

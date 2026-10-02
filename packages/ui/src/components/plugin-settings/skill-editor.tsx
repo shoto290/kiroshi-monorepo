@@ -172,39 +172,39 @@ const SkillEditor = ({
 			rail={(iconsOnly) => (
 				<>
 					<SettingsRailItem
-						icon={Icons.Docs}
+						icon="Docs"
 						iconsOnly={iconsOnly}
 						label={t("skills.section.instructions")}
 						value={FIRST_SECTION}
 					/>
 					<SettingsRailItem
-						icon={Icons.Skill}
+						icon="Skill"
 						iconsOnly={iconsOnly}
 						label={t("skills.section.triggering")}
 						value="triggering"
 					/>
 					<SettingsRailItem
-						icon={Icons.Terminal}
+						icon="Terminal"
 						iconsOnly={iconsOnly}
 						label={t("skills.section.execution")}
 						value="execution"
 					/>
 					<SettingsRailItem
-						icon={Icons.Tool}
+						icon="Tool"
 						iconsOnly={iconsOnly}
 						label={t("skills.section.tools")}
 						value="tools"
 					/>
 					{files ? (
 						<SettingsRailItem
-							icon={Icons.Folder}
+							icon="Folder"
 							iconsOnly={iconsOnly}
 							label={t("skills.section.files")}
 							value="files"
 						/>
 					) : null}
 					<SettingsRailItem
-						icon={Icons.Settings}
+						icon="Settings"
 						iconsOnly={iconsOnly}
 						label={t("skills.section.advanced")}
 						value="advanced"
