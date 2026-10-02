@@ -46,24 +46,20 @@ type Gear = {
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
-const transportHolding = (listed: JoinedSpace[]) => {
-	let held = [...listed]
-	return {
-		list: vi.fn(async () => held),
-		add: vi.fn(async () => GARAGE),
-		remove: vi.fn(async (id: string) => {
-			held = held.filter((joined) => joined.id !== id)
-		}),
-		onChanged: vi.fn(async () => () => undefined),
-	} satisfies JoinedSpacesTransport
-}
+const garageTransport = () =>
+	({
+		list: async () => [GARAGE],
+		add: async () => GARAGE,
+		remove: vi.fn(async (_id: string) => undefined),
+		onChanged: async () => () => undefined,
+	}) satisfies JoinedSpacesTransport
 
 const hostsFake = () => ({
 	getState: () => ({ active: null, connections: {} }),
 	subscribe: () => () => undefined,
-	connect: vi.fn(async () => undefined),
-	activate: vi.fn(async () => undefined),
-	forget: vi.fn(),
+	connect: async () => undefined,
+	activate: async () => undefined,
+	forget: () => undefined,
 })
 
 const gearWithGarage = async () => {
@@ -71,7 +67,7 @@ const gearWithGarage = async () => {
 	const home = await store.createSpace("Home")
 	const spaces = createSpacesController(store)
 	await spaces.load(home.id)
-	const transport = transportHolding([GARAGE])
+	const transport = garageTransport()
 	const joined = createJoinedSpacesController({
 		spaces,
 		hosts: hostsFake(),
