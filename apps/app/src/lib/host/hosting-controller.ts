@@ -70,6 +70,16 @@ const failureOf = (space: HostedSpace): NoticeMessage => ({
 	description: i18n.t("settings:space.hosting.failed.description"),
 })
 
+type Attempt = {
+	isReported: boolean
+}
+
+type Session = {
+	space: HostedSpace
+	hasSettled: boolean
+	attempt: Attempt | null
+}
+
 export const createHostingController = ({
 	transport = hostingTransport,
 	reportFailure = raiseFailureNotice,
@@ -77,47 +87,84 @@ export const createHostingController = ({
 	const stateStore = createStore<HostingControllerState>({
 		hosting: undefined,
 	})
-	let watched: HostedSpace | null = null
+	let current: Session | null = null
 	let lastWatchedId: string | null = null
 
-	const settle = (space: HostedSpace, hosting: HostingState) => {
-		if (watched?.id !== space.id) return
+	const reportAttempt = (session: Session, attempt: Attempt) => {
+		if (attempt.isReported) return
+		attempt.isReported = true
+		reportFailure(failureOf(session.space))
+	}
+
+	const settle = (
+		session: Session,
+		hosting: HostingState,
+		attempt: Attempt | null,
+	) => {
 		const wasFailed = stateStore.getState().hosting?.kind === "failed"
+		session.hasSettled = true
 		stateStore.setState({ hosting })
-		if (hosting.kind === "failed" && !wasFailed) {
-			reportFailure(failureOf(space))
+		if (hosting.kind !== "failed") return
+		if (attempt) {
+			reportAttempt(session, attempt)
+		} else if (!wasFailed) {
+			reportFailure(failureOf(session.space))
 		}
 	}
 
-	const follow = (space: HostedSpace, pending: Promise<HostingState>) => {
-		void pending.then(
-			(hosting) => settle(space, hosting),
+	const read = (session: Session) => {
+		void transport.read(session.space.id).then(
+			(hosting) => {
+				if (current === session && !session.hasSettled) {
+					settle(session, hosting, null)
+				}
+			},
 			() => {
-				if (watched?.id === space.id) reportFailure(failureOf(space))
+				if (current === session) reportFailure(failureOf(session.space))
 			},
 		)
 	}
 
+	const endAttempt = (session: Session, attempt: Attempt) => {
+		if (session.attempt === attempt) session.attempt = null
+	}
+
 	const watch = (space: HostedSpace) => {
-		watched = space
+		const session: Session = { space, hasSettled: false, attempt: null }
+		current = session
 		if (lastWatchedId !== space.id) {
 			stateStore.setState({ hosting: undefined })
 		}
 		lastWatchedId = space.id
-		follow(space, transport.read(space.id))
+		read(session)
 		const detach = transport
 			.onChanged((changed) => {
-				if (changed.spaceId === space.id) settle(space, changed.state)
+				if (current === session && changed.spaceId === space.id) {
+					settle(session, changed.state, session.attempt)
+				}
 			})
 			.catch(() => reportFailure(failureOf(space)))
 		return () => {
-			if (watched === space) watched = null
+			if (current === session) current = null
 			void detach.then((unlisten) => unlisten?.())
 		}
 	}
 
 	const command = (run: (spaceId: string) => Promise<HostingState>) => () => {
-		if (watched) follow(watched, run(watched.id))
+		const session = current
+		if (!session) return
+		const attempt: Attempt = { isReported: false }
+		session.attempt = attempt
+		void run(session.space.id).then(
+			(hosting) => {
+				if (current === session) settle(session, hosting, attempt)
+				endAttempt(session, attempt)
+			},
+			() => {
+				if (current === session) reportAttempt(session, attempt)
+				endAttempt(session, attempt)
+			},
+		)
 	}
 
 	return {

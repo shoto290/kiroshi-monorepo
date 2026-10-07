@@ -149,4 +149,80 @@ describe("createHostingController", () => {
 		expect(unlisten).toHaveBeenCalledOnce()
 		expect(controller.getState().hosting).toEqual(OFF)
 	})
+
+	it("raises one more notice when a retry from failed ends in failed again", async () => {
+		const { controller, events, reportFailure } = await watchHome({
+			start: vi.fn(async () => DROPPED),
+		})
+		events.announce({ spaceId: HOME.id, state: DROPPED })
+
+		controller.start()
+		await settle()
+		events.announce({ spaceId: HOME.id, state: DROPPED })
+
+		expect(reportFailure).toHaveBeenCalledTimes(2)
+		expect(controller.getState().hosting).toEqual(DROPPED)
+	})
+
+	it("raises one notice when the event lands before the failed answer of the same start", async () => {
+		let answer: (hosting: HostingState) => void = () => undefined
+		const { controller, events, reportFailure } = await watchHome({
+			start: vi.fn(
+				() =>
+					new Promise<HostingState>((resolve) => {
+						answer = resolve
+					}),
+			),
+		})
+
+		controller.start()
+		events.announce({ spaceId: HOME.id, state: DROPPED })
+		answer(DROPPED)
+		await settle()
+
+		expect(reportFailure).toHaveBeenCalledExactlyOnceWith(COULDNT_HOST_HOME)
+	})
+
+	it("raises one notice when the failed answer lands before the event of the same start", async () => {
+		const { controller, events, reportFailure } = await watchHome({
+			start: vi.fn(async () => DROPPED),
+		})
+
+		controller.start()
+		await settle()
+		events.announce({ spaceId: HOME.id, state: DROPPED })
+
+		expect(reportFailure).toHaveBeenCalledExactlyOnceWith(COULDNT_HOST_HOME)
+	})
+
+	it("keeps a state an event settled before the initial read resolves", async () => {
+		let answer: (hosting: HostingState) => void = () => undefined
+		const { controller, events } = await watchHome({
+			read: vi.fn(
+				() =>
+					new Promise<HostingState>((resolve) => {
+						answer = resolve
+					}),
+			),
+		})
+
+		events.announce({ spaceId: HOME.id, state: ONLINE })
+		answer(OFF)
+		await settle()
+
+		expect(controller.getState().hosting).toEqual(ONLINE)
+	})
+
+	it("raises no notice when the same failed space is reopened", async () => {
+		const { controller, events, reportFailure, transport, unwatch } =
+			await watchHome()
+		events.announce({ spaceId: HOME.id, state: DROPPED })
+		unwatch()
+		vi.mocked(transport.read).mockResolvedValue(DROPPED)
+
+		controller.watch(HOME)
+		await settle()
+
+		expect(reportFailure).toHaveBeenCalledOnce()
+	})
 })
