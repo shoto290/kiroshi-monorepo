@@ -1,9 +1,11 @@
 import type { EnvironmentWrite } from "@workspace/ui/components/environment-panel"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
 import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
+import { MembersPanel } from "@workspace/ui/components/space-settings-dialog/members-panel"
 
 import { toEnvironmentRows } from "@/lib/environment/environment-rows"
 import { useHosting } from "@/lib/host/use-hosting"
+import { useMembers } from "@/lib/host/use-members"
 import { useShareLink } from "@/lib/host/use-share-link"
 import { joinedSpaceOfRow } from "@/lib/spaces/joined-spaces-controller"
 import { toSpaceSettingsValue } from "@/lib/spaces/space-settings"
@@ -42,11 +44,13 @@ export const SpaceSettingsHost = ({
 	const shareLink = useShareLink(
 		isSpaceEditing ? (selectedSpace?.id ?? null) : null,
 	)
-	const hosting = useHosting(
+	const editedSpace =
 		isSpaceEditing && selectedSpace
 			? { id: selectedSpace.id, name: selectedSpace.name }
-			: null,
-	)
+			: null
+	const hosting = useHosting(editedSpace)
+	const isHosted = hosting?.hosting === "online"
+	const members = useMembers(editedSpace, isHosted)
 	const joinedSpace = joinedSpaceOfRow(
 		joinedSpaces.state.joinedSpaces,
 		selectedSpaceId,
@@ -76,6 +80,24 @@ export const SpaceSettingsHost = ({
 	}
 
 	const hostingProps = hosting ? { ...hosting, onSignIn: signIn } : {}
+
+	// TODO: select the Hosting tab once SettingsDialogShell takes a controlled tab, the shell reads tab only on open
+	const openHosting = () => undefined
+
+	const membersProps =
+		members && selectedSpace
+			? {
+					members: (
+						<MembersPanel
+							{...members}
+							isHosted={isHosted}
+							onOpenHosting={openHosting}
+							shareLink={shareLink ?? null}
+							space={selectedSpace.name}
+						/>
+					),
+				}
+			: {}
 
 	const sharedProps = {
 		environment: toEnvironmentRows(spaceEnvironment.state.entries),
@@ -114,6 +136,7 @@ export const SpaceSettingsHost = ({
 			<SpaceSettingsDialog
 				{...sharedProps}
 				{...hostingProps}
+				{...membersProps}
 				isDeletable={spaces.state.spaces.length > 1}
 				onDelete={() => {
 					void spaces.controller
@@ -126,7 +149,6 @@ export const SpaceSettingsHost = ({
 				onImport={() => {
 					void spaces.controller.importSpace()
 				}}
-				shareLink={shareLink}
 				value={toSpaceSettingsValue(selectedSpace)}
 			/>
 		)
