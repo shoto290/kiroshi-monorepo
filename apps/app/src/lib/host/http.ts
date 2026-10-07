@@ -47,8 +47,6 @@ const BYTES = "application/octet-stream"
 
 const JSON_TYPE = "application/json"
 
-const FORBIDDEN = 403
-
 const AVATARS_DIR = "avatars"
 
 const ATTACHMENTS_DIR = "attachments"
@@ -70,20 +68,11 @@ const answerOf = (response: Response): Promise<unknown> =>
 		? response.arrayBuffer()
 		: response.text().then(parsedJson)
 
-const errorTextOf = (body: unknown, text: string): string => {
-	const error = (body as { error?: unknown } | undefined)?.error
-	return typeof error === "string" ? error : text
-}
-
 const refusalOf = async (response: Response): Promise<Refusal> => {
 	const text = await response.text()
-	if (!carries(response, JSON_TYPE)) {
-		return { reason: text, isCommandError: false }
-	}
-	const body = parsedJson(text)
-	return response.status === FORBIDDEN
-		? { reason: new Error(errorTextOf(body, text)), isCommandError: false }
-		: { reason: body, isCommandError: true }
+	return carries(response, JSON_TYPE)
+		? { reason: parsedJson(text), isCommandError: true }
+		: { reason: text, isCommandError: false }
 }
 
 const messageOf = (reason: unknown): string =>

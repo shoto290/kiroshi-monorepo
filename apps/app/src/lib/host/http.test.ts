@@ -155,24 +155,6 @@ describe("invoke over http", () => {
 		expect(onRefused).not.toHaveBeenCalled()
 	})
 
-	it("rejects a relayed host-only refusal with its error text and raises the notice", async () => {
-		const { host, onRefused } = hostOf({
-			answer: {
-				status: 403,
-				body: '{"error":"this command belongs to the host"}',
-				type: "application/json",
-			},
-		})
-
-		await expect(host.invoke("hosting_start")).rejects.toThrow(
-			"this command belongs to the host",
-		)
-		expect(onRefused).toHaveBeenCalledExactlyOnceWith(
-			"this command belongs to the host",
-			403,
-		)
-	})
-
 	it("rejects a call carrying a bad token", async () => {
 		const { host, onRefused } = hostOf({
 			answer: { status: 401, body: "the call carried no valid bearer token" },
