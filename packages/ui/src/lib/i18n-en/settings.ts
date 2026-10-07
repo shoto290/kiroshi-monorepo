@@ -22,6 +22,7 @@ const settings = {
 			title: "Sign in to Kiroshi",
 			body: "Host a space for people who aren’t on your network, or join one someone hosts for you. Kiroshi opens your browser to sign you in.",
 			signIn: "Sign in",
+			email: "Email",
 		},
 		waiting: {
 			label: "Waiting for your browser…",

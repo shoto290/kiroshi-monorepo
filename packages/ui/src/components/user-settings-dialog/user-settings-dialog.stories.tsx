@@ -99,6 +99,21 @@ const DialogHost = (props: UserSettingsDialogProps) => {
 	)
 }
 
+const SignInRoundTripHost = (props: UserSettingsDialogProps) => {
+	const [account, setAccount] = useState<AccountState>({ status: "signedOut" })
+
+	return (
+		<DialogHost
+			{...props}
+			account={{
+				...accountIn(account),
+				onSignIn: () => setAccount({ status: "waiting" }),
+				onCancel: () => setAccount({ status: "signedOut" }),
+			}}
+		/>
+	)
+}
+
 const dialogIn = async () => {
 	const dialog = await screen.findByRole("dialog")
 	await waitFor(() => expect(dialog).toBeVisible())
@@ -539,7 +554,7 @@ export const SignedOut = meta.story({
 		docs: {
 			description: {
 				story:
-					"Artboard S1: a reader who never signed in to Kiroshi. Check that Account sits second on the rail with the cloud, that the panel explains what signing in buys and that it happens in the browser, and that Sign in carries the external link mark and calls back with nothing. Pick `Waiting` for the moment after the press.",
+					"Artboard S1: a reader who never signed in to Kiroshi. Check that Account sits second on the rail with the cloud, that the panel explains what signing in buys and that it happens in the browser, that the email field sits between the explanation and Sign in on the same width, and that Sign in carries the external link mark and calls back with the trimmed address, on a press or on Enter in the field. An empty field or an address that is not one calls nothing and says nothing. Pick `Waiting` for the moment after the press.",
 			},
 		},
 	},
@@ -553,10 +568,27 @@ export const SignedOut = meta.story({
 			within(panel).getByRole("heading", { name: "Sign in to Kiroshi" }),
 		).toBeVisible()
 
-		await userEvent.click(
-			within(panel).getByRole("button", { name: "Sign in" }),
-		)
+		const field = within(panel).getByLabelText("Email")
+		await expect(field).toHaveAttribute("type", "email")
+		await expect(field).toHaveAttribute("autocomplete", "email")
+		const signIn = within(panel).getByRole("button", { name: "Sign in" })
+
+		await userEvent.click(signIn)
+		await userEvent.type(field, "ada.martin")
+		await userEvent.click(signIn)
+		await expect(args.account?.onSignIn).not.toHaveBeenCalled()
+
+		await userEvent.clear(field)
+		await userEvent.type(field, ` ${SIGNED_IN.email} `)
+		await userEvent.click(signIn)
 		await expect(args.account?.onSignIn).toHaveBeenCalledOnce()
+		await expect(args.account?.onSignIn).toHaveBeenCalledWith(SIGNED_IN.email)
+
+		await userEvent.type(field, "{Enter}")
+		await expect(args.account?.onSignIn).toHaveBeenCalledTimes(2)
+		await expect(args.account?.onSignIn).toHaveBeenLastCalledWith(
+			SIGNED_IN.email,
+		)
 	},
 })
 
@@ -661,10 +693,33 @@ export const CantReachKiroshi = meta.story({
 			within(notice).getByText(UNREACHABLE.description),
 		).toBeVisible()
 
+		await userEvent.type(within(panel).getByLabelText("Email"), SIGNED_IN.email)
 		await userEvent.click(
 			within(panel).getByRole("button", { name: "Sign in" }),
 		)
 		await expect(args.account?.onSignIn).toHaveBeenCalledOnce()
+		await expect(args.account?.onSignIn).toHaveBeenCalledWith(SIGNED_IN.email)
+	},
+})
+
+export const KeepsTheAddressThroughAWait = meta.story({
+	tags: ["test-only"],
+	args: { tab: "account" },
+	render: (args) => <SignInRoundTripHost {...args} />,
+	play: async ({ userEvent }) => {
+		const dialog = await dialogIn()
+		const panel = await accountPanelIn(dialog)
+
+		await userEvent.type(within(panel).getByLabelText("Email"), SIGNED_IN.email)
+		await userEvent.click(
+			within(panel).getByRole("button", { name: "Sign in" }),
+		)
+		await expect(within(panel).queryByLabelText("Email")).toBeNull()
+
+		await userEvent.click(within(panel).getByRole("button", { name: "Cancel" }))
+		await expect(within(panel).getByLabelText("Email")).toHaveValue(
+			SIGNED_IN.email,
+		)
 	},
 })
 

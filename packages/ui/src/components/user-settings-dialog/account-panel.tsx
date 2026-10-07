@@ -1,8 +1,10 @@
 "use client"
 
+import { type FormEvent, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
+import { SettingsField } from "@workspace/ui/components/settings-field"
 import { Button } from "@workspace/ui/components/ui/button"
 
 type AccountState =
@@ -12,7 +14,7 @@ type AccountState =
 
 type AccountPanelProps = {
 	account: AccountState
-	onSignIn: () => void
+	onSignIn: (email: string) => void
 	onCancel: () => void
 	onSignOut: () => void
 }
@@ -52,6 +54,7 @@ const AccountPanel = ({
 	onSignOut,
 }: AccountPanelProps) => {
 	const { t } = useTranslation("settings")
+	const [email, setEmail] = useState("")
 
 	if (account.status === "signedIn") {
 		return (
@@ -79,20 +82,36 @@ const AccountPanel = ({
 
 	const isWaiting = account.status === "waiting"
 
+	const submit = (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault()
+		const address = email.trim()
+		if (address && event.currentTarget.checkValidity()) onSignIn(address)
+	}
+
 	return (
-		<div className="flex flex-col gap-5">
+		<form className="flex flex-col gap-5" noValidate onSubmit={submit}>
 			<AccountIntro
 				body={t("account.signedOut.body")}
 				title={t("account.signedOut.title")}
 			/>
+			{isWaiting ? null : (
+				<div className="max-w-120">
+					<SettingsField
+						kind="email"
+						label={t("account.signedOut.email")}
+						onValueChange={setEmail}
+						value={email}
+					/>
+				</div>
+			)}
 			<div className="flex flex-col items-start gap-2">
 				<div className="flex flex-wrap items-center gap-2">
 					<Button
 						className="px-3.5 data-disabled:pointer-events-none data-disabled:opacity-60"
 						disabled={isWaiting}
 						focusableWhenDisabled
-						onClick={onSignIn}
 						size="lg"
+						type={isWaiting ? "button" : "submit"}
 					>
 						{isWaiting ? (
 							<>
@@ -119,7 +138,7 @@ const AccountPanel = ({
 					<p className={CAPTION_CLASS}>{t("account.waiting.caption")}</p>
 				) : null}
 			</div>
-		</div>
+		</form>
 	)
 }
 
