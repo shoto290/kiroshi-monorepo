@@ -238,6 +238,17 @@ impl Harness {
 			.map(|change| change["state"]["kind"].as_str().expect("a kind").to_owned())
 			.collect()
 	}
+
+	async fn heard_until(&self, is_heard: impl Fn(&[String]) -> bool) -> Vec<String> {
+		for _ in 0..500 {
+			let kinds = self.heard_kinds();
+			if is_heard(&kinds) {
+				return kinds;
+			}
+			tokio::time::sleep(Duration::from_millis(10)).await;
+		}
+		self.heard_kinds()
+	}
 }
 
 async fn next_text(member: &mut WebSocket, wanted: impl Fn(&Value) -> bool) -> Value {
@@ -322,7 +333,7 @@ fn without_a_bearer_the_space_needs_a_sign_in_and_nothing_is_called() {
 
 		assert!(harness.registered().is_empty());
 		assert_eq!(harness.attempts(), 0);
-		assert_eq!(harness.heard_kinds(), vec!["needsSignIn"]);
+		assert_eq!(harness.heard_until(|kinds| !kinds.is_empty()).await, vec!["needsSignIn"]);
 	});
 }
 
@@ -385,7 +396,9 @@ fn a_dropped_socket_reconnects_after_the_first_backoff() {
 		let _again = harness.member().await;
 		harness.reached(HostingState::Online).await;
 
-		assert_eq!(harness.heard_kinds(), vec!["connecting", "online", "connecting", "online"]);
+		let heard = harness.heard_until(|kinds| kinds.len() >= 4).await;
+
+		assert_eq!(heard, vec!["connecting", "online", "connecting", "online"]);
 		assert_eq!(harness.attempts(), 2);
 	});
 }
@@ -463,7 +476,8 @@ fn stopping_closes_with_1000_clears_the_flag_and_keeps_the_instance() {
 		};
 		assert_eq!(close.code, 1000);
 		assert_eq!(harness.stored().await, (registered, Vec::new()));
-		assert_eq!(harness.heard_kinds().last().map(String::as_str), Some("off"));
+		let heard = harness.heard_until(|kinds| kinds.last().is_some_and(|kind| kind == "off")).await;
+		assert_eq!(heard.last().map(String::as_str), Some("off"));
 	});
 }
 
