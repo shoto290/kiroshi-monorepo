@@ -4,6 +4,7 @@ const settings = {
 	},
 	rail: {
 		profile: "Profil",
+		account: "Compte",
 		space: "Espace",
 		secrets: "Secrets",
 		appearance: "Apparence",
@@ -13,6 +14,32 @@ const settings = {
 		applications: "Applications",
 		history: "Historique",
 		danger: "Zone sensible",
+	},
+	account: {
+		signedOut: {
+			title: "Se connecter à Kiroshi",
+			body: "Hébergez un espace pour des personnes hors de votre réseau, ou rejoignez celui qu’on héberge pour vous. Kiroshi ouvre votre navigateur pour vous connecter.",
+			signIn: "Se connecter",
+		},
+		waiting: {
+			label: "En attente de votre navigateur…",
+			cancel: "Annuler",
+			caption:
+				"Terminez la connexion dans votre navigateur. Kiroshi prend le relais ensuite.",
+		},
+		signedIn: {
+			title: "Connecté",
+			body: "Vous pouvez héberger des espaces pour des personnes hors de votre réseau, et rejoindre ceux qu’elles hébergent pour vous.",
+			name: "Nom",
+			email: "E-mail",
+			signOut: "Se déconnecter",
+			caption:
+				"Les espaces que vous hébergez ou avez rejoints via Kiroshi cessent de fonctionner ici jusqu’à votre prochaine connexion.",
+		},
+		unreachable: {
+			title: "Impossible de joindre Kiroshi",
+			description: "Vérifiez votre connexion et reconnectez-vous.",
+		},
 	},
 	plugin: {
 		author: {

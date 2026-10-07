@@ -75,6 +75,7 @@ import {
 import {
 	BellIcon as BellFillIcon,
 	BookOpenIcon as BookOpenFillIcon,
+	CloudIcon as CloudFillIcon,
 	CodeIcon as CodeFillIcon,
 	FlagIcon as FlagFillIcon,
 	FolderIcon as FolderFillIcon,
@@ -269,6 +270,7 @@ const Icons = {
 const FillIcons = {
 	Alert: TriangleAlertFillIcon,
 	Bell: BellFillIcon,
+	Cloud: CloudFillIcon,
 	Conversations: MessageFillIcon,
 	Docs: BookOpenFillIcon,
 	Folder: FolderFillIcon,
