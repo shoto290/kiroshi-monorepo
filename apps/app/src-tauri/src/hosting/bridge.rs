@@ -8,6 +8,13 @@ use crate::missions::github::installed_tls_provider;
 
 const INVOKE_BOUND: Duration = Duration::from_secs(300);
 
+const HOST_ONLY_COMMANDS: [&str; 4] = [
+	"hosting_members",
+	"hosting_invite_member",
+	"hosting_withdraw_invitation",
+	"hosting_remove_member",
+];
+
 #[derive(Clone)]
 pub struct LocalApi {
 	origin: String,
@@ -45,6 +52,11 @@ pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
 		Some(args) => Some(args.clone()).filter(Value::is_object),
 	};
 	match (id, command, args) {
+		(Some(id), Some(command), Some(_)) if HOST_ONLY_COMMANDS.contains(&command) => Err(answer(
+			id,
+			StatusCode::FORBIDDEN,
+			json!({ "error": "this command belongs to the host" }),
+		)),
 		(Some(id), Some(command), Some(args)) => {
 			Ok(MemberCall { id, command: command.to_owned(), args })
 		}
@@ -131,6 +143,15 @@ mod tests {
 		] {
 			let refusal = member_call(frame).expect_err(frame);
 			assert_eq!(status_of(&refusal), (id, json!(400)), "{frame}");
+		}
+	}
+
+	#[test]
+	fn a_member_command_of_the_host_is_refused_with_403() {
+		for command in HOST_ONLY_COMMANDS {
+			let frame = json!({ "id": "m", "command": command, "args": { "spaceId": "s" } });
+			let refusal = member_call(&frame.to_string()).expect_err(command);
+			assert_eq!(status_of(&refusal), (json!("m"), json!(403)), "{command}");
 		}
 	}
 

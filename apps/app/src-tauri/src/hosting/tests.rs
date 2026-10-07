@@ -367,6 +367,19 @@ async fn next_text(member: &mut WebSocket, wanted: impl Fn(&Value) -> bool) -> V
 	}
 }
 
+async fn beyond_events(member: &mut WebSocket) -> Option<Result<Message, axum::Error>> {
+	loop {
+		let frame = tokio::time::timeout(PATIENCE, member.recv()).await.expect("a frame in time");
+		let is_event = match &frame {
+			Some(Ok(Message::Text(text))) => text.as_str().starts_with(r#"{"event":"#),
+			_ => false,
+		};
+		if !is_event {
+			return frame;
+		}
+	}
+}
+
 async fn answer(member: &mut WebSocket) -> Value {
 	next_text(member, |frame| frame.get("event").is_none()).await
 }
@@ -542,6 +555,42 @@ fn a_malformed_member_frame_is_answered_400_and_the_socket_stays_open() {
 }
 
 #[test]
+fn a_member_frame_naming_a_host_member_command_is_refused_and_others_still_forwarded() {
+	run(async {
+		let mut harness = Harness::signed_in("host-only").await;
+		harness.started().await;
+		let mut member = harness.member().await;
+
+		for command in [
+			"hosting_members",
+			"hosting_invite_member",
+			"hosting_withdraw_invitation",
+			"hosting_remove_member",
+		] {
+			let frame =
+				json!({ "id": command, "command": command, "args": { "spaceId": PERSONAL } });
+			send(&mut member, &frame.to_string()).await;
+			assert_eq!(
+				answer(&mut member).await,
+				json!({ "id": command, "status": 403, "body": { "error": "this command belongs to the host" } })
+			);
+		}
+		send(&mut member, r#"{"id": "after", "command": "space_list"}"#).await;
+		let answered = answer(&mut member).await;
+
+		assert_eq!(
+			(answered["id"].clone(), answered["status"].clone()),
+			(json!("after"), json!(200))
+		);
+		assert!(
+			harness.member_calls().iter().all(|call| call == "GET"),
+			"{:?}",
+			harness.member_calls()
+		);
+	});
+}
+
+#[test]
 fn a_local_event_is_forwarded_to_the_relay() {
 	run(async {
 		let mut harness = Harness::signed_in("event").await;
@@ -569,7 +618,7 @@ fn stopping_closes_with_1000_clears_the_flag_and_keeps_the_instance() {
 		let (registered, _) = harness.stored().await;
 
 		assert_eq!(harness.stopped().await, HostingState::Off);
-		let closed = tokio::time::timeout(PATIENCE, member.recv()).await.expect("a frame in time");
+		let closed = beyond_events(&mut member).await;
 
 		let Some(Ok(Message::Close(Some(close)))) = closed else {
 			panic!("the relay took no close frame: {closed:?}");
@@ -605,7 +654,7 @@ fn signing_out_closes_the_relay_and_needs_a_sign_in_keeping_the_flag() {
 		harness.reached(HostingState::Online).await;
 
 		signed_out(harness.app.handle()).await;
-		let closed = tokio::time::timeout(PATIENCE, member.recv()).await.expect("a frame in time");
+		let closed = beyond_events(&mut member).await;
 
 		assert!(matches!(closed, Some(Ok(Message::Close(_)))), "{closed:?}");
 		assert_eq!(harness.state(), HostingState::NeedsSignIn);
@@ -684,7 +733,7 @@ fn deleting_a_hosted_space_closes_its_relay_with_1000_and_reads_off() {
 		space_delete(harness.app.handle().clone(), harness.app.state(), work.clone())
 			.await
 			.expect("the space is deleted");
-		let closed = tokio::time::timeout(PATIENCE, member.recv()).await.expect("a frame in time");
+		let closed = beyond_events(&mut member).await;
 
 		let Some(Ok(Message::Close(Some(close)))) = closed else {
 			panic!("the relay took no close frame: {closed:?}");
@@ -849,7 +898,10 @@ fn a_pending_member_is_withdrawn_and_a_joined_one_removed_each_read_back() {
 
 		assert_eq!(user_ids(&withdrawn), vec!["owner", "joiner"]);
 		assert_eq!(user_ids(&removed), vec!["owner"]);
-		assert_eq!(harness.member_calls(), vec!["DELETE guest", "GET", "DELETE joiner", "GET"]);
+		assert_eq!(
+			harness.member_calls(),
+			vec!["GET", "DELETE guest", "GET", "GET", "DELETE joiner", "GET"]
+		);
 		let heard = harness.heard_member_lists();
 		assert_eq!(heard.len(), 3);
 		assert_eq!(
@@ -904,7 +956,7 @@ fn the_cloud_conflicts_are_typed_refusals() {
 }
 
 #[test]
-fn a_status_mismatch_or_the_host_is_refused_before_the_cloud() {
+fn a_status_mismatch_the_host_or_an_unknown_member_is_refused_from_a_fresh_read_without_delete() {
 	run(async {
 		let harness = Harness::hosted("members-mismatch").await;
 		harness.listed_with_a_guest_and_a_joiner().await;
@@ -914,7 +966,48 @@ fn a_status_mismatch_or_the_host_is_refused_before_the_cloud() {
 		assert_eq!(harness.withdrawn("owner").await, Err(MembersError::HostNotRemovable));
 		assert_eq!(harness.removed("owner").await, Err(MembersError::HostNotRemovable));
 		assert_eq!(harness.removed("stranger").await, Err(MembersError::UnknownMember));
-		assert!(harness.member_calls().is_empty());
+		assert_eq!(harness.withdrawn("stranger").await, Err(MembersError::UnknownMember));
+		assert_eq!(harness.member_calls(), vec!["GET"; 6]);
+	});
+}
+
+#[test]
+fn withdraw_and_remove_succeed_on_a_space_never_listed_in_this_process() {
+	run(async {
+		let harness = Harness::hosted("members-never-listed").await;
+		harness.seed(&[
+			cloud_member("guest", "guest@example.com", "member", "pending"),
+			cloud_member("joiner", "joiner@example.com", "member", "joined"),
+		]);
+
+		let withdrawn = harness.withdrawn("guest").await.expect("the invitation is withdrawn");
+		let removed = harness.removed("joiner").await.expect("the member is removed");
+
+		assert_eq!(user_ids(&withdrawn), vec!["owner", "joiner"]);
+		assert_eq!(user_ids(&removed), vec!["owner"]);
+		assert_eq!(
+			harness.member_calls(),
+			vec!["GET", "DELETE guest", "GET", "GET", "DELETE joiner", "GET"]
+		);
+	});
+}
+
+#[test]
+fn the_status_is_decided_on_the_cloud_list_not_on_a_stale_one() {
+	run(async {
+		let harness = Harness::hosted("members-stale").await;
+		harness.listed_with_a_guest_and_a_joiner().await;
+		for member in harness.relay.members.lock().expect("the relay").iter_mut() {
+			if member["userId"] == "guest" {
+				member["state"] = json!("joined");
+			}
+		}
+
+		assert_eq!(harness.withdrawn("guest").await, Err(MembersError::NotPending));
+		let removed = harness.removed("guest").await.expect("the now joined guest is removed");
+
+		assert_eq!(user_ids(&removed), vec!["owner", "joiner"]);
+		assert_eq!(harness.member_calls(), vec!["GET", "GET", "DELETE guest", "GET"]);
 	});
 }
 
@@ -1020,6 +1113,26 @@ fn an_online_space_polls_its_members_and_announces_only_a_changed_list() {
 		let heard = harness.heard_member_lists();
 		assert_eq!(heard.len(), 2);
 		assert_eq!(heard[1][1]["userId"], "guest");
+	});
+}
+
+#[test]
+fn an_online_space_polls_its_members_at_once_before_the_fifteen_seconds() {
+	run(async {
+		let mut harness = Harness::signed_in("members-at-once").await;
+		harness.started().await;
+		let _member = harness.member().await;
+		harness.reached(HostingState::Online).await;
+
+		for _ in 0..500 {
+			if !harness.heard_member_lists().is_empty() {
+				break;
+			}
+			tokio::time::sleep(Duration::from_millis(10)).await;
+		}
+
+		assert_eq!(harness.heard_member_lists().len(), 1);
+		assert_eq!(harness.member_calls(), vec!["GET"]);
 	});
 }
 

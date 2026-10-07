@@ -2,7 +2,7 @@ use std::convert::Infallible;
 use std::time::Duration;
 
 use tauri::{AppHandle, Manager, Runtime};
-use tokio::time::{interval_at, Instant, MissedTickBehavior};
+use tokio::time::{interval, MissedTickBehavior};
 
 use super::contract::{Member, MemberStatus, MembersChanged, MembersError, MEMBERS_CHANGED_EVENT};
 use super::Hosting;
@@ -74,7 +74,12 @@ async fn ended<R: Runtime>(
 	let instance_id = instance_of(app, &space_id).await?;
 	let hosting = app.state::<Hosting>();
 	let _turn = hosting.members_turn.lock().await;
-	let status = hosting.listed_status(&space_id, &user_id).ok_or(MembersError::UnknownMember)?;
+	let members = listed(app, &instance_id).await?;
+	let status = members
+		.iter()
+		.find(|member| member.user_id == user_id)
+		.map(|member| member.status)
+		.ok_or(MembersError::UnknownMember)?;
 	match (status, expected) {
 		(MemberStatus::Host, _) => return Err(MembersError::HostNotRemovable),
 		(MemberStatus::Joined, MemberStatus::Pending) => return Err(MembersError::NotPending),
@@ -92,7 +97,7 @@ pub(super) async fn polled<R: Runtime>(
 	instance_id: &str,
 ) -> Infallible {
 	let hosting = app.state::<Hosting>();
-	let mut polls = interval_at(Instant::now() + hosting.members_every, hosting.members_every);
+	let mut polls = interval(hosting.members_every);
 	polls.set_missed_tick_behavior(MissedTickBehavior::Delay);
 	loop {
 		polls.tick().await;
@@ -188,12 +193,6 @@ fn announced<R: Runtime>(app: &AppHandle<R>, space_id: &str, members: Vec<Member
 impl Hosting {
 	fn is_last_announced(&self, space_id: &str, members: &[Member]) -> bool {
 		self.hosts().get(space_id).and_then(|host| host.members.as_deref()) == Some(members)
-	}
-
-	fn listed_status(&self, space_id: &str, user_id: &str) -> Option<MemberStatus> {
-		let hosts = self.hosts();
-		let members = hosts.get(space_id)?.members.as_ref()?;
-		members.iter().find(|member| member.user_id == user_id).map(|member| member.status)
 	}
 }
 
