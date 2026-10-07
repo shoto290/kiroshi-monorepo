@@ -1362,6 +1362,7 @@ settings-space-spacesettingsdialog--members-i-7
 settings-space-spacesettingsdialog--members-i-8
 settings-space-spacesettingsdialog--members-i-9
 settings-space-spacesettingsdialog--members-long-identity
+settings-space-spacesettingsdialog--members-withdraw-pending
 settings-space-spacesettingsdialog--opens-on-an-application
 settings-space-spacesettingsdialog--share-link
 settings-space-spacesettingsdialog--skills

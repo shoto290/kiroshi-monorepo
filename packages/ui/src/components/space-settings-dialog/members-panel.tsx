@@ -5,10 +5,7 @@ import { useTranslation } from "react-i18next"
 
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { Icons } from "@workspace/ui/components/icons"
-import {
-	AvatarFrame,
-	initialsOf,
-} from "@workspace/ui/components/initials-avatar"
+import { AvatarFrame } from "@workspace/ui/components/initials-avatar"
 import {
 	FIELD_CONTROL_CLASS,
 	FIELD_CONTROL_INVALID_CLASS,
@@ -51,6 +48,8 @@ type MembersPanelProps = {
 const AVATAR_SIZE = 28
 
 const nameOf = (member: SpaceMember) => member.name ?? member.email
+
+const firstNameOf = (member: SpaceMember) => nameOf(member).split(/\s+/)[0]
 
 type InviteFieldProps = Pick<
 	MembersPanelProps,
@@ -158,7 +157,7 @@ const MemberAvatar = ({ member }: MemberAvatarProps) =>
 				aria-hidden="true"
 				className="grid size-full place-items-center bg-muted font-semibold text-foreground text-xs/4 uppercase"
 			>
-				{initialsOf(nameOf(member))}
+				{Array.from(nameOf(member))[0]}
 			</span>
 		</AvatarFrame>
 	)
@@ -248,7 +247,7 @@ const MembersPanel = ({
 		isAnswered.current = false
 	}
 
-	const name = asked ? nameOf(asked) : ""
+	const name = asked ? firstNameOf(asked) : ""
 
 	return (
 		<div className="flex flex-col gap-6" data-slot="members-panel">

@@ -942,29 +942,22 @@ const STEVE: SpaceMember = {
 	status: "host",
 }
 
-const ALEX: SpaceMember = {
-	id: "alex",
-	name: "Alex",
-	email: "alex@example.com",
-	status: "joined",
-}
-
 const SAM_PENDING: SpaceMember = {
 	id: "sam",
 	email: "sam@example.com",
 	status: "pending",
 }
 
-const SAM_JOINED: SpaceMember = {
+const SAM_CARTER: SpaceMember = {
 	id: "sam",
-	name: "Sam",
+	name: "Sam Carter",
 	email: "sam@example.com",
 	status: "joined",
 }
 
 const MEMBERS_PANEL = {
 	space: "Personal",
-	members: [STEVE, ALEX],
+	members: [STEVE],
 	email: "",
 	onEmailChange: fn(),
 	onInvite: fn(),
@@ -1029,7 +1022,7 @@ export const MembersI1 = meta.story({
 		docs: {
 			description: {
 				story:
-					"Artboard I1. The Members tab of a hosted space: an empty invite field with Invite disabled, the member list with the reader first as Host and no Remove, then the share link. Check that the Host tag lines up with the Joined tag below it.",
+					"Artboard I1. The Members tab of a hosted space: an empty invite field with Invite disabled, the member list holding only the reader, tagged Host with no Remove, then the share link.",
 			},
 		},
 	},
@@ -1043,16 +1036,10 @@ export const MembersI1 = meta.story({
 		)
 		await expect(memberRowsIn(panel)).toEqual([
 			["S", "Steve", "steve@example.com", "Host"],
-			["A", "Alex", "alex@example.com", "Joined", "Remove"],
 		])
-		const [host, joined] = slotsIn(panel, "space-member")
-		await expect(within(host).queryByRole("button")).toBe(null)
-		await expect(
-			within(host).getByText("Host").getBoundingClientRect().right,
-		).toBe(within(joined).getByText("Joined").getBoundingClientRect().right)
-		await expect(
-			within(joined).getByRole("button", { name: "Remove Alex" }),
-		).toHaveTextContent("Remove")
+		await expect(within(panel).queryByRole("button", { name: /^Remove/ })).toBe(
+			null,
+		)
 	},
 })
 
@@ -1086,7 +1073,7 @@ export const MembersI2 = meta.story({
 })
 
 export const MembersI3 = meta.story({
-	args: membersArgs({ members: [STEVE, ALEX, SAM_PENDING] }),
+	args: membersArgs({ members: [STEVE, SAM_PENDING] }),
 	parameters: {
 		docs: {
 			description: {
@@ -1097,10 +1084,9 @@ export const MembersI3 = meta.story({
 	},
 	play: async () => {
 		const panel = await membersPanelIn()
-		await expect(memberRowsIn(panel).at(-1)).toEqual([
-			"sam@example.com",
-			"Pending",
-			"Remove",
+		await expect(memberRowsIn(panel)).toEqual([
+			["S", "Steve", "steve@example.com", "Host"],
+			["sam@example.com", "Pending", "Remove"],
 		])
 		const pending = slotsIn(panel, "space-member").at(-1)
 		await expect(pending && glyphIn(pending, Icons.Mail)).not.toBe(null)
@@ -1108,15 +1094,34 @@ export const MembersI3 = meta.story({
 })
 
 export const MembersI4 = meta.story({
-	args: membersArgs({ members: [STEVE, ALEX, SAM_PENDING] }),
+	args: membersArgs({ members: [STEVE, SAM_CARTER] }),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Artboard I4. Remove on a Pending row withdraws the invitation at once: it reports `onWithdraw` with Sam and asks nothing. The story rests with Remove focused.",
+					"Artboard I4. Sam accepted: the row shows the name over the address, a one-letter avatar and the Joined tag, lined up with Host above it.",
 			},
 		},
 	},
+	play: async () => {
+		const panel = await membersPanelIn()
+		await expect(memberRowsIn(panel)).toEqual([
+			["S", "Steve", "steve@example.com", "Host"],
+			["S", "Sam Carter", "sam@example.com", "Joined", "Remove"],
+		])
+		const [host, joined] = slotsIn(panel, "space-member")
+		await expect(
+			within(host).getByText("Host").getBoundingClientRect().right,
+		).toBe(within(joined).getByText("Joined").getBoundingClientRect().right)
+		await expect(
+			within(joined).getByRole("button", { name: "Remove Sam Carter" }),
+		).toHaveTextContent("Remove")
+	},
+})
+
+export const MembersWithdrawPending = meta.story({
+	tags: ["test-only"],
+	args: membersArgs({ members: [STEVE, SAM_PENDING] }),
 	play: async ({ userEvent }) => {
 		const panel = await membersPanelIn()
 		const remove = within(panel).getByRole("button", {
@@ -1164,7 +1169,7 @@ export const MembersI5 = meta.story({
 	},
 	play: async () => {
 		const panel = await membersPanelIn()
-		await expect(memberRowsIn(panel)).toHaveLength(2)
+		await expect(memberRowsIn(panel)).toHaveLength(1)
 		const title = await waitFor(() => slotIn(document.body, "toast-title"))
 		await expect(title).toHaveTextContent(
 			"Invitation to sam@example.com withdrawn",
@@ -1174,8 +1179,8 @@ export const MembersI5 = meta.story({
 
 export const MembersI6 = meta.story({
 	args: membersArgs({
-		members: [STEVE, ALEX, SAM_JOINED],
-		removing: SAM_JOINED,
+		members: [STEVE, SAM_CARTER],
+		removing: SAM_CARTER,
 	}),
 	parameters: {
 		docs: {
@@ -1211,7 +1216,7 @@ export const MembersI6 = meta.story({
 
 export const MembersI7 = meta.story({
 	args: membersArgs({
-		members: [STEVE, ALEX, SAM_PENDING],
+		members: [STEVE, SAM_PENDING],
 		email: "sam@example.com",
 		refusal: "invited",
 	}),
@@ -1232,7 +1237,11 @@ export const MembersI7 = meta.story({
 })
 
 export const MembersI8 = meta.story({
-	args: membersArgs({ email: "steve@example.com", refusal: "self" }),
+	args: membersArgs({
+		members: [STEVE, SAM_PENDING],
+		email: "steve@example.com",
+		refusal: "self",
+	}),
 	parameters: {
 		docs: {
 			description: {
@@ -1247,7 +1256,11 @@ export const MembersI8 = meta.story({
 })
 
 export const MembersI9 = meta.story({
-	args: membersArgs({ email: "sam", refusal: "malformed" }),
+	args: membersArgs({
+		members: [STEVE, SAM_PENDING],
+		email: "sam",
+		refusal: "malformed",
+	}),
 	parameters: {
 		docs: {
 			description: {
@@ -1282,7 +1295,7 @@ export const MembersI10 = meta.story({
 		await expect(panel).toHaveTextContent(
 			"Turn on hosting to invite people who aren’t on your network.",
 		)
-		await expect(memberRowsIn(panel)).toHaveLength(2)
+		await expect(memberRowsIn(panel)).toHaveLength(1)
 		await expect(slotIn(panel, "share-link")).toBeVisible()
 
 		await userEvent.click(
