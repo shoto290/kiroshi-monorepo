@@ -39,6 +39,12 @@ const SIGNED_IN: AccountState = {
 
 const COPY = en.settings.account
 
+const signedInPanel = (name: string) => ({
+	status: "signedIn",
+	name,
+	email: EMAIL,
+})
+
 const OK = { status: "ok", data: null } as const
 
 const STORE_ERROR = {
@@ -97,11 +103,7 @@ describe("useAccount", () => {
 		const { result } = await mountAccount()
 
 		expect(commands.accountState).toHaveBeenCalledOnce()
-		expect(result.current.account).toEqual({
-			status: "signedIn",
-			name: PROFILE_NAME,
-			email: EMAIL,
-		})
+		expect(result.current.account).toEqual(signedInPanel(PROFILE_NAME))
 	})
 
 	it("re-renders the panel from the state an account change carries", async () => {
@@ -113,11 +115,7 @@ describe("useAccount", () => {
 
 		announce(SIGNED_IN)
 
-		expect(result.current.account).toEqual({
-			status: "signedIn",
-			name: PROFILE_NAME,
-			email: EMAIL,
-		})
+		expect(result.current.account).toEqual(signedInPanel(PROFILE_NAME))
 	})
 
 	it("keeps a change heard before the first read lands", async () => {
@@ -141,11 +139,7 @@ describe("useAccount", () => {
 
 		const { result } = await mountAccount("")
 
-		expect(result.current.account).toEqual({
-			status: "signedIn",
-			name: "ada.martin",
-			email: EMAIL,
-		})
+		expect(result.current.account).toEqual(signedInPanel("ada.martin"))
 	})
 
 	it("shows the new profile name when the person renames while signed in", async () => {
@@ -154,11 +148,7 @@ describe("useAccount", () => {
 
 		rerender({ displayName: "Ada Lovelace" })
 
-		expect(result.current.account).toEqual({
-			status: "signedIn",
-			name: "Ada Lovelace",
-			email: EMAIL,
-		})
+		expect(result.current.account).toEqual(signedInPanel("Ada Lovelace"))
 		expect(commands.accountState).toHaveBeenCalledOnce()
 	})
 
