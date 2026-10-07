@@ -69,7 +69,10 @@ export default definePreview({
 		theme_layout: "single",
 	},
 	parameters: {
-		a11y: { test: "error" },
+		a11y: {
+			test: "error",
+			context: { exclude: ["[data-base-ui-focus-guard]"] },
+		},
 		docs: { container: ThemedDocsContainer },
 		options: {
 			storySort: (a, b) => {

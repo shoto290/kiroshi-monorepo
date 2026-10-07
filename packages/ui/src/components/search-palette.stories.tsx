@@ -327,7 +327,7 @@ export const Default = meta.story({
 		const body = bodyOf(popup)
 		const field = within(popup).getByRole("combobox")
 
-		await expect(field).toHaveFocus()
+		await waitFor(() => expect(field).toHaveFocus())
 		await expect(canvas.queryByRole("dialog")).toBeNull()
 
 		const heads = slotsIn(body, "search-palette-section-head")

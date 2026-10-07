@@ -98,6 +98,13 @@ const entriesIn = async () =>
 	(await openMenu()).getAllByRole("menuitem").map((item) => item.textContent)
 
 const dismissMenu = async () => {
+	await waitFor(
+		() =>
+			expect(screen.getByRole("menu").contains(document.activeElement)).toBe(
+				true,
+			),
+		FRAME_POLL,
+	)
 	fireEvent.keyDown(document.activeElement ?? document.body, {
 		key: "Escape",
 	})
