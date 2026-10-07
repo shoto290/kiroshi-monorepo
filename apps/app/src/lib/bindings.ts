@@ -126,6 +126,10 @@ export const commands = {
 	hostingStart: (spaceId: string) => typedError<HostingState, SpaceError>(__TAURI_INVOKE("hosting_start", { spaceId })),
 	hostingStop: (spaceId: string) => typedError<HostingState, SpaceError>(__TAURI_INVOKE("hosting_stop", { spaceId })),
 	hostingState: (spaceId: string) => __TAURI_INVOKE<HostingState>("hosting_state", { spaceId }),
+	hostingMembers: (spaceId: string) => typedError<Member[], MembersError>(__TAURI_INVOKE("hosting_members", { spaceId })),
+	hostingInviteMember: (spaceId: string, email: string) => typedError<Member, MembersError>(__TAURI_INVOKE("hosting_invite_member", { spaceId, email })),
+	hostingWithdrawInvitation: (spaceId: string, userId: string) => typedError<Member[], MembersError>(__TAURI_INVOKE("hosting_withdraw_invitation", { spaceId, userId })),
+	hostingRemoveMember: (spaceId: string, userId: string) => typedError<Member[], MembersError>(__TAURI_INVOKE("hosting_remove_member", { spaceId, userId })),
 	joinedSpacesList: () => typedError<JoinedSpace[], JoinedSpaceError>(__TAURI_INVOKE("joined_spaces_list")),
 	joinedSpaceAdd: (link: string, name: string | null) => typedError<JoinedSpace, JoinedSpaceError>(__TAURI_INVOKE("joined_space_add", { link, name })),
 	joinedSpaceConnect: (id: string) => typedError<JoinedSpaceConnection, JoinedSpaceError>(__TAURI_INVOKE("joined_space_connect", { id })),
@@ -207,6 +211,8 @@ export const ARCHIVE_EXTENSION = "kiroshi" as const;
 export const ARCHIVE_FILTER_NAME = "Kiroshi space" as const;
 
 export const HOSTING_CHANGED_EVENT = "hosting://changed" as const;
+
+export const HOSTING_MEMBERS_CHANGED_EVENT = "hosting://members-changed" as const;
 
 export const HOST_PRESENCE_EVENT = "host://presence" as const;
 
@@ -743,6 +749,22 @@ export type McpServer_Serialize = {
 	name: string,
 	config: Json,
 } & ApplicationMark_Serialize;
+
+export type Member = {
+	userId: string,
+	name: string | null,
+	email: string,
+	status: MemberStatus,
+};
+
+export type MemberStatus = "host" | "pending" | "joined";
+
+export type MembersChanged = {
+	spaceId: string,
+	members: Member[],
+};
+
+export type MembersError = { kind: "notHosting" } | { kind: "notAnEmail" } | { kind: "ownAccount" } | { kind: "alreadyInvited" } | { kind: "limitReached" } | { kind: "unknownMember" } | { kind: "notPending" } | { kind: "notJoined" } | { kind: "hostNotRemovable" } | { kind: "notOwner" } | { kind: "needsSignIn" } | { kind: "unreachable"; reason: string } | { kind: "sessionStore"; detail: string } | { kind: "space"; error: SpaceError };
 
 export type MessageHit = {
 	messageId: string,

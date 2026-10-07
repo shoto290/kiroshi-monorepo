@@ -9,7 +9,7 @@ use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, State as Served};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::Router;
 use serde_json::{json, Value};
 use tauri::test::{mock_app, MockRuntime};
@@ -18,9 +18,13 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
 use super::bridge::LocalApi;
-use super::contract::{HostingState, CHANGED_EVENT};
+use super::contract::{
+	HostingState, Member, MemberStatus, MembersError, CHANGED_EVENT, MEMBERS_CHANGED_EVENT,
+};
+use super::members::{invite, list, remove, withdraw};
 use super::{resumed, signed_out, start, stop, Hosting};
 use crate::spaces::commands::space_delete;
+use crate::account::session::restore;
 use crate::account::session::AccountSession;
 use crate::db::connection::temp_dir;
 use crate::db::{self, DatabaseState};
@@ -32,6 +36,8 @@ const BEARER: &str = "bearer-that-never-leaves";
 const LOCAL_TOKEN: &str = "host-token-of-the-loopback";
 const PERSONAL: &str = "personal";
 const PATIENCE: Duration = Duration::from_secs(5);
+const OWNER_EMAIL: &str = "owner@example.com";
+const POLL_EVERY: Duration = Duration::from_millis(100);
 const LONGER_THAN_THE_FIRST_BACKOFF: Duration = Duration::from_millis(1500);
 
 #[derive(Clone)]
@@ -43,6 +49,68 @@ struct Relay {
 	known: Arc<Mutex<HashSet<String>>>,
 	attempts: Arc<AtomicUsize>,
 	sockets: mpsc::UnboundedSender<WebSocket>,
+	members: Arc<Mutex<Vec<Value>>>,
+	member_calls: Arc<Mutex<Vec<String>>>,
+	member_answer: Arc<Mutex<Option<(StatusCode, Value)>>>,
+}
+
+fn cloud_member(user_id: &str, email: &str, role: &str, state: &str) -> Value {
+	json!({ "userId": user_id, "email": email, "name": null, "role": role, "state": state })
+}
+
+fn member_call(relay: &Relay, call: String) -> Option<Response> {
+	relay.member_calls.lock().expect("the relay").push(call);
+	let forced = relay.member_answer.lock().expect("the relay").clone();
+	forced.map(|(status, body)| answered_json(status, body))
+}
+
+async fn members_listed(Served(relay): Served<Relay>, headers: HeaderMap) -> Response {
+	assert_eq!(bearer_of(&headers), BEARER);
+	if let Some(forced) = member_call(&relay, "GET".to_owned()) {
+		return forced;
+	}
+	answered_json(StatusCode::OK, Value::Array(relay.members.lock().expect("the relay").clone()))
+}
+
+async fn member_invited(
+	Served(relay): Served<Relay>,
+	headers: HeaderMap,
+	body: String,
+) -> Response {
+	assert_eq!(bearer_of(&headers), BEARER);
+	let body: Value = serde_json::from_str(&body).expect("a json body");
+	let email = body["email"].as_str().expect("an email").to_owned();
+	if let Some(forced) = member_call(&relay, format!("POST {email}")) {
+		return forced;
+	}
+	let invited = cloud_member(&uuid::Uuid::new_v4().to_string(), &email, "member", "pending");
+	relay.members.lock().expect("the relay").push(invited.clone());
+	answered_json(StatusCode::CREATED, invited)
+}
+
+async fn member_removed(
+	Served(relay): Served<Relay>,
+	Path((_, user_id)): Path<(String, String)>,
+	headers: HeaderMap,
+) -> Response {
+	assert_eq!(bearer_of(&headers), BEARER);
+	if let Some(forced) = member_call(&relay, format!("DELETE {user_id}")) {
+		return forced;
+	}
+	let mut members = relay.members.lock().expect("the relay");
+	let before = members.len();
+	members.retain(|member| member["userId"] != user_id.as_str());
+	if members.len() == before {
+		return StatusCode::NOT_FOUND.into_response();
+	}
+	StatusCode::NO_CONTENT.into_response()
+}
+
+async fn me() -> Response {
+	answered_json(
+		StatusCode::OK,
+		json!({ "id": "owner", "email": OWNER_EMAIL, "createdAt": "2026-10-01T00:00:00.000Z" }),
+	)
 }
 
 fn bearer_of(headers: &HeaderMap) -> &str {
@@ -117,10 +185,20 @@ struct Harness {
 	relay: Relay,
 	sockets: mpsc::UnboundedReceiver<WebSocket>,
 	heard: Arc<Mutex<Vec<Value>>>,
+	heard_members: Arc<Mutex<Vec<Value>>>,
 }
 
 impl Harness {
 	async fn new(name: &str, refusal: Option<StatusCode>, bearer: Option<&str>) -> Self {
+		Self::polling_members(name, refusal, bearer, super::members::MEMBERS_EVERY).await
+	}
+
+	async fn polling_members(
+		name: &str,
+		refusal: Option<StatusCode>,
+		bearer: Option<&str>,
+		members_every: Duration,
+	) -> Self {
 		let (sockets_in, sockets) = mpsc::unbounded_channel();
 		let relay = Relay {
 			refusal,
@@ -130,11 +208,22 @@ impl Harness {
 			known: Arc::default(),
 			attempts: Arc::default(),
 			sockets: sockets_in,
+			members: Arc::new(Mutex::new(vec![cloud_member(
+				"owner",
+				OWNER_EMAIL,
+				"owner",
+				"joined",
+			)])),
+			member_calls: Arc::default(),
+			member_answer: Arc::default(),
 		};
 		let cloud = served(
 			Router::new()
 				.route("/instances", post(registration))
 				.route("/instances/{id}/relay/host", get(host))
+				.route("/instances/{id}/members", get(members_listed).post(member_invited))
+				.route("/instances/{id}/members/{user_id}", delete(member_removed))
+				.route("/me", get(me))
 				.with_state(relay.clone()),
 		)
 		.await;
@@ -148,17 +237,28 @@ impl Harness {
 		let app = mock_app();
 		app.manage::<DatabaseState>(Ok(db::open(&temp_dir())));
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
-		app.manage(Hosting::new(
-			&cloud,
-			Some(LocalApi::new(local, LOCAL_TOKEN.to_owned()).expect("the local client builds")),
-		));
+		app.manage(
+			Hosting::new(
+				&cloud,
+				Some(
+					LocalApi::new(local, LOCAL_TOKEN.to_owned()).expect("the local client builds"),
+				),
+			)
+			.polling_members_every(members_every),
+		);
 		let heard = Arc::new(Mutex::new(Vec::new()));
 		let hearing = Arc::clone(&heard);
 		app.listen(CHANGED_EVENT, move |event| {
 			let payload = serde_json::from_str(event.payload()).expect("a json payload");
 			hearing.lock().expect("the events").push(payload);
 		});
-		Self { app, relay, sockets, heard }
+		let heard_members = Arc::new(Mutex::new(Vec::new()));
+		let hearing_members = Arc::clone(&heard_members);
+		app.listen(MEMBERS_CHANGED_EVENT, move |event| {
+			let payload = serde_json::from_str(event.payload()).expect("a json payload");
+			hearing_members.lock().expect("the events").push(payload);
+		});
+		Self { app, relay, sockets, heard, heard_members }
 	}
 
 	async fn signed_in(name: &str) -> Self {
@@ -624,5 +724,319 @@ fn a_space_whose_registration_never_succeeded_is_resumed_and_registered() {
 
 		assert_eq!(harness.registered(), vec!["Personal".to_owned()]);
 		assert!(harness.stored().await.0.is_some());
+	});
+}
+
+const INSTANCE: &str = "6f1c2a7e-0d4b-4c9a-9a51-2f7f3f1d8c10";
+
+impl Harness {
+	async fn hosted(name: &str) -> Self {
+		let harness = Self::signed_in(name).await;
+		harness.plant(INSTANCE).await;
+		harness
+	}
+
+	fn seed(&self, members: &[Value]) {
+		self.relay.members.lock().expect("the relay").extend_from_slice(members);
+	}
+
+	fn member_calls(&self) -> Vec<String> {
+		self.relay.member_calls.lock().expect("the relay").clone()
+	}
+
+	fn forget_member_calls(&self) {
+		self.relay.member_calls.lock().expect("the relay").clear();
+	}
+
+	fn cloud_answers(&self, status: StatusCode, body: Value) {
+		*self.relay.member_answer.lock().expect("the relay") = Some((status, body));
+	}
+
+	fn heard_member_lists(&self) -> Vec<Value> {
+		let heard = self.heard_members.lock().expect("the events");
+		heard
+			.iter()
+			.inspect(|change| assert_eq!(change["spaceId"], PERSONAL))
+			.map(|change| change["members"].clone())
+			.collect()
+	}
+
+	async fn listed(&self) -> Result<Vec<Member>, MembersError> {
+		list(self.app.handle(), PERSONAL.to_owned()).await
+	}
+
+	async fn invited(&self, email: &str) -> Result<Member, MembersError> {
+		invite(self.app.handle(), PERSONAL.to_owned(), email.to_owned()).await
+	}
+
+	async fn withdrawn(&self, user_id: &str) -> Result<Vec<Member>, MembersError> {
+		withdraw(self.app.handle(), PERSONAL.to_owned(), user_id.to_owned()).await
+	}
+
+	async fn removed(&self, user_id: &str) -> Result<Vec<Member>, MembersError> {
+		remove(self.app.handle(), PERSONAL.to_owned(), user_id.to_owned()).await
+	}
+
+	async fn listed_with_a_guest_and_a_joiner(&self) {
+		self.seed(&[
+			cloud_member("guest", "guest@example.com", "member", "pending"),
+			cloud_member("joiner", "joiner@example.com", "member", "joined"),
+		]);
+		self.listed().await.expect("the members list");
+		self.forget_member_calls();
+	}
+}
+
+fn member(user_id: &str, email: &str, status: MemberStatus) -> Member {
+	Member { user_id: user_id.to_owned(), name: None, email: email.to_owned(), status }
+}
+
+fn user_ids(members: &[Member]) -> Vec<&str> {
+	members.iter().map(|member| member.user_id.as_str()).collect()
+}
+
+#[test]
+fn the_members_are_listed_in_the_cloud_order_with_a_status_each() {
+	run(async {
+		let harness = Harness::hosted("members-list").await;
+		harness.seed(&[
+			json!({ "userId": "joiner", "email": "joiner@example.com", "name": "Joiner", "role": "member", "state": "joined" }),
+			cloud_member("guest", "guest@example.com", "member", "pending"),
+		]);
+
+		let members = harness.listed().await.expect("the members list");
+
+		assert_eq!(
+			members,
+			vec![
+				member("owner", OWNER_EMAIL, MemberStatus::Host),
+				Member {
+					name: Some("Joiner".to_owned()),
+					..member("joiner", "joiner@example.com", MemberStatus::Joined)
+				},
+				member("guest", "guest@example.com", MemberStatus::Pending),
+			]
+		);
+		assert_eq!(harness.member_calls(), vec!["GET"]);
+	});
+}
+
+#[test]
+fn an_invite_is_trimmed_lowercased_posted_and_answered_pending_with_the_list_read_back() {
+	run(async {
+		let harness = Harness::hosted("members-invite").await;
+
+		let invited = harness.invited("  Ada@Example.COM ").await.expect("the invite lands");
+
+		assert_eq!(invited.email, "ada@example.com");
+		assert_eq!(invited.status, MemberStatus::Pending);
+		assert_eq!(harness.member_calls(), vec!["POST ada@example.com", "GET"]);
+		let heard = harness.heard_member_lists();
+		assert_eq!(heard.len(), 1);
+		assert_eq!(heard[0][1]["email"], "ada@example.com");
+		assert_eq!(heard[0][1]["status"], "pending");
+	});
+}
+
+#[test]
+fn a_pending_member_is_withdrawn_and_a_joined_one_removed_each_read_back() {
+	run(async {
+		let harness = Harness::hosted("members-end").await;
+		harness.listed_with_a_guest_and_a_joiner().await;
+
+		let withdrawn = harness.withdrawn("guest").await.expect("the invitation is withdrawn");
+		let removed = harness.removed("joiner").await.expect("the member is removed");
+
+		assert_eq!(user_ids(&withdrawn), vec!["owner", "joiner"]);
+		assert_eq!(user_ids(&removed), vec!["owner"]);
+		assert_eq!(harness.member_calls(), vec!["DELETE guest", "GET", "DELETE joiner", "GET"]);
+		let heard = harness.heard_member_lists();
+		assert_eq!(heard.len(), 3);
+		assert_eq!(
+			heard[2],
+			json!([{ "userId": "owner", "name": null, "email": OWNER_EMAIL, "status": "host" }])
+		);
+	});
+}
+
+#[test]
+fn what_is_not_an_email_is_refused_before_the_cloud_and_a_cloud_400_alike() {
+	run(async {
+		let harness = Harness::hosted("members-not-email").await;
+
+		assert_eq!(harness.invited("ada@").await, Err(MembersError::NotAnEmail));
+		assert!(harness.member_calls().is_empty());
+
+		harness.cloud_answers(
+			StatusCode::BAD_REQUEST,
+			json!({ "error": { "code": "INVALID_EMAIL" } }),
+		);
+		assert_eq!(harness.invited("ada@example.com").await, Err(MembersError::NotAnEmail));
+		assert_eq!(harness.member_calls(), vec!["POST ada@example.com"]);
+	});
+}
+
+#[test]
+fn the_own_account_email_is_refused_before_the_cloud() {
+	run(async {
+		let harness = Harness::hosted("members-own").await;
+		restore(harness.app.handle().clone()).await;
+
+		assert_eq!(harness.invited(" Owner@Example.com").await, Err(MembersError::OwnAccount));
+		assert!(harness.member_calls().is_empty());
+	});
+}
+
+#[test]
+fn the_cloud_conflicts_are_typed_refusals() {
+	run(async {
+		let harness = Harness::hosted("members-conflicts").await;
+
+		for (code, refusal) in [
+			("ALREADY_MEMBER", MembersError::AlreadyInvited),
+			("MEMBER_LIMIT_REACHED", MembersError::LimitReached),
+		] {
+			harness.cloud_answers(StatusCode::CONFLICT, json!({ "error": { "code": code } }));
+			assert_eq!(harness.invited("ada@example.com").await, Err(refusal));
+		}
+		assert!(harness.heard_member_lists().is_empty());
+	});
+}
+
+#[test]
+fn a_status_mismatch_or_the_host_is_refused_before_the_cloud() {
+	run(async {
+		let harness = Harness::hosted("members-mismatch").await;
+		harness.listed_with_a_guest_and_a_joiner().await;
+
+		assert_eq!(harness.withdrawn("joiner").await, Err(MembersError::NotPending));
+		assert_eq!(harness.removed("guest").await, Err(MembersError::NotJoined));
+		assert_eq!(harness.withdrawn("owner").await, Err(MembersError::HostNotRemovable));
+		assert_eq!(harness.removed("owner").await, Err(MembersError::HostNotRemovable));
+		assert_eq!(harness.removed("stranger").await, Err(MembersError::UnknownMember));
+		assert!(harness.member_calls().is_empty());
+	});
+}
+
+#[test]
+fn a_space_without_an_instance_refuses_every_member_command_before_the_cloud() {
+	run(async {
+		let harness = Harness::signed_in("members-not-hosting").await;
+
+		assert_eq!(harness.listed().await, Err(MembersError::NotHosting));
+		assert_eq!(harness.invited("ada@example.com").await, Err(MembersError::NotHosting));
+		assert_eq!(harness.withdrawn("guest").await, Err(MembersError::NotHosting));
+		assert_eq!(harness.removed("joiner").await, Err(MembersError::NotHosting));
+		assert!(harness.member_calls().is_empty());
+	});
+}
+
+#[test]
+fn a_cloud_401_needs_a_sign_in() {
+	run(async {
+		let harness = Harness::hosted("members-revoked").await;
+		harness.listed_with_a_guest_and_a_joiner().await;
+		harness.cloud_answers(StatusCode::UNAUTHORIZED, json!({}));
+
+		assert_eq!(harness.listed().await, Err(MembersError::NeedsSignIn));
+		assert_eq!(harness.invited("ada@example.com").await, Err(MembersError::NeedsSignIn));
+		assert_eq!(harness.withdrawn("guest").await, Err(MembersError::NeedsSignIn));
+		assert_eq!(harness.removed("joiner").await, Err(MembersError::NeedsSignIn));
+	});
+}
+
+#[test]
+fn a_5xx_or_an_unreadable_list_is_unreachable_with_its_cause() {
+	run(async {
+		let harness = Harness::hosted("members-5xx").await;
+
+		harness.cloud_answers(StatusCode::SERVICE_UNAVAILABLE, json!({}));
+		let Err(MembersError::Unreachable { reason }) = harness.listed().await else {
+			panic!("a 503 is unreachable");
+		};
+		assert!(reason.contains("503"), "{reason}");
+
+		harness.cloud_answers(StatusCode::OK, json!({ "members": [] }));
+		let Err(MembersError::Unreachable { reason }) = harness.listed().await else {
+			panic!("an unreadable list is unreachable");
+		};
+		assert!(reason.contains("did not parse"), "{reason}");
+	});
+}
+
+#[test]
+fn an_unreachable_cloud_is_unreachable_with_its_cause() {
+	run(async {
+		let closed = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("a port binds");
+		let address = closed.local_addr().expect("the port is named");
+		drop(closed);
+		let root =
+			std::env::temp_dir().join(format!("kiroshi-hosting-down-{}", uuid::Uuid::new_v4()));
+		store::set(&root, &EnvScope::Account, ACCOUNT_BEARER, BEARER).expect("the bearer is kept");
+		let cloud = format!("http://{address}");
+		let app = mock_app();
+		app.manage::<DatabaseState>(Ok(db::open(&temp_dir())));
+		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
+		app.manage(Hosting::new(&cloud, None));
+		let state = app.state::<DatabaseState>();
+		let hosting = state.as_ref().expect("the database").space_hosting();
+		hosting.registered(PERSONAL.to_owned(), INSTANCE.to_owned()).await.expect("planted");
+
+		let listed = list(app.handle(), PERSONAL.to_owned()).await;
+
+		let Err(MembersError::Unreachable { reason }) = listed else {
+			panic!("a closed port is unreachable, not {listed:?}");
+		};
+		assert!(reason.contains("could not be reached"), "{reason}");
+	});
+}
+
+#[test]
+fn an_online_space_polls_its_members_and_announces_only_a_changed_list() {
+	run(async {
+		let mut harness =
+			Harness::polling_members("members-poll", None, Some(BEARER), POLL_EVERY).await;
+		harness.started().await;
+		let _member = harness.member().await;
+		harness.reached(HostingState::Online).await;
+
+		let polled_a_few_times = || harness.member_calls().len() >= 4;
+		for _ in 0..500 {
+			if polled_a_few_times() {
+				break;
+			}
+			tokio::time::sleep(Duration::from_millis(10)).await;
+		}
+		assert!(polled_a_few_times(), "{:?}", harness.member_calls());
+		assert_eq!(harness.heard_member_lists().len(), 1);
+
+		harness.seed(&[cloud_member("guest", "guest@example.com", "member", "pending")]);
+		for _ in 0..500 {
+			if harness.heard_member_lists().len() == 2 {
+				break;
+			}
+			tokio::time::sleep(Duration::from_millis(10)).await;
+		}
+		let heard = harness.heard_member_lists();
+		assert_eq!(heard.len(), 2);
+		assert_eq!(heard[1][1]["userId"], "guest");
+	});
+}
+
+#[test]
+fn the_members_are_polled_every_fifteen_seconds() {
+	assert_eq!(Hosting::new("http://127.0.0.1:9", None).members_every, Duration::from_secs(15));
+}
+
+#[test]
+fn a_space_that_is_not_online_does_not_poll_its_members() {
+	run(async {
+		let harness =
+			Harness::polling_members("members-offline", None, Some(BEARER), POLL_EVERY).await;
+		harness.plant(INSTANCE).await;
+
+		tokio::time::sleep(POLL_EVERY * 3).await;
+
+		assert!(harness.member_calls().is_empty());
 	});
 }

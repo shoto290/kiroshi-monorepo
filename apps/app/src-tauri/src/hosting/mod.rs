@@ -1,10 +1,12 @@
 pub mod bridge;
 pub mod commands;
 pub mod contract;
+mod members;
 mod relay;
 
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::Duration;
 
 use tauri::async_runtime::JoinHandle;
 use tauri::{AppHandle, Manager, Runtime};
@@ -20,7 +22,7 @@ use crate::routines::webhook::Webhook;
 use crate::spaces::commands::ready;
 use crate::spaces::contract::SpaceError;
 use bridge::LocalApi;
-use contract::{HostingChanged, HostingState, CHANGED_EVENT};
+use contract::{HostingChanged, HostingState, Member, CHANGED_EVENT};
 use relay::Hosted;
 
 pub struct Hosting {
@@ -28,6 +30,8 @@ pub struct Hosting {
 	local: Option<LocalApi>,
 	hosts: Mutex<HashMap<String, Host>>,
 	turn: tokio::sync::Mutex<()>,
+	members_turn: tokio::sync::Mutex<()>,
+	members_every: Duration,
 }
 
 #[derive(Default)]
@@ -35,6 +39,7 @@ struct Host {
 	state: HostingState,
 	instance_id: Option<String>,
 	run: Option<Run>,
+	members: Option<Vec<Member>>,
 }
 
 struct Run {
@@ -49,7 +54,14 @@ impl Hosting {
 			local,
 			hosts: Mutex::new(HashMap::new()),
 			turn: tokio::sync::Mutex::new(()),
+			members_turn: tokio::sync::Mutex::new(()),
+			members_every: members::MEMBERS_EVERY,
 		}
+	}
+
+	#[cfg(test)]
+	fn polling_members_every(self, members_every: Duration) -> Self {
+		Self { members_every, ..self }
 	}
 
 	pub fn current(&self, space_id: &str) -> HostingState {

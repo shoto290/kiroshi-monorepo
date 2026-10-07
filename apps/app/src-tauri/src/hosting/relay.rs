@@ -19,7 +19,7 @@ use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 
 use super::bridge::{self, LocalApi};
 use super::contract::HostingState;
-use super::{entered, Hosting};
+use super::{entered, members, Hosting};
 use crate::account::cloud::RegisterError;
 use crate::account::session::AccountSession;
 use crate::db;
@@ -151,7 +151,11 @@ async fn attempted<R: Runtime>(
 			backoff.reset();
 			entered(app, &hosted.space_id, Some(&instance_id), HostingState::Online);
 			let ids = Ids { space_id: &hosted.space_id, instance_id: &instance_id };
-			match online(app, *socket, local, stop, ids).await {
+			let ended = tokio::select! {
+				ended = online(app, *socket, local, stop, ids) => ended,
+				never = members::polled(app, &hosted.space_id, &instance_id) => match never {},
+			};
+			match ended {
 				Ended::Stopped => Next::Stopped,
 				Ended::Replaced => Next::Settled(HostingState::Failed {
 					reason: "another host took this instance over (relay close 4001)".to_owned(),
