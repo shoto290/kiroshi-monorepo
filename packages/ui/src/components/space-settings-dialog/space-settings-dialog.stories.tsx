@@ -1316,12 +1316,10 @@ export const MembersLongIdentity = meta.story({
 	}),
 	play: async () => {
 		const panel = await membersPanelIn()
-		const list = slotIn(panel, "space-member").parentElement
-		for (const row of slotsIn(panel, "space-member")) {
-			const remove = within(row).queryByRole("button")
-			const edge = (remove ?? row).getBoundingClientRect().right
-			await expect(edge).toBeLessThanOrEqual(
-				list?.getBoundingClientRect().right ?? 0,
+		const list = within(panel).getByRole("list")
+		for (const remove of within(list).getAllByRole("button")) {
+			await expect(remove.getBoundingClientRect().right).toBeLessThanOrEqual(
+				list.getBoundingClientRect().right,
 			)
 		}
 		const name = within(panel).getByText(LONG_NAME)
