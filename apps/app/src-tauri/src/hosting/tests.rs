@@ -170,13 +170,18 @@ impl Harness {
 	}
 
 	async fn reached(&self, expected: HostingState) {
+		self.reached_by(PERSONAL, expected).await;
+	}
+
+	async fn reached_by(&self, space_id: &str, expected: HostingState) {
+		let current = || self.app.state::<Hosting>().current(space_id);
 		for _ in 0..500 {
-			if self.state() == expected {
+			if current() == expected {
 				return;
 			}
 			tokio::time::sleep(Duration::from_millis(10)).await;
 		}
-		panic!("the space stayed {:?}, never {expected:?}", self.state());
+		panic!("space {space_id} stayed {:?}, never {expected:?}", current());
 	}
 
 	async fn failed(&self) -> String {
@@ -560,12 +565,7 @@ fn deleting_a_hosted_space_closes_its_relay_with_1000_and_reads_off() {
 		};
 		start(harness.app.handle(), work.clone()).await.expect("the hosting starts");
 		let mut member = harness.member().await;
-		for _ in 0..500 {
-			if harness.app.state::<Hosting>().current(&work) == HostingState::Online {
-				break;
-			}
-			tokio::time::sleep(Duration::from_millis(10)).await;
-		}
+		harness.reached_by(&work, HostingState::Online).await;
 
 		space_delete(harness.app.handle().clone(), harness.app.state(), work.clone())
 			.await
