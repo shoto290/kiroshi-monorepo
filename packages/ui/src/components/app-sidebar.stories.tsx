@@ -3668,8 +3668,9 @@ const swipeToRest = async (
 	step: number,
 	{ slot, drawn }: CarouselRest,
 ) => {
-	const target = panelsIn(carousel)[slotReported(carousel) + step]
-	carousel.scrollLeft = (slotReported(carousel) + step) * carousel.clientWidth
+	const aimed = slotReported(carousel) + step
+	const target = panelsIn(carousel)[aimed]
+	carousel.scrollLeft = aimed * carousel.clientWidth
 	await waitFor(async () => {
 		await expect(target).not.toHaveAttribute("inert")
 		await expect(panelsIn(carousel)).toHaveLength(drawn)
