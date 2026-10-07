@@ -10,8 +10,20 @@ const INVOKE_BOUND: Duration = Duration::from_secs(300);
 
 #[derive(Clone)]
 pub struct LocalApi {
-	pub origin: String,
-	pub token: String,
+	origin: String,
+	token: String,
+	client: Client,
+}
+
+impl LocalApi {
+	pub fn new(origin: String, token: String) -> Result<Self, String> {
+		installed_tls_provider();
+		let client = Client::builder()
+			.timeout(INVOKE_BOUND)
+			.build()
+			.map_err(|error| format!("the local host api client could not be built: {error}"))?;
+		Ok(Self { origin, token, client })
+	}
 }
 
 #[derive(Debug, PartialEq)]
@@ -60,12 +72,8 @@ pub(super) async fn bridged(local: LocalApi, call: MemberCall) -> String {
 }
 
 async fn invoked(local: &LocalApi, call: &MemberCall) -> Result<(StatusCode, Value), String> {
-	installed_tls_provider();
-	let client = Client::builder()
-		.timeout(INVOKE_BOUND)
-		.build()
-		.map_err(|error| format!("the local host api client could not be built: {error}"))?;
-	let answered = client
+	let answered = local
+		.client
 		.post(format!("{}/api/invoke/{}", local.origin, call.command))
 		.bearer_auth(&local.token)
 		.json(&call.args)

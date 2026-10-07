@@ -77,13 +77,16 @@ pub fn local_api<R: Runtime>(app: &AppHandle<R>) -> Option<LocalApi> {
 		eprintln!("no space can be hosted: the local host api is not listening");
 		return None;
 	};
-	match token::loaded(app) {
-		Ok(token) => Some(LocalApi { origin, token: token.bearer().to_owned() }),
+	let token = match token::loaded(app) {
+		Ok(token) => token,
 		Err(failure) => {
 			eprintln!("no space can be hosted: the host token was not loaded: {failure:?}");
-			None
+			return None;
 		}
-	}
+	};
+	LocalApi::new(origin, token.bearer().to_owned())
+		.inspect_err(|failure| eprintln!("no space can be hosted: {failure}"))
+		.ok()
 }
 
 fn entered<R: Runtime>(
@@ -128,9 +131,7 @@ pub async fn start<R: Runtime>(
 	if current.is_running() {
 		return Ok(current);
 	}
-	if registration.instance_id.is_some() {
-		database.space_hosting().set_hosted(space_id.clone(), true).await?;
-	}
+	database.space_hosting().set_hosted(space_id.clone(), true).await?;
 	Ok(begun(app, &hosting, space_id, registration).await)
 }
 
@@ -186,6 +187,19 @@ pub async fn stop<R: Runtime>(
 	database.space_hosting().set_hosted(space_id.clone(), false).await?;
 	entered(app, &space_id, registration.instance_id.as_deref(), HostingState::Off);
 	Ok(HostingState::Off)
+}
+
+pub async fn forgotten<R: Runtime>(app: &AppHandle<R>, space_id: &str) {
+	let Some(hosting) = app.try_state::<Hosting>() else {
+		return;
+	};
+	let _turn = hosting.turn.lock().await;
+	let Some(run) = hosting.taken_run(space_id) else {
+		return;
+	};
+	finished(space_id, Some(run)).await;
+	entered(app, space_id, None, HostingState::Off);
+	hosting.hosts().remove(space_id);
 }
 
 pub async fn signed_out<R: Runtime>(app: &AppHandle<R>) {

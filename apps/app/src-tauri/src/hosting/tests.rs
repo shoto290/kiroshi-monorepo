@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -20,6 +20,7 @@ use tokio::sync::mpsc;
 use super::bridge::LocalApi;
 use super::contract::{HostingState, CHANGED_EVENT};
 use super::{resumed, signed_out, start, stop, Hosting};
+use crate::spaces::commands::space_delete;
 use crate::account::session::AccountSession;
 use crate::db::connection::temp_dir;
 use crate::db::{self, DatabaseState};
@@ -36,6 +37,8 @@ const LONGER_THAN_THE_FIRST_BACKOFF: Duration = Duration::from_millis(1500);
 #[derive(Clone)]
 struct Relay {
 	refusal: Option<StatusCode>,
+	registration_delay: Arc<Mutex<Duration>>,
+	is_registration_down: Arc<AtomicBool>,
 	registered: Arc<Mutex<Vec<String>>>,
 	known: Arc<Mutex<HashSet<String>>>,
 	attempts: Arc<AtomicUsize>,
@@ -52,12 +55,17 @@ async fn registration(Served(relay): Served<Relay>, headers: HeaderMap, body: St
 	if bearer_of(&headers) != BEARER {
 		return StatusCode::UNAUTHORIZED.into_response();
 	}
+	if relay.is_registration_down.load(Ordering::SeqCst) {
+		return StatusCode::SERVICE_UNAVAILABLE.into_response();
+	}
 	let id = uuid::Uuid::new_v4().to_string();
 	relay
 		.registered
 		.lock()
 		.expect("the relay")
 		.push(body["name"].as_str().unwrap_or("").to_owned());
+	let delay = *relay.registration_delay.lock().expect("the relay");
+	tokio::time::sleep(delay).await;
 	relay.known.lock().expect("the relay").insert(id.clone());
 	answered_json(StatusCode::CREATED, json!({ "id": id, "name": body["name"], "role": "owner" }))
 }
@@ -116,6 +124,8 @@ impl Harness {
 		let (sockets_in, sockets) = mpsc::unbounded_channel();
 		let relay = Relay {
 			refusal,
+			registration_delay: Arc::default(),
+			is_registration_down: Arc::default(),
 			registered: Arc::default(),
 			known: Arc::default(),
 			attempts: Arc::default(),
@@ -140,7 +150,7 @@ impl Harness {
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
 		app.manage(Hosting::new(
 			&cloud,
-			Some(LocalApi { origin: local, token: LOCAL_TOKEN.to_owned() }),
+			Some(LocalApi::new(local, LOCAL_TOKEN.to_owned()).expect("the local client builds")),
 		));
 		let heard = Arc::new(Mutex::new(Vec::new()));
 		let hearing = Arc::clone(&heard);
@@ -510,6 +520,95 @@ fn a_registration_refused_401_needs_a_sign_in_and_opens_no_socket() {
 
 		assert!(harness.registered().is_empty());
 		assert_eq!(harness.attempts(), 0);
-		assert_eq!(harness.stored().await, (None, Vec::new()));
+		assert_eq!(harness.stored().await, (None, vec![PERSONAL.to_owned()]));
+	});
+}
+
+#[test]
+fn a_stop_during_registration_keeps_the_answered_instance_and_a_later_start_reuses_it() {
+	run(async {
+		let mut harness = Harness::signed_in("stop-registering").await;
+		*harness.relay.registration_delay.lock().expect("the relay") = Duration::from_millis(400);
+
+		harness.started().await;
+		while harness.registered().is_empty() {
+			tokio::time::sleep(Duration::from_millis(10)).await;
+		}
+		assert_eq!(harness.stopped().await, HostingState::Off);
+		let (kept, flagged) = harness.stored().await;
+		harness.started().await;
+		let _member = harness.member().await;
+		harness.reached(HostingState::Online).await;
+
+		let kept = kept.expect("the answered instance was stored");
+		assert!(harness.relay.known.lock().expect("the relay").contains(&kept));
+		assert!(flagged.is_empty());
+		assert_eq!(harness.registered().len(), 1);
+		assert_eq!(harness.stored().await.0, Some(kept));
+		assert_eq!(harness.attempts(), 1);
+	});
+}
+
+#[test]
+fn deleting_a_hosted_space_closes_its_relay_with_1000_and_reads_off() {
+	run(async {
+		let mut harness = Harness::signed_in("deleted").await;
+		let work = {
+			let state = harness.app.state::<DatabaseState>();
+			let database = state.as_ref().expect("the database");
+			database.spaces().create("Work".to_owned()).await.expect("the space").id
+		};
+		start(harness.app.handle(), work.clone()).await.expect("the hosting starts");
+		let mut member = harness.member().await;
+		for _ in 0..500 {
+			if harness.app.state::<Hosting>().current(&work) == HostingState::Online {
+				break;
+			}
+			tokio::time::sleep(Duration::from_millis(10)).await;
+		}
+
+		space_delete(harness.app.handle().clone(), harness.app.state(), work.clone())
+			.await
+			.expect("the space is deleted");
+		let closed = tokio::time::timeout(PATIENCE, member.recv()).await.expect("a frame in time");
+
+		let Some(Ok(Message::Close(Some(close)))) = closed else {
+			panic!("the relay took no close frame: {closed:?}");
+		};
+		assert_eq!(close.code, 1000);
+		assert_eq!(harness.app.state::<Hosting>().current(&work), HostingState::Off);
+		let state = harness.app.state::<DatabaseState>();
+		let hosting = state.as_ref().expect("the database").space_hosting();
+		assert!(hosting.hosted_space_ids().await.expect("the flags").is_empty());
+	});
+}
+
+#[test]
+fn a_first_start_persists_the_intent_before_registering() {
+	run(async {
+		let harness = Harness::signed_in("intent").await;
+		harness.relay.is_registration_down.store(true, Ordering::SeqCst);
+
+		assert_eq!(harness.started().await, HostingState::Connecting);
+
+		assert_eq!(harness.stored().await, (None, vec![PERSONAL.to_owned()]));
+		assert!(harness.registered().is_empty());
+	});
+}
+
+#[test]
+fn a_space_whose_registration_never_succeeded_is_resumed_and_registered() {
+	run(async {
+		let mut harness = Harness::signed_in("intent-resumed").await;
+		let state = harness.app.state::<DatabaseState>();
+		let hosting = state.as_ref().expect("the database").space_hosting();
+		hosting.set_hosted(PERSONAL.to_owned(), true).await.expect("the intent is kept");
+
+		resumed(harness.app.handle()).await;
+		let _member = harness.member().await;
+		harness.reached(HostingState::Online).await;
+
+		assert_eq!(harness.registered(), vec!["Personal".to_owned()]);
+		assert!(harness.stored().await.0.is_some());
 	});
 }

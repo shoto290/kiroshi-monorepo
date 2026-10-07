@@ -9,9 +9,11 @@ const SELECT_REGISTRATION: &str = "SELECT spaces.name, space_hosting.instance_id
 
 const UPSERT_INSTANCE: &str = "INSERT INTO space_hosting (space_id, instance_id, is_hosted)
 	VALUES (?1, ?2, 1)
-	ON CONFLICT (space_id) DO UPDATE SET instance_id = excluded.instance_id, is_hosted = 1";
+	ON CONFLICT (space_id) DO UPDATE SET instance_id = excluded.instance_id";
 
-const UPDATE_HOSTED: &str = "UPDATE space_hosting SET is_hosted = ?2 WHERE space_id = ?1";
+const UPSERT_HOSTED: &str = "INSERT INTO space_hosting (space_id, instance_id, is_hosted)
+	VALUES (?1, NULL, ?2)
+	ON CONFLICT (space_id) DO UPDATE SET is_hosted = excluded.is_hosted";
 
 const SELECT_HOSTED: &str =
 	"SELECT space_id FROM space_hosting WHERE is_hosted = 1 ORDER BY space_id ASC";
@@ -51,7 +53,7 @@ impl SpaceHostingRepository {
 	pub async fn set_hosted(&self, space_id: String, is_hosted: bool) -> Result<(), DatabaseError> {
 		self.access
 			.call_mut(move |connection| {
-				connection.execute(UPDATE_HOSTED, params![space_id, is_hosted])?;
+				connection.execute(UPSERT_HOSTED, params![space_id, is_hosted])?;
 				Ok(())
 			})
 			.await
@@ -107,7 +109,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_registered_instance_is_hosted_until_the_flag_is_cleared_and_kept_after() {
+	async fn a_cleared_flag_survives_a_replaced_instance() {
 		let database = open(&temp_dir());
 		let hosting = database.space_hosting();
 
@@ -123,6 +125,23 @@ mod tests {
 			hosting.registration(PERSONAL.to_owned()).await.expect("read").instance_id.as_deref(),
 			Some("i2")
 		);
+		assert!(hosting.hosted_space_ids().await.expect("listed").is_empty());
+	}
+
+	#[tokio::test]
+	async fn an_intent_is_hosted_without_an_instance_until_one_is_registered() {
+		let database = open(&temp_dir());
+		let hosting = database.space_hosting();
+
+		hosting.set_hosted(PERSONAL.to_owned(), true).await.expect("the intent is kept");
+		let intended = hosting.registration(PERSONAL.to_owned()).await.expect("read");
+		hosting.registered(PERSONAL.to_owned(), "i1".to_owned()).await.expect("stored");
+
+		assert_eq!(intended.instance_id, None);
 		assert_eq!(hosting.hosted_space_ids().await.expect("listed"), vec![PERSONAL.to_owned()]);
+		assert_eq!(
+			hosting.registration(PERSONAL.to_owned()).await.expect("read").instance_id.as_deref(),
+			Some("i1")
+		);
 	}
 }

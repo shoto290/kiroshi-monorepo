@@ -1054,7 +1054,7 @@ ALTER TABLE bots ADD COLUMN effort TEXT
 const SPACE_HOSTING: &str = "
 CREATE TABLE space_hosting (
 	space_id TEXT PRIMARY KEY REFERENCES spaces (id) ON DELETE CASCADE,
-	instance_id TEXT NOT NULL UNIQUE,
+	instance_id TEXT UNIQUE,
 	is_hosted INTEGER NOT NULL CHECK (is_hosted IN (0, 1))
 );
 ";
@@ -3608,9 +3608,14 @@ mod tests {
 			"INSERT INTO space_hosting (space_id, instance_id, is_hosted)
 				VALUES ('personal', 'i1', 0)",
 		);
+		let second_row_for_a_space = write(
+			&connection,
+			"INSERT INTO space_hosting (space_id, instance_id, is_hosted) VALUES ('work', 'i2', 1)",
+		);
 		write(&connection, "DELETE FROM spaces WHERE id = 'work'").expect("the space leaves");
 
 		assert!(duplicate.is_err(), "two spaces held the same instance");
+		assert!(second_row_for_a_space.is_err(), "a space held two instances");
 		assert_eq!(count(&connection, "space_hosting"), 0);
 
 		drop(connection);

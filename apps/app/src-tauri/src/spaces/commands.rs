@@ -9,6 +9,7 @@ use crate::conversations::commands::list_bundles;
 use crate::conversations::contract::AvatarBlot;
 use crate::db;
 use crate::environment;
+use crate::hosting;
 
 pub(crate) fn ready(state: &db::DatabaseState) -> Result<&db::Database, SpaceError> {
 	state.as_ref().map_err(|failure| SpaceError::Unavailable { failure: failure.into() })
@@ -69,6 +70,7 @@ pub async fn space_delete<R: Runtime>(
 	id: String,
 ) -> Result<(), SpaceError> {
 	let database = ready(&state)?;
+	hosting::forgotten(&app, &id).await;
 	let held_bots = database.spaces().delete(id.clone()).await?;
 	bundles::space::remove(&app, &id);
 	forget_bundles(bundles::root(&app).as_deref(), database, &held_bots).await;

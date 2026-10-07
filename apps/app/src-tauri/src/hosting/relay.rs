@@ -137,10 +137,10 @@ async fn attempted<R: Runtime>(
 	};
 	let instance_id = match hosted.instance_id.clone() {
 		Some(instance_id) => instance_id,
-		None => match until_stopped(stop, registered(app, &bearer, hosted)).await {
-			None => return Next::Stopped,
-			Some(Ok(instance_id)) => instance_id,
-			Some(Err(next)) => return next,
+		None => match registered(app, &bearer, hosted).await {
+			Ok(_) if *stop.borrow() => return Next::Stopped,
+			Ok(instance_id) => instance_id,
+			Err(next) => return next,
 		},
 	};
 	let opened = until_stopped(stop, opened(app, &instance_id, &bearer)).await;
