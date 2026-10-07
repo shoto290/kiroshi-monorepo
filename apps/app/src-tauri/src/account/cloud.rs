@@ -8,8 +8,6 @@ use serde_json::json;
 use super::contract::KiroshiAccount;
 use crate::missions::github::installed_tls_provider;
 
-pub const PRODUCTION_API_URL: &str = "https://kiroshi-cloud-api.onrender.com";
-
 const API_URL_OVERRIDE: &str = "KIROSHI_API_URL";
 
 const MAGIC_LINK_PATH: &str = "/api/auth/sign-in/magic-link";
@@ -21,9 +19,13 @@ const SIGN_OUT_PATH: &str = "/api/auth/sign-out";
 const REQUEST_BOUND: Duration = Duration::from_secs(20);
 
 pub fn api_url() -> String {
-	match std::env::var(API_URL_OVERRIDE) {
-		Ok(overridden) if cfg!(debug_assertions) => overridden,
-		_ => PRODUCTION_API_URL.to_owned(),
+	resolve_api_url(env!("KIROSHI_CLOUD_API_URL"), std::env::var(API_URL_OVERRIDE).ok())
+}
+
+fn resolve_api_url(compiled: &str, overridden: Option<String>) -> String {
+	match overridden {
+		Some(overridden) if cfg!(debug_assertions) => overridden,
+		_ => compiled.to_owned(),
 	}
 }
 
@@ -160,5 +162,24 @@ mod tests {
 	#[test]
 	fn the_base_url_loses_its_trailing_slash() {
 		assert_eq!(Cloud::new("http://127.0.0.1:9/").at(ME_PATH), "http://127.0.0.1:9/me");
+	}
+
+	#[test]
+	fn the_compiled_base_url_is_kiroshi_cloud() {
+		assert_eq!(env!("KIROSHI_CLOUD_API_URL"), "https://api.kiroshi.app");
+	}
+
+	#[test]
+	fn the_compiled_base_url_applies_without_an_override() {
+		assert_eq!(resolve_api_url("https://compiled.test", None), "https://compiled.test");
+	}
+
+	#[test]
+	fn a_debug_build_prefers_the_runtime_override() {
+		let resolved =
+			resolve_api_url("https://compiled.test", Some("http://127.0.0.1:9".to_owned()));
+		let expected =
+			if cfg!(debug_assertions) { "http://127.0.0.1:9" } else { "https://compiled.test" };
+		assert_eq!(resolved, expected);
 	}
 }
