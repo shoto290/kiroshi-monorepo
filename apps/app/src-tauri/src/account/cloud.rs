@@ -61,7 +61,7 @@ pub enum MemberCallError {
 	Unreachable(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CloudMember {
 	pub user_id: String,
@@ -71,14 +71,14 @@ pub struct CloudMember {
 	pub state: MembershipState,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MemberRole {
 	Owner,
 	Member,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MembershipState {
 	Joined,
