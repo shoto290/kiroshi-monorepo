@@ -16,9 +16,11 @@ pub fn builder() -> Builder<tauri::Wry> {
 		.constant("HOST_PRESENCE_EVENT", host_api::share_link::HOST_PRESENCE_EVENT)
 		.constant("ACCOUNT_CHANGED_EVENT", account::contract::CHANGED_EVENT)
 		.constant("HOSTING_CHANGED_EVENT", hosting::contract::CHANGED_EVENT)
+		.constant("HOSTING_MEMBERS_CHANGED_EVENT", hosting::contract::MEMBERS_CHANGED_EVENT)
 		.typ::<window_controls::MaximizeButtonPointer>()
 		.typ::<host_api::share_link::HostPresence>()
 		.typ::<hosting::contract::HostingChanged>()
+		.typ::<hosting::contract::MembersChanged>()
 }
 
 // `tauri::test::mock_builder` only ever yields a `Builder<MockRuntime>`, so the handler the
@@ -101,6 +103,10 @@ fn commands<R: Runtime>() -> Commands<R> {
 		hosting::commands::hosting_start::<tauri::Wry>,
 		hosting::commands::hosting_stop::<tauri::Wry>,
 		hosting::commands::hosting_state,
+		hosting::commands::hosting_members::<tauri::Wry>,
+		hosting::commands::hosting_invite_member::<tauri::Wry>,
+		hosting::commands::hosting_withdraw_invitation::<tauri::Wry>,
+		hosting::commands::hosting_remove_member::<tauri::Wry>,
 		joined_spaces::commands::joined_spaces_list,
 		joined_spaces::commands::joined_space_add::<tauri::Wry>,
 		joined_spaces::commands::joined_space_connect,

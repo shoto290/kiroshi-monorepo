@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use reqwest::{Client, RequestBuilder, StatusCode};
+use reqwest::{Client, RequestBuilder, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -47,6 +47,42 @@ pub enum MagicLinkError {
 pub enum RegisterError {
 	Revoked,
 	Unreachable(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MemberCallError {
+	Revoked,
+	Forbidden,
+	InvalidEmail,
+	AlreadyMember,
+	LimitReached,
+	UnknownMember,
+	OwnerNotRemovable,
+	Unreachable(String),
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudMember {
+	pub user_id: String,
+	pub email: String,
+	pub name: Option<String>,
+	pub role: MemberRole,
+	pub state: MembershipState,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MemberRole {
+	Owner,
+	Member,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MembershipState {
+	Joined,
+	Pending,
 }
 
 #[derive(Deserialize)]
@@ -157,6 +193,69 @@ impl Cloud {
 		})
 	}
 
+	pub async fn members(
+		&self,
+		bearer: &str,
+		instance_id: &str,
+	) -> Result<Vec<CloudMember>, MemberCallError> {
+		let members = self.members_url(instance_id);
+		let answered = self
+			.answered(|client| client.get(members).bearer_auth(bearer))
+			.await
+			.map_err(MemberCallError::Unreachable)?;
+		let answered = member_call_answered(answered).await?;
+		answered.json::<Vec<CloudMember>>().await.map_err(|error| {
+			MemberCallError::Unreachable(format!(
+				"the member list answered by the cloud did not parse: {error}"
+			))
+		})
+	}
+
+	pub async fn invite_member(
+		&self,
+		bearer: &str,
+		instance_id: &str,
+		email: &str,
+	) -> Result<(), MemberCallError> {
+		let members = self.members_url(instance_id);
+		let body = json!({ "email": email });
+		let answered = self
+			.answered(|client| client.post(members).bearer_auth(bearer).json(&body))
+			.await
+			.map_err(MemberCallError::Unreachable)?;
+		if answered.status() == StatusCode::BAD_REQUEST {
+			return Err(MemberCallError::InvalidEmail);
+		}
+		member_call_answered(answered).await.map(drop)
+	}
+
+	pub async fn remove_member(
+		&self,
+		bearer: &str,
+		instance_id: &str,
+		user_id: &str,
+	) -> Result<(), MemberCallError> {
+		let mut member = Url::parse(&self.members_url(instance_id)).map_err(|error| {
+			MemberCallError::Unreachable(format!("the member url is unusable: {error}"))
+		})?;
+		member
+			.path_segments_mut()
+			.map_err(|()| MemberCallError::Unreachable("the cloud url has no path".to_owned()))?
+			.push(user_id);
+		let answered = self
+			.answered(|client| client.delete(member).bearer_auth(bearer))
+			.await
+			.map_err(MemberCallError::Unreachable)?;
+		if answered.status() == StatusCode::NOT_FOUND {
+			return Err(MemberCallError::UnknownMember);
+		}
+		member_call_answered(answered).await.map(drop)
+	}
+
+	fn members_url(&self, instance_id: &str) -> String {
+		self.at(&format!("{INSTANCES_PATH}/{instance_id}/members"))
+	}
+
 	pub fn host_relay_url(&self, instance_id: &str) -> String {
 		let relay = self.at(&format!("{INSTANCES_PATH}/{instance_id}/relay/host"));
 		match relay.strip_prefix("http") {
@@ -189,6 +288,34 @@ impl Cloud {
 			.send()
 			.await
 			.map_err(|error| format!("the cloud could not be reached: {}", error.without_url()))
+	}
+}
+
+async fn member_call_answered(
+	answered: reqwest::Response,
+) -> Result<reqwest::Response, MemberCallError> {
+	match answered.status() {
+		StatusCode::UNAUTHORIZED => Err(MemberCallError::Revoked),
+		StatusCode::FORBIDDEN => Err(MemberCallError::Forbidden),
+		StatusCode::CONFLICT => Err(conflicted(answered).await),
+		_ => successful(answered).map_err(MemberCallError::Unreachable),
+	}
+}
+
+async fn conflicted(answered: reqwest::Response) -> MemberCallError {
+	let refusal = match answered.json::<Refusal>().await {
+		Ok(refusal) => refusal,
+		Err(error) => {
+			return MemberCallError::Unreachable(format!(
+				"the cloud answered a conflict with an unreadable body: {error}"
+			))
+		}
+	};
+	match refusal.error.code.as_str() {
+		"ALREADY_MEMBER" => MemberCallError::AlreadyMember,
+		"MEMBER_LIMIT_REACHED" => MemberCallError::LimitReached,
+		"OWNER_NOT_REMOVABLE" => MemberCallError::OwnerNotRemovable,
+		code => MemberCallError::Unreachable(format!("the cloud answered a conflict coded {code}")),
 	}
 }
 
