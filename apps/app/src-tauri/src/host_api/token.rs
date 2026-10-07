@@ -27,6 +27,10 @@ pub enum TokenError {
 pub struct HostToken(String);
 
 impl HostToken {
+	pub fn bearer(&self) -> &str {
+		&self.0
+	}
+
 	pub fn admits(&self, presented: &str) -> bool {
 		let expected = self.0.as_bytes();
 		let presented = presented.as_bytes();

@@ -15,6 +15,7 @@ use super::contract::{AccountError, AccountFailure, AccountState, CHANGED_EVENT}
 use crate::environment::contract::{EnvError, EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
 use crate::events;
+use crate::hosting;
 
 pub struct AccountSession {
 	cloud: Cloud,
@@ -45,7 +46,7 @@ impl AccountSession {
 		self.current.lock().unwrap_or_else(PoisonError::into_inner).clone()
 	}
 
-	fn bearer(&self) -> Result<Option<String>, EnvError> {
+	pub(crate) fn bearer(&self) -> Result<Option<String>, EnvError> {
 		Ok(store::values(self.root()?, &EnvScope::Account)?.remove(ACCOUNT_BEARER))
 	}
 
@@ -153,24 +154,32 @@ async fn settled<R: Runtime>(
 		Some(Delivered::Refused(failure)) => AccountState::Failed { failure },
 		Some(Delivered::Bearer(bearer)) => session.signed_in_with(&bearer).await,
 	};
+	let is_signed_in = matches!(next, AccountState::SignedIn(_));
 	entered(&app, next);
+	if is_signed_in {
+		hosting::resumed(&app).await;
+	}
 }
 
 pub async fn restore<R: Runtime>(app: AppHandle<R>) {
 	let session = app.state::<AccountSession>();
 	let _turn = session.turn.lock().await;
 	let next = match session.bearer() {
-		Ok(None) => return,
-		Ok(Some(bearer)) => session.session_of(&bearer).await,
-		Err(error) => unstored(error),
+		Ok(None) => None,
+		Ok(Some(bearer)) => Some(session.session_of(&bearer).await),
+		Err(error) => Some(unstored(error)),
 	};
-	entered(&app, next);
+	if let Some(next) = next {
+		entered(&app, next);
+	}
+	hosting::resumed(&app).await;
 }
 
 pub async fn sign_out<R: Runtime>(app: &AppHandle<R>) -> Result<(), AccountError> {
 	let session = app.state::<AccountSession>();
 	let mut waiting = session.turn.lock().await;
 	closed(&mut waiting).await;
+	hosting::signed_out(app).await;
 	if let Some(bearer) = session.bearer()? {
 		if let Err(reason) = session.cloud.sign_out(&bearer).await {
 			eprintln!(

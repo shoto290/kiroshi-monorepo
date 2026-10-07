@@ -119,7 +119,7 @@ async fn invoked<R: Runtime>(
 	}
 }
 
-fn names_an_app_command(command: &str) -> bool {
+pub(crate) fn names_an_app_command(command: &str) -> bool {
 	!command.is_empty()
 		&& command
 			.bytes()

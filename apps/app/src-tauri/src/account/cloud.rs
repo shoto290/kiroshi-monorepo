@@ -16,6 +16,8 @@ const ME_PATH: &str = "/me";
 
 const SIGN_OUT_PATH: &str = "/api/auth/sign-out";
 
+const INSTANCES_PATH: &str = "/instances";
+
 const REQUEST_BOUND: Duration = Duration::from_secs(20);
 
 pub fn api_url() -> String {
@@ -39,6 +41,17 @@ pub enum MeError {
 pub enum MagicLinkError {
 	Rejected(String),
 	Unreachable(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RegisterError {
+	Revoked,
+	Unreachable(String),
+}
+
+#[derive(Deserialize)]
+struct Registered {
+	id: String,
 }
 
 #[derive(Deserialize)]
@@ -120,6 +133,38 @@ impl Cloud {
 		self.sent(|client| client.post(self.at(SIGN_OUT_PATH)).bearer_auth(bearer)).await.map(drop)
 	}
 
+	pub async fn register_instance(
+		&self,
+		bearer: &str,
+		name: &str,
+	) -> Result<String, RegisterError> {
+		let body = json!({ "name": name });
+		let answered = self
+			.answered(|client| client.post(self.at(INSTANCES_PATH)).bearer_auth(bearer).json(&body))
+			.await
+			.map_err(RegisterError::Unreachable)?;
+		if answered.status() == StatusCode::UNAUTHORIZED {
+			return Err(RegisterError::Revoked);
+		}
+		let answered = successful(answered).map_err(RegisterError::Unreachable)?;
+		let registered = answered.json::<Registered>().await.map_err(|error| {
+			RegisterError::Unreachable(format!(
+				"the registered instance carried no readable id: {error}"
+			))
+		})?;
+		uuid::Uuid::parse_str(&registered.id).map(|id| id.to_string()).map_err(|error| {
+			RegisterError::Unreachable(format!("the registered instance id is not a uuid: {error}"))
+		})
+	}
+
+	pub fn host_relay_url(&self, instance_id: &str) -> String {
+		let relay = self.at(&format!("{INSTANCES_PATH}/{instance_id}/relay/host"));
+		match relay.strip_prefix("http") {
+			Some(rest) => format!("ws{rest}"),
+			None => relay,
+		}
+	}
+
 	fn at(&self, path: &str) -> String {
 		format!("{}{path}", self.base)
 	}
@@ -162,6 +207,18 @@ mod tests {
 	#[test]
 	fn the_base_url_loses_its_trailing_slash() {
 		assert_eq!(Cloud::new("http://127.0.0.1:9/").at(ME_PATH), "http://127.0.0.1:9/me");
+	}
+
+	#[test]
+	fn the_host_relay_is_reached_over_the_websocket_scheme_of_the_base() {
+		assert_eq!(
+			Cloud::new("https://api.kiroshi.app/").host_relay_url("i1"),
+			"wss://api.kiroshi.app/instances/i1/relay/host"
+		);
+		assert_eq!(
+			Cloud::new("http://127.0.0.1:9").host_relay_url("i1"),
+			"ws://127.0.0.1:9/instances/i1/relay/host"
+		);
 	}
 
 	#[test]
