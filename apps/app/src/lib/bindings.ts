@@ -213,7 +213,7 @@ export type Account = {
 	plan: string | null,
 };
 
-export type AccountError = { kind: "store"; detail: string } | { kind: "listener"; detail: string };
+export type AccountError = { kind: "store"; detail: string } | { kind: "listener"; detail: string } | { kind: "rejected"; code: string } | { kind: "signedIn" };
 
 export type AccountFailure = "linkInvalid" | "serverError" | "timedOut";
 

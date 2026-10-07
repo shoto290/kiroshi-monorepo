@@ -1,6 +1,8 @@
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use reqwest::{Client, RequestBuilder, StatusCode};
+use serde::Deserialize;
 use serde_json::json;
 
 use super::contract::KiroshiAccount;
@@ -31,6 +33,28 @@ pub enum MeError {
 	Unreachable(String),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MagicLinkError {
+	Rejected(String),
+	Unreachable(String),
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MagicLinkSent {
+	expires_at: String,
+}
+
+#[derive(Deserialize)]
+struct Refusal {
+	error: RefusalCode,
+}
+
+#[derive(Deserialize)]
+struct RefusalCode {
+	code: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Cloud {
 	base: String,
@@ -41,9 +65,37 @@ impl Cloud {
 		Self { base: base.trim_end_matches('/').to_owned() }
 	}
 
-	pub async fn request_magic_link(&self, email: &str, callback_url: &str) -> Result<(), String> {
+	pub async fn request_magic_link(
+		&self,
+		email: &str,
+		callback_url: &str,
+	) -> Result<DateTime<Utc>, MagicLinkError> {
 		let body = json!({ "email": email, "callbackURL": callback_url });
-		self.sent(|client| client.post(self.at(MAGIC_LINK_PATH)).json(&body)).await.map(drop)
+		let answered = self
+			.answered(|client| client.post(self.at(MAGIC_LINK_PATH)).json(&body))
+			.await
+			.map_err(MagicLinkError::Unreachable)?;
+		if answered.status() == StatusCode::BAD_REQUEST {
+			let refusal = answered.json::<Refusal>().await.map_err(|error| {
+				MagicLinkError::Unreachable(format!(
+					"the cloud refused the magic link with an unreadable answer: {error}"
+				))
+			})?;
+			return Err(MagicLinkError::Rejected(refusal.error.code));
+		}
+		let answered = successful(answered).map_err(MagicLinkError::Unreachable)?;
+		let unreadable = |detail: String| {
+			MagicLinkError::Unreachable(format!(
+				"the magic link answer carried no readable expiresAt: {detail}"
+			))
+		};
+		let sent = answered
+			.json::<MagicLinkSent>()
+			.await
+			.map_err(|error| unreadable(error.to_string()))?;
+		DateTime::parse_from_rfc3339(&sent.expires_at)
+			.map(|expires_at| expires_at.with_timezone(&Utc))
+			.map_err(|error| unreadable(error.to_string()))
 	}
 
 	pub async fn me(&self, bearer: &str) -> Result<KiroshiAccount, MeError> {

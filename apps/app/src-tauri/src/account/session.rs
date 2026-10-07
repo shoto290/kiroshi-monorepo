@@ -1,38 +1,44 @@
 use std::net::Ipv4Addr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
+
+use chrono::{DateTime, Utc};
 
 use tauri::async_runtime::JoinHandle;
 use tauri::{AppHandle, Manager, Runtime};
 use tokio::net::TcpListener;
 
 use super::callback::{self, Delivered};
-use super::cloud::{Cloud, MeError};
+use super::cloud::{Cloud, MagicLinkError, MeError};
 use super::contract::{AccountError, AccountFailure, AccountState, CHANGED_EVENT};
 use crate::environment::contract::{EnvError, EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
 use crate::events;
 
-pub const LINK_LIFETIME: Duration = Duration::from_secs(15 * 60);
-
 pub struct AccountSession {
 	cloud: Cloud,
-	root: PathBuf,
-	link_lifetime: Duration,
+	root: Result<PathBuf, EnvError>,
 	current: Mutex<AccountState>,
 	turn: tokio::sync::Mutex<Option<JoinHandle<()>>>,
 }
 
 impl AccountSession {
-	pub fn new(root: PathBuf, api_url: &str, link_lifetime: Duration) -> Self {
+	pub fn new(root: Result<PathBuf, EnvError>, api_url: &str) -> Self {
+		let first = match &root {
+			Ok(_) => AccountState::SignedOut,
+			Err(error) => unstored(error.clone()),
+		};
 		Self {
 			cloud: Cloud::new(api_url),
 			root,
-			link_lifetime,
-			current: Mutex::new(AccountState::SignedOut),
+			current: Mutex::new(first),
 			turn: tokio::sync::Mutex::new(None),
 		}
+	}
+
+	fn root(&self) -> Result<&Path, EnvError> {
+		self.root.as_deref().map_err(Clone::clone)
 	}
 
 	pub fn current(&self) -> AccountState {
@@ -40,11 +46,11 @@ impl AccountSession {
 	}
 
 	fn bearer(&self) -> Result<Option<String>, EnvError> {
-		Ok(store::values(&self.root, &EnvScope::Account)?.remove(ACCOUNT_BEARER))
+		Ok(store::values(self.root()?, &EnvScope::Account)?.remove(ACCOUNT_BEARER))
 	}
 
 	fn forget_bearer(&self) -> Result<(), EnvError> {
-		store::delete(&self.root, &EnvScope::Account, ACCOUNT_BEARER)
+		store::delete(self.root()?, &EnvScope::Account, ACCOUNT_BEARER)
 	}
 
 	async fn session_of(&self, bearer: &str) -> AccountState {
@@ -59,7 +65,10 @@ impl AccountSession {
 	}
 
 	async fn signed_in_with(&self, bearer: &str) -> AccountState {
-		if let Err(error) = store::set(&self.root, &EnvScope::Account, ACCOUNT_BEARER, bearer) {
+		let stored = self
+			.root()
+			.and_then(|root| store::set(root, &EnvScope::Account, ACCOUNT_BEARER, bearer));
+		if let Err(error) = stored {
 			return unstored(error);
 		}
 		self.session_of(bearer).await
@@ -97,6 +106,10 @@ fn is_cancelled(error: &tauri::Error) -> bool {
 pub async fn sign_in<R: Runtime>(app: &AppHandle<R>, email: String) -> Result<(), AccountError> {
 	let session = app.state::<AccountSession>();
 	let mut waiting = session.turn.lock().await;
+	session.root()?;
+	if matches!(session.current(), AccountState::SignedIn(_)) {
+		return Err(AccountError::SignedIn);
+	}
 	closed(&mut waiting).await;
 	let refused = |error: std::io::Error| AccountError::Listener { detail: error.to_string() };
 	let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.map_err(refused)?;
@@ -104,19 +117,38 @@ pub async fn sign_in<R: Runtime>(app: &AppHandle<R>, email: String) -> Result<()
 	let nonce =
 		callback::nonce().map_err(|error| AccountError::Listener { detail: error.to_string() })?;
 	let callback_url = callback::callback_url(port, &nonce);
-	if let Err(reason) = session.cloud.request_magic_link(&email, &callback_url).await {
-		drop(listener);
-		entered(app, AccountState::Unreachable { reason });
-		return Ok(());
-	}
+	let expires_at = match session.cloud.request_magic_link(&email, &callback_url).await {
+		Ok(expires_at) => expires_at,
+		Err(MagicLinkError::Rejected(code)) => {
+			drop(listener);
+			if matches!(session.current(), AccountState::Waiting { .. }) {
+				entered(app, AccountState::SignedOut);
+			}
+			return Err(AccountError::Rejected { code });
+		}
+		Err(MagicLinkError::Unreachable(reason)) => {
+			drop(listener);
+			entered(app, AccountState::Unreachable { reason });
+			return Ok(());
+		}
+	};
 	entered(app, AccountState::Waiting { email });
-	*waiting = Some(tauri::async_runtime::spawn(settled(app.clone(), listener, nonce)));
+	*waiting = Some(tauri::async_runtime::spawn(settled(app.clone(), listener, nonce, expires_at)));
 	Ok(())
 }
 
-async fn settled<R: Runtime>(app: AppHandle<R>, listener: TcpListener, nonce: String) {
+fn left_until(expires_at: DateTime<Utc>) -> Duration {
+	(expires_at - Utc::now()).to_std().unwrap_or(Duration::ZERO)
+}
+
+async fn settled<R: Runtime>(
+	app: AppHandle<R>,
+	listener: TcpListener,
+	nonce: String,
+	expires_at: DateTime<Utc>,
+) {
 	let session = app.state::<AccountSession>();
-	let next = match callback::awaited(listener, nonce, session.link_lifetime).await {
+	let next = match callback::awaited(listener, nonce, left_until(expires_at)).await {
 		None => AccountState::Failed { failure: AccountFailure::TimedOut },
 		Some(Delivered::Refused(failure)) => AccountState::Failed { failure },
 		Some(Delivered::Bearer(bearer)) => session.signed_in_with(&bearer).await,
@@ -173,6 +205,8 @@ mod tests {
 	#[derive(Clone, Default)]
 	struct Cloudy {
 		magic_link_status: Option<StatusCode>,
+		link_lifetime: Option<Duration>,
+		expires_at: Option<&'static str>,
 		sign_out_status: Option<StatusCode>,
 		callbacks: Arc<Mutex<Vec<String>>>,
 		signed_out: Arc<Mutex<Vec<String>>>,
@@ -209,11 +243,25 @@ mod tests {
 		(status, [(header::CONTENT_TYPE, "application/json")], body.to_string())
 	}
 
-	async fn magic_link(Served(cloudy): Served<Cloudy>, body: String) -> StatusCode {
+	async fn magic_link(Served(cloudy): Served<Cloudy>, body: String) -> Answered {
 		let body: Value = serde_json::from_str(&body).expect("a json body");
 		let callback = body["callbackURL"].as_str().expect("a callback url").to_owned();
 		cloudy.callbacks.lock().expect("the stub").push(callback);
-		cloudy.magic_link_status.unwrap_or(StatusCode::OK)
+		if !body["email"].as_str().is_some_and(|email| email.contains('@')) {
+			return answered_json(
+				StatusCode::BAD_REQUEST,
+				json!({ "error": { "code": "VALIDATION_ERROR", "message": "Invalid", "status": 400 } }),
+			);
+		}
+		if let Some(status) = cloudy.magic_link_status {
+			return answered_json(status, json!({}));
+		}
+		let lifetime = cloudy.link_lifetime.unwrap_or(Duration::from_secs(300));
+		let expires_at = (Utc::now() + lifetime).to_rfc3339();
+		answered_json(
+			StatusCode::OK,
+			json!({ "status": true, "expiresAt": cloudy.expires_at.unwrap_or(&expires_at) }),
+		)
 	}
 
 	fn bearer_of(headers: &HeaderMap) -> String {
@@ -244,11 +292,23 @@ mod tests {
 	}
 
 	impl Harness {
-		fn new(name: &str, api_url: &str, link_lifetime: Duration) -> Self {
+		fn new(name: &str, api_url: &str) -> Self {
 			let root = std::env::temp_dir().join(format!("kiroshi-account-{name}"));
 			let _ = std::fs::remove_dir_all(&root);
+			Self::holding(Ok(root), api_url)
+		}
+
+		fn without_store(api_url: &str) -> Self {
+			let unavailable = EnvError::Unwritable {
+				detail: "the application data directory is unavailable".to_owned(),
+			};
+			Self::holding(Err(unavailable), api_url)
+		}
+
+		fn holding(root: Result<PathBuf, EnvError>, api_url: &str) -> Self {
 			let app = mock_app();
-			app.manage(AccountSession::new(root.clone(), api_url, link_lifetime));
+			app.manage(AccountSession::new(root.clone(), api_url));
+			let root = root.unwrap_or_default();
 			let heard = Arc::new(Mutex::new(Vec::new()));
 			let hearing = Arc::clone(&heard);
 			app.listen(CHANGED_EVENT, move |event| {
@@ -329,7 +389,7 @@ mod tests {
 	fn a_sign_in_binds_the_loopback_with_a_32_byte_nonce_and_waits() {
 		run(async {
 			let cloudy = Cloudy::default();
-			let harness = Harness::new("waits", &stub(cloudy.clone()).await, LINK_LIFETIME);
+			let harness = Harness::new("waits", &stub(cloudy.clone()).await);
 
 			sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in starts");
 
@@ -348,7 +408,7 @@ mod tests {
 	fn a_matching_token_stores_the_bearer_signs_in_and_closes_the_listener() {
 		run(async {
 			let cloudy = Cloudy::default();
-			let harness = Harness::new("token", &stub(cloudy.clone()).await, LINK_LIFETIME);
+			let harness = Harness::new("token", &stub(cloudy.clone()).await);
 			sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in starts");
 			let callback = cloudy.last_callback();
 
@@ -375,7 +435,7 @@ mod tests {
 				("SERVER_ERROR", AccountFailure::ServerError),
 			] {
 				let cloudy = Cloudy::default();
-				let harness = Harness::new(error, &stub(cloudy.clone()).await, LINK_LIFETIME);
+				let harness = Harness::new(error, &stub(cloudy.clone()).await);
 				sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in starts");
 				let callback = cloudy.last_callback();
 
@@ -392,7 +452,7 @@ mod tests {
 	fn a_stray_callback_is_refused_and_the_listener_keeps_waiting() {
 		run(async {
 			let cloudy = Cloudy::default();
-			let harness = Harness::new("stray", &stub(cloudy.clone()).await, LINK_LIFETIME);
+			let harness = Harness::new("stray", &stub(cloudy.clone()).await);
 			sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in starts");
 			let callback = cloudy.last_callback();
 			let (origin, _) = callback.split_once("/callback").expect("the shape");
@@ -419,11 +479,11 @@ mod tests {
 	}
 
 	#[test]
-	fn no_callback_within_the_link_lifetime_times_out_and_closes_the_listener() {
+	fn no_callback_before_the_link_expires_times_out_and_closes_the_listener() {
 		run(async {
-			let cloudy = Cloudy::default();
-			let api = stub(cloudy.clone()).await;
-			let harness = Harness::new("timeout", &api, Duration::from_millis(100));
+			let cloudy =
+				Cloudy { link_lifetime: Some(Duration::from_millis(100)), ..Cloudy::default() };
+			let harness = Harness::new("timeout", &stub(cloudy.clone()).await);
 			sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in starts");
 
 			assert_eq!(
@@ -438,7 +498,7 @@ mod tests {
 	fn a_second_sign_in_closes_the_first_listener_before_binding_its_own() {
 		run(async {
 			let cloudy = Cloudy::default();
-			let harness = Harness::new("second", &stub(cloudy.clone()).await, LINK_LIFETIME);
+			let harness = Harness::new("second", &stub(cloudy.clone()).await);
 			sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in starts");
 			let first = cloudy.last_callback();
 
@@ -463,7 +523,7 @@ mod tests {
 				magic_link_status: Some(StatusCode::SERVICE_UNAVAILABLE),
 				..Cloudy::default()
 			};
-			let harness = Harness::new("refused-post", &stub(cloudy.clone()).await, LINK_LIFETIME);
+			let harness = Harness::new("refused-post", &stub(cloudy.clone()).await);
 
 			sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in settles");
 
@@ -481,7 +541,7 @@ mod tests {
 			let closed = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("binds");
 			let api = format!("http://{}", closed.local_addr().expect("named"));
 			drop(closed);
-			let harness = Harness::new("no-cloud", &api, LINK_LIFETIME);
+			let harness = Harness::new("no-cloud", &api);
 
 			sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in settles");
 
@@ -492,7 +552,7 @@ mod tests {
 	#[test]
 	fn a_stored_bearer_signs_in_at_launch() {
 		run(async {
-			let harness = Harness::new("restore", &stub(Cloudy::default()).await, LINK_LIFETIME);
+			let harness = Harness::new("restore", &stub(Cloudy::default()).await);
 			harness.store(BEARER);
 
 			restore(harness.app.handle().clone()).await;
@@ -505,7 +565,7 @@ mod tests {
 	#[test]
 	fn a_revoked_bearer_is_deleted_and_the_account_signs_out() {
 		run(async {
-			let harness = Harness::new("revoked", &stub(Cloudy::default()).await, LINK_LIFETIME);
+			let harness = Harness::new("revoked", &stub(Cloudy::default()).await);
 			harness.store(REVOKED);
 
 			restore(harness.app.handle().clone()).await;
@@ -519,7 +579,7 @@ mod tests {
 	#[test]
 	fn an_unreadable_account_keeps_the_bearer_and_names_the_reason() {
 		run(async {
-			let harness = Harness::new("flaky", &stub(Cloudy::default()).await, LINK_LIFETIME);
+			let harness = Harness::new("flaky", &stub(Cloudy::default()).await);
 			harness.store(FLAKY);
 
 			restore(harness.app.handle().clone()).await;
@@ -536,7 +596,7 @@ mod tests {
 	#[test]
 	fn a_launch_without_a_bearer_stays_signed_out_and_announces_nothing() {
 		run(async {
-			let harness = Harness::new("nothing", &stub(Cloudy::default()).await, LINK_LIFETIME);
+			let harness = Harness::new("nothing", &stub(Cloudy::default()).await);
 
 			restore(harness.app.handle().clone()).await;
 
@@ -552,7 +612,7 @@ mod tests {
 				[("out-ok", StatusCode::OK), ("out-failed", StatusCode::INTERNAL_SERVER_ERROR)]
 			{
 				let cloudy = Cloudy { sign_out_status: Some(status), ..Cloudy::default() };
-				let harness = Harness::new(name, &stub(cloudy.clone()).await, LINK_LIFETIME);
+				let harness = Harness::new(name, &stub(cloudy.clone()).await);
 				harness.store(BEARER);
 				restore(harness.app.handle().clone()).await;
 
@@ -573,7 +633,7 @@ mod tests {
 	fn signing_out_while_waiting_closes_the_listener() {
 		run(async {
 			let cloudy = Cloudy::default();
-			let harness = Harness::new("out-waiting", &stub(cloudy.clone()).await, LINK_LIFETIME);
+			let harness = Harness::new("out-waiting", &stub(cloudy.clone()).await);
 			sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in starts");
 
 			sign_out(harness.app.handle()).await.expect("the sign-out settles");
@@ -581,6 +641,94 @@ mod tests {
 			assert!(is_closed(&cloudy.last_callback()).await);
 			assert_eq!(harness.state(), AccountState::SignedOut);
 			assert!(cloudy.signed_out.lock().expect("the stub").is_empty());
+		});
+	}
+
+	#[test]
+	fn an_answer_without_a_readable_expiry_closes_the_listener_and_is_unreachable() {
+		run(async {
+			let cloudy = Cloudy { expires_at: Some("tomorrow"), ..Cloudy::default() };
+			let harness = Harness::new("no-expiry", &stub(cloudy.clone()).await);
+
+			sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in settles");
+
+			let AccountState::Unreachable { reason } = harness.state() else {
+				panic!("the account is not unreachable: {:?}", harness.state());
+			};
+			assert!(reason.contains("expiresAt"), "{reason}");
+			assert!(is_closed(&cloudy.last_callback()).await);
+		});
+	}
+
+	#[test]
+	fn a_rejected_request_answers_the_cloud_code_and_leaves_the_state_alone() {
+		run(async {
+			let cloudy = Cloudy::default();
+			let harness = Harness::new("rejected", &stub(cloudy.clone()).await);
+
+			let answered = sign_in(harness.app.handle(), "not an email".to_owned()).await;
+
+			assert_eq!(
+				answered,
+				Err(AccountError::Rejected { code: "VALIDATION_ERROR".to_owned() })
+			);
+			assert_eq!(harness.state(), AccountState::SignedOut);
+			assert!(harness.heard().is_empty());
+			assert!(is_closed(&cloudy.last_callback()).await);
+		});
+	}
+
+	#[test]
+	fn a_rejected_request_that_closed_a_waiting_link_signs_out_rather_than_wait_forever() {
+		run(async {
+			let cloudy = Cloudy::default();
+			let harness = Harness::new("rejected-waiting", &stub(cloudy.clone()).await);
+			sign_in(harness.app.handle(), EMAIL.to_owned()).await.expect("the sign-in starts");
+			let first = cloudy.last_callback();
+
+			let answered = sign_in(harness.app.handle(), "not an email".to_owned()).await;
+
+			assert!(matches!(answered, Err(AccountError::Rejected { .. })));
+			assert!(is_closed(&first).await);
+			assert_eq!(harness.state(), AccountState::SignedOut);
+		});
+	}
+
+	#[test]
+	fn a_signed_in_account_refuses_a_sign_in_without_asking_the_cloud() {
+		run(async {
+			let cloudy = Cloudy::default();
+			let harness = Harness::new("already-in", &stub(cloudy.clone()).await);
+			harness.store(BEARER);
+			restore(harness.app.handle().clone()).await;
+
+			let answered = sign_in(harness.app.handle(), EMAIL.to_owned()).await;
+
+			assert_eq!(answered, Err(AccountError::SignedIn));
+			assert!(cloudy.callbacks.lock().expect("the stub").is_empty());
+			assert_eq!(harness.state(), signed_in());
+		});
+	}
+
+	#[test]
+	fn without_a_store_every_command_answers_naming_the_store() {
+		run(async {
+			let cloudy = Cloudy::default();
+			let harness = Harness::without_store(&stub(cloudy.clone()).await);
+
+			let AccountState::Unreachable { reason } = harness.state() else {
+				panic!("the account is not unreachable: {:?}", harness.state());
+			};
+			assert!(reason.contains("store"), "{reason}");
+			assert!(matches!(
+				sign_in(harness.app.handle(), EMAIL.to_owned()).await,
+				Err(AccountError::Store { .. })
+			));
+			assert!(matches!(
+				sign_out(harness.app.handle()).await,
+				Err(AccountError::Store { .. })
+			));
+			assert!(cloudy.callbacks.lock().expect("the stub").is_empty());
 		});
 	}
 }

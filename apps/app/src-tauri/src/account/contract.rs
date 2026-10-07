@@ -44,9 +44,18 @@ pub enum AccountState {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum AccountError {
 	#[serde(rename_all = "camelCase")]
-	Store { detail: String },
+	Store {
+		detail: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	Listener { detail: String },
+	Listener {
+		detail: String,
+	},
+	#[serde(rename_all = "camelCase")]
+	Rejected {
+		code: String,
+	},
+	SignedIn,
 }
 
 impl From<EnvError> for AccountError {

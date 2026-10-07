@@ -8,9 +8,9 @@ use axum::extract::State;
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use axum::Router;
-use kiroshi_app::account::session::{AccountSession, LINK_LIFETIME};
+use kiroshi_app::account::session::AccountSession;
 use kiroshi_app::commands::invoke_handler;
-use kiroshi_app::environment::contract::{EnvScope, ACCOUNT_BEARER};
+use kiroshi_app::environment::contract::{EnvError, EnvScope, ACCOUNT_BEARER};
 use kiroshi_app::environment::store;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
@@ -50,7 +50,8 @@ async fn magic_link(State(callbacks): State<Callbacks>, body: String) -> Answere
 	let body: Value = serde_json::from_str(&body).expect("a json body");
 	let callback = body["callbackURL"].as_str().expect("a callback url").to_owned();
 	callbacks.lock().expect("the stub").push(callback);
-	answered(StatusCode::OK, json!({ "status": true, "expiresAt": "2026-10-07T12:15:00.000Z" }))
+	let expires_at = (chrono::Utc::now() + Duration::from_secs(300)).to_rfc3339();
+	answered(StatusCode::OK, json!({ "status": true, "expiresAt": expires_at }))
 }
 
 async fn me(headers: HeaderMap) -> Answered {
@@ -83,15 +84,26 @@ impl Host {
 			std::process::id(),
 			CLAIMED.fetch_add(1, Ordering::Relaxed)
 		));
+		Self::holding(Ok(root), api_url)
+	}
+
+	fn without_store(api_url: &str) -> Self {
+		let unavailable = EnvError::Unwritable {
+			detail: "the application data directory is unavailable".to_owned(),
+		};
+		Self::holding(Err(unavailable), api_url)
+	}
+
+	fn holding(root: Result<PathBuf, EnvError>, api_url: &str) -> Self {
 		let app = mock_builder()
 			.invoke_handler(invoke_handler())
-			.manage(AccountSession::new(root.clone(), api_url, LINK_LIFETIME))
+			.manage(AccountSession::new(root.clone(), api_url))
 			.build(mock_context(noop_assets()))
 			.expect("app builds");
 		let window = WebviewWindowBuilder::new(&app, "main", Default::default())
 			.build()
 			.expect("window builds");
-		Self { _app: app, window, root }
+		Self { _app: app, window, root: root.unwrap_or_default() }
 	}
 
 	fn call(&self, cmd: &str, body: Value) -> Result<Value, Value> {
@@ -181,5 +193,22 @@ fn a_cloud_that_is_down_leaves_the_account_unreachable() {
 		assert_eq!(state["kind"], "unreachable");
 		assert!(state["reason"].as_str().is_some_and(|reason| !reason.is_empty()));
 		assert_eq!(host.stored(), None);
+	});
+}
+
+#[test]
+fn without_a_store_the_three_commands_answer_naming_the_store() {
+	tauri::async_runtime::block_on(async {
+		let callbacks = Callbacks::default();
+		let host = Host::without_store(&cloud(Arc::clone(&callbacks)).await);
+
+		let state = host.state();
+		assert_eq!(state["kind"], "unreachable");
+		assert!(state["reason"].as_str().is_some_and(|reason| reason.contains("store")));
+		let signing_in = host.call("account_sign_in", json!({ "email": EMAIL }));
+		assert_eq!(signing_in.expect_err("the sign-in is refused")["kind"], "store");
+		let signing_out = host.call("account_sign_out", json!({}));
+		assert_eq!(signing_out.expect_err("the sign-out is refused")["kind"], "store");
+		assert!(callbacks.lock().expect("the stub").is_empty());
 	});
 }
