@@ -42,10 +42,7 @@ const HostingPanel = ({
 		confirm()
 	}
 
-	const close = (open: boolean) => {
-		if (open) {
-			return
-		}
+	const close = () => {
 		if (!isAnswered.current) {
 			onHostingCancel?.()
 		}
