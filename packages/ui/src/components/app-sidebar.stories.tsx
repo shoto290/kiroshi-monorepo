@@ -3650,6 +3650,34 @@ export const MissionsOfUnloadedSpaces = meta.story({
 	},
 })
 
+const scrollPanelTo = async (panel: HTMLElement, top: number) => {
+	const dispatched = new Promise((resolve) =>
+		panel.addEventListener("scroll", resolve, { once: true }),
+	)
+	panel.scrollTop = top
+	await dispatched
+}
+
+interface CarouselRest {
+	slot: number
+	drawn: number
+}
+
+const swipeToRest = async (
+	carousel: HTMLElement,
+	step: number,
+	{ slot, drawn }: CarouselRest,
+) => {
+	const target = panelsIn(carousel)[slotReported(carousel) + step]
+	carousel.scrollLeft = (slotReported(carousel) + step) * carousel.clientWidth
+	await waitFor(async () => {
+		await expect(target).not.toHaveAttribute("inert")
+		await expect(panelsIn(carousel)).toHaveLength(drawn)
+		await expect(panelsIn(carousel).indexOf(target)).toBe(slot)
+		await expect(slotShown(carousel)).toBe(slot)
+	}, FRAME_POLL)
+}
+
 export const MissionsScrollMemory = meta.story({
 	tags: ["test-only"],
 	render: (args) => <LiveSpaces {...args} />,
@@ -3684,13 +3712,13 @@ export const MissionsScrollMemory = meta.story({
 		const depth = missions.scrollHeight - missions.clientHeight
 		await expect(depth).toBeGreaterThan(0)
 
-		missions.scrollTop = depth
-		await nextTask()
+		await scrollPanelTo(missions, depth)
 
-		await swipeBeside(carousel, 1)
-		await swipeBeside(carousel, 1)
-		await swipeBeside(carousel, -1)
-		await swipeBeside(carousel, -1)
+		await swipeToRest(carousel, 1, { slot: 1, drawn: 3 })
+		await swipeToRest(carousel, 1, { slot: 1, drawn: 3 })
+		await expect(missions.isConnected).toBe(false)
+		await swipeToRest(carousel, -1, { slot: 1, drawn: 3 })
+		await swipeToRest(carousel, -1, { slot: 0, drawn: 2 })
 		await waitFor(async () => {
 			await expect(panelInView(canvasElement).scrollTop).toBe(depth)
 		}, FRAME_POLL)
@@ -3700,8 +3728,7 @@ export const MissionsScrollMemory = meta.story({
 		)
 		const roster = panelInView(canvasElement)
 		await expect(roster.scrollTop).toBe(0)
-		roster.scrollTop = depth - 1
-		await nextTask()
+		await scrollPanelTo(roster, depth - 1)
 
 		await userEvent.click(
 			within(rail).getByRole("button", { name: "Missions" }),
