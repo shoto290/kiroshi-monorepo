@@ -110,10 +110,7 @@ describe("createHostingController", () => {
 		await settle()
 
 		expect(controller.getState().hosting).toEqual(OFF)
-		expect(reportFailure).toHaveBeenCalledExactlyOnceWith({
-			title: "Couldn’t host Home",
-			description: "Check your connection and turn it on again.",
-		})
+		expect(reportFailure).toHaveBeenCalledExactlyOnceWith(COULDNT_HOST_HOME)
 	})
 
 	it("keeps the last known state and raises a notice when the stop rejects", async () => {

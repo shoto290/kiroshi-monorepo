@@ -317,10 +317,6 @@ describe("SpaceSettingsHost hosting on the desktop", () => {
 			name: i18n.t("settings:space.hosting.label"),
 		})
 
-	afterEach(() => {
-		vi.mocked(isDesktopHost).mockReturnValue(false)
-	})
-
 	it("reads the hosting of the open local space into the Hosting tab", async () => {
 		vi.mocked(isDesktopHost).mockReturnValue(true)
 		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "online" })
