@@ -43,6 +43,16 @@ const settings = {
 			title: "Impossible de joindre Kiroshi",
 			description: "Vérifiez votre connexion et reconnectez-vous.",
 		},
+		failed: {
+			linkInvalid: "Ce lien de connexion n’a pas fonctionné",
+			serverError: "Kiroshi n’a pas pu vous connecter",
+			timedOut: "La connexion a pris trop de temps",
+			description: "Appuyez sur Se connecter pour recevoir un nouveau lien.",
+		},
+		readFailed: "Impossible de lire votre compte Kiroshi",
+		signInFailed: "Impossible de lancer la connexion à Kiroshi",
+		cancelFailed: "Impossible d’annuler la connexion",
+		signOutFailed: "Impossible de se déconnecter de Kiroshi",
 	},
 	plugin: {
 		author: {

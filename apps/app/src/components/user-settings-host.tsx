@@ -1,5 +1,6 @@
 import { UserSettingsDialog } from "@workspace/ui/components/user-settings-dialog"
 
+import { useAccount } from "@/lib/account/use-account"
 import { openedServerScope } from "@/lib/applications/application-settings"
 import { toNotificationChange } from "@/lib/user/user-settings"
 import type { ApplicationScopes } from "@/lib/workspace/use-application-scopes"
@@ -31,9 +32,11 @@ export const UserSettingsHost = ({
 		settingsTab,
 		userApplications,
 	} = scopes
+	const account = useAccount(userSettings.name)
 
 	return (
 		<UserSettingsDialog
+			account={account}
 			applications={{
 				servers: userApplications.mcpServers,
 				haveFailedToLoad: userMcpServers.state.hasFailedToLoad,

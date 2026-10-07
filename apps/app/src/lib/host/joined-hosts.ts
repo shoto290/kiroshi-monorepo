@@ -29,6 +29,9 @@ export const LOCAL_COMMANDS: ReadonlySet<string> = new Set([
 	"host_share_link",
 	"notification_show",
 	"companion_launch_outcome",
+	"account_state",
+	"account_sign_in",
+	"account_sign_out",
 ])
 
 export const JOINED_SPACE_CHANGED_EVENT = "joined-space://changed"
@@ -41,6 +44,7 @@ const LOCAL_EVENTS: ReadonlySet<string> = new Set([
 	"user://first-run-done",
 	"companion://created",
 	"companion://seed-refused",
+	"account://changed",
 ])
 
 const TAURI_PLUGIN_PREFIX = "plugin:"

@@ -43,6 +43,16 @@ const settings = {
 			title: "Couldn’t reach Kiroshi",
 			description: "Check your connection and sign in again.",
 		},
+		failed: {
+			linkInvalid: "That sign-in link didn’t work",
+			serverError: "Kiroshi couldn’t sign you in",
+			timedOut: "Signing in took too long",
+			description: "Press Sign in to get a new link.",
+		},
+		readFailed: "Couldn’t read your Kiroshi account",
+		signInFailed: "Couldn’t start signing in to Kiroshi",
+		cancelFailed: "Couldn’t cancel signing in",
+		signOutFailed: "Couldn’t sign out of Kiroshi",
 	},
 	plugin: {
 		author: {
