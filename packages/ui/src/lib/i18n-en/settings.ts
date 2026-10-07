@@ -176,6 +176,10 @@ const settings = {
 				title: "Couldn’t host {{name}}",
 				description: "Check your connection and turn it on again.",
 			},
+			stopFailed: {
+				title: "Couldn’t stop hosting {{name}}",
+				description: "Turn it off again.",
+			},
 		},
 		danger: {
 			delete: "Delete space",

@@ -176,6 +176,10 @@ const settings = {
 				title: "Impossible d’héberger {{name}}",
 				description: "Vérifiez votre connexion et réactivez-le.",
 			},
+			stopFailed: {
+				title: "Impossible d’arrêter d’héberger {{name}}",
+				description: "Désactivez-le de nouveau.",
+			},
 		},
 		danger: {
 			delete: "Supprimer l’espace",
