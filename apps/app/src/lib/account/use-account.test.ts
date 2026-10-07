@@ -1,0 +1,250 @@
+// @vitest-environment happy-dom
+
+import { act, cleanup, renderHook } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
+import { en } from "@workspace/ui/lib/i18n-en"
+
+import { useAccount } from "./use-account"
+
+import { ACCOUNT_CHANGED_EVENT, type AccountState, commands } from "../bindings"
+import { listen } from "../host"
+
+vi.mock("../host", () => ({ listen: vi.fn() }))
+
+vi.mock("../bindings", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../bindings")>()),
+	commands: {
+		accountState: vi.fn(),
+		accountSignIn: vi.fn(),
+		accountSignOut: vi.fn(),
+	},
+}))
+
+vi.mock("@workspace/ui/components/notice-surface", () => ({
+	raiseFailureNotice: vi.fn(),
+}))
+
+const EMAIL = "ada.martin@example.com"
+
+const SIGNED_IN: AccountState = {
+	kind: "signedIn",
+	id: "account-1",
+	email: EMAIL,
+	createdAt: "2026-10-01T00:00:00Z",
+}
+
+const COPY = en.settings.account
+
+const OK = { status: "ok", data: null } as const
+
+const STORE_ERROR = {
+	status: "error",
+	error: { kind: "store", detail: "locked" },
+} as const
+
+type ChangeHandler = (event: { payload: AccountState }) => void
+
+const changes: { announce: ChangeHandler } = { announce: () => undefined }
+
+const unlisten = vi.fn()
+
+const failureNotice = vi.mocked(raiseFailureNotice)
+
+const settling = () =>
+	act(async () => {
+		await new Promise((resolve) => setTimeout(resolve, 0))
+	})
+
+const mountAccount = async () => {
+	const mounted = renderHook(() => useAccount())
+	await settling()
+	return mounted
+}
+
+const announce = (payload: AccountState) =>
+	act(() => {
+		changes.announce({ payload })
+	})
+
+beforeEach(() => {
+	vi.mocked(commands.accountState).mockResolvedValue({ kind: "signedOut" })
+	vi.mocked(commands.accountSignIn).mockResolvedValue(OK)
+	vi.mocked(commands.accountSignOut).mockResolvedValue(OK)
+	vi.mocked(listen).mockImplementation(async (event, handler) => {
+		if (event === ACCOUNT_CHANGED_EVENT) {
+			changes.announce = handler as unknown as ChangeHandler
+		}
+		return unlisten
+	})
+})
+
+afterEach(async () => {
+	cleanup()
+	await settling()
+	vi.clearAllMocks()
+})
+
+describe("useAccount", () => {
+	it("renders the panel from the account state read on mount", async () => {
+		vi.mocked(commands.accountState).mockResolvedValue(SIGNED_IN)
+
+		const { result } = await mountAccount()
+
+		expect(commands.accountState).toHaveBeenCalledOnce()
+		expect(result.current.account).toEqual({
+			status: "signedIn",
+			name: "ada.martin",
+			email: EMAIL,
+		})
+	})
+
+	it("re-renders the panel from the state an account change carries", async () => {
+		const { result } = await mountAccount()
+
+		announce({ kind: "waiting", email: EMAIL })
+
+		expect(result.current.account).toEqual({ status: "waiting" })
+
+		announce(SIGNED_IN)
+
+		expect(result.current.account).toEqual({
+			status: "signedIn",
+			name: "ada.martin",
+			email: EMAIL,
+		})
+	})
+
+	it("keeps a change heard before the first read lands", async () => {
+		let answerRead: (state: AccountState) => void = () => undefined
+		vi.mocked(commands.accountState).mockReturnValue(
+			new Promise((resolve) => {
+				answerRead = resolve
+			}),
+		)
+		const { result } = await mountAccount()
+
+		announce(SIGNED_IN)
+		answerRead({ kind: "signedOut" })
+		await settling()
+
+		expect(result.current.account.status).toBe("signedIn")
+	})
+
+	it("signs in with the submitted email", async () => {
+		const { result } = await mountAccount()
+
+		act(() => result.current.onSignIn(EMAIL))
+		await settling()
+
+		expect(commands.accountSignIn).toHaveBeenCalledWith(EMAIL)
+		expect(failureNotice).not.toHaveBeenCalled()
+	})
+
+	it("signs out when Cancel is pressed while waiting", async () => {
+		vi.mocked(commands.accountState).mockResolvedValue({
+			kind: "waiting",
+			email: EMAIL,
+		})
+		const { result } = await mountAccount()
+
+		act(() => result.current.onCancel())
+		await settling()
+
+		expect(commands.accountSignOut).toHaveBeenCalledOnce()
+	})
+
+	it("signs out when Sign out is pressed", async () => {
+		vi.mocked(commands.accountState).mockResolvedValue(SIGNED_IN)
+		const { result } = await mountAccount()
+
+		act(() => result.current.onSignOut())
+		await settling()
+
+		expect(commands.accountSignOut).toHaveBeenCalledOnce()
+	})
+
+	it("raises the unreachable notice once and renders the signed-out panel", async () => {
+		const { result, rerender } = await mountAccount()
+
+		announce({ kind: "waiting", email: EMAIL })
+		announce({ kind: "unreachable", reason: "offline" })
+		rerender()
+		announce({ kind: "unreachable", reason: "offline" })
+		rerender()
+
+		expect(result.current.account).toEqual({ status: "signedOut" })
+		expect(failureNotice).toHaveBeenCalledOnce()
+		expect(failureNotice).toHaveBeenCalledWith(COPY.unreachable)
+	})
+
+	it.each(["linkInvalid", "serverError", "timedOut"] as const)(
+		"raises the %s notice once and renders the signed-out panel",
+		async (failure) => {
+			const { result, rerender } = await mountAccount()
+
+			announce({ kind: "failed", failure })
+			rerender()
+			rerender()
+
+			expect(result.current.account).toEqual({ status: "signedOut" })
+			expect(failureNotice).toHaveBeenCalledOnce()
+			expect(failureNotice).toHaveBeenCalledWith({
+				title: COPY.failed[failure],
+				description: COPY.failed.description,
+			})
+		},
+	)
+
+	it("raises the notice again on a new transition into the same failure", async () => {
+		await mountAccount()
+
+		announce({ kind: "failed", failure: "timedOut" })
+		announce({ kind: "waiting", email: EMAIL })
+		announce({ kind: "failed", failure: "timedOut" })
+
+		expect(failureNotice).toHaveBeenCalledTimes(2)
+	})
+
+	it("names the read that failed when the account state rejects", async () => {
+		vi.mocked(commands.accountState).mockRejectedValue(new Error("ipc"))
+
+		const { result } = await mountAccount()
+
+		expect(result.current.account).toEqual({ status: "signedOut" })
+		expect(failureNotice).toHaveBeenCalledWith({ title: COPY.readFailed })
+	})
+
+	it.each([
+		["rejects", () => Promise.reject(new Error("ipc"))],
+		["returns an error", () => Promise.resolve(STORE_ERROR)],
+	] as const)(
+		"names each action that failed when the command %s",
+		async (_, outcome) => {
+			vi.mocked(commands.accountSignIn).mockImplementation(outcome)
+			vi.mocked(commands.accountSignOut).mockImplementation(outcome)
+			const { result } = await mountAccount()
+
+			act(() => result.current.onSignIn(EMAIL))
+			act(() => result.current.onCancel())
+			act(() => result.current.onSignOut())
+			await settling()
+
+			expect(failureNotice.mock.calls).toEqual([
+				[{ title: COPY.signInFailed }],
+				[{ title: COPY.cancelFailed }],
+				[{ title: COPY.signOutFailed }],
+			])
+		},
+	)
+
+	it("stops listening to account changes on unmount", async () => {
+		const { unmount } = await mountAccount()
+
+		unmount()
+		await settling()
+
+		expect(unlisten).toHaveBeenCalledOnce()
+	})
+})
