@@ -413,7 +413,9 @@ const SAM_JOINED: Member = {
 	status: "joined",
 }
 
-const openMembersOf = async (gear: Gear & { home: { id: string } }) => {
+const openMembersOf = async (
+	gear: Awaited<ReturnType<typeof gearWithGarage>>,
+) => {
 	const dialog = openSettingsOf(gear, gear.home.id)
 	fireEvent.click(
 		await within(dialog).findByRole("tab", { name: MEMBERS_TAB_NAME }),
