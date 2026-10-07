@@ -19,8 +19,10 @@ const SIGN_OUT_PATH: &str = "/api/auth/sign-out";
 const REQUEST_BOUND: Duration = Duration::from_secs(20);
 
 pub fn api_url() -> String {
-	let overridden = cfg!(debug_assertions).then(|| std::env::var(API_URL_OVERRIDE).ok()).flatten();
-	overridden.unwrap_or_else(|| PRODUCTION_API_URL.to_owned())
+	match std::env::var(API_URL_OVERRIDE) {
+		Ok(overridden) if cfg!(debug_assertions) => overridden,
+		_ => PRODUCTION_API_URL.to_owned(),
+	}
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
