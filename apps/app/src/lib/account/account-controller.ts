@@ -59,10 +59,11 @@ export const createAccountController = (): AccountController => {
 	const show = (next: AccountState) => {
 		const previous = stateStore.getState()
 		stateStore.setState(next)
-		const notice = noticeFor(next)
-		if (notice && transitionOf(previous) !== transitionOf(next)) {
-			raiseFailureNotice(notice)
+		if (transitionOf(previous) === transitionOf(next)) {
+			return
 		}
+		const notice = noticeFor(next)
+		if (notice) raiseFailureNotice(notice)
 	}
 
 	const watch = () => {
