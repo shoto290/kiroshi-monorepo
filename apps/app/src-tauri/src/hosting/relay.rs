@@ -66,6 +66,7 @@ enum Ended {
 }
 
 enum Next {
+	Reregister,
 	Retry(String),
 	Settled(HostingState),
 	Stopped,
@@ -100,6 +101,7 @@ pub(super) async fn hosted<R: Runtime>(
 		let instance_id = hosted.instance_id.as_deref();
 		match next {
 			Next::Stopped => return,
+			Next::Reregister => continue,
 			Next::Settled(state) => return entered(&app, &hosted.space_id, instance_id, state),
 			Next::Retry(reason) => {
 				eprintln!(
@@ -164,7 +166,7 @@ async fn attempted<R: Runtime>(
 		Some(Opened::Unknown) if !*is_reregistered => {
 			*is_reregistered = true;
 			hosted.instance_id = None;
-			Box::pin(attempted(app, hosted, local, stop, backoff, is_reregistered)).await
+			Next::Reregister
 		}
 		Some(Opened::Unknown) => Next::Settled(HostingState::Failed {
 			reason: "kiroshi-cloud knows no instance under the id it just registered (relay answered 404)"
