@@ -2,7 +2,7 @@ use tauri::{ipc::Invoke, Runtime};
 use tauri_specta::{collect_commands, Builder, Commands};
 
 use crate::{
-	agent, applications, attachments, companions, conversations, environment, host_api,
+	account, agent, applications, attachments, companions, conversations, environment, host_api,
 	joined_spaces, mcp_oauth, missions, notifications, plugins, routines, search, sections, spaces,
 	user, window_controls,
 };
@@ -14,6 +14,7 @@ pub fn builder() -> Builder<tauri::Wry> {
 		.constant("ARCHIVE_FILTER_NAME", spaces::archive::ARCHIVE_FILTER_NAME)
 		.constant("MAXIMIZE_BUTTON_EVENT", window_controls::MAXIMIZE_BUTTON_EVENT)
 		.constant("HOST_PRESENCE_EVENT", host_api::share_link::HOST_PRESENCE_EVENT)
+		.constant("ACCOUNT_CHANGED_EVENT", account::contract::CHANGED_EVENT)
 		.typ::<window_controls::MaximizeButtonPointer>()
 		.typ::<host_api::share_link::HostPresence>()
 }
@@ -27,6 +28,9 @@ pub fn invoke_handler<R: Runtime>() -> impl Fn(Invoke<R>) -> bool + Send + Sync 
 
 fn commands<R: Runtime>() -> Commands<R> {
 	collect_commands![
+		account::commands::account_state,
+		account::commands::account_sign_in::<tauri::Wry>,
+		account::commands::account_sign_out::<tauri::Wry>,
 		applications::commands::application_catalogue,
 		applications::commands::application_search,
 		applications::commands::application_named,

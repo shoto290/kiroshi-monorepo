@@ -28,6 +28,8 @@ pub const SUBSCRIPTION_TOKEN: &str = "CLAUDE_CODE_OAUTH_TOKEN";
 
 pub const CONNECTION_NAMES: [&str; 2] = [API_KEY, SUBSCRIPTION_TOKEN];
 
+pub const ACCOUNT_BEARER: &str = "KIROSHI_ACCOUNT_BEARER";
+
 pub fn is_reserved(name: &str) -> bool {
 	RESERVED_NAMES.contains(&name) || is_a_connection_name(name)
 }
@@ -74,6 +76,8 @@ pub enum EnvScope {
 	Server { name: String, owner: EnvOwner },
 	#[serde(skip_deserializing)]
 	Person,
+	#[serde(skip_deserializing)]
+	Account,
 }
 
 impl From<&EnvOwner> for EnvScope {
@@ -199,6 +203,11 @@ mod tests {
 	#[test]
 	fn the_scope_wider_than_every_space_cannot_be_named_by_the_front() {
 		assert!(from_value::<EnvScope>(json!({ "kind": "person" })).is_err());
+	}
+
+	#[test]
+	fn the_scope_holding_the_account_bearer_cannot_be_named_by_the_front() {
+		assert!(from_value::<EnvScope>(json!({ "kind": "account" })).is_err());
 	}
 
 	#[test]
