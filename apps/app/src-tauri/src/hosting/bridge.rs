@@ -11,11 +11,19 @@ use crate::missions::github::installed_tls_provider;
 
 const INVOKE_BOUND: Duration = Duration::from_secs(300);
 
-const HOST_ONLY_COMMANDS: [&str; 4] = [
+pub(super) const HOST_ONLY_COMMANDS: [&str; 12] = [
 	"hosting_members",
 	"hosting_invite_member",
 	"hosting_withdraw_invitation",
 	"hosting_remove_member",
+	"hosting_start",
+	"hosting_stop",
+	"account_sign_in",
+	"account_sign_out",
+	"agent_sign_in",
+	"agent_sign_in_code",
+	"agent_sign_in_cancel",
+	"space_delete",
 ];
 
 #[derive(Clone)]
@@ -174,6 +182,22 @@ mod tests {
 			let frame = json!({ "id": "m", "command": command, "args": { "spaceId": "s" } });
 			let refusal = member_call(&frame.to_string()).expect_err(command);
 			assert_eq!(status_of(&refusal), (json!("m"), json!(403)), "{command}");
+		}
+	}
+
+	#[test]
+	fn every_host_only_command_is_a_registered_command() {
+		let bindings =
+			std::env::temp_dir().join(format!("kiroshi-host-only-{}.ts", uuid::Uuid::new_v4()));
+		crate::commands::builder()
+			.dangerously_cast_bigints_to_number()
+			.export(specta_typescript::Typescript::default(), &bindings)
+			.expect("the command surface exports");
+		let surface = std::fs::read_to_string(&bindings).expect("the bindings read back");
+		std::fs::remove_file(&bindings).expect("the bindings are cleaned up");
+
+		for command in HOST_ONLY_COMMANDS {
+			assert!(surface.contains(&format!("__TAURI_INVOKE(\"{command}\"")), "{command}");
 		}
 	}
 

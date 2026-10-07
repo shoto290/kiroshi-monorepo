@@ -17,13 +17,14 @@ use tauri::{App, Listener, Manager};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-use super::bridge::LocalApi;
+use super::bridge::{LocalApi, HOST_ONLY_COMMANDS};
 use super::contract::{
 	HostingState, Member, MemberStatus, MembersError, CHANGED_EVENT, MEMBERS_CHANGED_EVENT,
 };
 use super::members::{invite, list, remove, withdraw};
 use super::{resumed, signed_out, start, stop, Hosting};
 use crate::spaces::commands::space_delete;
+use crate::account::contract::AccountState;
 use crate::account::session::restore;
 use crate::account::session::AccountSession;
 use crate::db::connection::temp_dir;
@@ -575,6 +576,71 @@ fn a_member_frame_naming_a_host_member_command_is_refused_and_others_still_forwa
 			harness.member_calls()
 		);
 	});
+}
+
+async fn a_relay_guest_is_refused(command: &str) {
+	assert!(HOST_ONLY_COMMANDS.contains(&command), "{command} is not host only");
+	let mut harness = Harness::signed_in(command).await;
+	restore(harness.app.handle().clone()).await;
+	harness.started().await;
+	let mut member = harness.member().await;
+	harness.reached(HostingState::Online).await;
+
+	let frame = json!({ "id": command, "command": command, "args": { "spaceId": PERSONAL } });
+	send(&mut member, &frame.to_string()).await;
+	let refused = answer(&mut member).await;
+	send(&mut member, r#"{"id": "after", "command": "space_list"}"#).await;
+	let answered = answer(&mut member).await;
+
+	assert_eq!(
+		refused,
+		json!({ "id": command, "status": 403, "body": { "error": "this command belongs to the host" } })
+	);
+	assert_eq!((answered["id"].clone(), answered["status"].clone()), (json!("after"), json!(200)));
+	assert_eq!(harness.state(), HostingState::Online);
+	let session = harness.app.state::<AccountSession>();
+	assert!(matches!(session.current(), AccountState::SignedIn(_)), "{:?}", session.current());
+	assert_eq!(session.bearer().expect("the session store reads").as_deref(), Some(BEARER));
+}
+
+#[test]
+fn a_relay_guest_cannot_start_the_hosting() {
+	run(a_relay_guest_is_refused("hosting_start"));
+}
+
+#[test]
+fn a_relay_guest_cannot_stop_the_hosting() {
+	run(a_relay_guest_is_refused("hosting_stop"));
+}
+
+#[test]
+fn a_relay_guest_cannot_sign_the_host_account_in() {
+	run(a_relay_guest_is_refused("account_sign_in"));
+}
+
+#[test]
+fn a_relay_guest_cannot_sign_the_host_account_out() {
+	run(a_relay_guest_is_refused("account_sign_out"));
+}
+
+#[test]
+fn a_relay_guest_cannot_sign_the_host_agent_in() {
+	run(a_relay_guest_is_refused("agent_sign_in"));
+}
+
+#[test]
+fn a_relay_guest_cannot_enter_the_host_agent_sign_in_code() {
+	run(a_relay_guest_is_refused("agent_sign_in_code"));
+}
+
+#[test]
+fn a_relay_guest_cannot_cancel_the_host_agent_sign_in() {
+	run(a_relay_guest_is_refused("agent_sign_in_cancel"));
+}
+
+#[test]
+fn a_relay_guest_cannot_delete_a_space_and_its_instance_registration() {
+	run(a_relay_guest_is_refused("space_delete"));
 }
 
 #[test]
