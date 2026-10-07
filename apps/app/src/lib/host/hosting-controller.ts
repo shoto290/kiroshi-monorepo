@@ -132,10 +132,6 @@ export const createHostingController = ({
 		)
 	}
 
-	const endAttempt = (session: Session, attempt: Attempt) => {
-		if (session.attempt === attempt) session.attempt = null
-	}
-
 	const watch = (space: HostedSpace) => {
 		const session: Session = { space, hasSettled: false, attempt: null }
 		current = session
@@ -167,18 +163,20 @@ export const createHostingController = ({
 			if (!session) return
 			const attempt: Attempt = { isReported: false }
 			session.attempt = attempt
-			void run(session.space.id).then(
-				(hosting) => {
-					if (current === session) settle(session, hosting, attempt)
-					endAttempt(session, attempt)
-				},
-				() => {
-					if (current === session) {
-						reportAttempt(attempt, rejectionOf(session.space))
-					}
-					endAttempt(session, attempt)
-				},
-			)
+			void run(session.space.id)
+				.then(
+					(hosting) => {
+						if (current === session) settle(session, hosting, attempt)
+					},
+					() => {
+						if (current === session) {
+							reportAttempt(attempt, rejectionOf(session.space))
+						}
+					},
+				)
+				.finally(() => {
+					if (session.attempt === attempt) session.attempt = null
+				})
 		}
 
 	return {
