@@ -27,6 +27,9 @@ export const LOCAL_COMMANDS: ReadonlySet<string> = new Set([
 	"user_set_profile_picture",
 	"window_declare_maximize_button",
 	"host_share_link",
+	"hosting_state",
+	"hosting_start",
+	"hosting_stop",
 	"notification_show",
 	"companion_launch_outcome",
 ])
@@ -35,6 +38,7 @@ export const JOINED_SPACE_CHANGED_EVENT = "joined-space://changed"
 
 const LOCAL_EVENTS: ReadonlySet<string> = new Set([
 	"host://presence",
+	"hosting://changed",
 	JOINED_SPACE_CHANGED_EVENT,
 	"window-maximize-button",
 	"notification://activated",

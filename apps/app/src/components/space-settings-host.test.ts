@@ -17,8 +17,9 @@ import { i18n } from "@workspace/ui/lib/i18n"
 
 import { SpaceSettingsHost } from "@/components/space-settings-host"
 import { APPLICATIONS_TAB } from "@/lib/applications/connection-settings"
-import type { JoinedSpace } from "@/lib/bindings"
+import { commands, type JoinedSpace } from "@/lib/bindings"
 import { createFakeTranscriptStore } from "@/lib/conversations/fake-transcript-store"
+import { isDesktopHost } from "@/lib/host/index"
 import {
 	createJoinedSpacesController,
 	type JoinedSpacesController,
@@ -32,6 +33,29 @@ import { useControllerState } from "@/lib/use-controller"
 import type { ApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import type { SettingsPanels } from "@/lib/workspace/use-settings-panels"
 import type { WorkspaceCore } from "@/lib/workspace/use-workspace-core"
+
+vi.mock("@/lib/host/index", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@/lib/host/index")>()),
+	isDesktopHost: vi.fn(() => false),
+	listen: vi.fn(async () => () => undefined),
+}))
+
+vi.mock("@/lib/bindings", async (importOriginal) => {
+	const bindings = await importOriginal<typeof import("@/lib/bindings")>()
+	return {
+		...bindings,
+		commands: {
+			...bindings.commands,
+			hostShareLink: vi.fn(async () => ({
+				status: "ok",
+				data: { kind: "down" },
+			})),
+			hostingState: vi.fn(),
+			hostingStart: vi.fn(),
+			hostingStop: vi.fn(),
+		},
+	}
+})
 
 const GARAGE: JoinedSpace = {
 	id: "joined-garage",
@@ -81,12 +105,14 @@ const gearWithGarage = async () => {
 
 type SpaceSettingsHarnessProps = Gear & {
 	openedTab?: string
+	openAccountSettings?: () => void
 }
 
 const SpaceSettingsHarness = ({
 	spaces,
 	joined,
 	openedTab,
+	openAccountSettings,
 }: SpaceSettingsHarnessProps) => {
 	const [settingsTab, setSettingsTab] = useState(openedTab)
 	const spacesState = useControllerState(spaces)
@@ -104,6 +130,7 @@ const SpaceSettingsHarness = ({
 	const panels = {
 		applicationToOpenOn: () => undefined,
 		closeSettingsTab: () => setSettingsTab(undefined),
+		openAccountSettings,
 		spaceHistory: { days: [], oldestDate: "2026-01-01", onUndo: vi.fn() },
 		spaceSkills: { skills: [] },
 	} as unknown as SettingsPanels
@@ -162,6 +189,8 @@ const confirmDelete = async (dialog: HTMLElement) => {
 
 afterEach(() => {
 	cleanup()
+	vi.mocked(isDesktopHost).mockReturnValue(false)
+	vi.clearAllMocks()
 })
 
 describe("SpaceSettingsHost on a joined space", () => {
@@ -265,5 +294,105 @@ describe("SpaceSettingsHost on a local space", () => {
 				selected: true,
 			}),
 		).toBeTruthy()
+	})
+})
+
+const HOSTING_TAB_NAME = i18n.t("settings:rail.hosting")
+
+const openHostingOf = async (gear: Gear, rowId: string) => {
+	const openAccountSettings = vi.fn()
+	gear.joined.selectSpace(rowId)
+	gear.spaces.setSettingsOpen(true)
+	render(createElement(SpaceSettingsHarness, { ...gear, openAccountSettings }))
+	const dialog = screen.getByRole("dialog")
+	fireEvent.click(
+		await within(dialog).findByRole("tab", { name: HOSTING_TAB_NAME }),
+	)
+	return { dialog, openAccountSettings }
+}
+
+describe("SpaceSettingsHost hosting on the desktop", () => {
+	const hostingSwitchOf = (dialog: HTMLElement) =>
+		within(dialog).getByRole("switch", {
+			name: i18n.t("settings:space.hosting.label"),
+		})
+
+	afterEach(() => {
+		vi.mocked(isDesktopHost).mockReturnValue(false)
+	})
+
+	it("reads the hosting of the open local space into the Hosting tab", async () => {
+		vi.mocked(isDesktopHost).mockReturnValue(true)
+		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "online" })
+		const gear = await gearWithGarage()
+
+		const { dialog } = await openHostingOf(gear, gear.home.id)
+
+		expect(commands.hostingState).toHaveBeenCalledWith(gear.home.id)
+		expect(hostingSwitchOf(dialog).getAttribute("aria-checked")).toBe("true")
+	})
+
+	it("closes the space settings and opens the account settings on Sign in", async () => {
+		vi.mocked(isDesktopHost).mockReturnValue(true)
+		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "needsSignIn" })
+		const gear = await gearWithGarage()
+		const { dialog, openAccountSettings } = await openHostingOf(
+			gear,
+			gear.home.id,
+		)
+
+		fireEvent.click(
+			await within(dialog).findByRole("button", {
+				name: i18n.t("settings:space.hosting.signIn"),
+			}),
+		)
+
+		expect(openAccountSettings).toHaveBeenCalledOnce()
+		await waitFor(() =>
+			expect(screen.queryByRole("dialog", { hidden: true })).toBeNull(),
+		)
+	})
+
+	it("leaves the switch off and raises the H6 notice when the start fails", async () => {
+		vi.mocked(isDesktopHost).mockReturnValue(true)
+		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "off" })
+		vi.mocked(commands.hostingStart).mockRejectedValue(
+			new Error("relay refused the token"),
+		)
+		const gear = await gearWithGarage()
+		const { dialog } = await openHostingOf(gear, gear.home.id)
+
+		fireEvent.click(hostingSwitchOf(dialog))
+		const question = await screen.findByRole("alertdialog")
+		await act(async () => {
+			fireEvent.click(
+				within(question).getByRole("button", {
+					name: i18n.t("settings:space.hosting.start.confirm", {
+						name: "Home",
+					}),
+				}),
+			)
+		})
+
+		expect(commands.hostingStart).toHaveBeenCalledWith(gear.home.id)
+		expect(await screen.findAllByText("Couldn’t host Home")).not.toHaveLength(0)
+		expect(
+			screen.getAllByText("Check your connection and turn it on again."),
+		).not.toHaveLength(0)
+		expect(screen.queryByText(/relay refused the token/)).toBeNull()
+		expect(hostingSwitchOf(dialog).getAttribute("aria-checked")).toBe("false")
+	})
+
+	it("passes no hosting to a joined space", async () => {
+		vi.mocked(isDesktopHost).mockReturnValue(true)
+		const gear = await gearWithGarage()
+
+		const dialog = openSettingsOf(gear, "garage")
+		await act(async () => undefined)
+
+		expect(
+			within(dialog).queryByRole("tab", { name: HOSTING_TAB_NAME }),
+		).toBeNull()
+		expect(commands.hostingState).not.toHaveBeenCalled()
 	})
 })

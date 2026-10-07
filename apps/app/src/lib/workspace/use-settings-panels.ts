@@ -15,6 +15,8 @@ import { applicationToOpenIn } from "../applications/settings-target"
 import { useHistoryView } from "../bots/use-history-view"
 import { toPluginSkills } from "../plugins/plugin-skills"
 
+export const ACCOUNT_TAB = "account"
+
 type SettingsPanelsInput = {
 	core: WorkspaceCore
 	rosterView: RosterView
@@ -102,6 +104,12 @@ export const useSettingsPanels = ({
 		},
 		[roster.controller, spaces.controller, user.controller, selectedSpaceId],
 	)
+
+	const openAccountSettings = () => {
+		setSettingsTab(ACCOUNT_TAB)
+		user.controller.setSettingsOpen(true)
+	}
+
 	const conversationApplications = useMemo(
 		() => ({
 			port: applicationTransport,
@@ -126,6 +134,7 @@ export const useSettingsPanels = ({
 		closeSettingsTab,
 		companionSkills,
 		conversationApplications,
+		openAccountSettings,
 		personSkills,
 		sessionApplications,
 		spaceHistory,

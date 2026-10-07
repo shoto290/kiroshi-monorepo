@@ -3,6 +3,7 @@ import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings
 import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
 
 import { toEnvironmentRows } from "@/lib/environment/environment-rows"
+import { useHosting } from "@/lib/host/use-hosting"
 import { useShareLink } from "@/lib/host/use-share-link"
 import { joinedSpaceOfRow } from "@/lib/spaces/joined-spaces-controller"
 import { toSpaceSettingsValue } from "@/lib/spaces/space-settings"
@@ -22,8 +23,13 @@ export const SpaceSettingsHost = ({
 	scopes,
 }: SpaceSettingsHostProps) => {
 	const { joinedSpaces, spaceEnvironment, spaceMcpServers, spaces } = core
-	const { applicationToOpenOn, closeSettingsTab, spaceHistory, spaceSkills } =
-		panels
+	const {
+		applicationToOpenOn,
+		closeSettingsTab,
+		openAccountSettings,
+		spaceHistory,
+		spaceSkills,
+	} = panels
 	const {
 		isSpaceEditing,
 		selectedSpace,
@@ -35,6 +41,11 @@ export const SpaceSettingsHost = ({
 	} = scopes
 	const shareLink = useShareLink(
 		isSpaceEditing ? (selectedSpace?.id ?? null) : null,
+	)
+	const hosting = useHosting(
+		isSpaceEditing && selectedSpace
+			? { id: selectedSpace.id, name: selectedSpace.name }
+			: null,
 	)
 	const joinedSpace = joinedSpaceOfRow(
 		joinedSpaces.state.joinedSpaces,
@@ -58,6 +69,13 @@ export const SpaceSettingsHost = ({
 			close()
 		}
 	}
+
+	const signIn = () => {
+		close()
+		openAccountSettings()
+	}
+
+	const hostingProps = hosting ? { ...hosting, onSignIn: signIn } : {}
 
 	const sharedProps = {
 		environment: toEnvironmentRows(spaceEnvironment.state.entries),
@@ -95,6 +113,7 @@ export const SpaceSettingsHost = ({
 		return (
 			<SpaceSettingsDialog
 				{...sharedProps}
+				{...hostingProps}
 				isDeletable={spaces.state.spaces.length > 1}
 				onDelete={() => {
 					void spaces.controller
