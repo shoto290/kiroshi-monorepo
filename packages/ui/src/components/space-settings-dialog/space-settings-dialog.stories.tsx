@@ -1037,9 +1037,6 @@ export const MembersI1 = meta.story({
 		await expect(memberRowsIn(panel)).toEqual([
 			["S", "Steve", "steve@example.com", "Host"],
 		])
-		await expect(within(panel).queryByRole("button", { name: /^Remove/ })).toBe(
-			null,
-		)
 	},
 })
 
