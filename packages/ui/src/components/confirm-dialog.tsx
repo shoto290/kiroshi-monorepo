@@ -20,6 +20,7 @@ type ConfirmDialogProps = {
 	title: string
 	description: string
 	confirmLabel: string
+	confirmVariant?: "default" | "destructive"
 	onConfirm: () => void | Promise<void>
 	failureLabel?: string
 	defaultOpen?: boolean
@@ -34,6 +35,7 @@ const ConfirmDialog = ({
 	title,
 	description,
 	confirmLabel,
+	confirmVariant = "destructive",
 	onConfirm,
 	failureLabel,
 	defaultOpen,
@@ -103,7 +105,7 @@ const ConfirmDialog = ({
 							disabled={isConfirming}
 							onClick={confirm}
 							size="sm"
-							variant="destructive"
+							variant={confirmVariant}
 						>
 							{confirmLabel}
 						</Button>

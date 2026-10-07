@@ -69,6 +69,7 @@ import {
 	ThumbsUpIcon,
 	TriangleAlertIcon,
 	UserIcon,
+	UsersIcon,
 	WrenchIcon,
 	XIcon,
 } from "@keyline-icons/react"
@@ -78,6 +79,7 @@ import {
 	CodeIcon as CodeFillIcon,
 	FlagIcon as FlagFillIcon,
 	FolderIcon as FolderFillIcon,
+	GlobeIcon as GlobeFillIcon,
 	HistoryIcon as HistoryFillIcon,
 	ImageIcon as ImageFillIcon,
 	LanguageIcon as LanguageFillIcon,
@@ -89,6 +91,7 @@ import {
 	TerminalIcon as TerminalFillIcon,
 	TriangleAlertIcon as TriangleAlertFillIcon,
 	UserIcon as UserFillIcon,
+	UsersIcon as UsersFillIcon,
 	WrenchIcon as WrenchFillIcon,
 } from "@keyline-icons/react/fill"
 import type { ComponentType } from "react"
@@ -259,6 +262,7 @@ const Icons = {
 	ThumbsUp: ThumbsUpIcon,
 	Tool: WrenchIcon,
 	User: UserIcon,
+	Users: UsersIcon,
 	Web: GlobeIcon,
 	Write: PenLineIcon,
 	X,
@@ -284,6 +288,8 @@ const FillIcons = {
 	Terminal: TerminalFillIcon,
 	Tool: WrenchFillIcon,
 	User: UserFillIcon,
+	Users: UsersFillIcon,
+	Web: GlobeFillIcon,
 } satisfies Partial<Record<keyof typeof Icons, Icon>>
 
 type FillIconName = keyof typeof FillIcons

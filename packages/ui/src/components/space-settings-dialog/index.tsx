@@ -1,6 +1,7 @@
 "use client"
 
 import { Tabs } from "@base-ui/react/tabs"
+import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
 import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
@@ -22,6 +23,11 @@ import {
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
+import {
+	HostingPanel,
+	type HostingPanelProps,
+	type SpaceHosting,
+} from "@workspace/ui/components/space-settings-dialog/hosting-panel"
 import { JoinedSpaceFields } from "@workspace/ui/components/space-settings-dialog/joined-space-fields"
 import { ShareLink } from "@workspace/ui/components/space-settings-dialog/share-link"
 import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/space-fields"
@@ -31,6 +37,14 @@ import { Button } from "@workspace/ui/components/ui/button"
 const FIRST_TAB = "space"
 
 const DANGER_TAB = "danger"
+
+const MEMBERS_TAB = "members"
+
+const HOSTING_TAB = "hosting"
+
+type Hosting = Omit<HostingPanelProps, "name">
+
+type NoHosting = { [Key in keyof Hosting]?: never }
 
 type LocalSpace = {
 	host?: never
@@ -65,8 +79,10 @@ type SpaceSettingsDialogProps = PluginSessionsProps & {
 	onEnvironmentDelete: (name: string) => void | Promise<void>
 	tab?: string
 	history: PluginHistory
+	members?: ReactNode
 	className?: string
-} & (LocalSpace | JoinedSpace)
+} & (LocalSpace | JoinedSpace) &
+	(Hosting | NoHosting)
 
 const SpaceSettingsDialog = ({
 	open,
@@ -87,6 +103,12 @@ const SpaceSettingsDialog = ({
 	onShareLinkCopy,
 	host,
 	onLeave,
+	members,
+	hosting,
+	onHost,
+	onStopHosting,
+	onHostingCancel,
+	onSignIn,
 	className,
 	...sessionProps
 }: SpaceSettingsDialogProps) => {
@@ -118,6 +140,22 @@ const SpaceSettingsDialog = ({
 						label={t("rail.space")}
 						value={FIRST_TAB}
 					/>
+					{members === undefined ? null : (
+						<SettingsRailItem
+							icon="Users"
+							iconsOnly={iconsOnly}
+							label={t("rail.members")}
+							value={MEMBERS_TAB}
+						/>
+					)}
+					{hosting === undefined ? null : (
+						<SettingsRailItem
+							icon="Web"
+							iconsOnly={iconsOnly}
+							label={t("rail.hosting")}
+							value={HOSTING_TAB}
+						/>
+					)}
 					<SettingsRailItem
 						icon="Json"
 						iconsOnly={iconsOnly}
@@ -182,6 +220,25 @@ const SpaceSettingsDialog = ({
 				)}
 			</SettingsScrollingPanel>
 
+			{members === undefined ? null : (
+				<SettingsScrollingPanel value={MEMBERS_TAB}>
+					{members}
+				</SettingsScrollingPanel>
+			)}
+
+			{hosting === undefined ? null : (
+				<SettingsScrollingPanel value={HOSTING_TAB}>
+					<HostingPanel
+						hosting={hosting}
+						name={spaceName}
+						onHost={onHost}
+						onHostingCancel={onHostingCancel}
+						onSignIn={onSignIn}
+						onStopHosting={onStopHosting}
+					/>
+				</SettingsScrollingPanel>
+			)}
+
 			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="environment">
 				<EnvironmentPanel
 					entries={environment}
@@ -230,6 +287,7 @@ const SpaceSettingsDialog = ({
 }
 
 export {
+	type SpaceHosting,
 	SpaceSettingsDialog,
 	type SpaceSettingsDialogProps,
 	type SpaceSettingsValue,
