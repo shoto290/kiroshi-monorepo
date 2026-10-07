@@ -1338,6 +1338,13 @@ settings-space-spacesettingsdialog--danger
 settings-space-spacesettingsdialog--default
 settings-space-spacesettingsdialog--environment
 settings-space-spacesettingsdialog--history
+settings-space-spacesettingsdialog--hosting-confirm-start
+settings-space-spacesettingsdialog--hosting-confirm-stop
+settings-space-spacesettingsdialog--hosting-connecting
+settings-space-spacesettingsdialog--hosting-failed
+settings-space-spacesettingsdialog--hosting-off
+settings-space-spacesettingsdialog--hosting-online
+settings-space-spacesettingsdialog--hosting-signed-out
 settings-space-spacesettingsdialog--joined-danger
 settings-space-spacesettingsdialog--joined-space
 settings-space-spacesettingsdialog--joined-themes

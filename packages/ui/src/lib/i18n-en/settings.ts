@@ -5,6 +5,8 @@ const settings = {
 	rail: {
 		profile: "Profile",
 		space: "Space",
+		members: "Members",
+		hosting: "Hosting",
 		secrets: "Secrets",
 		appearance: "Appearance",
 		notifications: "Notifications",
@@ -109,6 +111,32 @@ const settings = {
 				unreadableArchive: "The archive couldn’t be read.",
 				unwritableArchive: "The archive couldn’t be written.",
 				generic: "Something went wrong, nothing was changed.",
+			},
+		},
+		hosting: {
+			label: "Host through Kiroshi",
+			description:
+				"Invite people who aren’t on your network. {{name}} is hosted from this computer only, so they reach it while Kiroshi is open here.",
+			signedOut:
+				"Sign in to Kiroshi to invite people who aren’t on your network.",
+			signIn: "Sign in",
+			connecting: "Connecting…",
+			online: "Online",
+			start: {
+				title: "Host {{name}} here?",
+				description:
+					"People you invite reach its companions and conversations, which run on this computer.",
+				confirm: "Host {{name}}",
+			},
+			stop: {
+				title: "Stop hosting {{name}}?",
+				description:
+					"Guests lose access until you host it again. Nothing is deleted on this computer.",
+				confirm: "Stop hosting",
+			},
+			failed: {
+				title: "Couldn’t host {{name}}",
+				description: "Check your connection and turn it on again.",
 			},
 		},
 		danger: {

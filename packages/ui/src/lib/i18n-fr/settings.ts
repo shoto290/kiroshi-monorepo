@@ -5,6 +5,8 @@ const settings = {
 	rail: {
 		profile: "Profil",
 		space: "Espace",
+		members: "Membres",
+		hosting: "Hébergement",
 		secrets: "Secrets",
 		appearance: "Apparence",
 		notifications: "Notifications",
@@ -109,6 +111,32 @@ const settings = {
 				unreadableArchive: "L’archive n’a pas pu être lue.",
 				unwritableArchive: "L’archive n’a pas pu être écrite.",
 				generic: "Une erreur est survenue, rien n’a été modifié.",
+			},
+		},
+		hosting: {
+			label: "Héberger via Kiroshi",
+			description:
+				"Invitez des personnes qui ne sont pas sur votre réseau. {{name}} est hébergé depuis cet ordinateur uniquement, elles y accèdent donc tant que Kiroshi est ouvert ici.",
+			signedOut:
+				"Connectez-vous à Kiroshi pour inviter des personnes qui ne sont pas sur votre réseau.",
+			signIn: "Se connecter",
+			connecting: "Connexion…",
+			online: "En ligne",
+			start: {
+				title: "Héberger {{name}} ici ?",
+				description:
+					"Les personnes que vous invitez accèdent à ses compagnons et à ses conversations, qui tournent sur cet ordinateur.",
+				confirm: "Héberger {{name}}",
+			},
+			stop: {
+				title: "Arrêter d’héberger {{name}} ?",
+				description:
+					"Les invités perdent l’accès jusqu’à ce que vous l’hébergiez de nouveau. Rien n’est supprimé sur cet ordinateur.",
+				confirm: "Arrêter d’héberger",
+			},
+			failed: {
+				title: "Impossible d’héberger {{name}}",
+				description: "Vérifiez votre connexion et réactivez-le.",
 			},
 		},
 		danger: {

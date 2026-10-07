@@ -19,10 +19,8 @@ import {
 	HISTORY_OLDEST_DATE,
 } from "@workspace/ui/components/plugin-settings/history.fixtures"
 import { BOT_SKILLS } from "@workspace/ui/components/plugin-settings/skills.fixtures"
-import {
-	SpaceSettingsDialog,
-	type SpaceSettingsDialogProps,
-} from "@workspace/ui/components/space-settings-dialog"
+import type { PluginSessionsProps } from "@workspace/ui/components/plugin-settings/use-plugin-sessions"
+import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
 
 import "@workspace/ui/lib/i18n"
 
@@ -32,9 +30,7 @@ const SERVER_ENVIRONMENT_SECTION = {
 	onDelete: vi.fn(),
 }
 
-const spaceDialog = (
-	overrides: Partial<Omit<SpaceSettingsDialogProps, "host" | "onLeave">> = {},
-) =>
+const spaceDialog = (overrides: Partial<PluginSessionsProps> = {}) =>
 	render(
 		<SpaceSettingsDialog
 			environment={SPACE_ENVIRONMENT}

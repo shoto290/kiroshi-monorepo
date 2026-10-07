@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 
@@ -15,6 +15,11 @@ import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-
 import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import { SPACE_ENVIRONMENT } from "@workspace/ui/components/environment.fixtures"
 import { Icons } from "@workspace/ui/components/icons"
+import {
+	endNotice,
+	NoticeSurface,
+	raiseFailureNotice,
+} from "@workspace/ui/components/notice-surface"
 import {
 	HISTORY_DAYS,
 	HISTORY_OLDEST_DATE,
@@ -634,5 +639,292 @@ export const JoinedThemes = meta.story({
 				within(zone).getByRole("button", { name: "Leave space" }),
 			).toBeEnabled()
 		}
+	},
+})
+
+const HOSTING_RAIL = [
+	"Space",
+	"Members",
+	"Hosting",
+	"Secrets",
+	"Skills",
+	"Applications",
+	"History",
+	"Danger zone",
+]
+
+const HOSTING_ARGS = {
+	tab: "hosting",
+	members: null,
+	hosting: "off",
+	onHost: fn(),
+	onStopHosting: fn(),
+	onHostingCancel: fn(),
+	onSignIn: fn(),
+} as const
+
+const hostingPanelIn = async () => {
+	const dialog = await dialogIn()
+	return within(dialog).findByRole("tabpanel", { name: "Hosting" })
+}
+
+const hostingSwitchIn = async () =>
+	within(await hostingPanelIn()).getByRole("switch", {
+		name: "Host through Kiroshi",
+	})
+
+const hostingQuestion = async (title: string) => {
+	const popup = await screen.findByRole("alertdialog")
+	await waitFor(() => expect(popup).toBeVisible())
+	await expect(
+		within(popup).getByRole("heading", { name: title }),
+	).toBeVisible()
+	return popup
+}
+
+const hostingQuestionClosed = () =>
+	waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
+
+export const HostingOff = meta.story({
+	args: HOSTING_ARGS,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard H1. The Hosting entry sits right after Members, which sits right after Space, wearing the globe. The panel is one switch, off, saying who it lets in and that the space only answers while this computer runs Kiroshi. Pick `HostingConfirmStart` for the question turning it on asks.",
+			},
+		},
+	},
+	play: async () => {
+		const dialog = await dialogIn()
+		await expect(
+			within(dialog)
+				.getAllByRole("tab")
+				.map((tab) => tab.textContent),
+		).toEqual(HOSTING_RAIL)
+		await expect(
+			glyphIn(
+				within(dialog).getByRole("tab", { name: "Members" }),
+				Icons.Users,
+			),
+		).not.toBe(null)
+
+		const hosting = await hostingSwitchIn()
+		await expect(hosting).not.toBeChecked()
+		await expect(hosting).toHaveAccessibleDescription(
+			"Invite people who aren’t on your network. Release desk is hosted from this computer only, so they reach it while Kiroshi is open here.",
+		)
+	},
+})
+
+export const HostingConfirmStart = meta.story({
+	args: HOSTING_ARGS,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard H2. Turning the switch on asks first, naming the space, Cancel first and Host in the primary style since nothing is lost. Check that Cancel closes it with the switch still off and nothing reported but `onHostingCancel`, and that Host reports `onHost` once and never `onStopHosting`. The story rests on the open question.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const hosting = await hostingSwitchIn()
+
+		await userEvent.click(hosting)
+		const cancelled = await hostingQuestion("Host Release desk here?")
+		await expect(cancelled).toHaveTextContent(
+			"People you invite reach its companions and conversations, which run on this computer.",
+		)
+		await expect(
+			within(cancelled)
+				.getAllByRole("button")
+				.map((button) => button.textContent),
+		).toEqual(["Cancel", "Host Release desk"])
+		await userEvent.click(
+			within(cancelled).getByRole("button", { name: "Cancel" }),
+		)
+		await hostingQuestionClosed()
+		await expect(hosting).not.toBeChecked()
+		await expect(args.onHostingCancel).toHaveBeenCalledOnce()
+		await expect(args.onHost).not.toHaveBeenCalled()
+
+		await userEvent.click(hosting)
+		const confirmed = await hostingQuestion("Host Release desk here?")
+		const host = within(confirmed).getByRole("button", {
+			name: "Host Release desk",
+		})
+		await expect(getComputedStyle(host).backgroundColor).toBe(
+			probedStyleOf("bg-primary", "backgroundColor", confirmed),
+		)
+		await userEvent.click(host)
+		await hostingQuestionClosed()
+		await expect(args.onHost).toHaveBeenCalledOnce()
+		await expect(args.onStopHosting).not.toHaveBeenCalled()
+		await expect(args.onHostingCancel).toHaveBeenCalledOnce()
+
+		await userEvent.click(hosting)
+		await hostingQuestion("Host Release desk here?")
+	},
+})
+
+export const HostingConnecting = meta.story({
+	args: { ...HOSTING_ARGS, hosting: "connecting" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard H3. The switch is on and the space is on its way out: a 12px spinner and `Connecting…` in `muted-foreground` under the description, 12px medium, read out as a live status. The spinner holds still under reduced motion; the words carry the state either way.",
+			},
+		},
+	},
+	play: async () => {
+		const panel = await hostingPanelIn()
+		await expect(
+			within(panel).getByRole("switch", { name: "Host through Kiroshi" }),
+		).toBeChecked()
+		const status = within(panel).getByRole("status")
+		await expect(status).toHaveTextContent("Connecting…")
+		await expect(glyphIn(status, Icons.Loading)).not.toBe(null)
+		await expect(getComputedStyle(status).fontSize).toBe("12px")
+		await expect(getComputedStyle(status).fontWeight).toBe("500")
+	},
+})
+
+export const HostingOnline = meta.story({
+	args: { ...HOSTING_ARGS, hosting: "online" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard H4. The space is reachable: an 8px dot in the done green and `Online` in `foreground`, in the same live status, so a reader hears the switch from Connecting… to Online without moving.",
+			},
+		},
+	},
+	play: async () => {
+		const panel = await hostingPanelIn()
+		const status = within(panel).getByRole("status")
+		await expect(status).toHaveTextContent("Online")
+		await expect(getComputedStyle(status).color).toBe(
+			probedStyleOf("text-foreground", "color", panel),
+		)
+		const dot = status.querySelector("span")
+		await expect(dot && getComputedStyle(dot).backgroundColor).toBe(
+			probedStyleOf("bg-bot-badge-done", "backgroundColor", panel),
+		)
+	},
+})
+
+export const HostingSignedOut = meta.story({
+	args: { ...HOSTING_ARGS, hosting: "signed-out" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard H5. Hosting goes through a Kiroshi account, so a signed-out reader gets no switch, only why and a primary Sign in ending on the external-link glyph. Check that pressing it reports `onSignIn` once; where it leads is the app's call.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const panel = await hostingPanelIn()
+		await expect(within(panel).queryByRole("switch")).toBe(null)
+		await expect(panel).toHaveTextContent(
+			"Sign in to Kiroshi to invite people who aren’t on your network.",
+		)
+		const signIn = within(panel).getByRole("button", { name: "Sign in" })
+		await expect(glyphIn(signIn, Icons.ExternalLink)).not.toBe(null)
+
+		await userEvent.click(signIn)
+		await expect(args.onSignIn).toHaveBeenCalledOnce()
+	},
+})
+
+const HostingFailureNotice = () => {
+	const { t } = useTranslation("settings")
+
+	useEffect(() => {
+		const notice = raiseFailureNotice({
+			title: t("space.hosting.failed.title", { name: FILLED_SPACE.name }),
+			description: t("space.hosting.failed.description"),
+		})
+		return () => endNotice(notice)
+	}, [t])
+
+	return null
+}
+
+export const HostingFailed = meta.story({
+	args: HOSTING_ARGS,
+	decorators: [
+		(Story) => (
+			<>
+				<Story />
+				<NoticeSurface />
+				<HostingFailureNotice />
+			</>
+		),
+	],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard H6. Hosting could not start: the switch is back off and a failure notice names the space and says what to do, staying until it is closed. The app raises the notice with `raiseFailureNotice` and the catalogue's `space.hosting.failed` copy; the dialog only draws the switch.",
+			},
+		},
+	},
+	play: async () => {
+		await expect(await hostingSwitchIn()).not.toBeChecked()
+		const title = await waitFor(() => slotIn(document.body, "toast-title"))
+		await expect(title).toHaveTextContent("Couldn’t host Release desk")
+		await expect(slotIn(document.body, "toast-description")).toHaveTextContent(
+			"Check your connection and turn it on again.",
+		)
+	},
+})
+
+export const HostingConfirmStop = meta.story({
+	args: { ...HOSTING_ARGS, hosting: "online" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard H7. Turning the switch off while online asks first, naming the space, with Stop hosting in the destructive style since guests are cut off. Check that Cancel leaves the switch on and reports only `onHostingCancel`, and that Stop hosting reports `onStopHosting` once and never `onHost`. The story rests on the open question.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const hosting = await hostingSwitchIn()
+
+		await userEvent.click(hosting)
+		const cancelled = await hostingQuestion("Stop hosting Release desk?")
+		await expect(cancelled).toHaveTextContent(
+			"Guests lose access until you host it again. Nothing is deleted on this computer.",
+		)
+		await expect(
+			within(cancelled)
+				.getAllByRole("button")
+				.map((button) => button.textContent),
+		).toEqual(["Cancel", "Stop hosting"])
+		await userEvent.click(
+			within(cancelled).getByRole("button", { name: "Cancel" }),
+		)
+		await hostingQuestionClosed()
+		await expect(hosting).toBeChecked()
+		await expect(args.onHostingCancel).toHaveBeenCalledOnce()
+		await expect(args.onStopHosting).not.toHaveBeenCalled()
+
+		await userEvent.click(hosting)
+		const confirmed = await hostingQuestion("Stop hosting Release desk?")
+		const stop = within(confirmed).getByRole("button", { name: "Stop hosting" })
+		await expect(getComputedStyle(stop).color).toBe(
+			probedStyleOf("text-destructive", "color", confirmed),
+		)
+		await userEvent.click(stop)
+		await hostingQuestionClosed()
+		await expect(args.onStopHosting).toHaveBeenCalledOnce()
+		await expect(args.onHost).not.toHaveBeenCalled()
+		await expect(args.onHostingCancel).toHaveBeenCalledOnce()
+
+		await userEvent.click(hosting)
+		await hostingQuestion("Stop hosting Release desk?")
 	},
 })
