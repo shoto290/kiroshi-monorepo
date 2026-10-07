@@ -15,7 +15,7 @@ import { applicationToOpenIn } from "../applications/settings-target"
 import { useHistoryView } from "../bots/use-history-view"
 import { toPluginSkills } from "../plugins/plugin-skills"
 
-export const ACCOUNT_TAB = "account"
+const ACCOUNT_TAB = "account"
 
 type SettingsPanelsInput = {
 	core: WorkspaceCore
