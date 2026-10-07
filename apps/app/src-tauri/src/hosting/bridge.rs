@@ -1,7 +1,10 @@
 use std::time::Duration;
 
 use reqwest::{Client, StatusCode};
+use serde::Deserialize;
 use serde_json::{json, Map, Value};
+
+use super::contract::MEMBERS_CHANGED_EVENT;
 
 use crate::host_api::invoke::names_an_app_command;
 use crate::missions::github::installed_tls_provider;
@@ -70,6 +73,25 @@ pub(super) fn refused(id: Option<Value>) -> String {
 		StatusCode::BAD_REQUEST,
 		json!({ "error": "a member frame is {\"id\", \"command\", \"args\"}" }),
 	)
+}
+
+const OWNER_ONLY_EVENTS: [&str; 1] = [MEMBERS_CHANGED_EVENT];
+
+#[derive(Deserialize)]
+struct NamedFrame {
+	event: String,
+}
+
+pub(super) fn stays_local(frame: &str) -> bool {
+	match serde_json::from_str::<NamedFrame>(frame) {
+		Ok(named) => OWNER_ONLY_EVENTS.contains(&named.event.as_str()),
+		Err(error) => {
+			eprintln!(
+				"a local event frame carried no readable name and was kept off the relay: {error}"
+			);
+			true
+		}
+	}
 }
 
 pub(super) fn forwarded(frame: &str) -> String {
@@ -153,6 +175,22 @@ mod tests {
 			let refusal = member_call(&frame.to_string()).expect_err(command);
 			assert_eq!(status_of(&refusal), (json!("m"), json!(403)), "{command}");
 		}
+	}
+
+	#[test]
+	fn only_an_owner_only_event_name_stays_local() {
+		assert!(stays_local(r#"{"event":"hosting://members-changed","payload":{"members":[]}}"#));
+		assert!(!stays_local(
+			r#"{"event":"hosting://changed","payload":"hosting://members-changed"}"#
+		));
+		assert!(!stays_local(r#"{"event":"hosting://members-changed-later","payload":1}"#));
+		assert!(!stays_local(r#"{"event":"test://forwarded","payload":{"n":1}}"#));
+	}
+
+	#[test]
+	fn a_frame_without_a_readable_name_stays_local() {
+		assert!(stays_local("not json"));
+		assert!(stays_local(r#"{"payload":1}"#));
 	}
 
 	#[test]

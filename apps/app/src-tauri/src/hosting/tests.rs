@@ -367,19 +367,6 @@ async fn next_text(member: &mut WebSocket, wanted: impl Fn(&Value) -> bool) -> V
 	}
 }
 
-async fn beyond_events(member: &mut WebSocket) -> Option<Result<Message, axum::Error>> {
-	loop {
-		let frame = tokio::time::timeout(PATIENCE, member.recv()).await.expect("a frame in time");
-		let is_event = match &frame {
-			Some(Ok(Message::Text(text))) => text.as_str().starts_with(r#"{"event":"#),
-			_ => false,
-		};
-		if !is_event {
-			return frame;
-		}
-	}
-}
-
 async fn answer(member: &mut WebSocket) -> Value {
 	next_text(member, |frame| frame.get("event").is_none()).await
 }
@@ -609,6 +596,28 @@ fn a_local_event_is_forwarded_to_the_relay() {
 }
 
 #[test]
+fn the_first_member_announcement_of_an_online_space_sends_nothing_on_the_relay() {
+	run(async {
+		let mut harness = Harness::signed_in("members-local").await;
+		harness.started().await;
+		let mut member = harness.member().await;
+		harness.reached(HostingState::Online).await;
+		for _ in 0..500 {
+			if !harness.heard_member_lists().is_empty() {
+				break;
+			}
+			tokio::time::sleep(Duration::from_millis(10)).await;
+		}
+		assert_eq!(harness.heard_member_lists().len(), 1);
+
+		events::emit(harness.app.handle(), "test://after-members", json!(1)).expect("emitted");
+		let first = next_text(&mut member, |_| true).await;
+
+		assert_eq!(first, json!({ "event": { "event": "test://after-members", "payload": 1 } }));
+	});
+}
+
+#[test]
 fn stopping_closes_with_1000_clears_the_flag_and_keeps_the_instance() {
 	run(async {
 		let mut harness = Harness::signed_in("stop").await;
@@ -618,7 +627,7 @@ fn stopping_closes_with_1000_clears_the_flag_and_keeps_the_instance() {
 		let (registered, _) = harness.stored().await;
 
 		assert_eq!(harness.stopped().await, HostingState::Off);
-		let closed = beyond_events(&mut member).await;
+		let closed = tokio::time::timeout(PATIENCE, member.recv()).await.expect("a frame in time");
 
 		let Some(Ok(Message::Close(Some(close)))) = closed else {
 			panic!("the relay took no close frame: {closed:?}");
@@ -654,7 +663,7 @@ fn signing_out_closes_the_relay_and_needs_a_sign_in_keeping_the_flag() {
 		harness.reached(HostingState::Online).await;
 
 		signed_out(harness.app.handle()).await;
-		let closed = beyond_events(&mut member).await;
+		let closed = tokio::time::timeout(PATIENCE, member.recv()).await.expect("a frame in time");
 
 		assert!(matches!(closed, Some(Ok(Message::Close(_)))), "{closed:?}");
 		assert_eq!(harness.state(), HostingState::NeedsSignIn);
@@ -733,7 +742,7 @@ fn deleting_a_hosted_space_closes_its_relay_with_1000_and_reads_off() {
 		space_delete(harness.app.handle().clone(), harness.app.state(), work.clone())
 			.await
 			.expect("the space is deleted");
-		let closed = beyond_events(&mut member).await;
+		let closed = tokio::time::timeout(PATIENCE, member.recv()).await.expect("a frame in time");
 
 		let Some(Ok(Message::Close(Some(close)))) = closed else {
 			panic!("the relay took no close frame: {closed:?}");

@@ -276,6 +276,7 @@ async fn online<R: Runtime>(
 				}
 			},
 			frame = heard.recv() => match frame {
+				Ok(frame) if bridge::stays_local(&frame) => continue,
 				Ok(frame) => Message::text(bridge::forwarded(&frame)),
 				Err(RecvError::Lagged(missed)) => {
 					eprintln!("the relay of space {} missed {missed} events", ids.space_id);
