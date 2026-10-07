@@ -7,6 +7,9 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
+	accountState: () => __TAURI_INVOKE<AccountState>("account_state"),
+	accountSignIn: (email: string) => typedError<null, AccountError>(__TAURI_INVOKE("account_sign_in", { email })),
+	accountSignOut: () => typedError<null, AccountError>(__TAURI_INVOKE("account_sign_out")),
 	applicationCatalogue: () => typedError<Application_Serialize[], ApplicationsError>(__TAURI_INVOKE("application_catalogue")),
 	applicationSearch: (query: string) => typedError<ApplicationSearch_Serialize, ApplicationsError>(__TAURI_INVOKE("application_search", { query })),
 	applicationNamed: (name: string) => typedError<{
@@ -194,6 +197,8 @@ export const commands = {
 };
 
 /* Constants */
+export const ACCOUNT_CHANGED_EVENT = "account://changed" as const;
+
 export const ARCHIVE_EXTENSION = "kiroshi" as const;
 
 export const ARCHIVE_FILTER_NAME = "Kiroshi space" as const;
@@ -207,6 +212,14 @@ export type Account = {
 	email: string | null,
 	plan: string | null,
 };
+
+export type AccountError = { kind: "store"; detail: string } | { kind: "listener"; detail: string };
+
+export type AccountFailure = "linkInvalid" | "serverError" | "timedOut";
+
+export type AccountState = ({ kind: "signedOut" }) & { email?: never; failure?: never; reason?: never } | ({ kind: "waiting"; email: string }) & { failure?: never; reason?: never } | {
+	kind: "signedIn",
+} & KiroshiAccount | ({ kind: "unreachable"; reason: string }) & { email?: never; failure?: never } | ({ kind: "failed"; failure: AccountFailure }) & { email?: never; reason?: never };
 
 export type AgentCommand = AgentCommand_Serialize | AgentCommand_Deserialize;
 
@@ -566,7 +579,7 @@ export type EnvScope = EnvScope_Serialize | EnvScope_Deserialize;
 
 export type EnvScope_Deserialize = ({ kind: "user" }) & { id?: never; name?: never; owner?: never; spaceId?: never } | ({ kind: "space"; id: string }) & { name?: never; owner?: never; spaceId?: never } | ({ kind: "bot"; id: string; spaceId: string }) & { name?: never; owner?: never } | ({ kind: "server"; name: string; owner: EnvOwner }) & { id?: never; spaceId?: never };
 
-export type EnvScope_Serialize = ({ kind: "user" }) & { id?: never; name?: never; owner?: never; spaceId?: never } | ({ kind: "space"; id: string }) & { name?: never; owner?: never; spaceId?: never } | ({ kind: "bot"; id: string; spaceId: string }) & { name?: never; owner?: never } | ({ kind: "server"; name: string; owner: EnvOwner }) & { id?: never; spaceId?: never } | ({ kind: "person" }) & { id?: never; name?: never; owner?: never; spaceId?: never };
+export type EnvScope_Serialize = ({ kind: "user" }) & { id?: never; name?: never; owner?: never; spaceId?: never } | ({ kind: "space"; id: string }) & { name?: never; owner?: never; spaceId?: never } | ({ kind: "bot"; id: string; spaceId: string }) & { name?: never; owner?: never } | ({ kind: "server"; name: string; owner: EnvOwner }) & { id?: never; spaceId?: never } | ({ kind: "person" }) & { id?: never; name?: never; owner?: never; spaceId?: never } | ({ kind: "account" }) & { id?: never; name?: never; owner?: never; spaceId?: never };
 
 export type FieldType = "string" | "number" | "boolean" | "datetime";
 
@@ -673,6 +686,12 @@ export type JoinedSpaceConnection = {
 export type JoinedSpaceError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "refusedLink"; part: LinkPart; message: string } | { kind: "unknownJoinedSpace"; id: string } | { kind: "undeliverable"; detail: string };
 
 export type Json = null | boolean | number | null | string | Json[] | { [key in string]: Json };
+
+export type KiroshiAccount = {
+	id: string,
+	email: string,
+	createdAt: string,
+};
 
 export type LaunchOutcome = {
 	created: CompanionCreated | null,

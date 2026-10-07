@@ -6,7 +6,7 @@ use tauri::{AppHandle, Manager, Runtime};
 
 use super::contract::{
 	is_a_connection_name, is_reserved, EnvEntry, EnvError, EnvOwner, EnvScope, PerServer,
-	ResolvedEnv, Values,
+	ResolvedEnv, Values, ACCOUNT_BEARER,
 };
 use crate::private_files;
 
@@ -17,6 +17,7 @@ const BOT_DIR: &str = "bot";
 const SERVER_DIR: &str = "server";
 const PERSON_DIR: &str = "person";
 const USER_DIR: &str = "user";
+const ACCOUNT_DIR: &str = "account";
 
 static WRITES: Mutex<()> = Mutex::new(());
 
@@ -71,8 +72,12 @@ pub fn delete_all(root: &Path, scope: &EnvScope, names: &[&str]) -> Result<(), E
 }
 
 fn admitted(scope: &EnvScope, name: &str) -> Result<(), EnvError> {
-	let only_a_connection = matches!(scope, EnvScope::Person);
-	if !is_a_name(name) || (only_a_connection && !is_a_connection_name(name)) {
+	let refused_here = match scope {
+		EnvScope::Person => !is_a_connection_name(name),
+		EnvScope::Account => name != ACCOUNT_BEARER,
+		_ => false,
+	};
+	if !is_a_name(name) || refused_here {
 		return Err(EnvError::InvalidName { name: name.to_owned() });
 	}
 	Ok(())
@@ -225,7 +230,7 @@ fn chain(scope: &EnvScope) -> Vec<EnvScope> {
 
 fn broader(scope: &EnvScope) -> Option<EnvScope> {
 	match scope {
-		EnvScope::User | EnvScope::Person => None,
+		EnvScope::User | EnvScope::Person | EnvScope::Account => None,
 		EnvScope::Space { .. } => Some(EnvScope::User),
 		EnvScope::Bot { space_id, .. } => Some(EnvScope::Space { id: space_id.clone() }),
 		EnvScope::Server { owner, .. } => Some(owner.into()),
@@ -243,6 +248,7 @@ fn scope_dir(root: &Path, scope: &EnvScope) -> Result<PathBuf, EnvError> {
 		EnvScope::Bot { id, .. } => Ok(root.join(BOT_DIR).join(segment(id)?)),
 		EnvScope::Server { name, owner } => Ok(servers_dir(root, owner)?.join(segment(name)?)),
 		EnvScope::Person => Ok(root.join(PERSON_DIR)),
+		EnvScope::Account => Ok(root.join(ACCOUNT_DIR)),
 	}
 }
 
@@ -801,6 +807,32 @@ mod tests {
 		assert!(!file(&root, &a_server()).expect("the path").exists());
 		assert!(file(&root, &kept).expect("the path").exists());
 		assert!(file(&root, &a_bot()).expect("the path").exists());
+	}
+
+	#[test]
+	fn the_account_scope_keeps_only_the_bearer_and_reaches_no_resolution_and_no_listing() {
+		let root = a_root("account");
+		assert_eq!(
+			set(&root, &EnvScope::Account, "REGION", "eu"),
+			Err(EnvError::InvalidName { name: "REGION".to_owned() })
+		);
+		set(&root, &EnvScope::Account, ACCOUNT_BEARER, "bearer").expect("the account keeps it");
+		let owners = [
+			EnvOwner::User,
+			EnvOwner::Space { id: "s1".to_owned() },
+			EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() },
+		];
+
+		for owner in owners {
+			let resolved = resolve(&root, &owner).expect("the store reads");
+			assert_eq!(resolved.base.get(ACCOUNT_BEARER), None, "{owner:?}");
+			let listed = list(&root, &EnvScope::from(&owner)).expect("the chain reads");
+			assert!(listed.iter().all(|entry| entry.name != ACCOUNT_BEARER), "{owner:?}");
+		}
+		assert_eq!(
+			values(&root, &EnvScope::Account).expect("the store reads").get(ACCOUNT_BEARER),
+			Some(&"bearer".to_owned())
+		);
 	}
 
 	#[test]

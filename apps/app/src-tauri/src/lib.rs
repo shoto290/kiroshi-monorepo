@@ -1,3 +1,4 @@
+pub mod account;
 pub mod applications;
 pub mod attachments;
 pub mod avatars;
@@ -69,6 +70,17 @@ pub fn run() {
 			app.manage(routines::webhook::start(app.handle().clone()));
 			app.manage(missions::github::spawn(app.handle().clone()));
 			app.manage(applications::directory::spawn(app.handle().clone()));
+			match environment::commands::writable_root(app.handle()) {
+				Ok(root) => {
+					app.manage(account::session::AccountSession::new(
+						root,
+						&account::cloud::api_url(),
+						account::session::LINK_LIFETIME,
+					));
+					tauri::async_runtime::spawn(account::session::restore(app.handle().clone()));
+				}
+				Err(error) => eprintln!("the kiroshi account has no session store: {error:?}"),
+			}
 			let handle = app.handle().clone();
 			tauri::async_runtime::spawn(async move {
 				conversations::commands::list_bundles_at_launch(&handle).await;

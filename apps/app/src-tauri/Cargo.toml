@@ -83,6 +83,9 @@ unicode-normalization = "0.1"
 # Writes and reads the one archive a space travels in. Already in the tree under
 # tauri-plugin-updater; named here so no crate enters the lockfile through this line.
 tar = "0.4"
+# Draws the nonce a Kiroshi account sign-in callback is matched on. Already in the tree under
+# uuid; named here so no crate enters the lockfile through this line.
+getrandom = "0.4"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
