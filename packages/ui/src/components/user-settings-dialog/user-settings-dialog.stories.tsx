@@ -3,6 +3,7 @@ import { expect, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	opaque,
 	PICKED_PICTURE_FILE,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -652,9 +653,13 @@ export const CantReachKiroshi = meta.story({
 		const panel = await accountPanelIn(dialog)
 
 		unreachableNotice = raiseFailureNotice(UNREACHABLE)
-		const title = await screen.findByText(UNREACHABLE.title)
-		await waitFor(() => expect(title).toBeVisible())
-		await expect(screen.getByText(UNREACHABLE.description)).toBeVisible()
+		const notice = await opaque(
+			await screen.findByRole("alertdialog", { hidden: true }),
+		)
+		await expect(within(notice).getByText(UNREACHABLE.title)).toBeVisible()
+		await expect(
+			within(notice).getByText(UNREACHABLE.description),
+		).toBeVisible()
 
 		await userEvent.click(
 			within(panel).getByRole("button", { name: "Sign in" }),
