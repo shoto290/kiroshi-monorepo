@@ -1371,6 +1371,7 @@ settings-user-usersettingsdialog--cant-reach-kiroshi
 settings-user-usersettingsdialog--default
 settings-user-usersettingsdialog--empty
 settings-user-usersettingsdialog--history
+settings-user-usersettingsdialog--keeps-the-address-through-a-wait
 settings-user-usersettingsdialog--language-tab
 settings-user-usersettingsdialog--no-skills
 settings-user-usersettingsdialog--notifications

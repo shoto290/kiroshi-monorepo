@@ -19,14 +19,15 @@ type SettingsFieldKind =
 type ControlTraits = {
 	inputMode?: "text" | "email" | "url" | "search" | "decimal"
 	isLiteral?: boolean
+	autoComplete?: "email" | "off"
 }
 
 const CONTROL_TRAITS: Record<SettingsFieldKind, ControlTraits> = {
 	text: {},
-	email: { inputMode: "email", isLiteral: true },
+	email: { inputMode: "email", isLiteral: true, autoComplete: "email" },
 	url: { inputMode: "url", isLiteral: true },
 	search: { inputMode: "search" },
-	password: { isLiteral: true },
+	password: { isLiteral: true, autoComplete: "off" },
 	number: { inputMode: "decimal" },
 }
 
@@ -90,7 +91,7 @@ const SettingsField = ({
 				<input
 					aria-describedby={describedBy}
 					aria-invalid={error ? true : undefined}
-					autoComplete={kind === "password" ? "off" : undefined}
+					autoComplete={traits.autoComplete}
 					className={cn(
 						FIELD_CONTROL_CLASS,
 						error && FIELD_CONTROL_INVALID_CLASS,

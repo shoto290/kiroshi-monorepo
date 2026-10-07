@@ -22,6 +22,7 @@ const settings = {
 			title: "Se connecter à Kiroshi",
 			body: "Hébergez un espace pour des personnes hors de votre réseau, ou rejoignez celui qu’on héberge pour vous. Kiroshi ouvre votre navigateur pour vous connecter.",
 			signIn: "Se connecter",
+			email: "E-mail",
 		},
 		waiting: {
 			label: "En attente de votre navigateur…",
