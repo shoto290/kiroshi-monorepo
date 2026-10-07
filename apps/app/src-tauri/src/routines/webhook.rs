@@ -69,6 +69,10 @@ impl Webhook {
 		self.address.map(|address| format!("http://{address}{PATH}"))
 	}
 
+	pub fn origin(&self) -> Option<String> {
+		self.address.map(|address| format!("http://{address}"))
+	}
+
 	pub fn mission_url(&self) -> Option<String> {
 		self.address.map(|address| format!("http://{address}{}", missions::call::PATH))
 	}

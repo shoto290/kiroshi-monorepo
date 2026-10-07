@@ -10,7 +10,7 @@ use crate::conversations::contract::AvatarBlot;
 use crate::db;
 use crate::environment;
 
-fn ready(state: &db::DatabaseState) -> Result<&db::Database, SpaceError> {
+pub(crate) fn ready(state: &db::DatabaseState) -> Result<&db::Database, SpaceError> {
 	state.as_ref().map_err(|failure| SpaceError::Unavailable { failure: failure.into() })
 }
 

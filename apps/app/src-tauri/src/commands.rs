@@ -3,8 +3,8 @@ use tauri_specta::{collect_commands, Builder, Commands};
 
 use crate::{
 	account, agent, applications, attachments, companions, conversations, environment, host_api,
-	joined_spaces, mcp_oauth, missions, notifications, plugins, routines, search, sections, spaces,
-	user, window_controls,
+	hosting, joined_spaces, mcp_oauth, missions, notifications, plugins, routines, search,
+	sections, spaces, user, window_controls,
 };
 
 pub fn builder() -> Builder<tauri::Wry> {
@@ -15,8 +15,10 @@ pub fn builder() -> Builder<tauri::Wry> {
 		.constant("MAXIMIZE_BUTTON_EVENT", window_controls::MAXIMIZE_BUTTON_EVENT)
 		.constant("HOST_PRESENCE_EVENT", host_api::share_link::HOST_PRESENCE_EVENT)
 		.constant("ACCOUNT_CHANGED_EVENT", account::contract::CHANGED_EVENT)
+		.constant("HOSTING_CHANGED_EVENT", hosting::contract::CHANGED_EVENT)
 		.typ::<window_controls::MaximizeButtonPointer>()
 		.typ::<host_api::share_link::HostPresence>()
+		.typ::<hosting::contract::HostingChanged>()
 }
 
 // `tauri::test::mock_builder` only ever yields a `Builder<MockRuntime>`, so the handler the
@@ -96,6 +98,9 @@ fn commands<R: Runtime>() -> Commands<R> {
 		environment::commands::env_list::<tauri::Wry>,
 		environment::commands::connection_set::<tauri::Wry>,
 		host_api::share_link::host_share_link::<tauri::Wry>,
+		hosting::commands::hosting_start::<tauri::Wry>,
+		hosting::commands::hosting_stop::<tauri::Wry>,
+		hosting::commands::hosting_state,
 		joined_spaces::commands::joined_spaces_list,
 		joined_spaces::commands::joined_space_add::<tauri::Wry>,
 		joined_spaces::commands::joined_space_connect,

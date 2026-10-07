@@ -52,6 +52,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 43, statements: MISSION_DISMISSED },
 	Migration { version: 44, statements: BOTS_WITHOUT_ANIMAL },
 	Migration { version: 45, statements: BOT_EFFORT },
+	Migration { version: 46, statements: SPACE_HOSTING },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -1050,6 +1051,14 @@ ALTER TABLE bots ADD COLUMN effort TEXT
 	CHECK (effort IN ('low', 'medium', 'high', 'xhigh', 'max'));
 ";
 
+const SPACE_HOSTING: &str = "
+CREATE TABLE space_hosting (
+	space_id TEXT PRIMARY KEY REFERENCES spaces (id) ON DELETE CASCADE,
+	instance_id TEXT NOT NULL UNIQUE,
+	is_hosted INTEGER NOT NULL CHECK (is_hosted IN (0, 1))
+);
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -1835,7 +1844,7 @@ mod tests {
 
 		apply(&mut connection).expect("the file comes up to this build");
 
-		assert_eq!(version(&connection).expect("version"), BOT_EFFORT_STEP);
+		assert_eq!(version(&connection).expect("version"), latest_version());
 		let efforts = connection
 			.prepare("SELECT effort FROM bots ORDER BY id")
 			.expect("the bots carry an effort column")
@@ -3577,6 +3586,35 @@ mod tests {
 			)
 			.expect("query")
 			> 0
+	}
+
+	#[test]
+	fn a_hosting_row_leaves_with_its_space_and_never_shares_an_instance() {
+		let dir = temp_dir();
+		let connection = migrated(&dir);
+		write(
+			&connection,
+			"INSERT INTO spaces (id, name, position, created_at) VALUES ('work', 'Work', 1, 1)",
+		)
+		.expect("the space is inserted");
+		write(
+			&connection,
+			"INSERT INTO space_hosting (space_id, instance_id, is_hosted) VALUES ('work', 'i1', 1)",
+		)
+		.expect("the hosting row is inserted");
+
+		let duplicate = write(
+			&connection,
+			"INSERT INTO space_hosting (space_id, instance_id, is_hosted)
+				VALUES ('personal', 'i1', 0)",
+		);
+		write(&connection, "DELETE FROM spaces WHERE id = 'work'").expect("the space leaves");
+
+		assert!(duplicate.is_err(), "two spaces held the same instance");
+		assert_eq!(count(&connection, "space_hosting"), 0);
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
 	}
 
 	#[test]
