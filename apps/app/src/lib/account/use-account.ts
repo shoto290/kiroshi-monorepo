@@ -10,14 +10,21 @@ import { createAccountController } from "./account-controller"
 import type { AccountState } from "../bindings"
 import { useController } from "../use-controller"
 
-const nameOf = (email: string) => {
-	const [name = email] = email.split("@")
-	return name
+const localPartOf = (email: string) => {
+	const [localPart = email] = email.split("@")
+	return localPart
 }
 
-const toPanelState = (state: AccountState): AccountPanelState => {
+const toPanelState = (
+	state: AccountState,
+	displayName: string,
+): AccountPanelState => {
 	if (state.kind === "signedIn") {
-		return { status: "signedIn", name: nameOf(state.email), email: state.email }
+		return {
+			status: "signedIn",
+			name: displayName || localPartOf(state.email),
+			email: state.email,
+		}
 	}
 	if (state.kind === "waiting") {
 		return { status: "waiting" }
@@ -25,13 +32,13 @@ const toPanelState = (state: AccountState): AccountPanelState => {
 	return { status: "signedOut" }
 }
 
-export const useAccount = (): AccountPanelProps => {
+export const useAccount = (displayName: string): AccountPanelProps => {
 	const { state, controller } = useController(createAccountController)
 
 	useEffect(() => controller.watch(), [controller])
 
 	return {
-		account: toPanelState(state),
+		account: toPanelState(state, displayName),
 		onSignIn: controller.signIn,
 		onCancel: controller.cancel,
 		onSignOut: controller.signOut,

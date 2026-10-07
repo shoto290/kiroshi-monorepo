@@ -28,6 +28,8 @@ vi.mock("@workspace/ui/components/notice-surface", () => ({
 
 const EMAIL = "ada.martin@example.com"
 
+const PROFILE_NAME = "Ada Martin"
+
 const SIGNED_IN: AccountState = {
 	kind: "signedIn",
 	id: "account-1",
@@ -57,8 +59,10 @@ const settling = () =>
 		await new Promise((resolve) => setTimeout(resolve, 0))
 	})
 
-const mountAccount = async () => {
-	const mounted = renderHook(() => useAccount())
+const mountAccount = async (displayName = PROFILE_NAME) => {
+	const mounted = renderHook(({ displayName }) => useAccount(displayName), {
+		initialProps: { displayName },
+	})
 	await settling()
 	return mounted
 }
@@ -95,7 +99,7 @@ describe("useAccount", () => {
 		expect(commands.accountState).toHaveBeenCalledOnce()
 		expect(result.current.account).toEqual({
 			status: "signedIn",
-			name: "ada.martin",
+			name: PROFILE_NAME,
 			email: EMAIL,
 		})
 	})
@@ -111,7 +115,7 @@ describe("useAccount", () => {
 
 		expect(result.current.account).toEqual({
 			status: "signedIn",
-			name: "ada.martin",
+			name: PROFILE_NAME,
 			email: EMAIL,
 		})
 	})
@@ -130,6 +134,32 @@ describe("useAccount", () => {
 		await settling()
 
 		expect(result.current.account.status).toBe("signedIn")
+	})
+
+	it("names a signed-in account after the email when the profile has no name", async () => {
+		vi.mocked(commands.accountState).mockResolvedValue(SIGNED_IN)
+
+		const { result } = await mountAccount("")
+
+		expect(result.current.account).toEqual({
+			status: "signedIn",
+			name: "ada.martin",
+			email: EMAIL,
+		})
+	})
+
+	it("shows the new profile name when the person renames while signed in", async () => {
+		vi.mocked(commands.accountState).mockResolvedValue(SIGNED_IN)
+		const { result, rerender } = await mountAccount()
+
+		rerender({ displayName: "Ada Lovelace" })
+
+		expect(result.current.account).toEqual({
+			status: "signedIn",
+			name: "Ada Lovelace",
+			email: EMAIL,
+		})
+		expect(commands.accountState).toHaveBeenCalledOnce()
 	})
 
 	it("signs in with the submitted email", async () => {
@@ -170,9 +200,9 @@ describe("useAccount", () => {
 
 		announce({ kind: "waiting", email: EMAIL })
 		announce({ kind: "unreachable", reason: "offline" })
-		rerender()
+		rerender({ displayName: PROFILE_NAME })
 		announce({ kind: "unreachable", reason: "offline" })
-		rerender()
+		rerender({ displayName: PROFILE_NAME })
 
 		expect(result.current.account).toEqual({ status: "signedOut" })
 		expect(failureNotice).toHaveBeenCalledOnce()
@@ -185,8 +215,8 @@ describe("useAccount", () => {
 			const { result, rerender } = await mountAccount()
 
 			announce({ kind: "failed", failure })
-			rerender()
-			rerender()
+			rerender({ displayName: PROFILE_NAME })
+			rerender({ displayName: PROFILE_NAME })
 
 			expect(result.current.account).toEqual({ status: "signedOut" })
 			expect(failureNotice).toHaveBeenCalledOnce()

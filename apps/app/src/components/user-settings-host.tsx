@@ -32,7 +32,7 @@ export const UserSettingsHost = ({
 		settingsTab,
 		userApplications,
 	} = scopes
-	const account = useAccount()
+	const account = useAccount(userSettings.name)
 
 	return (
 		<UserSettingsDialog
