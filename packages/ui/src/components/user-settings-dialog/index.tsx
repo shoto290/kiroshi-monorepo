@@ -34,6 +34,10 @@ import {
 } from "@workspace/ui/components/settings-rail"
 import { PICTURE_FIELD_SIZE } from "@workspace/ui/components/settings-styles"
 import type { UserSettingsValue } from "@workspace/ui/components/user-settings"
+import {
+	AccountPanel,
+	type AccountPanelProps,
+} from "@workspace/ui/components/user-settings-dialog/account-panel"
 import { AppearanceFields } from "@workspace/ui/components/user-settings-dialog/appearance-fields"
 import { LanguageFields } from "@workspace/ui/components/user-settings-dialog/language-fields"
 import { NotificationFields } from "@workspace/ui/components/user-settings-dialog/notification-fields"
@@ -45,6 +49,8 @@ const FIRST_TAB = "profile"
 const BREADCRUMB_AVATAR_SIZE = 32
 
 const APPLICATIONS_TAB = "mcp"
+
+const ACCOUNT_TAB = "account"
 
 const NO_APPLICATIONS: ApplicationsSection = {
 	servers: [],
@@ -69,6 +75,7 @@ type UserSettingsDialogProps = {
 	onSkillDelete: (id: string) => void
 	skillFiles?: PluginSkillFiles
 	applications?: ApplicationsSection
+	account?: AccountPanelProps
 	tab?: string
 	history: PluginHistory
 	className?: string
@@ -90,6 +97,7 @@ const UserSettingsDialog = ({
 	onSkillDelete,
 	skillFiles,
 	applications,
+	account,
 	tab,
 	history,
 	className,
@@ -151,6 +159,14 @@ const UserSettingsDialog = ({
 						label={t("rail.profile")}
 						value={FIRST_TAB}
 					/>
+					{account ? (
+						<SettingsRailItem
+							icon="Cloud"
+							iconsOnly={iconsOnly}
+							label={t("rail.account")}
+							value={ACCOUNT_TAB}
+						/>
+					) : null}
 					<SettingsRailItem
 						icon="Image"
 						iconsOnly={iconsOnly}
@@ -217,6 +233,12 @@ const UserSettingsDialog = ({
 					value={value.name}
 				/>
 			</SettingsScrollingPanel>
+
+			{account ? (
+				<SettingsScrollingPanel value={ACCOUNT_TAB}>
+					<AccountPanel {...account} />
+				</SettingsScrollingPanel>
+			) : null}
 
 			<SettingsScrollingPanel value="appearance">
 				<AppearanceFields

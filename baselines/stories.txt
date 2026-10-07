@@ -1367,6 +1367,7 @@ settings-user-notificationfields--default
 settings-user-notificationfields--in-french
 settings-user-usersettingsdialog--appearance
 settings-user-usersettingsdialog--applications
+settings-user-usersettingsdialog--cant-reach-kiroshi
 settings-user-usersettingsdialog--default
 settings-user-usersettingsdialog--empty
 settings-user-usersettingsdialog--history
@@ -1375,7 +1376,11 @@ settings-user-usersettingsdialog--no-skills
 settings-user-usersettingsdialog--notifications
 settings-user-usersettingsdialog--opens-on-a-missing-application
 settings-user-usersettingsdialog--opens-on-an-application
+settings-user-usersettingsdialog--signed-in
+settings-user-usersettingsdialog--signed-out
 settings-user-usersettingsdialog--skills
+settings-user-usersettingsdialog--waiting
+settings-user-usersettingsdialog--with-a-long-email
 settings-user-usersettingsdialog--with-a-long-skill
 settings-user-usersettingsdialog--with-picture
 settings-user-usersettingsdialog--without-applications

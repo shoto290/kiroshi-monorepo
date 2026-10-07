@@ -4,6 +4,7 @@ const settings = {
 	},
 	rail: {
 		profile: "Profile",
+		account: "Account",
 		space: "Space",
 		members: "Members",
 		hosting: "Hosting",
@@ -15,6 +16,32 @@ const settings = {
 		applications: "Applications",
 		history: "History",
 		danger: "Danger zone",
+	},
+	account: {
+		signedOut: {
+			title: "Sign in to Kiroshi",
+			body: "Host a space for people who aren’t on your network, or join one someone hosts for you. Kiroshi opens your browser to sign you in.",
+			signIn: "Sign in",
+		},
+		waiting: {
+			label: "Waiting for your browser…",
+			cancel: "Cancel",
+			caption:
+				"Finish signing in in your browser. Kiroshi picks it up from there.",
+		},
+		signedIn: {
+			title: "Signed in",
+			body: "You can host spaces for people who aren’t on your network, and join the ones they host for you.",
+			name: "Name",
+			email: "Email",
+			signOut: "Sign out",
+			caption:
+				"Spaces you host or joined through Kiroshi stop working here until you sign in again.",
+		},
+		unreachable: {
+			title: "Couldn’t reach Kiroshi",
+			description: "Check your connection and sign in again.",
+		},
 	},
 	plugin: {
 		author: {
