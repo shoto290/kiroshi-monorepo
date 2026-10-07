@@ -151,6 +151,35 @@ const settings = {
 				generic: "Une erreur est survenue, rien n’a été modifié.",
 			},
 		},
+		members: {
+			invite: {
+				label: "Inviter des personnes",
+				placeholder: "E-mail",
+				action: "Inviter",
+				hint: "Elles rejoignent l’espace en se connectant à Kiroshi avec cet e-mail.",
+				refusal: {
+					invited: "{{email}} est déjà invité.",
+					self: "C’est votre propre compte.",
+					malformed: "Saisissez une adresse e-mail, comme sam@example.com.",
+				},
+				notHosted:
+					"Activez l’hébergement pour inviter des personnes qui ne sont pas sur votre réseau.",
+				openHosting: "Ouvrir Hébergement",
+			},
+			status: {
+				host: "Hôte",
+				joined: "Membre",
+				pending: "En attente",
+			},
+			remove: "Retirer",
+			removeLabel: "Retirer {{name}}",
+			confirm: {
+				title: "Retirer {{name}} de {{space}} ?",
+				description:
+					"{{name}} perd l’accès immédiatement. Vous pourrez inviter {{name}} de nouveau.",
+			},
+			withdrawn: "Invitation à {{email}} retirée",
+		},
 		hosting: {
 			label: "Héberger via Kiroshi",
 			description:

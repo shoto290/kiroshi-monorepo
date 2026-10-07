@@ -151,6 +151,35 @@ const settings = {
 				generic: "Something went wrong, nothing was changed.",
 			},
 		},
+		members: {
+			invite: {
+				label: "Invite people",
+				placeholder: "Email",
+				action: "Invite",
+				hint: "They join by signing in to Kiroshi with this email.",
+				refusal: {
+					invited: "{{email}} is already invited.",
+					self: "That’s your own account.",
+					malformed: "Enter an email address, like sam@example.com.",
+				},
+				notHosted:
+					"Turn on hosting to invite people who aren’t on your network.",
+				openHosting: "Open Hosting",
+			},
+			status: {
+				host: "Host",
+				joined: "Joined",
+				pending: "Pending",
+			},
+			remove: "Remove",
+			removeLabel: "Remove {{name}}",
+			confirm: {
+				title: "Remove {{name}} from {{space}}?",
+				description:
+					"{{name}} loses access right away. You can invite {{name}} again.",
+			},
+			withdrawn: "Invitation to {{email}} withdrawn",
+		},
 		hosting: {
 			label: "Host through Kiroshi",
 			description:

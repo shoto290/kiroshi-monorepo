@@ -19,6 +19,7 @@ import {
 	endNotice,
 	NoticeSurface,
 	raiseFailureNotice,
+	raiseTransientNotice,
 } from "@workspace/ui/components/notice-surface"
 import {
 	HISTORY_DAYS,
@@ -31,6 +32,11 @@ import {
 	type SpaceSettingsValue,
 } from "@workspace/ui/components/space-settings-dialog"
 import { JoinedSpaceFields } from "@workspace/ui/components/space-settings-dialog/joined-space-fields"
+import {
+	MembersPanel,
+	type MembersPanelProps,
+	type SpaceMember,
+} from "@workspace/ui/components/space-settings-dialog/members-panel"
 import { SHARE_LINK } from "@workspace/ui/components/space-settings-dialog/share-link.fixtures"
 
 const FILLED_SPACE: SpaceSettingsValue = {
@@ -926,5 +932,408 @@ export const HostingConfirmStop = meta.story({
 
 		await userEvent.click(hosting)
 		await hostingQuestion("Stop hosting Release desk?")
+	},
+})
+
+const STEVE: SpaceMember = {
+	id: "steve",
+	name: "Steve",
+	email: "steve@example.com",
+	status: "host",
+}
+
+const SAM_PENDING: SpaceMember = {
+	id: "sam",
+	email: "sam@example.com",
+	status: "pending",
+}
+
+const SAM_CARTER: SpaceMember = {
+	id: "sam",
+	name: "Sam Carter",
+	email: "sam@example.com",
+	status: "joined",
+}
+
+const MEMBERS_PANEL = {
+	space: "Personal",
+	members: [STEVE],
+	email: "",
+	onEmailChange: fn(),
+	onInvite: fn(),
+	isHosted: true,
+	onOpenHosting: fn(),
+	shareLink: SHARE_LINK,
+	onShareLinkCopy: fn(),
+	onRemove: fn(),
+	onWithdraw: fn(),
+	onRemoveConfirm: fn(),
+	onRemoveCancel: fn(),
+} satisfies MembersPanelProps
+
+const membersArgs = (panel: Partial<MembersPanelProps> = {}) => {
+	const props = { ...MEMBERS_PANEL, ...panel }
+
+	return {
+		...HOSTING_ARGS,
+		tab: "members",
+		value: { name: "Personal", colour: "blue" },
+		hosting: props.isHosted ? "online" : "off",
+		members: <MembersPanel {...props} />,
+	} as const
+}
+
+const membersPanelIn = async () => {
+	const dialog = await screen.findByRole("dialog", {
+		name: "Personal Settings",
+	})
+	await waitFor(() => expect(dialog).toBeVisible())
+	return within(dialog).findByRole("tabpanel", { name: "Members" })
+}
+
+const memberRowsIn = (panel: HTMLElement) =>
+	slotsIn(panel, "space-member").map((row) =>
+		within(row)
+			.getAllByText(/./)
+			.map((text) => text.textContent),
+	)
+
+const inviteFieldIn = (panel: HTMLElement) =>
+	within(panel).getByRole("textbox", { name: "Invite people" })
+
+const expectRefusal = async (panel: HTMLElement, message: string) => {
+	const field = inviteFieldIn(panel)
+	await expect(field).toHaveAttribute("aria-invalid", "true")
+	await expect(field).toHaveAccessibleDescription(message)
+	await expect(getComputedStyle(field).borderTopColor).toBe(
+		probedStyleOf("border-destructive", "borderTopColor", panel),
+	)
+	await expect(getComputedStyle(field).boxShadow).toContain(
+		probedStyleOf("text-destructive/20", "color", panel),
+	)
+	await expect(panel).not.toHaveTextContent(
+		"They join by signing in to Kiroshi with this email.",
+	)
+}
+
+export const MembersI1 = meta.story({
+	args: membersArgs(),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I1. The Members tab of a hosted space: an empty invite field with Invite disabled, the member list holding only the reader, tagged Host with no Remove, then the share link.",
+			},
+		},
+	},
+	play: async () => {
+		const panel = await membersPanelIn()
+		await expect(
+			within(panel).getByRole("button", { name: "Invite" }),
+		).toBeDisabled()
+		await expect(inviteFieldIn(panel)).toHaveAccessibleDescription(
+			"They join by signing in to Kiroshi with this email.",
+		)
+		await expect(memberRowsIn(panel)).toEqual([
+			["S", "Steve", "steve@example.com", "Host"],
+		])
+	},
+})
+
+export const MembersI2 = meta.story({
+	args: membersArgs({ email: "sam@example.com" }),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I2. The field holds an address and has focus, wearing the input focus ring, and Invite is enabled. Check that Enter and Invite both report `onInvite` with the typed address.",
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		const panel = await membersPanelIn()
+		const field = inviteFieldIn(panel)
+		const invite = within(panel).getByRole("button", { name: "Invite" })
+		await expect(invite).toBeEnabled()
+
+		await userEvent.click(invite)
+		await expect(MEMBERS_PANEL.onInvite).toHaveBeenLastCalledWith(
+			"sam@example.com",
+		)
+		await userEvent.type(field, "{Enter}")
+		await expect(MEMBERS_PANEL.onInvite).toHaveBeenCalledTimes(2)
+		await expect(MEMBERS_PANEL.onInvite).toHaveBeenLastCalledWith(
+			"sam@example.com",
+		)
+		await expect(field).toHaveFocus()
+	},
+})
+
+export const MembersI3 = meta.story({
+	args: membersArgs({ members: [STEVE, SAM_PENDING] }),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I3. Sam was invited: the field is empty again and Sam joins the list as Pending, a dashed avatar with the mail glyph and the address alone on the name line.",
+			},
+		},
+	},
+	play: async () => {
+		const panel = await membersPanelIn()
+		await expect(memberRowsIn(panel)).toEqual([
+			["S", "Steve", "steve@example.com", "Host"],
+			["sam@example.com", "Pending", "Remove"],
+		])
+		const pending = slotsIn(panel, "space-member").at(-1)
+		await expect(pending && glyphIn(pending, Icons.Mail)).not.toBe(null)
+	},
+})
+
+export const MembersI4 = meta.story({
+	args: membersArgs({ members: [STEVE, SAM_CARTER] }),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I4. Sam accepted: the row shows the name over the address, a one-letter avatar and the Joined tag, lined up with Host above it.",
+			},
+		},
+	},
+	play: async () => {
+		const panel = await membersPanelIn()
+		await expect(memberRowsIn(panel)).toEqual([
+			["S", "Steve", "steve@example.com", "Host"],
+			["S", "Sam Carter", "sam@example.com", "Joined", "Remove"],
+		])
+		const [host, joined] = slotsIn(panel, "space-member")
+		await expect(
+			within(host).getByText("Host").getBoundingClientRect().right,
+		).toBe(within(joined).getByText("Joined").getBoundingClientRect().right)
+		await expect(
+			within(joined).getByRole("button", { name: "Remove Sam Carter" }),
+		).toHaveTextContent("Remove")
+	},
+})
+
+export const MembersWithdrawPending = meta.story({
+	tags: ["test-only"],
+	args: membersArgs({ members: [STEVE, SAM_PENDING] }),
+	play: async ({ userEvent }) => {
+		const panel = await membersPanelIn()
+		const remove = within(panel).getByRole("button", {
+			name: "Remove sam@example.com",
+		})
+		await userEvent.click(remove)
+		await expect(MEMBERS_PANEL.onWithdraw).toHaveBeenCalledOnce()
+		await expect(MEMBERS_PANEL.onWithdraw).toHaveBeenCalledWith(SAM_PENDING)
+		await expect(MEMBERS_PANEL.onRemove).not.toHaveBeenCalled()
+		await expect(screen.queryByRole("alertdialog")).toBe(null)
+	},
+})
+
+const WithdrawnNotice = () => {
+	const { t } = useTranslation("settings")
+
+	useEffect(() => {
+		const notice = raiseTransientNotice({
+			title: t("space.members.withdrawn", { email: SAM_PENDING.email }),
+		})
+		return () => endNotice(notice)
+	}, [t])
+
+	return null
+}
+
+export const MembersI5 = meta.story({
+	args: membersArgs(),
+	decorators: [
+		(Story) => (
+			<>
+				<Story />
+				<NoticeSurface transientDelay={0} />
+				<WithdrawnNotice />
+			</>
+		),
+	],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I5. Sam's invitation is withdrawn: the list is back to I1 and a success notice names the address. The app raises it with `raiseTransientNotice` and the catalogue's `space.members.withdrawn` copy; the story holds it open.",
+			},
+		},
+	},
+	play: async () => {
+		const panel = await membersPanelIn()
+		await expect(memberRowsIn(panel)).toHaveLength(1)
+		const title = await waitFor(() => slotIn(document.body, "toast-title"))
+		await expect(title).toHaveTextContent(
+			"Invitation to sam@example.com withdrawn",
+		)
+	},
+})
+
+export const MembersI6 = meta.story({
+	args: membersArgs({
+		members: [STEVE, SAM_CARTER],
+		removing: SAM_CARTER,
+	}),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I6. Remove on a Joined row asks first, naming the member and the space, with Remove in the destructive style. The app opens the question by passing the member as `removing`; Cancel reports `onRemoveCancel` and Remove `onRemoveConfirm`.",
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		const popup = await hostingQuestion("Remove Sam from Personal?")
+		await expect(popup).toHaveTextContent(
+			"Sam loses access right away. You can invite Sam again.",
+		)
+		await expect(
+			within(popup)
+				.getAllByRole("button")
+				.map((button) => button.textContent),
+		).toEqual(["Cancel", "Remove"])
+		const remove = within(popup).getByRole("button", { name: "Remove" })
+		await expect(getComputedStyle(remove).color).toBe(
+			probedStyleOf("text-destructive", "color", popup),
+		)
+		await userEvent.click(remove)
+		await expect(MEMBERS_PANEL.onRemoveConfirm).toHaveBeenCalledOnce()
+		await expect(MEMBERS_PANEL.onRemoveCancel).not.toHaveBeenCalled()
+
+		await userEvent.click(within(popup).getByRole("button", { name: "Cancel" }))
+		await expect(MEMBERS_PANEL.onRemoveCancel).toHaveBeenCalledOnce()
+		await expect(MEMBERS_PANEL.onRemoveConfirm).toHaveBeenCalledOnce()
+	},
+})
+
+export const MembersI7 = meta.story({
+	args: membersArgs({
+		members: [STEVE, SAM_PENDING],
+		email: "sam@example.com",
+		refusal: "invited",
+	}),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I7. The address is already invited: the field turns destructive, border and ring, and the helper becomes the refusal, read as the field's description.",
+			},
+		},
+	},
+	play: async () => {
+		await expectRefusal(
+			await membersPanelIn(),
+			"sam@example.com is already invited.",
+		)
+	},
+})
+
+export const MembersI8 = meta.story({
+	args: membersArgs({
+		members: [STEVE, SAM_PENDING],
+		email: "steve@example.com",
+		refusal: "self",
+	}),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I8. The reader typed their own address: same destructive field, the refusal says it is their own account.",
+			},
+		},
+	},
+	play: async () => {
+		await expectRefusal(await membersPanelIn(), "That’s your own account.")
+	},
+})
+
+export const MembersI9 = meta.story({
+	args: membersArgs({
+		members: [STEVE, SAM_PENDING],
+		email: "sam",
+		refusal: "malformed",
+	}),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I9. The text is not an address: same destructive field, the refusal shows the expected shape.",
+			},
+		},
+	},
+	play: async () => {
+		await expectRefusal(
+			await membersPanelIn(),
+			"Enter an email address, like sam@example.com.",
+		)
+	},
+})
+
+export const MembersI10 = meta.story({
+	args: membersArgs({ isHosted: false }),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I10. The space is not hosted, so nobody off the network can be invited: the field gives way to a notice and an Open Hosting button reporting `onOpenHosting`. The member list and the share link stay.",
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		const panel = await membersPanelIn()
+		await expect(
+			within(panel).queryByRole("textbox", { name: "Invite people" }),
+		).toBe(null)
+		await expect(panel).toHaveTextContent(
+			"Turn on hosting to invite people who aren’t on your network.",
+		)
+		await expect(memberRowsIn(panel)).toHaveLength(1)
+		await expect(slotIn(panel, "share-link")).toBeVisible()
+
+		await userEvent.click(
+			within(panel).getByRole("button", { name: "Open Hosting" }),
+		)
+		await expect(MEMBERS_PANEL.onOpenHosting).toHaveBeenCalledOnce()
+	},
+})
+
+const LONG_NAME = "Maximiliana Konstantinopoulou-Vanderberghe de la Fontaine"
+
+export const MembersLongIdentity = meta.story({
+	tags: ["test-only"],
+	args: membersArgs({
+		members: [
+			STEVE,
+			{
+				id: "long",
+				name: LONG_NAME,
+				email:
+					"maximiliana.konstantinopoulou-vanderberghe@example-long-domain.com",
+				status: "joined",
+			},
+			{
+				id: "long-pending",
+				email:
+					"maximiliana.konstantinopoulou-vanderberghe@example-long-domain.com",
+				status: "pending",
+			},
+		],
+	}),
+	play: async () => {
+		const panel = await membersPanelIn()
+		const list = within(panel).getByRole("list")
+		for (const remove of within(list).getAllByRole("button")) {
+			await expect(remove.getBoundingClientRect().right).toBeLessThanOrEqual(
+				list.getBoundingClientRect().right,
+			)
+		}
+		const name = within(panel).getByText(LONG_NAME)
+		await expect(name.getBoundingClientRect().height).toBe(20)
+		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
 	},
 })
