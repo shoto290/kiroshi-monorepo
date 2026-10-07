@@ -113,7 +113,7 @@ describe("createHostingController", () => {
 		expect(reportFailure).toHaveBeenCalledExactlyOnceWith(COULDNT_HOST_HOME)
 	})
 
-	it("keeps the last known state and raises a notice when the stop rejects", async () => {
+	it("keeps the switch on and raises the stop notice when the stop rejects", async () => {
 		const { controller, reportFailure } = await watchHome({
 			read: vi.fn(async () => ONLINE),
 			stop: vi.fn(async () => {
@@ -125,7 +125,10 @@ describe("createHostingController", () => {
 		await settle()
 
 		expect(controller.getState().hosting).toEqual(ONLINE)
-		expect(reportFailure).toHaveBeenCalledWith(COULDNT_HOST_HOME)
+		expect(reportFailure).toHaveBeenCalledExactlyOnceWith({
+			title: "Couldn’t stop hosting Home",
+			description: "Turn it off again.",
+		})
 	})
 
 	it("raises a notice when the read rejects", async () => {

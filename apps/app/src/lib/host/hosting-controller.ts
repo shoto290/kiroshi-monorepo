@@ -70,6 +70,13 @@ const failureOf = (space: HostedSpace): NoticeMessage => ({
 	description: i18n.t("settings:space.hosting.failed.description"),
 })
 
+const stopFailureOf = (space: HostedSpace): NoticeMessage => ({
+	title: i18n.t("settings:space.hosting.stopFailed.title", {
+		name: space.name,
+	}),
+	description: i18n.t("settings:space.hosting.stopFailed.description"),
+})
+
 type Attempt = {
 	isReported: boolean
 }
@@ -90,10 +97,10 @@ export const createHostingController = ({
 	let current: Session | null = null
 	let lastWatchedId: string | null = null
 
-	const reportAttempt = (session: Session, attempt: Attempt) => {
+	const reportAttempt = (attempt: Attempt, notice: NoticeMessage) => {
 		if (attempt.isReported) return
 		attempt.isReported = true
-		reportFailure(failureOf(session.space))
+		reportFailure(notice)
 	}
 
 	const settle = (
@@ -106,7 +113,7 @@ export const createHostingController = ({
 		stateStore.setState({ hosting })
 		if (hosting.kind !== "failed") return
 		if (attempt) {
-			reportAttempt(session, attempt)
+			reportAttempt(attempt, failureOf(session.space))
 		} else if (!wasFailed) {
 			reportFailure(failureOf(session.space))
 		}
@@ -150,28 +157,35 @@ export const createHostingController = ({
 		}
 	}
 
-	const command = (run: (spaceId: string) => Promise<HostingState>) => () => {
-		const session = current
-		if (!session) return
-		const attempt: Attempt = { isReported: false }
-		session.attempt = attempt
-		void run(session.space.id).then(
-			(hosting) => {
-				if (current === session) settle(session, hosting, attempt)
-				endAttempt(session, attempt)
-			},
-			() => {
-				if (current === session) reportAttempt(session, attempt)
-				endAttempt(session, attempt)
-			},
-		)
-	}
+	const command =
+		(
+			run: (spaceId: string) => Promise<HostingState>,
+			rejectionOf: (space: HostedSpace) => NoticeMessage,
+		) =>
+		() => {
+			const session = current
+			if (!session) return
+			const attempt: Attempt = { isReported: false }
+			session.attempt = attempt
+			void run(session.space.id).then(
+				(hosting) => {
+					if (current === session) settle(session, hosting, attempt)
+					endAttempt(session, attempt)
+				},
+				() => {
+					if (current === session) {
+						reportAttempt(attempt, rejectionOf(session.space))
+					}
+					endAttempt(session, attempt)
+				},
+			)
+		}
 
 	return {
 		getState: stateStore.getState,
 		subscribe: stateStore.subscribe,
 		watch,
-		start: command(transport.start),
-		stop: command(transport.stop),
+		start: command(transport.start, failureOf),
+		stop: command(transport.stop, stopFailureOf),
 	}
 }
