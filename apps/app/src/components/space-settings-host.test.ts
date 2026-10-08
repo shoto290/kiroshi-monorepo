@@ -81,6 +81,7 @@ const garageTransport = () =>
 		add: async () => GARAGE,
 		remove: vi.fn(async (_id: string) => undefined),
 		onChanged: async () => () => undefined,
+		onRemoved: async () => () => undefined,
 	}) satisfies JoinedSpacesTransport
 
 const hostsFake = () => ({

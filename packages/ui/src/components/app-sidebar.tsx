@@ -56,6 +56,10 @@ import {
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { SidebarResizeHandle } from "@workspace/ui/components/sidebar-resize"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"
+import type {
+	SpaceInvitation,
+	SpaceInvitationCallbacks,
+} from "@workspace/ui/components/space-invitations"
 import {
 	SpaceDots,
 	type SpaceRemote,
@@ -1810,6 +1814,10 @@ interface AppSidebarProps
 	onJoinSpace?: () => void
 	onLeaveSpace?: () => void
 	remoteBySpaceId?: Record<string, SpaceRemote>
+	invitations?: SpaceInvitation[]
+	onAcceptInvitation?: SpaceInvitationCallbacks["onAcceptInvitation"]
+	onDeclineInvitation?: SpaceInvitationCallbacks["onDeclineInvitation"]
+	onRetryInvitation?: SpaceInvitationCallbacks["onRetryInvitation"]
 	onOpenSpaceSettings?: () => void
 	updateBadge?: ReactNode
 	user?: UserChipIdentity
@@ -1862,6 +1870,10 @@ const AppSidebarBase = ({
 	onJoinSpace,
 	onLeaveSpace,
 	remoteBySpaceId,
+	invitations,
+	onAcceptInvitation,
+	onDeclineInvitation,
+	onRetryInvitation,
 	onOpenSpaceSettings,
 	updateBadge,
 	user,
@@ -2069,11 +2081,15 @@ const AppSidebarBase = ({
 			>
 				<SpaceSwitcher
 					badgesBySpaceId={badgesBySpaceId}
+					invitations={invitations}
+					onAcceptInvitation={onAcceptInvitation}
 					onCreateSpace={onCreateSpace}
+					onDeclineInvitation={onDeclineInvitation}
 					onJoinSpace={onJoinSpace}
 					onLeaveSpace={onLeaveSpace}
 					onOpenSpaceSettings={onOpenSpaceSettings}
 					onReorderSpaces={onReorderSpaces}
+					onRetryInvitation={onRetryInvitation}
 					onSelectSpace={onSelectSpace}
 					remoteBySpaceId={remoteBySpaceId}
 					selectedSpaceId={selectedSpaceId}

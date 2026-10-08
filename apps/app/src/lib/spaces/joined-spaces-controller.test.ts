@@ -5,11 +5,16 @@ import {
 	type JoinedSpacesTransport,
 	remoteMarksOf,
 	rosterSpaceIdsOf,
+	shownJoinedSpacesOf,
 	switcherSpacesOf,
 } from "./joined-spaces-controller"
 import { createSpacesController } from "./spaces-controller"
 
-import type { JoinedSpace, JoinedSpaceError } from "../bindings"
+import type {
+	JoinedSpace,
+	JoinedSpaceError,
+	JoinedSpaceRemoved,
+} from "../bindings"
 import { createStore } from "../store"
 import { createFakeTranscriptStore } from "../conversations/fake-transcript-store"
 import type { JoinedHostState, JoinedHostsState } from "../host/joined-hosts"
@@ -61,6 +66,7 @@ const hostsFake = () => {
 const transportFake = (listed: JoinedSpace[] = []) => {
 	let held = [...listed]
 	let announce: () => void = () => undefined
+	let announceRemoval: (removed: JoinedSpaceRemoved) => void = () => undefined
 	const transport = {
 		list: vi.fn(async () => held),
 		add: vi.fn(async (_link: string): Promise<JoinedSpace> => {
@@ -75,12 +81,36 @@ const transportFake = (listed: JoinedSpace[] = []) => {
 			announce = listener
 			return () => undefined
 		}),
+		onRemoved: vi.fn(
+			async (listener: (removed: JoinedSpaceRemoved) => void) => {
+				announceRemoval = listener
+				return () => undefined
+			},
+		),
 	} satisfies JoinedSpacesTransport
 	return {
 		transport,
 		announce: () => announce(),
+		evict: (joined: JoinedSpace) => {
+			held = held.filter((entry) => entry.id !== joined.id)
+			announce()
+			announceRemoval({ id: joined.id, name: joined.name })
+		},
 		hold: (next: JoinedSpace[]) => {
 			held = next
+		},
+	}
+}
+
+const invitersFake = () => {
+	const emails = new Map<string, string>()
+	return {
+		of: (id: string) => emails.get(id) ?? "",
+		remember: (id: string, email: string) => {
+			emails.set(id, email)
+		},
+		forget: (id: string) => {
+			emails.delete(id)
 		},
 	}
 }
@@ -95,14 +125,18 @@ const gearFor = async (listed: JoinedSpace[] = []) => {
 	const hosts = hostsFake()
 	const wire = transportFake(listed)
 	const reportFailure = vi.fn()
+	const reportRemoval = vi.fn()
+	const inviters = invitersFake()
 	const joined = createJoinedSpacesController({
 		spaces,
 		hosts,
 		transport: wire.transport,
 		reportFailure,
+		reportRemoval,
+		inviters,
 		probeTimeout: 50,
 	})
-	return { home, spaces, hosts, wire, reportFailure, joined }
+	return { home, spaces, hosts, wire, reportFailure, reportRemoval, joined }
 }
 
 afterEach(() => {
@@ -450,5 +484,141 @@ describe("leaving a space", () => {
 		expect(gear.reportFailure).toHaveBeenCalledWith(
 			expect.objectContaining({ description: "disk full" }),
 		)
+	})
+})
+
+const STUDIO: JoinedSpace = {
+	id: "joined-studio",
+	hostUrl: "wss://cloud.kiroshi.test/instances/studio/relay/member",
+	remoteSpaceId: "studio",
+	name: "Studio Nord",
+}
+
+const HOST_EMAIL = "lea@example.com"
+
+const REMOVED_NOTICE = "lea@example.com removed you from Studio Nord."
+
+const withStudio = async () => {
+	const gear = await gearFor([STUDIO])
+	gear.joined.watch()
+	await settle()
+	return gear
+}
+
+describe("accepting an invited space", () => {
+	it("adds the space as a remote row, connects it and opens it", async () => {
+		const gear = await gearFor()
+		gear.joined.watch()
+		await settle()
+		gear.wire.hold([STUDIO])
+
+		await gear.joined.admit(STUDIO, HOST_EMAIL)
+
+		expect(gear.joined.getState().joinedSpaces).toEqual([STUDIO])
+		expect(gear.hosts.connect).toHaveBeenCalledWith(STUDIO.id)
+		expect(gear.spaces.getState().selectedSpaceId).toBe("studio")
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(STUDIO.id)
+		expect(gear.joined.hostEmailOf(STUDIO.id)).toBe(HOST_EMAIL)
+	})
+})
+
+describe("a host removing the reader", () => {
+	it("holds the open space as removed, then Back opens the previous local space, drops the row and raises the notice", async () => {
+		const gear = await withStudio()
+		await gear.joined.admit(STUDIO, HOST_EMAIL)
+
+		gear.wire.evict(STUDIO)
+		await settle()
+
+		const shown = shownJoinedSpacesOf(gear.joined.getState())
+		expect(gear.joined.getState().removed).toEqual({
+			joined: STUDIO,
+			hostEmail: HOST_EMAIL,
+			backSpaceId: gear.home.id,
+		})
+		expect(switcherSpacesOf([], shown)).toEqual([
+			{ id: "studio", name: "Studio Nord" },
+		])
+		expect(gear.reportRemoval).not.toHaveBeenCalled()
+
+		gear.joined.leaveRemoved()
+
+		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
+		expect(gear.joined.getState().removed).toBe(null)
+		expect(shownJoinedSpacesOf(gear.joined.getState())).toEqual([])
+		expect(gear.hosts.forget).toHaveBeenCalledWith(STUDIO.id)
+		expect(gear.reportRemoval).toHaveBeenCalledWith(REMOVED_NOTICE)
+	})
+
+	it("drops a space that is not open and raises the notice", async () => {
+		const gear = await withStudio()
+		await gear.joined.admit(STUDIO, HOST_EMAIL)
+		gear.joined.selectSpace(gear.home.id)
+
+		gear.wire.evict(STUDIO)
+		await settle()
+
+		expect(gear.joined.getState().removed).toBe(null)
+		expect(gear.joined.getState().joinedSpaces).toEqual([])
+		expect(gear.hosts.forget).toHaveBeenCalledWith(STUDIO.id)
+		expect(gear.reportRemoval).toHaveBeenCalledWith(REMOVED_NOTICE)
+	})
+
+	it("keeps an unreachable host as an unreachable row, never as removed", async () => {
+		const gear = await withStudio()
+		gear.joined.selectSpace("studio")
+
+		gear.hosts.record(STUDIO.id, { status: "down" })
+
+		expect(gear.joined.getState().removed).toBe(null)
+		expect(
+			remoteMarksOf(
+				gear.joined.getState().joinedSpaces,
+				gear.hosts.getState().connections,
+			),
+		).toEqual({ studio: "unreachable" })
+	})
+})
+
+describe("a read dropping a joined space", () => {
+	it("moves the reader from an open relay space dropped by sign out to the local space", async () => {
+		const gear = await withStudio()
+		await gear.joined.admit(STUDIO, HOST_EMAIL)
+		expect(gear.spaces.getState().selectedSpaceId).toBe("studio")
+
+		gear.wire.hold([])
+		gear.wire.announce()
+		await settle()
+
+		expect(gear.joined.getState().joinedSpaces).toEqual([])
+		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(null)
+		expect(gear.hosts.forget).toHaveBeenCalledWith(STUDIO.id)
+		expect(gear.joined.hostEmailOf(STUDIO.id)).toBe("")
+	})
+
+	it("forgets a dropped space that is not open and keeps the selection", async () => {
+		const gear = await withStudio()
+		await gear.joined.admit(STUDIO, HOST_EMAIL)
+		gear.joined.selectSpace(gear.home.id)
+
+		gear.wire.hold([])
+		gear.wire.announce()
+		await settle()
+
+		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
+		expect(gear.hosts.forget).toHaveBeenCalledWith(STUDIO.id)
+		expect(gear.joined.hostEmailOf(STUDIO.id)).toBe("")
+	})
+
+	it("keeps a space held as removed on screen through the read", async () => {
+		const gear = await withStudio()
+		await gear.joined.admit(STUDIO, HOST_EMAIL)
+		gear.wire.evict(STUDIO)
+		await settle()
+
+		expect(gear.spaces.getState().selectedSpaceId).toBe("studio")
+		expect(gear.joined.getState().removed?.joined).toEqual(STUDIO)
+		expect(gear.hosts.forget).not.toHaveBeenCalled()
 	})
 })
