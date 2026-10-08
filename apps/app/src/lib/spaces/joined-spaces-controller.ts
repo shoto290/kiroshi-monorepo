@@ -247,11 +247,11 @@ export const createJoinedSpacesController = ({
 			inviters.forget(joined.id)
 		}
 		const { selectedSpaceId } = spaces.getState()
-		const isSelectedGone = gone.some(
-			(joined) => rowIdOf(joined) === selectedSpaceId,
-		)
+		if (!gone.some((joined) => rowIdOf(joined) === selectedSpaceId)) {
+			return
+		}
 		const back = backSpaceId()
-		if (isSelectedGone && back) selectSpace(back)
+		if (back) selectSpace(back)
 	}
 
 	const read = async () => {
