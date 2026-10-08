@@ -17,13 +17,14 @@ use tauri::{App, Listener, Manager};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-use super::bridge::LocalApi;
+use super::bridge::{LocalApi, HOST_ONLY_COMMANDS};
 use super::contract::{
 	HostingState, Member, MemberStatus, MembersError, CHANGED_EVENT, MEMBERS_CHANGED_EVENT,
 };
 use super::members::{invite, list, remove, withdraw};
 use super::{resumed, signed_out, start, stop, Hosting};
 use crate::spaces::commands::space_delete;
+use crate::account::contract::AccountState;
 use crate::account::session::restore;
 use crate::account::session::AccountSession;
 use crate::db::connection::temp_dir;
@@ -31,10 +32,12 @@ use crate::db::{self, DatabaseState};
 use crate::environment::contract::{EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
 use crate::events;
+use crate::spaces::contract::Space;
 
 const BEARER: &str = "bearer-that-never-leaves";
 const LOCAL_TOKEN: &str = "host-token-of-the-loopback";
 const PERSONAL: &str = "personal";
+const INVOKE_ROUTE: &str = "/api/invoke/{command}";
 const PATIENCE: Duration = Duration::from_secs(5);
 const OWNER_EMAIL: &str = "owner@example.com";
 const POLL_EVERY: Duration = Duration::from_millis(100);
@@ -167,6 +170,14 @@ async fn invoked(Path(command): Path<String>, headers: HeaderMap, args: String) 
 	answered_json(StatusCode::OK, json!({ "command": command, "args": args }))
 }
 
+async fn spaces_listed(Served(database): Served<PathBuf>, headers: HeaderMap) -> Response {
+	if bearer_of(&headers) != LOCAL_TOKEN {
+		return StatusCode::UNAUTHORIZED.into_response();
+	}
+	let stored = db::open(&database).spaces().list().await.expect("the host lists its spaces");
+	answered_json(StatusCode::OK, json!(stored.into_iter().map(Space::from).collect::<Vec<_>>()))
+}
+
 fn answered_json(status: StatusCode, body: Value) -> Response {
 	(status, [(header::CONTENT_TYPE, "application/json")], body.to_string()).into_response()
 }
@@ -199,6 +210,26 @@ impl Harness {
 		bearer: Option<&str>,
 		members_every: Duration,
 	) -> Self {
+		let local = Router::new().route(INVOKE_ROUTE, post(invoked));
+		Self::serving(name, refusal, bearer, members_every, temp_dir(), local).await
+	}
+
+	async fn listing_spaces(name: &str) -> Self {
+		let database = temp_dir();
+		let local =
+			Router::new().route(INVOKE_ROUTE, post(spaces_listed)).with_state(database.clone());
+		Self::serving(name, None, Some(BEARER), super::members::MEMBERS_EVERY, database, local)
+			.await
+	}
+
+	async fn serving(
+		name: &str,
+		refusal: Option<StatusCode>,
+		bearer: Option<&str>,
+		members_every: Duration,
+		database: PathBuf,
+		local: Router,
+	) -> Self {
 		let (sockets_in, sockets) = mpsc::unbounded_channel();
 		let relay = Relay {
 			refusal,
@@ -227,7 +258,7 @@ impl Harness {
 				.with_state(relay.clone()),
 		)
 		.await;
-		let local = served(Router::new().route("/api/invoke/{command}", post(invoked))).await;
+		let local = served(local).await;
 		let root =
 			std::env::temp_dir().join(format!("kiroshi-hosting-{name}-{}", uuid::Uuid::new_v4()));
 		if let Some(bearer) = bearer {
@@ -235,7 +266,7 @@ impl Harness {
 				.expect("the bearer is kept");
 		}
 		let app = mock_app();
-		app.manage::<DatabaseState>(Ok(db::open(&temp_dir())));
+		app.manage::<DatabaseState>(Ok(db::open(&database)));
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
 		app.manage(
 			Hosting::new(
@@ -574,6 +605,80 @@ fn a_member_frame_naming_a_host_member_command_is_refused_and_others_still_forwa
 			"{:?}",
 			harness.member_calls()
 		);
+	});
+}
+
+async fn a_relay_guest_is_refused(command: &str) {
+	refused_on(Harness::signed_in(command).await, command).await;
+}
+
+async fn refused_on(mut harness: Harness, command: &str) -> Value {
+	assert!(HOST_ONLY_COMMANDS.contains(&command), "{command} is not host only");
+	restore(harness.app.handle().clone()).await;
+	harness.started().await;
+	let mut member = harness.member().await;
+	harness.reached(HostingState::Online).await;
+
+	let frame = json!({ "id": command, "command": command, "args": { "spaceId": PERSONAL } });
+	send(&mut member, &frame.to_string()).await;
+	let refused = answer(&mut member).await;
+	send(&mut member, r#"{"id": "after", "command": "space_list"}"#).await;
+	let answered = answer(&mut member).await;
+
+	assert_eq!(
+		refused,
+		json!({ "id": command, "status": 403, "body": { "error": "this command belongs to the host" } })
+	);
+	assert_eq!((answered["id"].clone(), answered["status"].clone()), (json!("after"), json!(200)));
+	assert_eq!(harness.state(), HostingState::Online);
+	let session = harness.app.state::<AccountSession>();
+	assert!(matches!(session.current(), AccountState::SignedIn(_)), "{:?}", session.current());
+	assert_eq!(session.bearer().expect("the session store reads").as_deref(), Some(BEARER));
+	answered
+}
+
+#[test]
+fn a_relay_guest_cannot_start_the_hosting() {
+	run(a_relay_guest_is_refused("hosting_start"));
+}
+
+#[test]
+fn a_relay_guest_cannot_stop_the_hosting() {
+	run(a_relay_guest_is_refused("hosting_stop"));
+}
+
+#[test]
+fn a_relay_guest_cannot_sign_the_host_account_in() {
+	run(a_relay_guest_is_refused("account_sign_in"));
+}
+
+#[test]
+fn a_relay_guest_cannot_sign_the_host_account_out() {
+	run(a_relay_guest_is_refused("account_sign_out"));
+}
+
+#[test]
+fn a_relay_guest_cannot_sign_the_host_agent_in() {
+	run(a_relay_guest_is_refused("agent_sign_in"));
+}
+
+#[test]
+fn a_relay_guest_cannot_enter_the_host_agent_sign_in_code() {
+	run(a_relay_guest_is_refused("agent_sign_in_code"));
+}
+
+#[test]
+fn a_relay_guest_cannot_cancel_the_host_agent_sign_in() {
+	run(a_relay_guest_is_refused("agent_sign_in_cancel"));
+}
+
+#[test]
+fn a_relay_guest_cannot_delete_a_space_and_its_instance_registration() {
+	run(async {
+		let listed =
+			refused_on(Harness::listing_spaces("space_delete").await, "space_delete").await;
+		let spaces = listed["body"].as_array().expect("a space list");
+		assert!(spaces.iter().any(|space| space["id"] == PERSONAL), "{listed}");
 	});
 }
 
