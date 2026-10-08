@@ -226,7 +226,11 @@ export const createInvitationsController = ({
 			return
 		}
 		swept = [...swept, ...withdrawn]
-		show(current().invitations.filter((invitation) => !isSwept(invitation)))
+		show(
+			current().invitations.filter(
+				(invitation) => !isWithdrawnInvitation(invitation),
+			),
+		)
 	}
 
 	const invitationOf = (id: string) =>

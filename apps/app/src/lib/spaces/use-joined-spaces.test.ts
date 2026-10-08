@@ -26,7 +26,9 @@ const STUDIO: Invitation = {
 
 const transport = {
 	list: vi.fn(async () => [STUDIO]),
-	accept: vi.fn(async () => Promise.reject({ kind: "withdrawn" })),
+	accept: vi.fn(async () => {
+		throw { kind: "withdrawn" }
+	}),
 	decline: vi.fn(async () => undefined),
 	onChanged: vi.fn(async () => () => undefined),
 } satisfies InvitationsTransport
