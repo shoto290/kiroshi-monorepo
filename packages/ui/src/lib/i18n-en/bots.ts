@@ -85,6 +85,12 @@ const bots = {
 		label: "Spaces",
 		switch: "Change space, {{name}} open",
 		switchRemote: "Change space, {{name}} open, remote",
+		switchInvited_one: "Change space, {{name}} open, 1 invitation",
+		switchInvited_other: "Change space, {{name}} open, {{count}} invitations",
+		switchRemoteInvited_one:
+			"Change space, {{name}} open, remote, 1 invitation",
+		switchRemoteInvited_other:
+			"Change space, {{name}} open, remote, {{count}} invitations",
 		open: "Open {{name}}",
 		moveUp: "Move up",
 		moveDown: "Move down",
@@ -98,6 +104,35 @@ const bots = {
 		remove: {
 			lastSpace: "A companion needs at least one space.",
 			failed: "Couldn’t remove this companion from the space. Retry.",
+		},
+		invitations: {
+			label: "Invitations",
+			invitedBy: "Invited by {{email}}",
+			accept: "Accept",
+			decline: "Decline",
+			joining: "Joining…",
+			retry: "Try again",
+			failed: {
+				servers: "Couldn’t accept. Kiroshi’s servers didn’t answer.",
+				offline:
+					"Couldn’t accept, this Mac is offline. Try again once you’re connected.",
+			},
+			withdrawn:
+				"{{email}} withdrew this invitation. Ask them to invite you again.",
+		},
+		removed: {
+			title: "You’re no longer in {{name}}",
+			description:
+				"{{email}} removed you from this Space. Its companions and conversations stay on their Kiroshi.",
+			back: "Back to {{name}}",
+			notice: "{{email}} removed you from {{name}}.",
+		},
+		signOut: {
+			title: "Sign out of Kiroshi?",
+			description:
+				"{{name}} leaves this Mac until you sign in again. Its conversations stay with {{email}}.",
+			confirm: "Sign out",
+			notice: "Signed out. {{name}} left this Mac.",
 		},
 	},
 	dialog: {

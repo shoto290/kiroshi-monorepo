@@ -14,6 +14,11 @@ import {
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { Icons } from "@workspace/ui/components/icons"
 import type { Space } from "@workspace/ui/components/space"
+import {
+	type SpaceInvitation,
+	type SpaceInvitationCallbacks,
+	SpaceInvitations,
+} from "@workspace/ui/components/space-invitations"
 import { Button } from "@workspace/ui/components/ui/button"
 import {
 	ContextMenu,
@@ -43,6 +48,13 @@ const SWITCHER_SWATCH = "rounded-[3px]"
 const SWITCHER_CHEVRON = "size-3 shrink-0 stroke-2!"
 
 const SWITCHER_REMOTE = "size-3 shrink-0 text-muted-foreground"
+
+const SWITCHER_INVITATION =
+	"pointer-events-none absolute end-0.25 top-1 size-1.75 rounded-full bg-primary ring-2 ring-sidebar"
+
+const MENU_RESTING = "max-w-64"
+
+const MENU_INVITED = "w-70"
 
 const ROW_NAME = "min-w-0 grow truncate"
 
@@ -166,25 +178,31 @@ const SpaceRemoteMarker = ({ remote }: SpaceRemoteMarkerProps) => {
 	)
 }
 
-type SpaceSwitcherProps = SpaceSelection & {
-	remoteBySpaceId?: Record<string, SpaceRemote>
-	onCreateSpace?: () => void
-	onJoinSpace?: () => void
-	onOpenSpaceSettings?: () => void
-	onLeaveSpace?: () => void
-}
+type SpaceSwitcherProps = SpaceSelection &
+	SpaceInvitationCallbacks & {
+		remoteBySpaceId?: Record<string, SpaceRemote>
+		invitations?: SpaceInvitation[]
+		onCreateSpace?: () => void
+		onJoinSpace?: () => void
+		onOpenSpaceSettings?: () => void
+		onLeaveSpace?: () => void
+	}
 
 const SpaceSwitcher = ({
 	spaces,
 	selectedSpaceId,
 	badgesBySpaceId,
 	remoteBySpaceId,
+	invitations = [],
 	onSelectSpace,
 	onReorderSpaces,
 	onCreateSpace,
 	onJoinSpace,
 	onOpenSpaceSettings,
 	onLeaveSpace,
+	onAcceptInvitation,
+	onDeclineInvitation,
+	onRetryInvitation,
 }: SpaceSwitcherProps) => {
 	const { t } = useTranslation("bots")
 	const selected =
@@ -194,24 +212,35 @@ const SpaceSwitcher = ({
 
 	const rank = spaces.indexOf(selected)
 	const isRemote = Boolean(remoteBySpaceId?.[selected.id])
+	const isInvited = invitations.length > 0
+	const switchLabel = isInvited
+		? isRemote
+			? "spaces.switchRemoteInvited"
+			: "spaces.switchInvited"
+		: isRemote
+			? "spaces.switchRemote"
+			: "spaces.switch"
 
 	const moveSelected = (by: number) => {
 		const order = placedOrder(spaces, selected.id, rank + by)
 		if (order) onReorderSpaces?.(order)
 	}
 
-	const elsewhere = strongestBadge(
-		spaces
-			.filter((space) => space.id !== selected.id)
-			.map((space) => badgesBySpaceId?.[space.id]),
-	)
+	const elsewhere = isInvited
+		? undefined
+		: strongestBadge(
+				spaces
+					.filter((space) => space.id !== selected.id)
+					.map((space) => badgesBySpaceId?.[space.id]),
+			)
 
 	return (
 		<ContextMenu>
 			<ContextMenuPressTrigger
 				render={
 					<Button
-						aria-label={t(isRemote ? "spaces.switchRemote" : "spaces.switch", {
+						aria-label={t(switchLabel, {
+							count: invitations.length,
 							name: selected.name,
 						})}
 						className={SWITCHER}
@@ -238,12 +267,22 @@ const SpaceSwitcher = ({
 								placement="switcher"
 							/>
 						) : null}
+						{isInvited ? (
+							<span
+								aria-hidden="true"
+								className={SWITCHER_INVITATION}
+								data-slot="space-switcher-invitation"
+							/>
+						) : null}
 					</Button>
 				}
 			/>
 			<ContextMenuContent
 				aria-label={t("spaces.label")}
-				className={`max-w-64 ${STILL_UNDER_REDUCED_MOTION}`}
+				className={cn(
+					isInvited ? MENU_INVITED : MENU_RESTING,
+					STILL_UNDER_REDUCED_MOTION,
+				)}
 			>
 				<ContextMenuRadioGroup
 					onValueChange={(value) => onSelectSpace?.(value)}
@@ -282,6 +321,12 @@ const SpaceSwitcher = ({
 						)
 					})}
 				</ContextMenuRadioGroup>
+				<SpaceInvitations
+					invitations={invitations}
+					onAcceptInvitation={onAcceptInvitation}
+					onDeclineInvitation={onDeclineInvitation}
+					onRetryInvitation={onRetryInvitation}
+				/>
 				<ContextMenuSeparator />
 				{spaces.length > 1 ? (
 					<>

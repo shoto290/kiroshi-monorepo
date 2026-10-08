@@ -77,6 +77,17 @@ const bots = {
 		label: "Espaces",
 		switch: "Changer d’espace, {{name}} ouvert",
 		switchRemote: "Changer d’espace, {{name}} ouvert, distant",
+		switchInvited_one: "Changer d’espace, {{name}} ouvert, 1 invitation",
+		switchInvited_many:
+			"Changer d’espace, {{name}} ouvert, {{count}} invitations",
+		switchInvited_other:
+			"Changer d’espace, {{name}} ouvert, {{count}} invitations",
+		switchRemoteInvited_one:
+			"Changer d’espace, {{name}} ouvert, distant, 1 invitation",
+		switchRemoteInvited_many:
+			"Changer d’espace, {{name}} ouvert, distant, {{count}} invitations",
+		switchRemoteInvited_other:
+			"Changer d’espace, {{name}} ouvert, distant, {{count}} invitations",
 		open: "Ouvrir {{name}}",
 		moveUp: "Monter",
 		moveDown: "Descendre",
@@ -90,6 +101,36 @@ const bots = {
 		remove: {
 			lastSpace: "Un compagnon a besoin d’au moins un espace.",
 			failed: "Impossible de retirer ce compagnon de l’espace. Réessayez.",
+		},
+		invitations: {
+			label: "Invitations",
+			invitedBy: "Invité par {{email}}",
+			accept: "Accepter",
+			decline: "Refuser",
+			joining: "Connexion…",
+			retry: "Réessayer",
+			failed: {
+				servers:
+					"Impossible d’accepter. Les serveurs de Kiroshi n’ont pas répondu.",
+				offline:
+					"Impossible d’accepter, ce Mac est hors ligne. Réessayez une fois connecté.",
+			},
+			withdrawn:
+				"{{email}} a retiré cette invitation. Demandez-lui de vous inviter à nouveau.",
+		},
+		removed: {
+			title: "Vous ne faites plus partie de {{name}}",
+			description:
+				"{{email}} vous a retiré de cet espace. Ses compagnons et ses conversations restent sur leur Kiroshi.",
+			back: "Revenir à {{name}}",
+			notice: "{{email}} vous a retiré de {{name}}.",
+		},
+		signOut: {
+			title: "Se déconnecter de Kiroshi ?",
+			description:
+				"{{name}} quitte ce Mac jusqu’à votre prochaine connexion. Ses conversations restent chez {{email}}.",
+			confirm: "Se déconnecter",
+			notice: "Déconnecté. {{name}} a quitté ce Mac.",
 		},
 	},
 	dialog: {

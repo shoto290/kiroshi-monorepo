@@ -6,7 +6,10 @@ import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	expectHeadingFont,
 } from "@workspace/storybook/story-utils"
-import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
+import {
+	ConfirmDialog,
+	type ConfirmDialogProps,
+} from "@workspace/ui/components/confirm-dialog"
 import { buttonVariants } from "@workspace/ui/components/ui/button"
 
 const LeaveSpaceConfirmation = () => {
@@ -19,6 +22,32 @@ const LeaveSpaceConfirmation = () => {
 			description={t("spaces.leave.description")}
 			onConfirm={fn()}
 			title={t("spaces.leave.title", { name: "Northwind" })}
+		/>
+	)
+}
+
+type SignOutConfirmationProps = Pick<
+	ConfirmDialogProps,
+	"onConfirm" | "onCancel"
+>
+
+const SignOutConfirmation = ({
+	onConfirm,
+	onCancel,
+}: SignOutConfirmationProps) => {
+	const { t } = useTranslation("bots")
+
+	return (
+		<ConfirmDialog
+			confirmLabel={t("spaces.signOut.confirm")}
+			defaultOpen
+			description={t("spaces.signOut.description", {
+				email: "lea@example.com",
+				name: "Studio Nord",
+			})}
+			onCancel={onCancel}
+			onConfirm={onConfirm}
+			title={t("spaces.signOut.title")}
 		/>
 	)
 }
@@ -38,7 +67,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The question that stands between a reader and something they cannot undo. Reach for it wherever a press deletes: it dims the page and traps focus, so it reads as a question rather than as a notification, and it puts Cancel first so the safe way out is the one the hand reaches. The title names the thing, never the action alone — a reader who opened the wrong row finds out here rather than after — and the description repeats the consequence in full instead of shortening it to `Are you sure?`. It owns its own open state and reports nothing until the second press: `onConfirm` fires once, and a cancelled question is not news. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
+					"The question that stands between a reader and something they cannot undo. Reach for it wherever a press deletes: it dims the page and traps focus, so it reads as a question rather than as a notification, and it puts Cancel first so the safe way out is the one the hand reaches. The title names the thing, never the action alone, so a reader who opened the wrong row finds out here rather than after, and the description repeats the consequence in full instead of shortening it to `Are you sure?`. It owns its own open state and reports nothing until the reader answers: `onConfirm` fires once on the second press, and `onCancel` once when they back out through Cancel, Escape or the backdrop, never after a confirm. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
 			},
 		},
 	},
@@ -50,6 +79,7 @@ const meta = preview.meta({
 			"The companion can no longer use this skill. This can’t be undone.",
 		confirmLabel: "Delete skill",
 		onConfirm: fn(),
+		onCancel: fn(),
 	},
 	argTypes: {
 		defaultOpen: { control: false },
@@ -100,7 +130,7 @@ export const Cancelled = meta.story({
 		docs: {
 			description: {
 				story:
-					"The path most readers take: they open the question and back out of it. Check that the trigger is still reachable afterwards — a cancelled question must not leave the surface inert — and that nothing was reported, because a question nobody answered is not news. The app assembles it at `apps/app/src/App.tsx:991`.",
+					"The path most readers take: they open the question and back out of it. Check that the trigger is still reachable afterwards, since a cancelled question must not leave the surface inert, and that only `onCancel` was reported. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -112,6 +142,7 @@ export const Cancelled = meta.story({
 
 		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
 		await expect(args.onConfirm).not.toHaveBeenCalled()
+		await expect(args.onCancel).toHaveBeenCalledOnce()
 		await expect(
 			canvas.getByRole("button", { name: "Delete skill" }),
 		).toBeVisible()
@@ -137,6 +168,7 @@ export const Confirmed = meta.story({
 
 		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
 		await expect(args.onConfirm).toHaveBeenCalledTimes(1)
+		await expect(args.onCancel).not.toHaveBeenCalled()
 	},
 })
 
@@ -191,5 +223,72 @@ export const LeaveSpace = meta.story({
 		await expect(
 			within(popup).getByRole("button", { name: "Leave space" }),
 		).toBeEnabled()
+	},
+})
+
+const SIGN_OUT_ARTBOARD =
+	"Measured against the Paper page `Join an invited Space`, dark only."
+
+const expectSignOutQuestion = async (popup: HTMLElement) => {
+	await expect(
+		within(popup).getByRole("heading", { name: "Sign out of Kiroshi?" }),
+	).toBeVisible()
+	await expect(popup).toHaveTextContent(
+		"Studio Nord leaves this Mac until you sign in again. Its conversations stay with lea@example.com.",
+	)
+	const [cancel, signOut] = within(popup).getAllByRole("button")
+	await expect(cancel).toHaveAccessibleName("Cancel")
+	await expect(signOut).toHaveAccessibleName("Sign out")
+	await expect(getComputedStyle(signOut).color).not.toBe(
+		getComputedStyle(cancel).color,
+	)
+	await expect(
+		signOut.getBoundingClientRect().left - cancel.getBoundingClientRect().right,
+	).toBe(8)
+	return { cancel, signOut }
+}
+
+export const M12SignOut = meta.story({
+	name: "M12 Sign out",
+	globals: { theme: "dark" },
+	render: (args) => <SignOutConfirmation {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story: `${SIGN_OUT_ARTBOARD} M12: the question before signing out of Kiroshi takes a joined Space off this Mac. Check Cancel comes first in outline and Sign out wears the destructive colour 8px after it, right-aligned, that the description names the Space and who keeps its conversations, and that Sign out reports \`onConfirm\` alone.`,
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const popup = await confirmation()
+		const { signOut } = await expectSignOutQuestion(popup)
+
+		await userEvent.click(signOut)
+		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
+		await expect(args.onConfirm).toHaveBeenCalledOnce()
+		await expect(args.onCancel).not.toHaveBeenCalled()
+	},
+})
+
+export const M12SignOutCancelled = meta.story({
+	name: "M12 Sign out, cancelled",
+	tags: ["test-only"],
+	globals: { theme: "dark" },
+	render: (args) => <SignOutConfirmation {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story: `${SIGN_OUT_ARTBOARD} M12 answered with Cancel: the dialog closes and reports \`onCancel\` alone.`,
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const popup = await confirmation()
+		const { cancel } = await expectSignOutQuestion(popup)
+
+		await userEvent.click(cancel)
+		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
+		await expect(args.onCancel).toHaveBeenCalledOnce()
+		await expect(args.onConfirm).not.toHaveBeenCalled()
 	},
 })
