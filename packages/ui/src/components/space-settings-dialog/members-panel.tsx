@@ -27,6 +27,30 @@ type SpaceMember = {
 
 type InviteRefusal = "invited" | "self" | "malformed"
 
+type MembersFailureReason =
+	| "notHosting"
+	| "notOwner"
+	| "needsSignIn"
+	| "unreachable"
+	| "generic"
+
+type MembersFailure =
+	| {
+			action: "invite"
+			reason: MembersFailureReason | "limitReached"
+			email: string
+	  }
+	| {
+			action: "withdraw"
+			reason: MembersFailureReason | "gone" | "joined"
+			member: SpaceMember
+	  }
+	| {
+			action: "remove"
+			reason: MembersFailureReason | "gone" | "pending" | "host"
+			member: SpaceMember
+	  }
+
 type MembersPanelProps = {
 	space: string
 	members: SpaceMember[]
@@ -34,6 +58,7 @@ type MembersPanelProps = {
 	onEmailChange: (email: string) => void
 	onInvite: (email: string) => void
 	refusal?: InviteRefusal
+	failure?: MembersFailure
 	isHosted: boolean
 	onOpenHosting: () => void
 	shareLink: string | null
@@ -51,25 +76,59 @@ const nameOf = (member: SpaceMember) => member.name ?? member.email
 
 const firstNameOf = (member: SpaceMember) => nameOf(member).split(/\s+/)[0]
 
+const failureKeyOf = (failure: MembersFailure) => {
+	switch (failure.action) {
+		case "invite":
+			return `space.members.failure.invite.${failure.reason}` as const
+		case "withdraw":
+			return `space.members.failure.withdraw.${failure.reason}` as const
+		case "remove":
+			return `space.members.failure.remove.${failure.reason}` as const
+	}
+}
+
+const useFailureText = (failure: MembersFailure | undefined, space: string) => {
+	const { t } = useTranslation("settings")
+	if (!failure) {
+		return ""
+	}
+	const isInvite = failure.action === "invite"
+	return t(failureKeyOf(failure), {
+		space,
+		email: isInvite ? failure.email : failure.member.email,
+		name: isInvite ? "" : nameOf(failure.member),
+	})
+}
+
 type InviteFieldProps = Pick<
 	MembersPanelProps,
-	"email" | "onEmailChange" | "onInvite" | "refusal"
->
+	"space" | "email" | "onEmailChange" | "onInvite" | "refusal"
+> & {
+	failure?: MembersFailure
+}
 
 const InviteField = ({
+	space,
 	email,
 	onEmailChange,
 	onInvite,
 	refusal,
+	failure,
 }: InviteFieldProps) => {
 	const { t } = useTranslation("settings")
 	const id = useId()
 	const helperId = `${id}-helper`
+	const [resentFailure, setResentFailure] = useState<MembersFailure>()
+	const failureText = useFailureText(
+		refusal || failure === resentFailure ? undefined : failure,
+		space,
+	)
 	const isEmpty = email.trim() === ""
 
 	const submit = (event: FormEvent) => {
 		event.preventDefault()
 		if (!isEmpty) {
+			setResentFailure(failure)
 			onInvite(email)
 		}
 	}
@@ -107,13 +166,14 @@ const InviteField = ({
 			<p
 				className={cn(
 					"break-words text-xs",
-					refusal ? "text-destructive" : "text-muted-foreground",
+					refusal || failureText ? "text-destructive" : "text-muted-foreground",
 				)}
 				id={helperId}
 			>
 				{refusal
 					? t(`space.members.invite.refusal.${refusal}`, { email })
-					: t("space.members.invite.hint")}
+					: !failureText && t("space.members.invite.hint")}
+				<span role="status">{failureText}</span>
 			</p>
 		</form>
 	)
@@ -164,9 +224,15 @@ const MemberAvatar = ({ member }: MemberAvatarProps) =>
 
 type MemberRowProps = Pick<MembersPanelProps, "onRemove" | "onWithdraw"> & {
 	member: SpaceMember
+	failureText: string
 }
 
-const MemberRow = ({ member, onRemove, onWithdraw }: MemberRowProps) => {
+const MemberRow = ({
+	member,
+	failureText,
+	onRemove,
+	onWithdraw,
+}: MemberRowProps) => {
 	const { t } = useTranslation("settings")
 	const isPending = member.status === "pending"
 
@@ -183,6 +249,9 @@ const MemberRow = ({ member, onRemove, onWithdraw }: MemberRowProps) => {
 						{member.email}
 					</p>
 				)}
+				<p className="break-words text-destructive text-xs" role="status">
+					{failureText}
+				</p>
 			</div>
 			<span
 				className={cn(
@@ -217,6 +286,7 @@ const MembersPanel = ({
 	onEmailChange,
 	onInvite,
 	refusal,
+	failure,
 	isHosted,
 	onOpenHosting,
 	shareLink,
@@ -248,15 +318,19 @@ const MembersPanel = ({
 	}
 
 	const name = asked ? firstNameOf(asked) : ""
+	const rowFailure = failure?.action === "invite" ? undefined : failure
+	const rowFailureText = useFailureText(rowFailure, space)
 
 	return (
 		<div className="flex flex-col gap-6" data-slot="members-panel">
 			{isHosted ? (
 				<InviteField
 					email={email}
+					failure={failure?.action === "invite" ? failure : undefined}
 					onEmailChange={onEmailChange}
 					onInvite={onInvite}
 					refusal={refusal}
+					space={space}
 				/>
 			) : (
 				<HostingNeeded onOpenHosting={onOpenHosting} />
@@ -264,6 +338,9 @@ const MembersPanel = ({
 			<ul className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-x-2.5 divide-y divide-border rounded-xl border border-border">
 				{members.map((member) => (
 					<MemberRow
+						failureText={
+							rowFailure?.member.id === member.id ? rowFailureText : ""
+						}
 						key={member.id}
 						member={member}
 						onRemove={onRemove}
@@ -286,6 +363,7 @@ const MembersPanel = ({
 
 export {
 	type InviteRefusal,
+	type MembersFailure,
 	MembersPanel,
 	type MembersPanelProps,
 	type SpaceMember,

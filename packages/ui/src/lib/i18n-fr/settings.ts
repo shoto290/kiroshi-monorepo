@@ -179,6 +179,53 @@ const settings = {
 					"{{name}} perd l’accès immédiatement. Vous pourrez inviter {{name}} de nouveau.",
 			},
 			withdrawn: "Invitation à {{email}} retirée",
+			failure: {
+				invite: {
+					notHosting:
+						"{{space}} n’est plus hébergé. Activez l’hébergement pour inviter {{email}}.",
+					limitReached:
+						"{{space}} ne peut pas accueillir plus de membres. Retirez quelqu’un pour inviter {{email}}.",
+					notOwner:
+						"Ce compte n’héberge pas {{space}}. Connectez-vous avec le compte qui l’héberge pour inviter {{email}}.",
+					needsSignIn:
+						"Impossible d’inviter {{email}}, vous êtes déconnecté. Connectez-vous à Kiroshi et invitez cette personne de nouveau.",
+					unreachable:
+						"Impossible de joindre Kiroshi pour inviter {{email}}. Vérifiez votre connexion et réessayez.",
+					generic:
+						"Impossible d’inviter {{email}}. Rien n’a changé, réessayez.",
+				},
+				withdraw: {
+					gone: "L’invitation à {{email}} n’existe déjà plus. Il n’y a rien à retirer.",
+					joined:
+						"{{name}} a déjà rejoint l’espace. Sélectionnez Retirer pour l’exclure de {{space}}.",
+					notHosting:
+						"{{space}} n’est plus hébergé. Activez l’hébergement pour retirer l’invitation à {{email}}.",
+					notOwner:
+						"Ce compte n’héberge pas {{space}}. Connectez-vous avec le compte qui l’héberge pour retirer l’invitation à {{email}}.",
+					needsSignIn:
+						"Impossible de retirer l’invitation à {{email}}, vous êtes déconnecté. Connectez-vous à Kiroshi et réessayez.",
+					unreachable:
+						"Impossible de joindre Kiroshi pour retirer l’invitation à {{email}}. Vérifiez votre connexion et réessayez.",
+					generic:
+						"Impossible de retirer l’invitation à {{email}}. Rien n’a changé, réessayez.",
+				},
+				remove: {
+					gone: "{{name}} n’est plus membre. Il n’y a rien à retirer.",
+					pending:
+						"{{name}} n’a pas encore rejoint l’espace. Sélectionnez Retirer de nouveau pour retirer l’invitation.",
+					host: "Vous hébergez {{space}}, vous ne pouvez donc pas être retiré. Désactivez plutôt l’hébergement.",
+					notHosting:
+						"{{space}} n’est plus hébergé. Activez l’hébergement pour retirer {{name}}.",
+					notOwner:
+						"Ce compte n’héberge pas {{space}}. Connectez-vous avec le compte qui l’héberge pour retirer {{name}}.",
+					needsSignIn:
+						"Impossible de retirer {{name}}, vous êtes déconnecté. Connectez-vous à Kiroshi et réessayez.",
+					unreachable:
+						"Impossible de joindre Kiroshi pour retirer {{name}}. Vérifiez votre connexion et réessayez.",
+					generic:
+						"Impossible de retirer {{name}}. Rien n’a changé, réessayez.",
+				},
+			},
 		},
 		hosting: {
 			label: "Héberger via Kiroshi",

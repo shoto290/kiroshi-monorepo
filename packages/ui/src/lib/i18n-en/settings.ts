@@ -179,6 +179,51 @@ const settings = {
 					"{{name}} loses access right away. You can invite {{name}} again.",
 			},
 			withdrawn: "Invitation to {{email}} withdrawn",
+			failure: {
+				invite: {
+					notHosting:
+						"{{space}} isn’t hosted anymore. Turn on hosting to invite {{email}}.",
+					limitReached:
+						"{{space}} can’t take more members. Remove someone to invite {{email}}.",
+					notOwner:
+						"This account doesn’t host {{space}}. Sign in with the account that does to invite {{email}}.",
+					needsSignIn:
+						"Couldn’t invite {{email}}, you’re signed out. Sign in to Kiroshi and invite them again.",
+					unreachable:
+						"Couldn’t reach Kiroshi to invite {{email}}. Check your connection and try again.",
+					generic: "Couldn’t invite {{email}}. Nothing changed, try again.",
+				},
+				withdraw: {
+					gone: "The invitation to {{email}} is already gone. There’s nothing to withdraw.",
+					joined:
+						"{{name}} already joined. Select Remove to take them out of {{space}}.",
+					notHosting:
+						"{{space}} isn’t hosted anymore. Turn on hosting to withdraw the invitation to {{email}}.",
+					notOwner:
+						"This account doesn’t host {{space}}. Sign in with the account that does to withdraw the invitation to {{email}}.",
+					needsSignIn:
+						"Couldn’t withdraw the invitation to {{email}}, you’re signed out. Sign in to Kiroshi and try again.",
+					unreachable:
+						"Couldn’t reach Kiroshi to withdraw the invitation to {{email}}. Check your connection and try again.",
+					generic:
+						"Couldn’t withdraw the invitation to {{email}}. Nothing changed, try again.",
+				},
+				remove: {
+					gone: "{{name}} isn’t a member anymore. There’s nothing to remove.",
+					pending:
+						"{{name}} hasn’t joined yet. Select Remove again to withdraw the invitation.",
+					host: "You host {{space}}, so you can’t be removed. Turn off hosting instead.",
+					notHosting:
+						"{{space}} isn’t hosted anymore. Turn on hosting to remove {{name}}.",
+					notOwner:
+						"This account doesn’t host {{space}}. Sign in with the account that does to remove {{name}}.",
+					needsSignIn:
+						"Couldn’t remove {{name}}, you’re signed out. Sign in to Kiroshi and try again.",
+					unreachable:
+						"Couldn’t reach Kiroshi to remove {{name}}. Check your connection and try again.",
+					generic: "Couldn’t remove {{name}}. Nothing changed, try again.",
+				},
+			},
 		},
 		hosting: {
 			label: "Host through Kiroshi",

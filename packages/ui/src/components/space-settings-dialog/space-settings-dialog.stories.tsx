@@ -33,6 +33,7 @@ import {
 } from "@workspace/ui/components/space-settings-dialog"
 import { JoinedSpaceFields } from "@workspace/ui/components/space-settings-dialog/joined-space-fields"
 import {
+	type MembersFailure,
 	MembersPanel,
 	type MembersPanelProps,
 	type SpaceMember,
@@ -1352,6 +1353,371 @@ export const MembersOpenHosting = meta.story({
 		await userEvent.click(members)
 		await expect(members).toHaveAttribute("aria-selected", "true")
 		await expect(await membersPanelIn()).toBeVisible()
+	},
+})
+
+const filledRegionIn = (panel: HTMLElement) => {
+	const [line, ...others] = within(panel)
+		.getAllByRole("status")
+		.filter((region) => region.textContent)
+	if (!line || others.length > 0) {
+		throw new Error("Expected exactly one filled failure region")
+	}
+	return line
+}
+
+const failureLineIn = async (panel: HTMLElement, message: string) => {
+	const line = filledRegionIn(panel)
+	await expect(line.textContent).toBe(message)
+	await expect(getComputedStyle(line).color).toBe(
+		probedStyleOf("text-destructive", "color", panel),
+	)
+	return line
+}
+
+const expectInRowAlone = async (
+	panel: HTMLElement,
+	line: HTMLElement,
+	name: string,
+) => {
+	const rows = slotsIn(panel, "space-member")
+	const failed = rows.filter((row) => row.contains(line))
+	await expect(failed).toHaveLength(1)
+	for (const row of rows.filter((row) => !row.contains(line))) {
+		await expect(within(row).getByRole("status")).toBeEmptyDOMElement()
+	}
+	const nameBox = within(failed[0])
+		.getByText(name, { selector: "p" })
+		.getBoundingClientRect()
+	const lineBox = line.getBoundingClientRect()
+	await expect(lineBox.left).toBe(nameBox.left)
+	await expect(lineBox.top).toBeGreaterThanOrEqual(nameBox.bottom)
+	await expect(inviteFieldIn(panel)).toHaveAccessibleDescription(
+		"They join by signing in to Kiroshi with this email.",
+	)
+}
+
+const EditableMembersPanel = (props: MembersPanelProps) => {
+	const [email, setEmail] = useState(props.email)
+
+	return <MembersPanel {...props} email={email} onEmailChange={setEmail} />
+}
+
+export const MembersInviteFailed = meta.story({
+	args: {
+		...membersArgs(),
+		members: (
+			<EditableMembersPanel
+				{...MEMBERS_PANEL}
+				email="sam@example.com"
+				failure={{
+					action: "invite",
+					reason: "generic",
+					email: "sam@example.com",
+				}}
+			/>
+		),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Kiroshi could not invite the address. The line takes the helper's place under the field, in the refusals' destructive text, and is announced once. The address is not wrong, so the field keeps its normal border and ring. The app passes `failure` with the action and a reason; `MembersFailureCopy` lists every reason.",
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		const panel = await membersPanelIn()
+		const message =
+			"Couldn’t invite sam@example.com. Nothing changed, try again."
+		const line = await failureLineIn(panel, message)
+		const field = inviteFieldIn(panel)
+		await expect(field).toHaveAccessibleDescription(message)
+		await expect(field).not.toHaveAttribute("aria-invalid")
+		await expect(getComputedStyle(field).borderTopColor).toBe(
+			probedStyleOf("border-input", "borderTopColor", panel),
+		)
+		await expect(getComputedStyle(field).boxShadow).not.toContain(
+			probedStyleOf("text-destructive/20", "color", panel),
+		)
+		await expect(line.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+			field.getBoundingClientRect().bottom,
+		)
+		await expect(line.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+			within(panel).getByRole("list").getBoundingClientRect().top,
+		)
+
+		await userEvent.type(field, ".org")
+		await expect(field).toHaveValue("sam@example.com.org")
+		await expect(line.textContent).toBe(message)
+
+		await userEvent.click(within(panel).getByRole("button", { name: "Invite" }))
+		await expect(line).toBeEmptyDOMElement()
+		await expect(field).toHaveAccessibleDescription(
+			"They join by signing in to Kiroshi with this email.",
+		)
+	},
+})
+
+export const MembersWithdrawFailed = meta.story({
+	args: membersArgs({
+		members: [STEVE, SAM_PENDING],
+		failure: { action: "withdraw", reason: "generic", member: SAM_PENDING },
+	}),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Kiroshi could not withdraw Sam's invitation. One destructive line sits in Sam's row, under the address, announced once; Sam stays Pending.",
+			},
+		},
+	},
+	play: async () => {
+		const panel = await membersPanelIn()
+		const line = await failureLineIn(
+			panel,
+			"Couldn’t withdraw the invitation to sam@example.com. Nothing changed, try again.",
+		)
+		await expectInRowAlone(panel, line, "sam@example.com")
+	},
+})
+
+const ALEX: SpaceMember = {
+	id: "alex",
+	name: "Alex Moreau",
+	email: "alex@example.com",
+	status: "joined",
+}
+
+const JO_PENDING: SpaceMember = {
+	id: "jo",
+	email: "jo@example.com",
+	status: "pending",
+}
+
+export const MembersRemoveFailed = meta.story({
+	args: membersArgs({
+		members: [STEVE, ALEX, SAM_CARTER, JO_PENDING],
+		failure: { action: "remove", reason: "generic", member: SAM_CARTER },
+	}),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Kiroshi could not remove Sam, in the middle of the list. One destructive line sits in Sam's row, under the name and address, announced once; Sam stays Joined and in place, and no other row carries a line.",
+			},
+		},
+	},
+	play: async () => {
+		const panel = await membersPanelIn()
+		const line = await failureLineIn(
+			panel,
+			"Couldn’t remove Sam Carter. Nothing changed, try again.",
+		)
+		await expect(
+			slotsIn(panel, "space-member").findIndex((row) => row.contains(line)),
+		).toBe(2)
+		await expectInRowAlone(panel, line, "Sam Carter")
+	},
+})
+
+const LONG_EMAIL =
+	"maximiliana.konstantinopoulou-vanderberghe@example-long-domain.com"
+
+const LONG_MEMBER: SpaceMember = {
+	id: "long",
+	name: "Maximiliana-Konstantinopoulou-Vanderberghe-de-la-Fontaine",
+	email: LONG_EMAIL,
+	status: "joined",
+}
+
+const FAILURE_COPY: [MembersFailure, string][] = [
+	[
+		{ action: "invite", reason: "notHosting", email: "sam@example.com" },
+		"Personal isn’t hosted anymore. Turn on hosting to invite sam@example.com.",
+	],
+	[
+		{ action: "invite", reason: "limitReached", email: "sam@example.com" },
+		"Personal can’t take more members. Remove someone to invite sam@example.com.",
+	],
+	[
+		{ action: "invite", reason: "notOwner", email: "sam@example.com" },
+		"This account doesn’t host Personal. Sign in with the account that does to invite sam@example.com.",
+	],
+	[
+		{ action: "invite", reason: "needsSignIn", email: "sam@example.com" },
+		"Couldn’t invite sam@example.com, you’re signed out. Sign in to Kiroshi and invite them again.",
+	],
+	[
+		{ action: "invite", reason: "unreachable", email: "sam@example.com" },
+		"Couldn’t reach Kiroshi to invite sam@example.com. Check your connection and try again.",
+	],
+	[
+		{ action: "invite", reason: "generic", email: "sam@example.com" },
+		"Couldn’t invite sam@example.com. Nothing changed, try again.",
+	],
+	[
+		{ action: "withdraw", reason: "gone", member: SAM_PENDING },
+		"The invitation to sam@example.com is already gone. There’s nothing to withdraw.",
+	],
+	[
+		{ action: "withdraw", reason: "joined", member: SAM_CARTER },
+		"Sam Carter already joined. Select Remove to take them out of Personal.",
+	],
+	[
+		{ action: "withdraw", reason: "notHosting", member: SAM_PENDING },
+		"Personal isn’t hosted anymore. Turn on hosting to withdraw the invitation to sam@example.com.",
+	],
+	[
+		{ action: "withdraw", reason: "notOwner", member: SAM_PENDING },
+		"This account doesn’t host Personal. Sign in with the account that does to withdraw the invitation to sam@example.com.",
+	],
+	[
+		{ action: "withdraw", reason: "needsSignIn", member: SAM_PENDING },
+		"Couldn’t withdraw the invitation to sam@example.com, you’re signed out. Sign in to Kiroshi and try again.",
+	],
+	[
+		{ action: "withdraw", reason: "unreachable", member: SAM_PENDING },
+		"Couldn’t reach Kiroshi to withdraw the invitation to sam@example.com. Check your connection and try again.",
+	],
+	[
+		{ action: "withdraw", reason: "generic", member: SAM_PENDING },
+		"Couldn’t withdraw the invitation to sam@example.com. Nothing changed, try again.",
+	],
+	[
+		{ action: "remove", reason: "gone", member: SAM_CARTER },
+		"Sam Carter isn’t a member anymore. There’s nothing to remove.",
+	],
+	[
+		{ action: "remove", reason: "pending", member: SAM_PENDING },
+		"sam@example.com hasn’t joined yet. Select Remove again to withdraw the invitation.",
+	],
+	[
+		{ action: "remove", reason: "host", member: STEVE },
+		"You host Personal, so you can’t be removed. Turn off hosting instead.",
+	],
+	[
+		{ action: "remove", reason: "notHosting", member: SAM_CARTER },
+		"Personal isn’t hosted anymore. Turn on hosting to remove Sam Carter.",
+	],
+	[
+		{ action: "remove", reason: "notOwner", member: SAM_CARTER },
+		"This account doesn’t host Personal. Sign in with the account that does to remove Sam Carter.",
+	],
+	[
+		{ action: "remove", reason: "needsSignIn", member: SAM_CARTER },
+		"Couldn’t remove Sam Carter, you’re signed out. Sign in to Kiroshi and try again.",
+	],
+	[
+		{ action: "remove", reason: "unreachable", member: SAM_CARTER },
+		"Couldn’t reach Kiroshi to remove Sam Carter. Check your connection and try again.",
+	],
+	[
+		{ action: "remove", reason: "generic", member: SAM_CARTER },
+		"Couldn’t remove Sam Carter. Nothing changed, try again.",
+	],
+]
+
+const LONG_FAILURES: MembersFailure[] = [
+	{ action: "invite", reason: "generic", email: LONG_EMAIL },
+	{ action: "remove", reason: "generic", member: LONG_MEMBER },
+]
+
+const FailureCopy = () => (
+	<div className="flex w-80 flex-col gap-12 p-4">
+		{FAILURE_COPY.map(([failure]) => (
+			<MembersPanel
+				key={`${failure.action}-${failure.reason}`}
+				{...MEMBERS_PANEL}
+				email="sam@example.com"
+				failure={failure}
+				members={
+					failure.action === "invite" || failure.member === STEVE
+						? [STEVE]
+						: [STEVE, failure.member]
+				}
+			/>
+		))}
+		{LONG_FAILURES.map((failure) => (
+			<MembersPanel
+				key={`long-${failure.action}`}
+				{...MEMBERS_PANEL}
+				email={LONG_EMAIL}
+				failure={failure}
+				members={[STEVE, LONG_MEMBER]}
+			/>
+		))}
+	</div>
+)
+
+export const MembersFailureCopy = meta.story({
+	tags: ["test-only"],
+	render: () => <FailureCopy />,
+	play: async ({ canvasElement }) => {
+		const panels = slotsIn(canvasElement, "members-panel")
+		const lines = panels.map((panel) => filledRegionIn(panel).textContent)
+		await expect(lines.slice(0, FAILURE_COPY.length)).toEqual(
+			FAILURE_COPY.map(([, message]) => message),
+		)
+		for (const panel of panels.slice(FAILURE_COPY.length)) {
+			const line = filledRegionIn(panel)
+			await expect(line.scrollWidth).toBeLessThanOrEqual(line.clientWidth)
+			await expect(line.getBoundingClientRect().right).toBeLessThanOrEqual(
+				panel.getBoundingClientRect().right,
+			)
+		}
+	},
+})
+
+const FailingMembersPanel = () => {
+	const [failure, setFailure] = useState<MembersFailure>()
+
+	return (
+		<MembersPanel
+			{...MEMBERS_PANEL}
+			email="sam@example.com"
+			failure={failure}
+			members={[STEVE, SAM_CARTER]}
+			onInvite={(email) =>
+				setFailure({ action: "invite", reason: "generic", email })
+			}
+			onRemove={(member) =>
+				setFailure({ action: "remove", reason: "generic", member })
+			}
+		/>
+	)
+}
+
+export const MembersFailureRegions = meta.story({
+	tags: ["test-only"],
+	render: () => <FailingMembersPanel />,
+	play: async ({ canvasElement, userEvent }) => {
+		const panel = slotIn(canvasElement, "members-panel")
+		const regions = within(panel).getAllByRole("status")
+		await expect(regions).toHaveLength(3)
+		const [inviteRegion, , samRegion] = regions
+		for (const region of regions) {
+			await expect(region).toBeEmptyDOMElement()
+		}
+		await expect(samRegion.getBoundingClientRect().height).toBe(0)
+
+		await userEvent.click(within(panel).getByRole("button", { name: "Invite" }))
+		await expect(within(panel).getAllByRole("status")[0]).toBe(inviteRegion)
+		await expect(inviteRegion).toHaveTextContent(
+			"Couldn’t invite sam@example.com. Nothing changed, try again.",
+		)
+		await expect(inviteFieldIn(panel)).toHaveAccessibleDescription(
+			"Couldn’t invite sam@example.com. Nothing changed, try again.",
+		)
+
+		await userEvent.click(
+			within(panel).getByRole("button", { name: "Remove Sam Carter" }),
+		)
+		await expect(within(panel).getAllByRole("status")[2]).toBe(samRegion)
+		await expect(samRegion).toHaveTextContent(
+			"Couldn’t remove Sam Carter. Nothing changed, try again.",
+		)
+		await expect(inviteRegion).toBeEmptyDOMElement()
 	},
 })
 
