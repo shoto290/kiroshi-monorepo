@@ -39,6 +39,7 @@ type SettingsDialogShellProps = {
 	open: boolean
 	onClose: () => void
 	tab: string
+	onTabChange?: (tab: string) => void
 	mark: ReactNode
 	name: string
 	breadcrumb: string
@@ -63,6 +64,7 @@ const SettingsDialogShell = ({
 	open,
 	onClose,
 	tab,
+	onTabChange,
 	mark,
 	name,
 	breadcrumb,
@@ -76,7 +78,7 @@ const SettingsDialogShell = ({
 	const [tabs, setTabs] = useState<HTMLDivElement | null>(null)
 	const [isLeaving, setLeaving] = useState(false)
 	const iconsOnly = useIsNarrowerThan(tabs, RAIL_LABELS_MIN_WIDTH)
-	const activeTab = useSettingsTab(open, tab)
+	const activeTab = useSettingsTab(open, tab, onTabChange)
 	const declared = Object.values(sessions)
 	const wordedKind = wordedKindOf(sessions, pages)
 

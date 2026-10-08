@@ -7,7 +7,7 @@ import {
 	screen,
 	within,
 } from "@testing-library/react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest"
 
 import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import {
@@ -20,7 +20,10 @@ import {
 } from "@workspace/ui/components/plugin-settings/history.fixtures"
 import { BOT_SKILLS } from "@workspace/ui/components/plugin-settings/skills.fixtures"
 import type { PluginSessionsProps } from "@workspace/ui/components/plugin-settings/use-plugin-sessions"
-import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
+import {
+	SpaceSettingsDialog,
+	type SpaceSettingsDialogProps,
+} from "@workspace/ui/components/space-settings-dialog"
 
 import "@workspace/ui/lib/i18n"
 
@@ -30,35 +33,34 @@ const SERVER_ENVIRONMENT_SECTION = {
 	onDelete: vi.fn(),
 }
 
+const SPACE_PROPS = {
+	environment: SPACE_ENVIRONMENT,
+	history: {
+		days: HISTORY_DAYS,
+		oldestDate: HISTORY_OLDEST_DATE,
+		onUndo: vi.fn(),
+	},
+	mcpServers: BOT_MCP_SERVERS,
+	onClose: vi.fn(),
+	onDelete: vi.fn(),
+	onEnvironmentDelete: vi.fn(),
+	onEnvironmentSet: vi.fn(),
+	onMcpServerChange: vi.fn(),
+	onMcpServerCreate: vi.fn(),
+	onMcpServerDelete: vi.fn(),
+	onSkillChange: vi.fn(),
+	onSkillCreate: vi.fn(),
+	onSkillDelete: vi.fn(),
+	onSkillPreloadedChange: vi.fn(),
+	onValueChange: vi.fn(),
+	open: true,
+	serverEnvironment: SERVER_ENVIRONMENT_SECTION,
+	skills: BOT_SKILLS,
+	value: { name: "Release desk", colour: "blue" },
+} satisfies SpaceSettingsDialogProps
+
 const spaceDialog = (overrides: Partial<PluginSessionsProps> = {}) =>
-	render(
-		<SpaceSettingsDialog
-			environment={SPACE_ENVIRONMENT}
-			history={{
-				days: HISTORY_DAYS,
-				oldestDate: HISTORY_OLDEST_DATE,
-				onUndo: vi.fn(),
-			}}
-			mcpServers={BOT_MCP_SERVERS}
-			onClose={vi.fn()}
-			onDelete={vi.fn()}
-			onEnvironmentDelete={vi.fn()}
-			onEnvironmentSet={vi.fn()}
-			onMcpServerChange={vi.fn()}
-			onMcpServerCreate={vi.fn()}
-			onMcpServerDelete={vi.fn()}
-			onSkillChange={vi.fn()}
-			onSkillCreate={vi.fn()}
-			onSkillDelete={vi.fn()}
-			onSkillPreloadedChange={vi.fn()}
-			onValueChange={vi.fn()}
-			open
-			serverEnvironment={SERVER_ENVIRONMENT_SECTION}
-			skills={BOT_SKILLS}
-			value={{ name: "Release desk", colour: "blue" }}
-			{...overrides}
-		/>,
-	)
+	render(<SpaceSettingsDialog {...SPACE_PROPS} {...overrides} />)
 
 const pick = async (name: string) => {
 	fireEvent.click(await screen.findByRole("tab", { name }))
@@ -139,5 +141,21 @@ describe("SpaceSettingsDialog applications", () => {
 
 		expect(onMcpServerOpen).toHaveBeenLastCalledWith(null)
 		expect(within(await pick("Secrets")).queryByText("LEDGER_KEY")).toBe(null)
+	})
+})
+
+describe("SpaceSettingsDialog tab", () => {
+	it("refuses onTabChange without tab", () => {
+		const onTabChange = vi.fn()
+
+		expectTypeOf({
+			...SPACE_PROPS,
+			onTabChange,
+		}).not.toExtend<SpaceSettingsDialogProps>()
+		expectTypeOf({
+			...SPACE_PROPS,
+			tab: "hosting",
+			onTabChange,
+		}).toExtend<SpaceSettingsDialogProps>()
 	})
 })

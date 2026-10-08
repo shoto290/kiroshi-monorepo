@@ -71,6 +71,31 @@ const dialogIn = async () => {
 	return dialog
 }
 
+const SPACE_ARGS = {
+	open: true,
+	value: FILLED_SPACE,
+	onClose: fn(),
+	onValueChange: fn(),
+	environment: SPACE_ENVIRONMENT,
+	onEnvironmentSet: fn(),
+	onEnvironmentDelete: fn(),
+	skills: BOT_SKILLS,
+	onSkillCreate: fn(),
+	onSkillChange: fn(),
+	onSkillPreloadedChange: fn(),
+	onSkillDelete: fn(),
+	mcpServers: BOT_MCP_SERVERS,
+	onMcpServerCreate: fn(),
+	onMcpServerChange: fn(),
+	onMcpServerDelete: fn(),
+	history: {
+		days: HISTORY_DAYS,
+		oldestDate: HISTORY_OLDEST_DATE,
+		onUndo: fn(),
+	},
+	onDelete: fn(),
+}
+
 const meta = preview.meta({
 	title: "Settings/Space/SpaceSettingsDialog",
 	component: SpaceSettingsDialog,
@@ -84,30 +109,7 @@ const meta = preview.meta({
 			},
 		},
 	},
-	args: {
-		open: true,
-		value: FILLED_SPACE,
-		onClose: fn(),
-		onValueChange: fn(),
-		environment: SPACE_ENVIRONMENT,
-		onEnvironmentSet: fn(),
-		onEnvironmentDelete: fn(),
-		skills: BOT_SKILLS,
-		onSkillCreate: fn(),
-		onSkillChange: fn(),
-		onSkillPreloadedChange: fn(),
-		onSkillDelete: fn(),
-		mcpServers: BOT_MCP_SERVERS,
-		onMcpServerCreate: fn(),
-		onMcpServerChange: fn(),
-		onMcpServerDelete: fn(),
-		history: {
-			days: HISTORY_DAYS,
-			oldestDate: HISTORY_OLDEST_DATE,
-			onUndo: fn(),
-		},
-		onDelete: fn(),
-	},
+	args: SPACE_ARGS,
 	render: (args) => <DialogHost {...args} />,
 })
 
@@ -1299,6 +1301,57 @@ export const MembersI10 = meta.story({
 			within(panel).getByRole("button", { name: "Open Hosting" }),
 		)
 		await expect(MEMBERS_PANEL.onOpenHosting).toHaveBeenCalledOnce()
+	},
+})
+
+const OpenHostingHost = () => {
+	const [tab, setTab] = useState("members")
+
+	return (
+		<DialogHost
+			{...SPACE_ARGS}
+			{...HOSTING_ARGS}
+			members={
+				<MembersPanel
+					{...MEMBERS_PANEL}
+					isHosted={false}
+					onOpenHosting={() => setTab("hosting")}
+				/>
+			}
+			onTabChange={setTab}
+			tab={tab}
+			value={{ name: "Personal", colour: "blue" }}
+		/>
+	)
+}
+
+export const MembersOpenHosting = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Artboard I10, followed through. The caller holds the rail entry through `tab` and `onTabChange`, so Open Hosting switches the open dialog to Hosting instead of closing and reopening it, and a rail click moves it back to Members.",
+			},
+		},
+	},
+	render: () => <OpenHostingHost />,
+	play: async ({ userEvent }) => {
+		const panel = await membersPanelIn()
+		await userEvent.click(
+			within(panel).getByRole("button", { name: "Open Hosting" }),
+		)
+
+		const dialog = await dialogIn()
+		await expect(
+			within(dialog).getByRole("tab", { name: "Hosting" }),
+		).toHaveAttribute("aria-selected", "true")
+		await expect(await hostingPanelIn()).toBeVisible()
+		await expect(SPACE_ARGS.onClose).not.toHaveBeenCalled()
+
+		const members = within(dialog).getByRole("tab", { name: "Members" })
+		await userEvent.click(members)
+		await expect(members).toHaveAttribute("aria-selected", "true")
+		await expect(await membersPanelIn()).toBeVisible()
 	},
 })
 

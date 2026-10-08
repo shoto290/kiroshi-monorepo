@@ -68,6 +68,16 @@ type JoinedSpace = {
 	onShareLinkCopy?: never
 }
 
+type ControlledTab = {
+	tab: string
+	onTabChange: (tab: string) => void
+}
+
+type UncontrolledTab = {
+	tab?: string
+	onTabChange?: never
+}
+
 type SpaceSettingsDialogProps = PluginSessionsProps & {
 	open: boolean
 	onClose: () => void
@@ -77,12 +87,12 @@ type SpaceSettingsDialogProps = PluginSessionsProps & {
 	hasEnvironmentFailedToRead?: boolean
 	onEnvironmentSet: (write: EnvironmentWrite) => void | Promise<void>
 	onEnvironmentDelete: (name: string) => void | Promise<void>
-	tab?: string
 	history: PluginHistory
 	members?: ReactNode
 	className?: string
 } & (LocalSpace | JoinedSpace) &
-	(Hosting | NoHosting)
+	(Hosting | NoHosting) &
+	(ControlledTab | UncontrolledTab)
 
 const SpaceSettingsDialog = ({
 	open,
@@ -94,6 +104,7 @@ const SpaceSettingsDialog = ({
 	onEnvironmentSet,
 	onEnvironmentDelete,
 	tab,
+	onTabChange,
 	history,
 	onDelete,
 	isDeletable = true,
@@ -191,6 +202,7 @@ const SpaceSettingsDialog = ({
 				</>
 			)}
 			sessions={sessions}
+			onTabChange={onTabChange}
 			tab={tab ?? FIRST_TAB}
 		>
 			<SettingsScrollingPanel value={FIRST_TAB}>
