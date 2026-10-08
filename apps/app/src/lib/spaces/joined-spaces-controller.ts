@@ -234,14 +234,36 @@ export const createJoinedSpacesController = ({
 	const shownOf = (listed: JoinedSpace[]) =>
 		isJoining ? listed.filter(isHeld) : listed
 
+	const vanishedFrom = (listed: JoinedSpace[]) =>
+		current().joinedSpaces.filter(
+			(held) =>
+				held.id !== current().removed?.joined.id &&
+				!listed.some((joined) => joined.id === held.id),
+		)
+
+	const leaveVanished = (gone: JoinedSpace[]) => {
+		for (const joined of gone) {
+			hosts.forget(joined.id)
+			inviters.forget(joined.id)
+		}
+		const { selectedSpaceId } = spaces.getState()
+		const isSelectedGone = gone.some(
+			(joined) => rowIdOf(joined) === selectedSpaceId,
+		)
+		const back = backSpaceId()
+		if (isSelectedGone && back) selectSpace(back)
+	}
+
 	const read = async () => {
 		latestRead += 1
 		const ticket = latestRead
 		try {
 			const joinedSpaces = shownOf(await transport.list())
 			if (ticket === latestRead) {
+				const gone = vanishedFrom(joinedSpaces)
 				set({ joinedSpaces, hasFailedToLoad: false })
 				connectEach(joinedSpaces)
+				leaveVanished(gone)
 			}
 		} catch (reason) {
 			if (ticket === latestRead) noteFailedLoad(reason)

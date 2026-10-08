@@ -579,3 +579,46 @@ describe("a host removing the reader", () => {
 		).toEqual({ studio: "unreachable" })
 	})
 })
+
+describe("a read dropping a joined space", () => {
+	it("moves the reader from an open relay space dropped by sign out to the local space", async () => {
+		const gear = await withStudio()
+		await gear.joined.admit(STUDIO, HOST_EMAIL)
+		expect(gear.spaces.getState().selectedSpaceId).toBe("studio")
+
+		gear.wire.hold([])
+		gear.wire.announce()
+		await settle()
+
+		expect(gear.joined.getState().joinedSpaces).toEqual([])
+		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(null)
+		expect(gear.hosts.forget).toHaveBeenCalledWith(STUDIO.id)
+		expect(gear.joined.hostEmailOf(STUDIO.id)).toBe("")
+	})
+
+	it("forgets a dropped space that is not open and keeps the selection", async () => {
+		const gear = await withStudio()
+		await gear.joined.admit(STUDIO, HOST_EMAIL)
+		gear.joined.selectSpace(gear.home.id)
+
+		gear.wire.hold([])
+		gear.wire.announce()
+		await settle()
+
+		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
+		expect(gear.hosts.forget).toHaveBeenCalledWith(STUDIO.id)
+		expect(gear.joined.hostEmailOf(STUDIO.id)).toBe("")
+	})
+
+	it("keeps a space held as removed on screen through the read", async () => {
+		const gear = await withStudio()
+		await gear.joined.admit(STUDIO, HOST_EMAIL)
+		gear.wire.evict(STUDIO)
+		await settle()
+
+		expect(gear.spaces.getState().selectedSpaceId).toBe("studio")
+		expect(gear.joined.getState().removed?.joined).toEqual(STUDIO)
+		expect(gear.hosts.forget).not.toHaveBeenCalled()
+	})
+})
