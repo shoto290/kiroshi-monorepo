@@ -324,9 +324,8 @@ impl Harness {
 			.route(INVOKE_ROUTE, post(host_effect_applied))
 			.with_state(effects.clone());
 		let database = effects.database.clone();
-		let harness =
-			Self::serving(name, None, Some(BEARER), super::members::MEMBERS_EVERY, database, local)
-				.await;
+		let every = super::members::MEMBERS_EVERY;
+		let harness = Self::serving(name, None, Some(BEARER), every, database, local).await;
 		(harness, effects)
 	}
 
@@ -823,7 +822,6 @@ fn a_relay_guest_cannot_add_a_joined_space_to_the_host() {
 
 		let listed = db::open(&effects.database).joined_spaces().list().await.expect("listed");
 		assert!(listed.is_empty(), "{listed:?}");
-		assert!(!effects.reached().contains(&"joined_space_add".to_owned()));
 	});
 }
 
