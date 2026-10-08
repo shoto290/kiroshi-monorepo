@@ -12,8 +12,9 @@ pub use connection::DatabaseError;
 use repositories::{
 	messages, ApplicationInstallsRepository, CatalogueRepository, ConversationsRepository,
 	JoinedSpacesRepository, MessagesRepository, MissionsRepository, RoutinesRepository,
-	RuntimeContextRepository, SearchRepository, SectionsRepository, SpaceHostingRepository,
-	SpaceRowsRepository, SpaceSettingsRepository, SpacesRepository, UserRepository,
+	RuntimeContextRepository, SearchRepository, SectionsRepository, SpaceChildrenRepository,
+	SpaceHostingRepository, SpaceRowsRepository, SpaceSettingsRepository, SpacesRepository,
+	UserRepository,
 };
 
 #[derive(Clone)]
@@ -75,6 +76,7 @@ pub struct Database {
 	runtime_context: RuntimeContextRepository,
 	search: SearchRepository,
 	sections: SectionsRepository,
+	space_children: SpaceChildrenRepository,
 	space_hosting: SpaceHostingRepository,
 	space_rows: SpaceRowsRepository,
 	space_settings: SpaceSettingsRepository,
@@ -99,6 +101,7 @@ impl Database {
 			runtime_context: RuntimeContextRepository::new(access.clone()),
 			search: SearchRepository::new(access.clone()),
 			sections: SectionsRepository::new(access.clone()),
+			space_children: SpaceChildrenRepository::new(access.clone()),
 			space_hosting: SpaceHostingRepository::new(access.clone()),
 			space_rows: SpaceRowsRepository::new(access.clone()),
 			space_settings: SpaceSettingsRepository::new(access.clone()),
@@ -166,6 +169,10 @@ impl Database {
 
 	pub fn space_hosting(&self) -> &SpaceHostingRepository {
 		&self.space_hosting
+	}
+
+	pub fn space_children(&self) -> &SpaceChildrenRepository {
+		&self.space_children
 	}
 
 	pub fn space_rows(&self) -> &SpaceRowsRepository {

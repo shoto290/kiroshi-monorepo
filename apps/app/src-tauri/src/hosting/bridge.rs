@@ -3,48 +3,19 @@ use std::time::Duration;
 use reqwest::{Client, StatusCode};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
+use tauri::{AppHandle, Runtime};
 
 use super::contract::MEMBERS_CHANGED_EVENT;
+use super::reach::{self, Reach};
 
 use crate::host_api::invoke::names_an_app_command;
 use crate::missions::github::installed_tls_provider;
 
 const INVOKE_BOUND: Duration = Duration::from_secs(300);
 
-pub(super) const HOST_ONLY_COMMANDS: [&str; 32] = [
-	"hosting_members",
-	"hosting_invite_member",
-	"hosting_withdraw_invitation",
-	"hosting_remove_member",
-	"hosting_start",
-	"hosting_stop",
-	"account_sign_in",
-	"account_sign_out",
-	"agent_sign_in",
-	"agent_sign_in_code",
-	"agent_sign_in_cancel",
-	"space_delete",
-	"joined_space_connect",
-	"joined_space_add",
-	"joined_space_remove",
-	"joined_spaces_list",
-	"env_set",
-	"env_delete",
-	"env_list",
-	"connection_set",
-	"mcp_oauth_connect",
-	"mcp_oauth_disconnect",
-	"mcp_oauth_cancel",
-	"mcp_application_status",
-	"agent_shutdown",
-	"host_share_link",
-	"space_create",
-	"space_import",
-	"space_export",
-	"space_reorder",
-	"user_set_preferences",
-	"user_set_profile_picture",
-];
+const HOST_ONLY_REFUSAL: &str = "this command belongs to the host";
+
+const OTHER_SPACE_REFUSAL: &str = "this command reaches outside the shared space";
 
 #[derive(Clone)]
 pub struct LocalApi {
@@ -84,11 +55,7 @@ pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
 	};
 	match (id, command, args) {
 		(Some(id), Some(command), Some(args)) if belongs_to_the_host(command, &args) => {
-			Err(answer(
-				id,
-				StatusCode::FORBIDDEN,
-				json!({ "error": "this command belongs to the host" }),
-			))
+			Err(answer(id, StatusCode::FORBIDDEN, json!({ "error": HOST_ONLY_REFUSAL })))
 		}
 		(Some(id), Some(command), Some(args)) => {
 			Ok(MemberCall { id, command: command.to_owned(), args })
@@ -98,7 +65,7 @@ pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
 }
 
 pub(super) fn belongs_to_the_host(command: &str, args: &Value) -> bool {
-	HOST_ONLY_COMMANDS.contains(&command)
+	matches!(reach::reach_of(command), None | Some(Reach::HostOnly))
 		|| (command.starts_with("plugin_") && args["scope"]["kind"] == "user")
 }
 
@@ -133,7 +100,15 @@ pub(super) fn forwarded(frame: &str) -> String {
 	format!("{{\"event\":{frame}}}")
 }
 
-pub(super) async fn bridged(local: LocalApi, call: MemberCall) -> String {
+pub(super) async fn bridged<R: Runtime>(
+	app: AppHandle<R>,
+	local: LocalApi,
+	shared_space_id: String,
+	call: MemberCall,
+) -> String {
+	if !reach::stays_in_the_shared_space(&app, &shared_space_id, &call.command, &call.args).await {
+		return answer(call.id, StatusCode::FORBIDDEN, json!({ "error": OTHER_SPACE_REFUSAL }));
+	}
 	match invoked(&local, &call).await {
 		Ok((status, body)) => answer(call.id, status, body),
 		Err(reason) => answer(call.id, StatusCode::BAD_GATEWAY, json!({ "error": reason })),
@@ -183,8 +158,8 @@ mod tests {
 	#[test]
 	fn a_call_without_args_invokes_with_none() {
 		assert_eq!(
-			member_call(r#"{"id": 3, "command": "space_list"}"#),
-			Ok(MemberCall { id: json!(3), command: "space_list".to_owned(), args: json!({}) })
+			member_call(r#"{"id": 3, "command": "agent_models"}"#),
+			Ok(MemberCall { id: json!(3), command: "agent_models".to_owned(), args: json!({}) })
 		);
 	}
 
@@ -204,11 +179,19 @@ mod tests {
 	}
 
 	#[test]
-	fn a_member_command_of_the_host_is_refused_with_403() {
-		for command in HOST_ONLY_COMMANDS {
+	fn a_member_command_of_the_host_or_one_left_unclassified_is_refused_with_403() {
+		let host_only = reach::REACHES
+			.iter()
+			.filter(|(_, reach)| *reach == Reach::HostOnly)
+			.map(|(command, _)| *command);
+		for command in host_only.chain(["a_command_nobody_classified"]) {
 			let frame = json!({ "id": "m", "command": command, "args": { "spaceId": "s" } });
 			let refusal = member_call(&frame.to_string()).expect_err(command);
-			assert_eq!(status_of(&refusal), (json!("m"), json!(403)), "{command}");
+			assert_eq!(
+				serde_json::from_str::<Value>(&refusal).expect("a json answer"),
+				json!({ "id": "m", "status": 403, "body": { "error": HOST_ONLY_REFUSAL } }),
+				"{command}"
+			);
 		}
 	}
 
@@ -222,20 +205,22 @@ mod tests {
 		let surface = std::fs::read_to_string(&bindings).expect("the bindings read back");
 		std::fs::remove_file(&bindings).expect("the bindings are cleaned up");
 		surface
-			.split("__TAURI_INVOKE(\"")
+			.split("__TAURI_INVOKE")
 			.skip(1)
-			.filter_map(|invoked| invoked.split('"').next())
+			.filter_map(|invoked| invoked.split("(\"").nth(1)?.split('"').next())
 			.map(str::to_owned)
 			.collect()
 	}
 
 	#[test]
-	fn every_host_only_command_is_a_registered_command() {
-		let registered = registered_commands();
+	fn the_reach_table_classifies_every_registered_command_once_and_nothing_else() {
+		let mut registered = registered_commands();
+		let mut classified: Vec<String> =
+			reach::REACHES.iter().map(|(command, _)| (*command).to_owned()).collect();
+		registered.sort();
+		classified.sort();
 
-		for command in HOST_ONLY_COMMANDS {
-			assert!(registered.iter().any(|known| known == command), "{command}");
-		}
+		assert_eq!(classified, registered);
 	}
 
 	#[test]
