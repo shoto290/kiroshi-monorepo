@@ -1,3 +1,5 @@
+import { flushSync } from "react-dom"
+
 import type { EnvironmentWrite } from "@workspace/ui/components/environment-panel"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
 import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
@@ -29,6 +31,7 @@ export const SpaceSettingsHost = ({
 		applicationToOpenOn,
 		closeSettingsTab,
 		openAccountSettings,
+		openSpaceHosting,
 		spaceHistory,
 		spaceSkills,
 	} = panels
@@ -81,8 +84,10 @@ export const SpaceSettingsHost = ({
 
 	const hostingProps = hosting ? { ...hosting, onSignIn: signIn } : {}
 
-	// TODO: select the Hosting tab once SettingsDialogShell takes a controlled tab, the shell reads tab only on open
-	const openHosting = () => undefined
+	const openHosting = () => {
+		flushSync(close)
+		openSpaceHosting()
+	}
 
 	const membersProps =
 		members && selectedSpace

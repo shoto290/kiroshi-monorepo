@@ -17,6 +17,8 @@ import { toPluginSkills } from "../plugins/plugin-skills"
 
 const ACCOUNT_TAB = "account"
 
+const HOSTING_TAB = "hosting"
+
 type SettingsPanelsInput = {
 	core: WorkspaceCore
 	rosterView: RosterView
@@ -110,6 +112,11 @@ export const useSettingsPanels = ({
 		user.controller.setSettingsOpen(true)
 	}
 
+	const openSpaceHosting = () => {
+		setSettingsTab(HOSTING_TAB)
+		spaces.controller.setSettingsOpen(true)
+	}
+
 	const conversationApplications = useMemo(
 		() => ({
 			port: applicationTransport,
@@ -135,6 +142,7 @@ export const useSettingsPanels = ({
 		companionSkills,
 		conversationApplications,
 		openAccountSettings,
+		openSpaceHosting,
 		personSkills,
 		sessionApplications,
 		spaceHistory,

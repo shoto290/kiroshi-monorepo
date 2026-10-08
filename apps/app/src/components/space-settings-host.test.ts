@@ -135,6 +135,10 @@ const SpaceSettingsHarness = ({
 		applicationToOpenOn: () => undefined,
 		closeSettingsTab: () => setSettingsTab(undefined),
 		openAccountSettings,
+		openSpaceHosting: () => {
+			setSettingsTab("hosting")
+			spaces.setSettingsOpen(true)
+		},
 		spaceHistory: { days: [], oldestDate: "2026-01-01", onUndo: vi.fn() },
 		spaceSkills: { skills: [] },
 	} as unknown as SettingsPanels
@@ -532,6 +536,33 @@ describe("SpaceSettingsHost members on the desktop", () => {
 			}),
 		).toBeTruthy()
 		expect(commands.hostingMembers).not.toHaveBeenCalled()
+	})
+
+	it("lands on the Hosting tab of the same space on Open Hosting", async () => {
+		vi.mocked(isDesktopHost).mockReturnValue(true)
+		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "off" })
+		const gear = await gearWithGarage()
+		const dialog = await openMembersOf(gear)
+
+		fireEvent.click(
+			await within(dialog).findByRole("button", {
+				name: i18n.t("settings:space.members.invite.openHosting"),
+			}),
+		)
+
+		const reopened = await screen.findByRole("dialog")
+		expect(
+			await within(reopened).findByRole("tab", {
+				name: HOSTING_TAB_NAME,
+				selected: true,
+			}),
+		).toBeTruthy()
+		expect(
+			within(reopened).getByRole("switch", {
+				name: i18n.t("settings:space.hosting.label"),
+			}),
+		).toBeTruthy()
+		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
 	})
 
 	it("shows no Members entry on a joined space", async () => {
