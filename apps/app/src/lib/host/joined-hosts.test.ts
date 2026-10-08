@@ -4,6 +4,7 @@ import type { HostSocket } from "./http"
 import {
 	createJoinedHosts,
 	JOINED_SPACE_CHANGED_EVENT,
+	type JoinedHosts,
 	type JoinedHostsOptions,
 	LOCAL_COMMANDS,
 } from "./joined-hosts"
@@ -42,25 +43,29 @@ const joinedConnection = (id: string) => ({
 
 type Seed = {
 	join?: JoinedHostsOptions["join"]
+	answer?: () => Response
 }
 
-const joinedHostsOf = ({ join }: Seed = {}) => {
+const answerJoined = () =>
+	new Response('"joined"', {
+		headers: { "content-type": "application/json" },
+	})
+
+const joinedHostsOf = ({ join, answer = answerJoined }: Seed = {}) => {
 	const localUnlisten = vi.fn()
 	const local = {
 		invoke: vi.fn(async () => "local" as never),
 		listen: vi.fn(async () => localUnlisten),
 		fileSrc: vi.fn((path: string) => `asset://${path}`),
 	}
-	const fetch = vi.fn(
-		async () =>
-			new Response('"joined"', {
-				headers: { "content-type": "application/json" },
-			}),
-	)
+	const fetch = vi.fn(async () => answer())
 	const sockets: ReturnType<typeof socketStub>[] = []
 	const socketUrls: string[] = []
 	const reportFailure = vi.fn()
-	const reportHostDown = vi.fn()
+	const reportHostDown = vi.fn(
+		() => `notice-${reportHostDown.mock.calls.length}`,
+	)
+	const endHostDown = vi.fn()
 	const joinSpy = vi.fn(join ?? (async (id: string) => joinedConnection(id)))
 	const hosts = createJoinedHosts({
 		local,
@@ -74,6 +79,7 @@ const joinedHostsOf = ({ join }: Seed = {}) => {
 		},
 		reportFailure,
 		reportHostDown,
+		endHostDown,
 	})
 	return {
 		hosts,
@@ -84,6 +90,7 @@ const joinedHostsOf = ({ join }: Seed = {}) => {
 		socketUrls,
 		reportFailure,
 		reportHostDown,
+		endHostDown,
 		join: joinSpy,
 	}
 }
@@ -384,6 +391,167 @@ describe("a failing selected host", () => {
 		await hosts.activate("garage")
 
 		expect(reportHostDown).toHaveBeenCalledOnce()
+	})
+})
+
+describe("an offline joined host", () => {
+	const answerOffline = () =>
+		new Response("the host of this space is offline", { status: 503 })
+
+	const requestsOf = (hosts: JoinedHosts, count: number) =>
+		Promise.allSettled(
+			Array.from({ length: count }, () => hosts.invoke("bot_list")),
+		)
+
+	it("raises one notice however many requests fail", async () => {
+		const { hosts, reportHostDown } = joinedHostsOf({ answer: answerOffline })
+		await hosts.activate("garage")
+
+		await requestsOf(hosts, 4)
+		await requestsOf(hosts, 2)
+
+		expect(reportHostDown).toHaveBeenCalledOnce()
+	})
+
+	it("raises one notice when the socket closes before and after failing requests", async () => {
+		const { hosts, sockets, reportHostDown } = joinedHostsOf({
+			answer: answerOffline,
+		})
+		await hosts.activate("garage")
+
+		await requestsOf(hosts, 2)
+		sockets[0]?.drop()
+		await requestsOf(hosts, 2)
+
+		expect(reportHostDown).toHaveBeenCalledOnce()
+	})
+
+	it("raises one notice when the socket closes first", async () => {
+		const { hosts, sockets, reportHostDown } = joinedHostsOf({
+			answer: answerOffline,
+		})
+		await hosts.activate("garage")
+
+		sockets[0]?.drop()
+		await requestsOf(hosts, 3)
+
+		expect(reportHostDown).toHaveBeenCalledOnce()
+	})
+
+	it("ends the notice when another space becomes active", async () => {
+		const { hosts, reportHostDown, endHostDown } = joinedHostsOf({
+			answer: answerOffline,
+		})
+		await hosts.activate("garage")
+		await requestsOf(hosts, 2)
+
+		await hosts.activate(null)
+
+		expect(endHostDown).toHaveBeenCalledExactlyOnceWith(
+			reportHostDown.mock.results[0]?.value,
+		)
+	})
+
+	it("raises the notice once more when the space is active again while still down", async () => {
+		const { hosts, sockets, reportHostDown } = joinedHostsOf({
+			answer: answerOffline,
+		})
+		await hosts.activate("garage")
+		await requestsOf(hosts, 2)
+		await hosts.activate(null)
+
+		await hosts.activate("garage")
+		await requestsOf(hosts, 3)
+		sockets[0]?.drop()
+
+		expect(reportHostDown).toHaveBeenCalledTimes(2)
+	})
+
+	it("ends the notice when the space is forgotten and raises it again on rejoin", async () => {
+		const { hosts, reportHostDown, endHostDown } = joinedHostsOf({
+			answer: answerOffline,
+		})
+		await hosts.activate("garage")
+		await requestsOf(hosts, 2)
+
+		hosts.forget("garage")
+		await settle()
+
+		expect(endHostDown).toHaveBeenCalledExactlyOnceWith(
+			reportHostDown.mock.results[0]?.value,
+		)
+
+		await hosts.activate("garage")
+		await requestsOf(hosts, 2)
+
+		expect(reportHostDown).toHaveBeenCalledTimes(2)
+	})
+
+	it("ends the notice once a request succeeds while the socket stays open", async () => {
+		const answers = [answerOffline, answerOffline, answerJoined]
+		const { hosts, sockets, reportHostDown, endHostDown } = joinedHostsOf({
+			answer: () => (answers.shift() ?? answerJoined)(),
+		})
+		await hosts.activate("garage")
+		sockets[0]?.open()
+
+		await requestsOf(hosts, 2)
+		await requestsOf(hosts, 1)
+
+		expect(endHostDown).toHaveBeenCalledExactlyOnceWith(
+			reportHostDown.mock.results[0]?.value,
+		)
+		expect(hosts.getState().connections.garage).toEqual({ status: "up" })
+	})
+
+	it("ends the notice once the host comes back up", async () => {
+		const { hosts, sockets, reportHostDown, endHostDown } = joinedHostsOf({
+			answer: answerOffline,
+		})
+		await hosts.activate("garage")
+		await requestsOf(hosts, 2)
+		sockets[0]?.drop()
+
+		sockets[0]?.open()
+
+		expect(endHostDown).toHaveBeenCalledExactlyOnceWith(
+			reportHostDown.mock.results[0]?.value,
+		)
+	})
+
+	it("raises no request refusal for the failing requests", async () => {
+		const { hosts, sockets, reportFailure } = joinedHostsOf({
+			answer: answerOffline,
+		})
+		await hosts.activate("garage")
+
+		await requestsOf(hosts, 3)
+		sockets[0]?.drop()
+
+		expect(reportFailure).not.toHaveBeenCalled()
+	})
+
+	it("keeps refusing a request that fails for another cause", async () => {
+		const { hosts, reportFailure, reportHostDown } = joinedHostsOf({
+			answer: () => new Response("the host broke", { status: 502 }),
+		})
+		await hosts.activate("garage")
+
+		await requestsOf(hosts, 2)
+
+		expect(reportFailure).toHaveBeenCalledTimes(2)
+		expect(reportFailure).toHaveBeenCalledWith("the host broke", 502)
+		expect(reportHostDown).not.toHaveBeenCalled()
+	})
+
+	it("raises no notice while the host is online", async () => {
+		const { hosts, sockets, reportHostDown } = joinedHostsOf()
+		await hosts.activate("garage")
+		sockets[0]?.open()
+
+		await requestsOf(hosts, 3)
+
+		expect(reportHostDown).not.toHaveBeenCalled()
 	})
 })
 

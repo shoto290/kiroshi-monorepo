@@ -11,6 +11,7 @@ import type { ReportedRunsReader } from "./run-port"
 
 import type { TranscriptStore } from "../conversations/store-port"
 import type { TranscriptMessage } from "../conversations/transcript-contract"
+import { isHostOffline } from "../host/host-offline"
 
 type AssistantTurnDraft = {
 	conversationId: string
@@ -82,11 +83,13 @@ export const readReportedCauses = async ({
 }: CauseRead): Promise<ReportedRunsByTurnId | null> => {
 	try {
 		return indexedByTurnId(await read(conversationId))
-	} catch {
-		raiseFailureNotice({
-			title: i18n.t("chat:transcript.cause.unavailable.title"),
-			description,
-		})
+	} catch (reason) {
+		if (!isHostOffline(reason)) {
+			raiseFailureNotice({
+				title: i18n.t("chat:transcript.cause.unavailable.title"),
+				description,
+			})
+		}
 		return null
 	}
 }

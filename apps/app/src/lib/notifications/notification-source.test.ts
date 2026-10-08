@@ -16,6 +16,7 @@ import { type ChatState, initialChatState } from "../chat/chat-state"
 import { createSpokenWords } from "../conversations/spoken-words"
 import type { Conversation, Participant } from "../conversations/store-contract"
 import { speakingBot } from "../conversations/transcript-fixtures"
+import { hostOfflineOf } from "../host/host-offline"
 import {
 	createFakeMissions,
 	type FakeMissions,
@@ -835,6 +836,20 @@ describe("startNotificationSource when a subscription breaks", () => {
 		await Promise.resolve()
 
 		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
+	})
+
+	it("raises no notice of its own when the host of the space is offline", async () => {
+		const missions = createFakeMissions()
+		const harness = await start({
+			missions: {
+				...missions,
+				board: () =>
+					Promise.reject(hostOfflineOf("the host of this space is offline")),
+			},
+		})
+		await Promise.resolve()
+
+		expect(harness.reportFailure).not.toHaveBeenCalled()
 	})
 
 	it("stays quiet while every subscription holds and every notification shows", async () => {

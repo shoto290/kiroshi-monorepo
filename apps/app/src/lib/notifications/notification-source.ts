@@ -28,6 +28,7 @@ import type { ChatState } from "../chat/chat-state"
 import { conversationName } from "../conversations/roster-conversations"
 import type { SpokenWord, SpokenWords } from "../conversations/spoken-words"
 import type { Conversation } from "../conversations/store-contract"
+import { isHostOffline } from "../host/host-offline"
 import type {
 	Mission,
 	MissionChanged,
@@ -146,7 +147,7 @@ export const startNotificationSource = ({
 	const failWith =
 		(failure: NotificationFailure) =>
 		(reason: unknown): undefined => {
-			if (reportedFailures.has(failure)) {
+			if (reportedFailures.has(failure) || isHostOffline(reason)) {
 				return
 			}
 			reportedFailures.add(failure)

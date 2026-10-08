@@ -247,6 +247,10 @@ const chat = {
 				title: "The host refused this call.",
 				description: "Open the link from the desktop app again.",
 			},
+			hostOffline: {
+				title: "Couldn’t reach the host of this space",
+				description: "Its Mac is offline. Try again once it’s back online.",
+			},
 			readFailed: "Couldn’t load earlier messages",
 		},
 		transport: {

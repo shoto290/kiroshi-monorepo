@@ -12,6 +12,7 @@ import {
 	bridgeGeneratedBindings,
 	createHttpHost,
 	type HttpHost,
+	raiseHostOfflineNotice,
 	raiseRefusalNotice,
 } from "./http"
 import { createJoinedHosts } from "./joined-hosts"
@@ -81,7 +82,8 @@ export const joinedHosts = createJoinedHosts({
 	fetch: (input, init) => fetch(input, init),
 	openSocket: (url) => new WebSocket(url),
 	reportFailure: raiseRefusalNotice,
-	reportHostDown: raiseHostDownNotice,
+	reportHostDown: raiseHostOfflineNotice,
+	endHostDown: (noticeId) => endNotice(noticeId),
 })
 
 export const invoke: typeof tauriInvoke = joinedHosts.invoke

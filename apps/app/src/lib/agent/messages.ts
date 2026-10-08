@@ -60,5 +60,7 @@ export function describeTransportError(
 			return t("screen.transport.readFailed", { detail: error.detail })
 		case "unknownFailure":
 			return t("screen.transport.unknownFailure", { detail: error.detail })
+		case "hostOffline":
+			return t("screen.notice.hostOffline.description")
 	}
 }

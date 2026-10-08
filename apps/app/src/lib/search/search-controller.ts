@@ -10,6 +10,7 @@ import { MAX_QUERY_CHARS, type MessageHit } from "./search-contract"
 import type { SearchPort } from "./search-port"
 
 import { createStore } from "../store"
+import { isHostOffline } from "../host/host-offline"
 
 export const QUIET_MS = 150
 
@@ -100,9 +101,11 @@ export const createSearchController = ({
 		stateStore.setState({ ...current(), ...next })
 	}
 
-	const fail = () => {
+	const fail = (reason: unknown) => {
 		publish({ isLoading: false, hasFailed: true })
-		onFailure()
+		if (!isHostOffline(reason)) {
+			onFailure()
+		}
 	}
 
 	const settle = (ticket: number, next: Partial<SearchState>) => {
@@ -149,9 +152,9 @@ export const createSearchController = ({
 					activeIndex: 0,
 					...landed,
 				}),
-			() => {
+			(reason) => {
 				if (ticket === reads) {
-					fail()
+					fail(reason)
 				}
 			},
 		)

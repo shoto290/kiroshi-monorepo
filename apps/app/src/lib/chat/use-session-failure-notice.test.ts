@@ -9,8 +9,10 @@ import {
 } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
-import type { ChatError } from "./chat-state"
+import { type ChatError, chatErrorOf, toTransportError } from "./chat-state"
 import { useSessionFailureNotice } from "./use-session-failure-notice"
+
+import { createHttpHost } from "@/lib/host/http"
 
 vi.mock("@workspace/ui/components/notice-surface", () => ({
 	endNotice: vi.fn(),
@@ -107,4 +109,36 @@ it("raises no notice for an application left out of the session", () => {
 	expect(failureNotice).not.toHaveBeenCalled()
 	expect(transientNotice).not.toHaveBeenCalled()
 	expect(onDismiss).not.toHaveBeenCalled()
+})
+
+const offlineRejection = async (): Promise<unknown> => {
+	const host = createHttpHost({
+		host: "http://127.0.0.1:45367",
+		token: "abc",
+		fetch: async () =>
+			new Response("the host of this space is offline", { status: 503 }),
+		openSocket: () => ({
+			onopen: null,
+			onmessage: null,
+			onclose: null,
+			close: () => undefined,
+		}),
+		onDown: vi.fn(),
+		onUp: vi.fn(),
+		onRefused: vi.fn(),
+	})
+	return host.invoke("conversation_send").then(
+		() => expect.unreachable("an offline host answered"),
+		(reason: unknown) => reason,
+	)
+}
+
+it("raises no session notice when the host of the space is offline", async () => {
+	const offline = chatErrorOf(toTransportError(await offlineRejection()), 0)
+
+	mountOn(offline)
+
+	expect(offline.error.kind).toBe("hostOffline")
+	expect(failureNotice).not.toHaveBeenCalled()
+	expect(transientNotice).not.toHaveBeenCalled()
 })

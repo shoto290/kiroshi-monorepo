@@ -93,7 +93,8 @@ export type JoinedHostsOptions = {
 	fetch: typeof fetch
 	openSocket: (url: string) => HostSocket
 	reportFailure: (message: string, status?: number) => void
-	reportHostDown: () => void
+	reportHostDown: () => string
+	endHostDown: (noticeId: string) => void
 }
 
 type Subscription = {
@@ -123,11 +124,13 @@ export const createJoinedHosts = ({
 	openSocket,
 	reportFailure,
 	reportHostDown,
+	endHostDown,
 }: JoinedHostsOptions) => {
 	const store = createStore<JoinedHostsState>({ active: null, connections: {} })
 	const hosts = new Map<string, HttpHost>()
 	const pendingJoins = new Map<string, Promise<HttpHost | null>>()
 	const subscriptions = new Set<Subscription>()
+	const downNotices = new Map<string, string>()
 	let requested: string | null = null
 
 	const record = (id: string, state: JoinedHostState) => {
@@ -148,9 +151,22 @@ export const createJoinedHosts = ({
 		store.getState().connections[id]?.status === "down"
 
 	const reportIfActiveDown = (id: string) => {
-		if (store.getState().active === id && isDown(id)) {
-			reportHostDown()
+		if (store.getState().active === id && isDown(id) && !downNotices.has(id)) {
+			downNotices.set(id, reportHostDown())
 		}
+	}
+
+	const endDownNotice = (id: string) => {
+		const noticeId = downNotices.get(id)
+		if (noticeId) {
+			endHostDown(noticeId)
+			downNotices.delete(id)
+		}
+	}
+
+	const markUp = (id: string) => {
+		record(id, { status: "up" })
+		endDownNotice(id)
 	}
 
 	const openHost = (id: string, { hostUrl, token }: JoinedSpaceConnection) => {
@@ -159,7 +175,7 @@ export const createJoinedHosts = ({
 			token,
 			fetch,
 			openSocket,
-			onUp: () => record(id, { status: "up" }),
+			onUp: () => markUp(id),
 			onDown: () => {
 				record(id, { status: "down" })
 				reportIfActiveDown(id)
@@ -233,8 +249,12 @@ export const createJoinedHosts = ({
 	}
 
 	const setActive = (active: string | null) => {
-		if (store.getState().active === active) {
+		const previous = store.getState().active
+		if (previous === active) {
 			return
+		}
+		if (previous) {
+			endDownNotice(previous)
 		}
 		store.setState({ ...store.getState(), active })
 		for (const subscription of subscriptions) {
@@ -258,6 +278,7 @@ export const createJoinedHosts = ({
 	const forget = (id: string) => {
 		hosts.get(id)?.close()
 		hosts.delete(id)
+		endDownNotice(id)
 		const { [id]: _forgotten, ...connections } = store.getState().connections
 		store.setState({ ...store.getState(), connections })
 		if (requested === id) {

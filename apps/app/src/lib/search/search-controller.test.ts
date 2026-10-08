@@ -9,6 +9,8 @@ import { MAX_QUERY_CHARS, type MessageHit } from "./search-contract"
 import { createSearchController, QUIET_MS } from "./search-controller"
 import type { SearchPort } from "./search-port"
 
+import { hostOfflineOf } from "../host/host-offline"
+
 const A_CHAT: CatalogueChat = {
 	conversationId: "c-1",
 	kind: "main",
@@ -351,4 +353,19 @@ it("wraps the active result at both ends of the visible order", () => {
 
 	controller.moveActive(1, 3)
 	expect(controller.getState().activeIndex).toBe(0)
+})
+
+it("holds a failed read without its own notice when the host of the space is offline", async () => {
+	const port = aPort()
+	const { controller, onFailure } = openedOn(port)
+
+	port.messages.mockRejectedValueOnce(
+		hostOfflineOf("the host of this space is offline"),
+	)
+	controller.setQuery("parser")
+	await quiet()
+	await settle()
+
+	expect(onFailure).not.toHaveBeenCalled()
+	expect(controller.getState().hasFailed).toBe(true)
 })

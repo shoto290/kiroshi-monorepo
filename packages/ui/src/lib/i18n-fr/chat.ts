@@ -263,6 +263,11 @@ const chat = {
 				title: "L’hôte a refusé cet appel.",
 				description: "Rouvrez le lien depuis l’application de bureau.",
 			},
+			hostOffline: {
+				title: "Impossible de joindre l’hôte de cet espace",
+				description:
+					"Son Mac est hors ligne. Réessayez une fois qu’il est de nouveau en ligne.",
+			},
 			readFailed: "Impossible de charger les messages précédents",
 		},
 		transport: {
