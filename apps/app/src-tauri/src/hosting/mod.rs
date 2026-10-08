@@ -3,7 +3,7 @@ pub mod commands;
 pub mod contract;
 mod members;
 mod reach;
-mod relay;
+pub(crate) mod relay;
 
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, PoisonError};

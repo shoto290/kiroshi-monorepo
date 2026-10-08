@@ -103,6 +103,7 @@ mod tests {
 	use crate::db::connection::temp_dir;
 	use crate::db::DatabaseError;
 	use crate::joined_spaces::commands::joined_space_add;
+	use crate::joined_spaces::relay::RelayGuests;
 
 	const LINK: &str = "http://127.0.0.1:1420/#host=http://127.0.0.1:45367&token=secret";
 
@@ -180,6 +181,7 @@ mod tests {
 		let Ok(ShareLink::Up { link }) = share_link_of(&app, &id).await else {
 			panic!("the link is shared");
 		};
+		app.manage(RelayGuests::new("http://127.0.0.1:9"));
 		let joined =
 			joined_space_add(app.handle().clone(), app.state(), link, None).await.expect("the add");
 

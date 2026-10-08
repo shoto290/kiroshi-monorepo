@@ -14,32 +14,51 @@ const UNREADABLE_LIST: &str = "the joined spaces setting does not read as a list
 
 static SETTINGS: LazyLock<Settings> = LazyLock::new(|| Settings::new("app_settings", None));
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JoinedSpace {
 	pub id: String,
-	pub host_url: String,
-	pub token: String,
+	#[serde(flatten)]
+	pub reach: JoinedReach,
 	pub remote_space_id: Option<String>,
 	pub name: String,
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum JoinedReach {
+	#[serde(rename_all = "camelCase")]
+	Relay { instance_id: String },
+	#[serde(rename_all = "camelCase")]
+	Link { host_url: String, token: String },
+}
+
 impl JoinedSpace {
 	fn reaches_the_same_space_as(&self, other: &JoinedSpace) -> bool {
-		self.host_url == other.host_url && self.remote_space_id == other.remote_space_id
+		match (&self.reach, &other.reach) {
+			(JoinedReach::Relay { instance_id }, JoinedReach::Relay { instance_id: other_id }) => {
+				instance_id == other_id
+			}
+			(JoinedReach::Link { host_url, .. }, JoinedReach::Link { host_url: other_url, .. }) => {
+				host_url == other_url && self.remote_space_id == other.remote_space_id
+			}
+			_ => false,
+		}
 	}
 }
 
-impl fmt::Debug for JoinedSpace {
+impl fmt::Debug for JoinedReach {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-		formatter
-			.debug_struct("JoinedSpace")
-			.field("id", &self.id)
-			.field("host_url", &self.host_url)
-			.field("token", &"[redacted]")
-			.field("remote_space_id", &self.remote_space_id)
-			.field("name", &self.name)
-			.finish()
+		match self {
+			JoinedReach::Relay { instance_id } => {
+				formatter.debug_struct("Relay").field("instance_id", instance_id).finish()
+			}
+			JoinedReach::Link { host_url, .. } => formatter
+				.debug_struct("Link")
+				.field("host_url", host_url)
+				.field("token", &"[redacted]")
+				.finish(),
+		}
 	}
 }
 
@@ -74,8 +93,10 @@ impl JoinedSpacesRepository {
 					match stored.iter_mut().find(|held| held.reaches_the_same_space_as(&candidate))
 					{
 						Some(held) => {
-							held.token = candidate.token;
+							held.reach = candidate.reach;
 							held.name = candidate.name;
+							held.remote_space_id =
+								candidate.remote_space_id.or(held.remote_space_id.take());
 							held.clone()
 						}
 						None => {
@@ -86,6 +107,27 @@ impl JoinedSpacesRepository {
 				write_in(&transaction, &stored)?;
 				transaction.commit()?;
 				Ok(joined)
+			})
+			.await
+	}
+
+	pub async fn learned(
+		&self,
+		id: String,
+		remote_space_id: String,
+	) -> Result<bool, DatabaseError> {
+		self.access
+			.call_mut(move |connection| {
+				let transaction =
+					connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+				let mut stored = stored_in(&transaction)?;
+				let Some(held) = stored.iter_mut().find(|joined| joined.id == id) else {
+					return Ok(false);
+				};
+				held.remote_space_id = Some(remote_space_id);
+				write_in(&transaction, &stored)?;
+				transaction.commit()?;
+				Ok(true)
 			})
 			.await
 	}
@@ -135,11 +177,29 @@ mod tests {
 	fn a_joined_space(id: &str, host_url: &str, remote_space_id: Option<&str>) -> JoinedSpace {
 		JoinedSpace {
 			id: id.to_owned(),
-			host_url: host_url.to_owned(),
-			token: format!("token-of-{id}"),
+			reach: JoinedReach::Link {
+				host_url: host_url.to_owned(),
+				token: format!("token-of-{id}"),
+			},
 			remote_space_id: remote_space_id.map(str::to_owned),
 			name: format!("name-of-{id}"),
 		}
+	}
+
+	fn a_relay_space(id: &str, instance_id: &str) -> JoinedSpace {
+		JoinedSpace {
+			id: id.to_owned(),
+			reach: JoinedReach::Relay { instance_id: instance_id.to_owned() },
+			remote_space_id: None,
+			name: format!("name-of-{id}"),
+		}
+	}
+
+	fn with_token(joined: JoinedSpace, token: &str) -> JoinedSpace {
+		let JoinedReach::Link { host_url, .. } = joined.reach else {
+			panic!("a link entry");
+		};
+		JoinedSpace { reach: JoinedReach::Link { host_url, token: token.to_owned() }, ..joined }
 	}
 
 	async fn write_raw(database: &Database, value: &'static str) {
@@ -191,23 +251,66 @@ mod tests {
 
 		let joined = repository
 			.join(JoinedSpace {
-				token: "fresh-token".to_owned(),
 				name: "Fresh".to_owned(),
-				..a_joined_space("second", "http://a.test", Some("s"))
+				..with_token(a_joined_space("second", "http://a.test", Some("s")), "fresh-token")
 			})
 			.await
 			.expect("the second join");
 
 		let replaced = JoinedSpace {
-			token: "fresh-token".to_owned(),
 			name: "Fresh".to_owned(),
-			..a_joined_space("first", "http://a.test", Some("s"))
+			..with_token(a_joined_space("first", "http://a.test", Some("s")), "fresh-token")
 		};
 		assert_eq!(joined, replaced);
 		assert_eq!(
 			repository.list().await.expect("the list"),
 			vec![replaced, a_joined_space("other", "http://a.test", None)]
 		);
+	}
+
+	#[tokio::test]
+	async fn an_entry_written_before_relay_entries_reads_as_a_link_entry() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		write_raw(
+			&database,
+			r#"[{"id":"a","hostUrl":"http://a.test","token":"token-of-a","remoteSpaceId":null,"name":"name-of-a"}]"#,
+		)
+		.await;
+
+		assert_eq!(
+			database.joined_spaces().list().await.expect("the list"),
+			vec![a_joined_space("a", "http://a.test", None)]
+		);
+	}
+
+	#[tokio::test]
+	async fn a_relay_entry_is_stored_with_its_instance_and_rejoined_under_the_same_id() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let repository = database.joined_spaces();
+		repository.join(a_relay_space("first", "instance-1")).await.expect("the first join");
+		assert!(repository
+			.learned("first".to_owned(), "shared".to_owned())
+			.await
+			.expect("the learned space"));
+
+		let rejoined = repository
+			.join(JoinedSpace {
+				name: "Renamed".to_owned(),
+				..a_relay_space("second", "instance-1")
+			})
+			.await
+			.expect("the second join");
+
+		let expected = JoinedSpace {
+			name: "Renamed".to_owned(),
+			remote_space_id: Some("shared".to_owned()),
+			..a_relay_space("first", "instance-1")
+		};
+		assert_eq!(rejoined, expected);
+		assert_eq!(repository.list().await.expect("the list"), vec![expected]);
+		assert!(!repository.learned("z".to_owned(), "s".to_owned()).await.expect("no entry"));
 	}
 
 	#[tokio::test]

@@ -30,9 +30,9 @@ use crate::missions::github::installed_tls_provider;
 use crate::spaces::commands::ready;
 use crate::spaces::contract::SpaceError;
 
-const PING_EVERY: Duration = Duration::from_secs(30);
+pub(crate) const PING_EVERY: Duration = Duration::from_secs(30);
 
-const SILENCE_BOUND: Duration = Duration::from_secs(90);
+pub(crate) const SILENCE_BOUND: Duration = Duration::from_secs(90);
 
 const FIRST_BACKOFF: Duration = Duration::from_secs(1);
 
@@ -42,9 +42,9 @@ const CONNECT_BOUND: Duration = Duration::from_secs(20);
 
 const HOST_REPLACED: u16 = 4001;
 
-type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
+pub(crate) type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
-type Sink = SplitSink<Socket, Message>;
+pub(crate) type Sink = SplitSink<Socket, Message>;
 
 pub(super) struct Hosted {
 	pub(super) space_id: String,
@@ -52,7 +52,7 @@ pub(super) struct Hosted {
 	pub(super) instance_id: Option<String>,
 }
 
-enum Opened {
+pub(crate) enum Opened {
 	Socket(Box<Socket>),
 	Revoked,
 	Forbidden,
@@ -73,14 +73,18 @@ enum Next {
 	Stopped,
 }
 
-struct Backoff(Duration);
+pub(crate) struct Backoff(Duration);
 
 impl Backoff {
-	fn reset(&mut self) {
+	pub(crate) fn first() -> Self {
+		Self(FIRST_BACKOFF)
+	}
+
+	pub(crate) fn reset(&mut self) {
 		self.0 = FIRST_BACKOFF;
 	}
 
-	fn step(&mut self) -> Duration {
+	pub(crate) fn step(&mut self) -> Duration {
 		let waited = self.0;
 		self.0 = (waited * 2).min(BACKOFF_CAP);
 		waited
@@ -93,7 +97,7 @@ pub(super) async fn hosted<R: Runtime>(
 	local: LocalApi,
 	mut stop: watch::Receiver<bool>,
 ) {
-	let mut backoff = Backoff(FIRST_BACKOFF);
+	let mut backoff = Backoff::first();
 	let mut is_reregistered = false;
 	loop {
 		let next =
@@ -144,7 +148,8 @@ async fn attempted<R: Runtime>(
 			Err(next) => return next,
 		},
 	};
-	let opened = until_stopped(stop, opened(app, &instance_id, &bearer)).await;
+	let url = app.state::<Hosting>().cloud.host_relay_url(&instance_id);
+	let opened = until_stopped(stop, opened(url, &bearer)).await;
 	match opened {
 		None => Next::Stopped,
 		Some(Opened::Socket(socket)) => {
@@ -211,8 +216,7 @@ async fn registered<R: Runtime>(
 	Ok(instance_id)
 }
 
-async fn opened<R: Runtime>(app: &AppHandle<R>, instance_id: &str, bearer: &str) -> Opened {
-	let url = app.state::<Hosting>().cloud.host_relay_url(instance_id);
+pub(crate) async fn opened(url: String, bearer: &str) -> Opened {
 	let mut request = match url.into_client_request() {
 		Ok(request) => request,
 		Err(error) => return Opened::Unreachable(format!("the relay url is unusable: {error}")),
@@ -310,10 +314,15 @@ enum Received {
 
 fn received(frame: Option<Result<Message, SocketError>>, ids: Ids<'_>) -> Received {
 	match frame {
-		Some(Ok(Message::Text(text))) => match bridge::member_call(text.as_str()) {
-			Ok(call) => Received::Call(call),
-			Err(refusal) => Received::Answer(refusal),
-		},
+		Some(Ok(Message::Text(text))) => {
+			if let Some(answer) = bridge::shared_space_answer(text.as_str(), ids.space_id) {
+				return Received::Answer(answer);
+			}
+			match bridge::member_call(text.as_str()) {
+				Ok(call) => Received::Call(call),
+				Err(refusal) => Received::Answer(refusal),
+			}
+		}
 		Some(Ok(Message::Binary(_))) => Received::Answer(bridge::refused(None)),
 		Some(Ok(Message::Close(frame))) => Received::Ended(closed_by_relay(frame, ids)),
 		Some(Ok(_)) => Received::Nothing,
@@ -353,7 +362,7 @@ async fn closed(sink: &mut Sink, ids: Ids<'_>) -> Ended {
 	Ended::Stopped
 }
 
-async fn sent(sink: &mut Sink, message: Message) -> Result<(), String> {
+pub(crate) async fn sent(sink: &mut Sink, message: Message) -> Result<(), String> {
 	match timeout(SEND_PATIENCE, sink.send(message)).await {
 		Ok(Ok(())) => Ok(()),
 		Ok(Err(error)) => Err(format!("the relay socket refused a frame: {error}")),
@@ -361,7 +370,10 @@ async fn sent(sink: &mut Sink, message: Message) -> Result<(), String> {
 	}
 }
 
-async fn until_stopped<F: Future>(stop: &mut watch::Receiver<bool>, work: F) -> Option<F::Output> {
+pub(crate) async fn until_stopped<F: Future>(
+	stop: &mut watch::Receiver<bool>,
+	work: F,
+) -> Option<F::Output> {
 	if *stop.borrow() {
 		return None;
 	}

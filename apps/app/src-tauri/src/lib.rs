@@ -13,6 +13,7 @@ pub mod events;
 pub mod file_store;
 pub mod host_api;
 pub mod hosting;
+pub mod invitations;
 pub mod joined_spaces;
 pub mod json;
 pub mod mcp_oauth;
@@ -79,6 +80,8 @@ pub fn run() {
 				&account::cloud::api_url(),
 				hosting::local_api(app.handle()),
 			));
+			app.manage(invitations::Invitations::new(&account::cloud::api_url()));
+			app.manage(joined_spaces::relay::RelayGuests::new(&account::cloud::api_url()));
 			tauri::async_runtime::spawn(account::session::restore(app.handle().clone()));
 			let handle = app.handle().clone();
 			tauri::async_runtime::spawn(async move {

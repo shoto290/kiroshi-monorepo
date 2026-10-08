@@ -2,8 +2,9 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::account::cloud::Cloud;
 use crate::conversations::contract::StorageFailure;
-use crate::db::repositories::joined_spaces;
+use crate::db::repositories::joined_spaces::{self, JoinedReach};
 use crate::db::DatabaseError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -15,14 +16,13 @@ pub struct JoinedSpace {
 	pub name: String,
 }
 
-impl From<joined_spaces::JoinedSpace> for JoinedSpace {
-	fn from(joined: joined_spaces::JoinedSpace) -> Self {
-		Self {
-			id: joined.id,
-			host_url: joined.host_url,
-			remote_space_id: joined.remote_space_id,
-			name: joined.name,
-		}
+impl JoinedSpace {
+	pub fn presented(joined: joined_spaces::JoinedSpace, cloud: &Cloud) -> Self {
+		let host_url = match joined.reach {
+			JoinedReach::Link { host_url, .. } => host_url,
+			JoinedReach::Relay { instance_id } => cloud.member_relay_url(&instance_id),
+		};
+		Self { id: joined.id, host_url, remote_space_id: joined.remote_space_id, name: joined.name }
 	}
 }
 
@@ -36,12 +36,12 @@ pub struct JoinedSpaceConnection {
 	pub name: String,
 }
 
-impl From<joined_spaces::JoinedSpace> for JoinedSpaceConnection {
-	fn from(joined: joined_spaces::JoinedSpace) -> Self {
+impl JoinedSpaceConnection {
+	pub fn over(joined: joined_spaces::JoinedSpace, host_url: String, token: String) -> Self {
 		Self {
 			id: joined.id,
-			host_url: joined.host_url,
-			token: joined.token,
+			host_url,
+			token,
 			remote_space_id: joined.remote_space_id,
 			name: joined.name,
 		}
@@ -82,6 +82,10 @@ pub enum JoinedSpaceError {
 	UnknownJoinedSpace { id: String },
 	#[serde(rename_all = "camelCase")]
 	Undeliverable { detail: String },
+	#[serde(rename_all = "camelCase")]
+	HostOffline { id: String },
+	#[serde(rename_all = "camelCase")]
+	ProxyUnavailable { detail: String },
 }
 
 impl From<DatabaseError> for JoinedSpaceError {
