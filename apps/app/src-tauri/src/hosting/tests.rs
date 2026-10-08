@@ -27,13 +27,17 @@ use crate::spaces::commands::space_delete;
 use crate::account::contract::AccountState;
 use crate::account::session::restore;
 use crate::account::session::AccountSession;
+use crate::agent::protocol::OauthCredentials;
 use crate::db::connection::temp_dir;
 use crate::db::{self, DatabaseState};
-use crate::environment::contract::{EnvScope, ACCOUNT_BEARER};
+use crate::environment::connection;
+use crate::environment::contract::{ConnectionKind, EnvOwner, EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
 use crate::events;
 use crate::joined_spaces::commands::joined_space_add;
 use crate::joined_spaces::contract::JoinedSpaceConnection;
+use crate::joined_spaces::link::joined_space;
+use crate::mcp_oauth::credentials;
 use crate::spaces::contract::Space;
 
 const BEARER: &str = "bearer-that-never-leaves";
@@ -199,6 +203,63 @@ async fn joined_space_connected(
 	answered_json(StatusCode::OK, json!(found.map(JoinedSpaceConnection::from)))
 }
 
+#[derive(Clone)]
+struct HostEffects {
+	database: PathBuf,
+	env_root: PathBuf,
+	reached: Arc<Mutex<Vec<String>>>,
+}
+
+impl HostEffects {
+	fn reached(&self) -> Vec<String> {
+		self.reached.lock().expect("the local api").clone()
+	}
+}
+
+fn typed<T: serde::de::DeserializeOwned>(args: &Value, key: &str) -> T {
+	serde_json::from_value(args[key].clone()).expect("a typed argument")
+}
+
+async fn host_effect_applied(
+	Path(command): Path<String>,
+	Served(effects): Served<HostEffects>,
+	headers: HeaderMap,
+	args: String,
+) -> Response {
+	let args: Value = serde_json::from_str(&args).expect("json arguments");
+	if bearer_of(&headers) != LOCAL_TOKEN {
+		return StatusCode::UNAUTHORIZED.into_response();
+	}
+	effects.reached.lock().expect("the local api").push(command.clone());
+	let database = db::open(&effects.database);
+	let root = &effects.env_root;
+	let text = |key: &str| args[key].as_str().expect("a text argument").to_owned();
+	match command.as_str() {
+		"joined_space_add" => {
+			let candidate = joined_space(&text("link"), uuid::Uuid::new_v4().to_string(), None)
+				.expect("a joining link");
+			database.joined_spaces().join(candidate).await.expect("the host joins");
+		}
+		"joined_space_remove" => {
+			database.joined_spaces().remove(text("id")).await.expect("the host leaves");
+		}
+		"env_set" => store::set(root, &typed(&args, "scope"), &text("name"), &text("value"))
+			.expect("the host sets"),
+		"env_delete" => {
+			store::delete(root, &typed(&args, "scope"), &text("name")).expect("the host deletes")
+		}
+		"connection_set" => {
+			connection::hold(root, typed(&args, "kind"), &text("value")).expect("the host connects")
+		}
+		"mcp_oauth_disconnect" => {
+			let scope = EnvScope::Server { name: text("name"), owner: typed(&args, "owner") };
+			credentials::forget(root, &scope).expect("the host disconnects");
+		}
+		_ => {}
+	}
+	answered_json(StatusCode::OK, Value::Null)
+}
+
 fn answered_json(status: StatusCode, body: Value) -> Response {
 	(status, [(header::CONTENT_TYPE, "application/json")], body.to_string()).into_response()
 }
@@ -250,6 +311,23 @@ impl Harness {
 			.with_state(database.clone());
 		Self::serving(name, None, Some(BEARER), super::members::MEMBERS_EVERY, database, local)
 			.await
+	}
+
+	async fn applying_host_effects(name: &str) -> (Self, HostEffects) {
+		let effects = HostEffects {
+			database: temp_dir(),
+			env_root: std::env::temp_dir()
+				.join(format!("kiroshi-hosting-env-{name}-{}", uuid::Uuid::new_v4())),
+			reached: Arc::default(),
+		};
+		let local = Router::new()
+			.route(INVOKE_ROUTE, post(host_effect_applied))
+			.with_state(effects.clone());
+		let database = effects.database.clone();
+		let harness =
+			Self::serving(name, None, Some(BEARER), super::members::MEMBERS_EVERY, database, local)
+				.await;
+		(harness, effects)
 	}
 
 	async fn serving(
@@ -731,6 +809,185 @@ fn a_relay_guest_cannot_read_the_stored_token_of_a_joined_space() {
 
 		assert!(!refused.to_string().contains(JOINED_SPACE_TOKEN), "{refused}");
 	});
+}
+
+const GUEST_LINK: &str = "http://127.0.0.1:1420/#host=http://guest.test&token=guest-token";
+
+#[test]
+fn a_relay_guest_cannot_add_a_joined_space_to_the_host() {
+	run(async {
+		let (harness, effects) = Harness::applying_host_effects("joined-add").await;
+
+		refused_with(harness, "joined_space_add", json!({ "link": GUEST_LINK, "name": null }))
+			.await;
+
+		let listed = db::open(&effects.database).joined_spaces().list().await.expect("listed");
+		assert!(listed.is_empty(), "{listed:?}");
+		assert!(!effects.reached().contains(&"joined_space_add".to_owned()));
+	});
+}
+
+#[test]
+fn a_relay_guest_cannot_remove_a_joined_space_of_the_host() {
+	run(async {
+		let (harness, effects) = Harness::applying_host_effects("joined-remove").await;
+		let link = format!("http://127.0.0.1:1420/#host=http://h.test&token={JOINED_SPACE_TOKEN}");
+		let joined =
+			joined_space_add(harness.app.handle().clone(), harness.app.state(), link, None)
+				.await
+				.expect("the host joins a space");
+
+		refused_with(harness, "joined_space_remove", json!({ "id": joined.id })).await;
+
+		let listed = db::open(&effects.database).joined_spaces().list().await.expect("listed");
+		assert!(listed.iter().any(|kept| kept.id == joined.id), "{listed:?}");
+	});
+}
+
+#[test]
+fn a_relay_guest_cannot_list_the_joined_spaces_of_the_host() {
+	run(a_relay_guest_is_refused("joined_spaces_list"));
+}
+
+fn a_space_scope() -> EnvScope {
+	EnvScope::Space { id: PERSONAL.to_owned() }
+}
+
+async fn an_env_entry_kept_from(command: &str, args: Value) {
+	let (harness, effects) = Harness::applying_host_effects(command).await;
+	let scope = a_space_scope();
+	store::set(&effects.env_root, &scope, "GREETING", "host-value").expect("the host sets");
+	let before = store::values(&effects.env_root, &scope).expect("the host reads");
+
+	refused_with(harness, command, args).await;
+
+	assert_eq!(store::values(&effects.env_root, &scope).expect("the host reads"), before);
+}
+
+#[test]
+fn a_relay_guest_cannot_set_a_host_env_entry() {
+	run(an_env_entry_kept_from(
+		"env_set",
+		json!({ "scope": a_space_scope(), "name": "GREETING", "value": "guest-value" }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_delete_a_host_env_entry() {
+	run(an_env_entry_kept_from(
+		"env_delete",
+		json!({ "scope": a_space_scope(), "name": "GREETING" }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_list_the_host_env() {
+	run(a_relay_guest_is_refused("env_list"));
+}
+
+#[test]
+fn a_relay_guest_cannot_replace_the_host_agent_connection() {
+	run(async {
+		let (harness, effects) = Harness::applying_host_effects("connection-set").await;
+		connection::hold(&effects.env_root, ConnectionKind::ApiKey, "host-key")
+			.expect("the host connects");
+		let before = connection::held(&effects.env_root).expect("the host reads");
+
+		refused_with(harness, "connection_set", json!({ "kind": "apiKey", "value": "guest-key" }))
+			.await;
+
+		assert_eq!(connection::held(&effects.env_root).expect("the host reads"), before);
+	});
+}
+
+#[test]
+fn a_relay_guest_cannot_connect_an_application_with_the_host_identity() {
+	run(a_relay_guest_is_refused("mcp_oauth_connect"));
+}
+
+#[test]
+fn a_relay_guest_cannot_disconnect_a_host_application() {
+	run(async {
+		let (harness, effects) = Harness::applying_host_effects("oauth-disconnect").await;
+		let owner = EnvOwner::Space { id: PERSONAL.to_owned() };
+		let scope = EnvScope::Server { name: "granola".to_owned(), owner: owner.clone() };
+		let grant = OauthCredentials {
+			access_token: "host-access".to_owned(),
+			refresh_token: Some("host-refresh".to_owned()),
+			expires_at: None,
+			client_id: "registered".to_owned(),
+			client_secret: None,
+			redirect_uri: None,
+		};
+		credentials::store(&effects.env_root, &scope, &grant).expect("the host connects");
+		let before = store::values(&effects.env_root, &scope).expect("the host reads");
+
+		refused_with(
+			harness,
+			"mcp_oauth_disconnect",
+			json!({ "owner": owner, "name": "granola", "url": "https://granola.test/mcp" }),
+		)
+		.await;
+
+		assert_eq!(store::values(&effects.env_root, &scope).expect("the host reads"), before);
+	});
+}
+
+#[test]
+fn a_relay_guest_cannot_cancel_a_host_application_connection() {
+	run(a_relay_guest_is_refused("mcp_oauth_cancel"));
+}
+
+#[test]
+fn a_relay_guest_cannot_read_or_renew_the_host_application_grants() {
+	run(a_relay_guest_is_refused("mcp_application_status"));
+}
+
+#[test]
+fn a_relay_guest_cannot_shut_the_host_agent_down() {
+	run(async {
+		let (harness, effects) = Harness::applying_host_effects("agent-shutdown").await;
+
+		refused_with(harness, "agent_shutdown", json!({ "scope": { "conversationId": "c1" } }))
+			.await;
+
+		assert_eq!(effects.reached(), ["space_list"]);
+	});
+}
+
+#[test]
+fn a_relay_guest_cannot_read_the_host_share_link() {
+	run(a_relay_guest_is_refused("host_share_link"));
+}
+
+#[test]
+fn a_relay_guest_cannot_create_a_host_space() {
+	run(a_relay_guest_is_refused("space_create"));
+}
+
+#[test]
+fn a_relay_guest_cannot_import_a_host_file_as_a_space() {
+	run(a_relay_guest_is_refused("space_import"));
+}
+
+#[test]
+fn a_relay_guest_cannot_export_a_space_to_a_host_path() {
+	run(a_relay_guest_is_refused("space_export"));
+}
+
+#[test]
+fn a_relay_guest_cannot_reorder_the_host_spaces() {
+	run(a_relay_guest_is_refused("space_reorder"));
+}
+
+#[test]
+fn a_relay_guest_cannot_change_the_host_profile() {
+	run(a_relay_guest_is_refused("user_set_preferences"));
+}
+
+#[test]
+fn a_relay_guest_cannot_change_the_host_profile_picture() {
+	run(a_relay_guest_is_refused("user_set_profile_picture"));
 }
 
 #[test]
