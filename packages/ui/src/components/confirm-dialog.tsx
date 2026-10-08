@@ -22,6 +22,7 @@ type ConfirmDialogProps = {
 	confirmLabel: string
 	confirmVariant?: "default" | "destructive"
 	onConfirm: () => void | Promise<void>
+	onCancel?: () => void
 	failureLabel?: string
 	defaultOpen?: boolean
 }
@@ -37,6 +38,7 @@ const ConfirmDialog = ({
 	confirmLabel,
 	confirmVariant = "destructive",
 	onConfirm,
+	onCancel,
 	failureLabel,
 	defaultOpen,
 }: ConfirmDialogProps) => {
@@ -49,6 +51,11 @@ const ConfirmDialog = ({
 		setOpen(next)
 		setFailed(false)
 		onOpenChange?.(next)
+	}
+
+	const dismiss = (next: boolean) => {
+		if (!next) onCancel?.()
+		change(next)
 	}
 
 	const confirm = async () => {
@@ -66,7 +73,7 @@ const ConfirmDialog = ({
 	}
 
 	return (
-		<AlertDialog.Root onOpenChange={change} open={open ?? isOpen}>
+		<AlertDialog.Root onOpenChange={dismiss} open={open ?? isOpen}>
 			{trigger ? (
 				<AlertDialog.Trigger
 					className={triggerClassName}
@@ -116,4 +123,4 @@ const ConfirmDialog = ({
 	)
 }
 
-export { ConfirmDialog }
+export { ConfirmDialog, type ConfirmDialogProps }

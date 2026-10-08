@@ -11,6 +11,7 @@ import {
 } from "@workspace/storybook/story-utils"
 import type { BotBadge } from "@workspace/ui/components/bot-badge"
 import type { Space } from "@workspace/ui/components/space"
+import type { SpaceInvitation } from "@workspace/ui/components/space-invitations"
 import {
 	SpaceDots,
 	type SpaceRemote,
@@ -195,6 +196,9 @@ const meta = preview.meta({
 		onOpenSpaceSettings: fn(),
 		onLeaveSpace: fn(),
 		onReorderSpaces: fn(),
+		onAcceptInvitation: fn(),
+		onDeclineInvitation: fn(),
+		onRetryInvitation: fn(),
 	},
 	render: (args) => <SwitcherLine {...args} />,
 })
@@ -1004,5 +1008,465 @@ export const RemoteLongNames = meta.story({
 
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+	},
+})
+
+const INVITED: Omit<SpaceInvitation, "state"> = {
+	id: "studio",
+	name: "Studio Nord",
+	colour: "orange",
+	hostEmail: "lea@example.com",
+}
+
+const SECOND_INVITED: Omit<SpaceInvitation, "state"> = {
+	id: "atelier-sud",
+	name: "Atelier Sud",
+	colour: "cyan",
+	hostEmail: "marc@example.com",
+}
+
+const JOINED_SPACES: Space[] = [
+	...SPACES.slice(0, 3),
+	{ id: "studio", name: "Studio Nord", colour: "orange" },
+]
+
+const INVITED_ARTBOARD =
+	"Measured against the Paper page `Join an invited Space`, dark only."
+
+const DARK = { theme: "dark" } as const
+
+const openSwitcher = (root: HTMLElement) =>
+	openMenu(within(root).getByRole("button", { name: /^Change space/ }))
+
+const invitationsIn = (menu: HTMLElement) => slotsIn(menu, "space-invitation")
+
+const invitationNamed = (menu: HTMLElement, name: string) =>
+	within(menu).getByRole("group", { name })
+
+const causeOf = (row: HTMLElement) => slotsIn(row, "space-invitation-cause")[0]
+
+const hostLineOf = (row: HTMLElement) => within(row).getByText(/^Invited by /)
+
+const invitationDotOn = (root: HTMLElement) =>
+	slotsIn(root, "space-switcher-invitation")[0]
+
+const expectInvitationDot = async (trigger: HTMLElement) => {
+	const dot = invitationDotOn(trigger)
+	await expect(dot).toHaveAttribute("aria-hidden", "true")
+	const box = dot.getBoundingClientRect()
+	const frame = trigger.getBoundingClientRect()
+	await expect(box.width).toBe(7)
+	await expect(box.top - frame.top).toBe(5)
+	await expect(frame.right - box.right).toBe(2)
+}
+
+const expectGroupBetweenSpacesAndMoveUp = async (menu: HTMLElement) => {
+	const group = slotsIn(menu, "space-invitations")[0]
+	await expect(group.previousElementSibling).toHaveAttribute(
+		"role",
+		"separator",
+	)
+	await expect(
+		group.previousElementSibling?.previousElementSibling,
+	).toHaveAttribute("role", "group")
+	await expect(group.nextElementSibling).toHaveAttribute("role", "separator")
+	await expect(
+		group.nextElementSibling?.nextElementSibling,
+	).toHaveAccessibleName("Move up")
+	await expect(within(group).getByText("Invitations")).toBeVisible()
+}
+
+const focusByArrows = async (
+	target: HTMLElement,
+	press: (keys: string) => Promise<void>,
+) => {
+	for (let step = 0; step < 12 && document.activeElement !== target; step++) {
+		await press("{ArrowDown}")
+	}
+	await expect(target).toHaveFocus()
+}
+
+const expectFailedRow = async (
+	row: HTMLElement,
+	cause: string,
+	onRetry: unknown,
+	click: (element: Element) => Promise<void>,
+) => {
+	const line = causeOf(row)
+	await expect(line).toHaveTextContent(cause)
+	await expect(row).toHaveAccessibleDescription(cause)
+	const icon = line.querySelector("svg")
+	if (!icon) throw new Error("The cause line draws no alert icon")
+	await expect(icon.getBoundingClientRect().width).toBe(14)
+	await expect(getComputedStyle(icon).color).toBe(getComputedStyle(line).color)
+	await expect(getComputedStyle(line).color).not.toBe(
+		getComputedStyle(hostLineOf(row)).color,
+	)
+	const retry = within(row).getByRole("menuitem", { name: "Try again" })
+	await expect(retry).toHaveAccessibleDescription(cause)
+	await expect(within(retry).getByRole("status")).toHaveTextContent("Try again")
+	await expect(retry.tagName).toBe("BUTTON")
+	await expect(
+		within(row).getByRole("menuitem", { name: "Decline" }),
+	).not.toHaveAttribute("aria-disabled", "true")
+	await click(retry)
+	await expect(onRetry).toHaveBeenCalledWith(INVITED.id)
+	await expect(screen.getByRole("menu")).toBeVisible()
+}
+
+export const M1NoInvitation = meta.story({
+	globals: DARK,
+	name: "M1 No invitation",
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M1: no invitation is waiting, so the switcher is the one on main, and the one a decline brings back. Check the trigger carries no invitation dot and its name says nothing of invitations, and that the menu holds no Invitations group.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const trigger = within(canvasElement).getByRole("button", {
+			name: "Change space, Vocca open",
+		})
+		await expect(invitationDotOn(trigger)).toBeUndefined()
+		const menu = await openSwitcher(canvasElement)
+		await expect(slotsIn(menu, "space-invitations")).toHaveLength(0)
+		await expect(within(menu).getAllByRole("separator")).toHaveLength(2)
+	},
+})
+
+export const M2InvitationWaiting = meta.story({
+	globals: DARK,
+	name: "M2 Invitation waiting",
+	args: { invitations: [{ ...INVITED, state: "waiting" }] },
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M2: one invitation waits. Check the 7px primary dot sits on the trigger's top end corner and the trigger names it, that the 280px menu places a rule then an Invitations group between the Spaces and Move up, that the row reads the Space name over who invited, and that Accept and Decline are real buttons the arrow keys reach, each reporting the invitation id.`,
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const trigger = within(canvasElement).getByRole("button", {
+			name: "Change space, Vocca open, 1 invitation",
+		})
+		await expectInvitationDot(trigger)
+
+		const menu = await openSwitcher(canvasElement)
+		await expect(menu.getBoundingClientRect().width).toBe(280)
+		await expectGroupBetweenSpacesAndMoveUp(menu)
+		const row = invitationNamed(menu, INVITED.name)
+		await expect(hostLineOf(row)).toHaveTextContent(
+			`Invited by ${INVITED.hostEmail}`,
+		)
+
+		const accept = within(row).getByRole("menuitem", { name: "Accept" })
+		await expect(accept.tagName).toBe("BUTTON")
+		await focusByArrows(accept, userEvent.keyboard)
+		await userEvent.keyboard("{Enter}")
+		await expect(args.onAcceptInvitation).toHaveBeenCalledWith(INVITED.id)
+		await expect(screen.getByRole("menu")).toBeVisible()
+
+		const decline = within(row).getByRole("menuitem", { name: "Decline" })
+		await expect(decline.tagName).toBe("BUTTON")
+		await userEvent.keyboard("{ArrowDown}")
+		await expect(decline).toHaveFocus()
+		await userEvent.keyboard("{Enter}")
+		await expect(args.onDeclineInvitation).toHaveBeenCalledWith(INVITED.id)
+		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+	},
+})
+
+export const M3TwoInvitationsWaiting = meta.story({
+	globals: DARK,
+	name: "M3 Two invitations waiting",
+	args: {
+		invitations: [
+			{ ...INVITED, state: "waiting" },
+			{ ...SECOND_INVITED, state: "waiting" },
+		],
+	},
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M3: two invitations wait, stacked in the order given, each with its own pair of buttons. Check the trigger counts both and that each pair reports its own invitation.`,
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const trigger = within(canvasElement).getByRole("button", {
+			name: "Change space, Vocca open, 2 invitations",
+		})
+		await expectInvitationDot(trigger)
+		const menu = await openSwitcher(canvasElement)
+		const rows = invitationsIn(menu)
+		await expect(rows).toHaveLength(2)
+		await expect(rows[0]).toHaveAccessibleName(INVITED.name)
+		await expect(rows[1]).toHaveAccessibleName(SECOND_INVITED.name)
+		await userEvent.click(
+			within(rows[1]).getByRole("menuitem", { name: "Accept" }),
+		)
+		await expect(args.onAcceptInvitation).toHaveBeenCalledWith(
+			SECOND_INVITED.id,
+		)
+	},
+})
+
+export const M4Accepting = meta.story({
+	globals: DARK,
+	name: "M4 Accepting",
+	args: { invitations: [{ ...INVITED, state: "accepting" }] },
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M4: the invitation is being accepted. Check the primary reads Joining… at 70% opacity, Decline drops to 50%, both stay focusable but inert, the row is marked busy and the new label is spoken through its status region, and the trigger dot stays on.`,
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		await expectInvitationDot(
+			within(canvasElement).getByRole("button", { name: /1 invitation$/ }),
+		)
+		const menu = await openSwitcher(canvasElement)
+		const row = invitationNamed(menu, INVITED.name)
+		await expect(row).toHaveAttribute("aria-busy", "true")
+		const joining = within(row).getByRole("menuitem", { name: "Joining…" })
+		const decline = within(row).getByRole("menuitem", { name: "Decline" })
+		await expect(within(joining).getByRole("status")).toHaveTextContent(
+			"Joining…",
+		)
+		for (const [button, opacity] of [
+			[joining, "0.7"],
+			[decline, "0.5"],
+		] as const) {
+			await expect(button).toHaveAttribute("aria-disabled", "true")
+			await expect(button).not.toHaveAttribute("disabled")
+			await expect(getComputedStyle(button).opacity).toBe(opacity)
+			await userEvent.click(button)
+		}
+		await expect(args.onAcceptInvitation).not.toHaveBeenCalled()
+		await expect(args.onDeclineInvitation).not.toHaveBeenCalled()
+	},
+})
+
+export const M5Joined = meta.story({
+	globals: DARK,
+	name: "M5 Joined",
+	args: {
+		spaces: JOINED_SPACES,
+		remoteBySpaceId: { studio: "connected" },
+	},
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M5: the invitation is accepted, so its Space joins the list as a remote row carrying the globe, built by OPE-478, and the Invitations group and the trigger dot are gone.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const trigger = within(canvasElement).getByRole("button", {
+			name: "Change space, Vocca open",
+		})
+		await expect(invitationDotOn(trigger)).toBeUndefined()
+		const menu = await openSwitcher(canvasElement)
+		await expectConnectedRow(rowNamed(menu, "Studio Nord"))
+		await expect(slotsIn(menu, "space-invitations")).toHaveLength(0)
+	},
+})
+
+export const M6Unreachable = meta.story({
+	globals: DARK,
+	name: "M6 Unreachable",
+	args: {
+		spaces: JOINED_SPACES,
+		remoteBySpaceId: { studio: "unreachable" },
+	},
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M6: the joined Space's host stops answering, so its row drops its tint and says Unreachable, as OPE-478 built it.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const menu = await openSwitcher(canvasElement)
+		await expectUnreachableRow(rowNamed(menu, "Studio Nord"))
+	},
+})
+
+export const M9FailedServers = meta.story({
+	globals: DARK,
+	name: "M9 Failed, servers",
+	args: {
+		invitations: [{ ...INVITED, state: "failed", failure: "servers" }],
+	},
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M9: accepting failed because Kiroshi's servers did not answer. Check the destructive cause line with its 14px alert sits above Try again and Decline, that it describes both the row and Try again, whose status region speaks the switch from Joining…, and that Try again reports a retry while the menu stays open.`,
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		await expectInvitationDot(
+			within(canvasElement).getByRole("button", { name: /1 invitation$/ }),
+		)
+		const menu = await openSwitcher(canvasElement)
+		await expectFailedRow(
+			invitationNamed(menu, INVITED.name),
+			"Couldn’t accept. Kiroshi’s servers didn’t answer.",
+			args.onRetryInvitation,
+			userEvent.click,
+		)
+	},
+})
+
+export const M10FailedOffline = meta.story({
+	globals: DARK,
+	name: "M10 Failed, offline",
+	args: {
+		invitations: [{ ...INVITED, state: "failed", failure: "offline" }],
+	},
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M10: accepting failed because this Mac is offline. Same row as M9 with the offline cause.`,
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		await expectInvitationDot(
+			within(canvasElement).getByRole("button", { name: /1 invitation$/ }),
+		)
+		const menu = await openSwitcher(canvasElement)
+		await expectFailedRow(
+			invitationNamed(menu, INVITED.name),
+			"Couldn’t accept, this Mac is offline. Try again once you’re connected.",
+			args.onRetryInvitation,
+			userEvent.click,
+		)
+	},
+})
+
+export const M11Withdrawn = meta.story({
+	globals: DARK,
+	name: "M11 Withdrawn",
+	args: { invitations: [{ ...INVITED, state: "withdrawn" }] },
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M11: the host withdrew the invitation. Check the ring drops to the muted foreground, the name mutes, the cause line names the host, and no button is offered, while the trigger dot stays on. The row is an inert menu item the arrow keys land on, read as the Space name with the cause as its description, and highlighted like any other row.`,
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		await expectInvitationDot(
+			within(canvasElement).getByRole("button", { name: /1 invitation$/ }),
+		)
+		const menu = await openSwitcher(canvasElement)
+		const row = within(menu).getByRole("menuitem", { name: INVITED.name })
+		const cause = `${INVITED.hostEmail} withdrew this invitation. Ask them to invite you again.`
+		await expect(causeOf(row)).toHaveTextContent(cause)
+		await expect(row).toHaveAccessibleDescription(cause)
+		await expect(row).toHaveAttribute("aria-disabled", "true")
+		await expect(getComputedStyle(row).opacity).toBe("1")
+		await expect(row.querySelectorAll("button, [role=menuitem]")).toHaveLength(
+			0,
+		)
+
+		await focusByArrows(row, userEvent.keyboard)
+		await expect(row).toHaveAccessibleName(INVITED.name)
+		await expect(row).toHaveAccessibleDescription(cause)
+		await userEvent.keyboard("{Enter}")
+		await expect(screen.getByRole("menu")).toBeVisible()
+		await expect(args.onAcceptInvitation).not.toHaveBeenCalled()
+		await expect(args.onDeclineInvitation).not.toHaveBeenCalled()
+		await expect(args.onRetryInvitation).not.toHaveBeenCalled()
+		const name = within(row).getByText(INVITED.name)
+		await expect(getComputedStyle(name).color).toBe(
+			getComputedStyle(hostLineOf(row)).color,
+		)
+		await expect(slotsIn(row, "space-invitation-ring")[0].style.color).toBe("")
+	},
+})
+
+export const InvitationLongContent = meta.story({
+	globals: DARK,
+	args: {
+		invitations: [
+			{
+				...INVITED,
+				name: "Everything the research studio has not filed anywhere else yet",
+				hostEmail:
+					"lea.marchand-de-villeneuve.research-coordination@example.com",
+				state: "failed",
+				failure: "offline",
+			},
+		],
+	},
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story:
+					"An invitation whose Space name is a sentence and whose host writes from one unbreakable address, neither of which the reader chose. Check both wrap inside the 280px menu, the address breaking mid-word, with nothing clipped or overflowing.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const menu = await openSwitcher(canvasElement)
+		await expect(menu.getBoundingClientRect().width).toBe(280)
+		await expect(menu.scrollWidth).toBeLessThanOrEqual(menu.clientWidth)
+		const row = invitationsIn(menu)[0]
+		const edge = menu.getBoundingClientRect().right
+		for (const line of [
+			within(row).getByText(/^Everything/),
+			hostLineOf(row),
+			causeOf(row),
+		]) {
+			await expect(line.scrollWidth).toBeLessThanOrEqual(line.clientWidth)
+			await expect(line.getBoundingClientRect().right).toBeLessThanOrEqual(edge)
+		}
+		await expect(
+			hostLineOf(row).getBoundingClientRect().height,
+		).toBeGreaterThan(16)
+	},
+})
+
+export const InvitationOverBotBadge = meta.story({
+	globals: DARK,
+	tags: ["test-only"],
+	args: {
+		badgesBySpaceId: BADGES,
+		invitations: [{ ...INVITED, state: "waiting" }],
+	},
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story:
+					"The trigger shows one dot: while an invitation is listed, the invitation dot takes the trigger and the strongest bot badge from another Space steps aside; the badges stay on their rows in the menu.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const trigger = within(canvasElement).getByRole("button", {
+			name: /1 invitation$/,
+		})
+		await expectInvitationDot(trigger)
+		await expect(badgeOn(trigger)).toBeUndefined()
+		const menu = await openSwitcher(canvasElement)
+		await expect(
+			slotsIn(rowNamed(menu, "Veille"), "space-dot")[0],
+		).toHaveAttribute("data-badge", "attention")
 	},
 })

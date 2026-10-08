@@ -1,3 +1,5 @@
+import { useEffect } from "react"
+import { useTranslation } from "react-i18next"
 import {
 	expect,
 	fn,
@@ -656,5 +658,97 @@ export const ReducedMotion = meta.story({
 
 		await expect(rested.top).toBe(raised.top)
 		await expect(rested.height).toBe(raised.height)
+	},
+})
+
+const INVITED_ARTBOARD =
+	"Measured against the Paper page `Join an invited Space`, dark only."
+
+type HeldInfoNoticeProps = {
+	title: string
+}
+
+const HeldInfoNotice = ({ title }: HeldInfoNoticeProps) => {
+	useEffect(() => {
+		const id = raiseTransientNotice({ type: "info", title })
+		return () => endNotice(id)
+	}, [title])
+
+	return <NoticeSurface transientDelay={0} />
+}
+
+const RemovedFromSpaceNotice = () => {
+	const { t } = useTranslation("bots")
+
+	return (
+		<HeldInfoNotice
+			title={t("spaces.removed.notice", {
+				email: "lea@example.com",
+				name: "Studio Nord",
+			})}
+		/>
+	)
+}
+
+const SignedOutNotice = () => {
+	const { t } = useTranslation("bots")
+
+	return (
+		<HeldInfoNotice
+			title={t("spaces.signOut.notice", { name: "Studio Nord" })}
+		/>
+	)
+}
+
+const expectInfoNoticeClosing = async (
+	title: string,
+	userEvent: UserEventObject,
+) => {
+	const notice = await within(viewport()).findByText(title)
+	const toast = notice.closest<HTMLElement>("[data-slot=toast]")
+	if (!toast) throw new window.Error("The notice is not on the surface")
+	await opaque(toast)
+	await expect(notice).toBeVisible()
+	await expect(toast).toHaveAttribute("data-type", "info")
+	await expect(actionControl()).toBe(null)
+	await userEvent.click(closeControl())
+	await waitFor(() => expect(within(viewport()).queryByText(title)).toBe(null))
+}
+
+export const M8RemovedFromSpace = meta.story({
+	name: "M8 Removed from Space",
+	globals: { theme: "dark" },
+	render: () => <RemovedFromSpaceNotice />,
+	parameters: {
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M8: the info notice raised when a host removes the reader from a joined Space, drawn on this surface with its close control and no action.`,
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		await expectInfoNoticeClosing(
+			"lea@example.com removed you from Studio Nord.",
+			userEvent,
+		)
+	},
+})
+
+export const M13SignedOut = meta.story({
+	name: "M13 Signed out",
+	globals: { theme: "dark" },
+	render: () => <SignedOutNotice />,
+	parameters: {
+		docs: {
+			description: {
+				story: `${INVITED_ARTBOARD} M13: the info notice raised once signing out took a joined Space off this Mac, drawn on this surface with its close control and no action.`,
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		await expectInfoNoticeClosing(
+			"Signed out. Studio Nord left this Mac.",
+			userEvent,
+		)
 	},
 })
