@@ -29,14 +29,14 @@ export const createShownMemory = ({
 }: ShownMemorySources): ShownMemory => {
 	const lastRows = new Map<string, string>()
 	const lastMissions = new Map<string, string>()
-	let seenSpaceId: string | null = null
+	let seenSpaceRowId: string | null = null
 	let seenRowId: string | null = null
 
 	const rememberRow = () => {
 		const state = roster.getState()
 		const rowId = rowOf(state)
-		const hasMoved = state.spaceRowId !== seenSpaceId || rowId !== seenRowId
-		seenSpaceId = state.spaceRowId
+		const hasMoved = state.spaceRowId !== seenSpaceRowId || rowId !== seenRowId
+		seenSpaceRowId = state.spaceRowId
 		seenRowId = rowId
 		if (!hasMoved || openedMission.getState() || !state.spaceRowId || !rowId) {
 			return
