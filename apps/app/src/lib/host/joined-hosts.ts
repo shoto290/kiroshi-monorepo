@@ -228,8 +228,6 @@ export const createJoinedHosts = ({
 		return joined ? joined.listen : local.listen
 	}
 
-	const activeHostListener = (): Listen => activeHost()?.listen ?? unheard
-
 	const reportListenFailure = (reason: unknown): UnlistenFn => {
 		reportFailure(describeRejection(reason))
 		return () => undefined
@@ -320,7 +318,7 @@ export const createJoinedHosts = ({
 
 	const listen = routedListen(listenerFor)
 
-	const listenToActiveHost = routedListen(activeHostListener)
+	const listenToActiveHost = routedListen(() => activeHost()?.listen ?? unheard)
 
 	const fileSrc = (path: string): string =>
 		(activeHost() ?? local).fileSrc(path)
