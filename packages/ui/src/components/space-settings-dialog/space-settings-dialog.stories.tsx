@@ -1375,15 +1375,23 @@ const failureLineIn = async (panel: HTMLElement, message: string) => {
 	return line
 }
 
-const expectBelowListAboveShareLink = async (
+const expectInRowAlone = async (
 	panel: HTMLElement,
 	line: HTMLElement,
+	name: string,
 ) => {
-	const list = within(panel).getByRole("list").getBoundingClientRect()
-	const shareLink = slotIn(panel, "share-link").getBoundingClientRect()
-	const { top, bottom } = line.getBoundingClientRect()
-	await expect(top).toBeGreaterThanOrEqual(list.bottom)
-	await expect(bottom).toBeLessThanOrEqual(shareLink.top)
+	const rows = slotsIn(panel, "space-member")
+	const failed = rows.filter((row) => row.contains(line))
+	await expect(failed).toHaveLength(1)
+	for (const row of rows.filter((row) => !row.contains(line))) {
+		await expect(within(row).getByRole("status")).toBeEmptyDOMElement()
+	}
+	const nameBox = within(failed[0])
+		.getByText(name, { selector: "p" })
+		.getBoundingClientRect()
+	const lineBox = line.getBoundingClientRect()
+	await expect(lineBox.left).toBe(nameBox.left)
+	await expect(lineBox.top).toBeGreaterThanOrEqual(nameBox.bottom)
 	await expect(inviteFieldIn(panel)).toHaveAccessibleDescription(
 		"They join by signing in to Kiroshi with this email.",
 	)
@@ -1442,6 +1450,12 @@ export const MembersInviteFailed = meta.story({
 		await userEvent.type(field, ".org")
 		await expect(field).toHaveValue("sam@example.com.org")
 		await expect(line.textContent).toBe(message)
+
+		await userEvent.click(within(panel).getByRole("button", { name: "Invite" }))
+		await expect(line).toBeEmptyDOMElement()
+		await expect(field).toHaveAccessibleDescription(
+			"They join by signing in to Kiroshi with this email.",
+		)
 	},
 })
 
@@ -1454,7 +1468,7 @@ export const MembersWithdrawFailed = meta.story({
 		docs: {
 			description: {
 				story:
-					"Kiroshi could not withdraw Sam's invitation. One destructive line sits directly under the member list, above the share link, announced once; Sam stays Pending.",
+					"Kiroshi could not withdraw Sam's invitation. One destructive line sits in Sam's row, under the address, announced once; Sam stays Pending.",
 			},
 		},
 	},
@@ -1464,20 +1478,33 @@ export const MembersWithdrawFailed = meta.story({
 			panel,
 			"Couldn’t withdraw the invitation to sam@example.com. Nothing changed, try again.",
 		)
-		await expectBelowListAboveShareLink(panel, line)
+		await expectInRowAlone(panel, line, "sam@example.com")
 	},
 })
 
+const ALEX: SpaceMember = {
+	id: "alex",
+	name: "Alex Moreau",
+	email: "alex@example.com",
+	status: "joined",
+}
+
+const JO_PENDING: SpaceMember = {
+	id: "jo",
+	email: "jo@example.com",
+	status: "pending",
+}
+
 export const MembersRemoveFailed = meta.story({
 	args: membersArgs({
-		members: [STEVE, SAM_CARTER],
+		members: [STEVE, ALEX, SAM_CARTER, JO_PENDING],
 		failure: { action: "remove", reason: "generic", member: SAM_CARTER },
 	}),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Kiroshi could not remove Sam. One destructive line sits directly under the member list, above the share link, announced once; Sam stays Joined.",
+					"Kiroshi could not remove Sam, in the middle of the list. One destructive line sits in Sam's row, under the name and address, announced once; Sam stays Joined and in place, and no other row carries a line.",
 			},
 		},
 	},
@@ -1487,7 +1514,10 @@ export const MembersRemoveFailed = meta.story({
 			panel,
 			"Couldn’t remove Sam Carter. Nothing changed, try again.",
 		)
-		await expectBelowListAboveShareLink(panel, line)
+		await expect(
+			slotsIn(panel, "space-member").findIndex((row) => row.contains(line)),
+		).toBe(2)
+		await expectInRowAlone(panel, line, "Sam Carter")
 	},
 })
 
@@ -1601,7 +1631,11 @@ const FailureCopy = () => (
 				{...MEMBERS_PANEL}
 				email="sam@example.com"
 				failure={failure}
-				members={[STEVE]}
+				members={
+					failure.action === "invite" || failure.member === STEVE
+						? [STEVE]
+						: [STEVE, failure.member]
+				}
 			/>
 		))}
 		{LONG_FAILURES.map((failure) => (
@@ -1660,12 +1694,12 @@ export const MembersFailureRegions = meta.story({
 	play: async ({ canvasElement, userEvent }) => {
 		const panel = slotIn(canvasElement, "members-panel")
 		const regions = within(panel).getAllByRole("status")
-		await expect(regions).toHaveLength(2)
-		const [inviteRegion, listRegion] = regions
+		await expect(regions).toHaveLength(3)
+		const [inviteRegion, , samRegion] = regions
 		for (const region of regions) {
 			await expect(region).toBeEmptyDOMElement()
 		}
-		await expect(listRegion.getBoundingClientRect().height).toBe(0)
+		await expect(samRegion.getBoundingClientRect().height).toBe(0)
 
 		await userEvent.click(within(panel).getByRole("button", { name: "Invite" }))
 		await expect(within(panel).getAllByRole("status")[0]).toBe(inviteRegion)
@@ -1679,8 +1713,8 @@ export const MembersFailureRegions = meta.story({
 		await userEvent.click(
 			within(panel).getByRole("button", { name: "Remove Sam Carter" }),
 		)
-		await expect(within(panel).getAllByRole("status")[1]).toBe(listRegion)
-		await expect(listRegion).toHaveTextContent(
+		await expect(within(panel).getAllByRole("status")[2]).toBe(samRegion)
+		await expect(samRegion).toHaveTextContent(
 			"Couldn’t remove Sam Carter. Nothing changed, try again.",
 		)
 		await expect(inviteRegion).toBeEmptyDOMElement()

@@ -118,12 +118,17 @@ const InviteField = ({
 	const { t } = useTranslation("settings")
 	const id = useId()
 	const helperId = `${id}-helper`
-	const failureText = useFailureText(refusal ? undefined : failure, space)
+	const [sentOver, setSentOver] = useState<MembersFailure>()
+	const failureText = useFailureText(
+		refusal || failure === sentOver ? undefined : failure,
+		space,
+	)
 	const isEmpty = email.trim() === ""
 
 	const submit = (event: FormEvent) => {
 		event.preventDefault()
 		if (!isEmpty) {
+			setSentOver(failure)
 			onInvite(email)
 		}
 	}
@@ -219,9 +224,15 @@ const MemberAvatar = ({ member }: MemberAvatarProps) =>
 
 type MemberRowProps = Pick<MembersPanelProps, "onRemove" | "onWithdraw"> & {
 	member: SpaceMember
+	failureText: string
 }
 
-const MemberRow = ({ member, onRemove, onWithdraw }: MemberRowProps) => {
+const MemberRow = ({
+	member,
+	failureText,
+	onRemove,
+	onWithdraw,
+}: MemberRowProps) => {
 	const { t } = useTranslation("settings")
 	const isPending = member.status === "pending"
 
@@ -238,6 +249,9 @@ const MemberRow = ({ member, onRemove, onWithdraw }: MemberRowProps) => {
 						{member.email}
 					</p>
 				)}
+				<p className="break-words text-destructive text-xs" role="status">
+					{failureText}
+				</p>
 			</div>
 			<span
 				className={cn(
@@ -304,10 +318,8 @@ const MembersPanel = ({
 	}
 
 	const name = asked ? firstNameOf(asked) : ""
-	const listFailureText = useFailureText(
-		failure?.action === "invite" ? undefined : failure,
-		space,
-	)
+	const rowFailure = failure?.action === "invite" ? undefined : failure
+	const rowFailureText = useFailureText(rowFailure, space)
 
 	return (
 		<div className="flex flex-col gap-6" data-slot="members-panel">
@@ -323,24 +335,19 @@ const MembersPanel = ({
 			) : (
 				<HostingNeeded onOpenHosting={onOpenHosting} />
 			)}
-			<div>
-				<ul className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-x-2.5 divide-y divide-border rounded-xl border border-border">
-					{members.map((member) => (
-						<MemberRow
-							key={member.id}
-							member={member}
-							onRemove={onRemove}
-							onWithdraw={onWithdraw}
-						/>
-					))}
-				</ul>
-				<p
-					className="break-words text-destructive text-xs not-empty:pt-1.5"
-					role="status"
-				>
-					{listFailureText}
-				</p>
-			</div>
+			<ul className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-x-2.5 divide-y divide-border rounded-xl border border-border">
+				{members.map((member) => (
+					<MemberRow
+						failureText={
+							rowFailure?.member.id === member.id ? rowFailureText : ""
+						}
+						key={member.id}
+						member={member}
+						onRemove={onRemove}
+						onWithdraw={onWithdraw}
+					/>
+				))}
+			</ul>
 			<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
 			<ConfirmDialog
 				confirmLabel={t("space.members.remove")}
