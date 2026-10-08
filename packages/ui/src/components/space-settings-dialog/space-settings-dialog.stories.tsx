@@ -1330,7 +1330,7 @@ export const MembersOpenHosting = meta.story({
 		docs: {
 			description: {
 				story:
-					"Artboard I10, followed through. The caller holds the rail entry through `tab` and `onTabChange`, so Open Hosting switches the open dialog to Hosting instead of closing and reopening it.",
+					"Artboard I10, followed through. The caller holds the rail entry through `tab` and `onTabChange`, so Open Hosting switches the open dialog to Hosting instead of closing and reopening it, and a rail click moves it back to Members.",
 			},
 		},
 	},
@@ -1346,6 +1346,13 @@ export const MembersOpenHosting = meta.story({
 			within(dialog).getByRole("tab", { name: "Hosting" }),
 		).toHaveAttribute("aria-selected", "true")
 		await expect(await hostingPanelIn()).toBeVisible()
+		await expect(SPACE_ARGS.onClose).not.toHaveBeenCalled()
+
+		await userEvent.click(within(dialog).getByRole("tab", { name: "Members" }))
+		await expect(
+			within(dialog).getByRole("tab", { name: "Members" }),
+		).toHaveAttribute("aria-selected", "true")
+		await expect(await membersPanelIn()).toBeVisible()
 	},
 })
 
