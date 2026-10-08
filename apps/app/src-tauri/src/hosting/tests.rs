@@ -1613,7 +1613,10 @@ const TWO_SPACES: &str = "
 			('b-shared', 'elsewhere', 1), ('b-shared', 'personal', 2);
 	INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
 		VALUES ('c-mine', 'topic', 'personal', 'Mine', 1, 1),
-			('c-theirs', 'topic', 'elsewhere', 'Theirs', 1, 1);
+			('c-theirs', 'topic', 'elsewhere', 'Theirs', 1, 1),
+			('c-shared', 'topic', 'elsewhere', 'Shared', 1, 1);
+	INSERT INTO conversation_participants (conversation_id, bot_id, role, joined_at, join_seq)
+		VALUES ('c-shared', 'b-shared', 'lead', 1, 0);
 	INSERT INTO turns (id, conversation_id, seq, started_at)
 		VALUES ('t-mine', 'c-mine', 1, 1), ('t-theirs', 'c-theirs', 1, 1);
 	INSERT INTO messages
@@ -1875,14 +1878,19 @@ fn a_relay_guest_reaches_the_plugin_of_the_shared_space_or_its_bots_only() {
 			for shared in [
 				json!({ "kind": "space", "id": PERSONAL }),
 				json!({ "kind": "bot", "id": "b-mine" }),
-				json!({ "kind": "bot", "id": "b-shared" }),
 			] {
 				guest.forwarded(command, json!({ "scope": shared })).await;
+			}
+			let shared_in = json!({ "scope": { "kind": "bot", "id": "b-shared" } });
+			if PLUGIN_READS.contains(command) {
+				guest.forwarded(command, shared_in).await;
+			} else {
+				guest.refused(command, shared_in).await;
 			}
 		}
 
 		let reached = guest.effects.reached();
-		assert_eq!(reached.len(), plugin_commands.len() * 3);
+		assert_eq!(reached.len(), plugin_commands.len() * 2 + PLUGIN_READS.len());
 	});
 }
 
@@ -1928,9 +1936,9 @@ fn a_relay_guest_updates_a_bot_of_the_shared_space_only() {
 #[test]
 fn a_bot_added_to_the_shared_space_from_another_one_belongs_to_the_shared_space() {
 	run(kept_in_the_shared_space(
-		"conversation_set_bot_memory",
-		json!({ "id": "b-theirs", "memory": "m" }),
-		json!({ "id": "b-shared", "memory": "m" }),
+		"conversation_bot_commands",
+		json!({ "botId": "b-theirs" }),
+		json!({ "botId": "b-shared" }),
 	));
 }
 
@@ -2007,4 +2015,272 @@ fn a_child_lookup_the_store_fails_is_refused() {
 		assert!(guest.effects.reached().is_empty());
 		assert_eq!(guest.harness.state(), HostingState::Online);
 	});
+}
+
+const PLUGIN_READS: [&str; 5] = [
+	"plugin_skills",
+	"plugin_skill_file",
+	"plugin_mcp_servers",
+	"plugin_history",
+	"plugin_history_diff",
+];
+
+async fn footprint_of(database: &PathBuf, bot_id: &str) -> (bool, Vec<String>, Vec<String>) {
+	let bot_id = bot_id.to_owned();
+	db::open(database)
+		.call(move |connection| {
+			let texts = |query: &str| -> rusqlite::Result<Vec<String>> {
+				let mut statement = connection.prepare(query)?;
+				let rows = statement.query_map([&bot_id], |row| row.get(0))?;
+				rows.collect()
+			};
+			let is_stored = !texts("SELECT id FROM bots WHERE id = ?1")?.is_empty();
+			let spaces =
+				texts("SELECT space_id FROM bot_spaces WHERE bot_id = ?1 ORDER BY space_id")?;
+			let chats = texts(
+				"SELECT conversation_id FROM conversation_participants WHERE bot_id = ?1
+					ORDER BY conversation_id",
+			)?;
+			Ok((is_stored, spaces, chats))
+		})
+		.await
+		.expect("the bot footprint reads")
+}
+
+async fn a_write_on_a_bot_in_two_spaces_is_refused(command: &str, args: Value) {
+	let mut guest = Guest::of_two_spaces(command).await;
+	let before = footprint_of(&guest.effects.database, "b-shared").await;
+
+	guest.refused(command, args).await;
+
+	assert!(guest.effects.reached().is_empty());
+	assert_eq!(footprint_of(&guest.effects.database, "b-shared").await, before);
+	assert_eq!(
+		before,
+		(true, vec![ELSEWHERE.to_owned(), PERSONAL.to_owned()], vec!["c-shared".to_owned()])
+	);
+}
+
+async fn a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(command: &str, args: Value) {
+	let mut guest = Guest::of_two_spaces(command).await;
+
+	guest.forwarded(command, args).await;
+
+	assert_eq!(guest.effects.reached(), [command]);
+}
+
+fn a_bot_plugin(bot_id: &str) -> Value {
+	json!({ "scope": { "kind": "bot", "id": bot_id } })
+}
+
+#[test]
+fn a_relay_guest_cannot_update_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"conversation_update_bot",
+		json!({ "id": "b-shared", "identity": {} }),
+	));
+}
+
+#[test]
+fn a_relay_guest_updates_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"conversation_update_bot",
+		json!({ "id": "b-mine", "identity": {} }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_delete_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"conversation_delete_bot",
+		json!({ "id": "b-shared" }),
+	));
+}
+
+#[test]
+fn a_relay_guest_deletes_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"conversation_delete_bot",
+		json!({ "id": "b-mine" }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_set_the_avatar_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"conversation_set_bot_avatar_image",
+		json!({ "id": "b-shared", "bytes": [] }),
+	));
+}
+
+#[test]
+fn a_relay_guest_sets_the_avatar_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"conversation_set_bot_avatar_image",
+		json!({ "id": "b-mine", "bytes": [] }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_set_the_memory_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"conversation_set_bot_memory",
+		json!({ "id": "b-shared", "memory": "m" }),
+	));
+}
+
+#[test]
+fn a_relay_guest_sets_the_memory_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"conversation_set_bot_memory",
+		json!({ "id": "b-mine", "memory": "m" }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_record_the_commands_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"conversation_record_bot_commands",
+		json!({ "botId": "b-shared", "commands": [] }),
+	));
+}
+
+#[test]
+fn a_relay_guest_records_the_commands_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"conversation_record_bot_commands",
+		json!({ "botId": "b-mine", "commands": [] }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_create_a_skill_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused("plugin_create_skill", a_bot_plugin("b-shared")));
+}
+
+#[test]
+fn a_relay_guest_creates_a_skill_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"plugin_create_skill",
+		a_bot_plugin("b-mine"),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_update_a_skill_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused("plugin_update_skill", a_bot_plugin("b-shared")));
+}
+
+#[test]
+fn a_relay_guest_updates_a_skill_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"plugin_update_skill",
+		a_bot_plugin("b-mine"),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_preload_a_skill_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"plugin_set_skill_preloaded",
+		a_bot_plugin("b-shared"),
+	));
+}
+
+#[test]
+fn a_relay_guest_preloads_a_skill_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"plugin_set_skill_preloaded",
+		a_bot_plugin("b-mine"),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_delete_a_skill_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused("plugin_delete_skill", a_bot_plugin("b-shared")));
+}
+
+#[test]
+fn a_relay_guest_deletes_a_skill_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"plugin_delete_skill",
+		a_bot_plugin("b-mine"),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_write_a_skill_file_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"plugin_write_skill_file",
+		a_bot_plugin("b-shared"),
+	));
+}
+
+#[test]
+fn a_relay_guest_writes_a_skill_file_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"plugin_write_skill_file",
+		a_bot_plugin("b-mine"),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_delete_a_skill_file_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"plugin_delete_skill_file",
+		a_bot_plugin("b-shared"),
+	));
+}
+
+#[test]
+fn a_relay_guest_deletes_a_skill_file_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"plugin_delete_skill_file",
+		a_bot_plugin("b-mine"),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_set_a_server_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"plugin_set_mcp_server",
+		a_bot_plugin("b-shared"),
+	));
+}
+
+#[test]
+fn a_relay_guest_sets_a_server_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"plugin_set_mcp_server",
+		a_bot_plugin("b-mine"),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_delete_a_server_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"plugin_delete_mcp_server",
+		a_bot_plugin("b-shared"),
+	));
+}
+
+#[test]
+fn a_relay_guest_deletes_a_server_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"plugin_delete_mcp_server",
+		a_bot_plugin("b-mine"),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_revert_the_plugin_of_a_bot_also_in_another_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused("plugin_revert", a_bot_plugin("b-shared")));
+}
+
+#[test]
+fn a_relay_guest_reverts_the_plugin_of_a_bot_of_the_shared_space_alone() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"plugin_revert",
+		a_bot_plugin("b-mine"),
+	));
 }

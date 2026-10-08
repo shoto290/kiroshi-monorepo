@@ -7,6 +7,7 @@ use crate::db::{Access, DatabaseError};
 pub enum SpaceChild {
 	Conversation,
 	Bot,
+	BotHeldAlone,
 	Section,
 	Turn,
 	Message,
@@ -42,6 +43,9 @@ fn held(
 ) -> rusqlite::Result<bool> {
 	let held_query = match child {
 		SpaceChild::Bot => return bot_spaces::held(connection, child_id, space_id),
+		SpaceChild::BotHeldAlone => {
+			"SELECT COUNT(*) > 0 AND COUNT(*) = SUM(space_id = ?2) FROM bot_spaces WHERE bot_id = ?1"
+		}
 		SpaceChild::Conversation => {
 			"SELECT EXISTS (SELECT 1 FROM conversations WHERE id = ?1 AND space_id = ?2)"
 		}
@@ -151,6 +155,45 @@ mod tests {
 			assert!(holds("work", child, theirs).await.expect("read"), "{child:?}");
 			assert!(!holds("personal", child, "unknown").await.expect("read"), "{child:?}");
 		}
+	}
+
+	#[tokio::test]
+	async fn a_bot_is_held_alone_only_by_the_one_space_it_belongs_to() {
+		let database = planted().await;
+		let held_alone = |space: &str, bot_id: &str| {
+			database.space_children().holds(
+				space.to_owned(),
+				SpaceChild::BotHeldAlone,
+				bot_id.to_owned(),
+			)
+		};
+
+		assert!(held_alone("personal", "b1").await.expect("read"));
+		assert!(held_alone("work", "b2").await.expect("read"));
+		assert!(!held_alone("personal", "b2").await.expect("read"));
+		for space in ["personal", "work"] {
+			assert!(!held_alone(space, "shared").await.expect("read"), "{space}");
+		}
+	}
+
+	#[tokio::test]
+	async fn a_bot_without_any_space_row_is_held_alone_by_none() {
+		let database = planted().await;
+		database
+			.call_mut(|connection| {
+				Ok(connection.execute_batch(
+					"INSERT INTO bots (id, name, model, created_at) VALUES ('stray', 'Stray', 'sonnet', 1);",
+				)?)
+			})
+			.await
+			.expect("the stray bot is planted");
+
+		let held = database.space_children().holds(
+			"personal".to_owned(),
+			SpaceChild::BotHeldAlone,
+			"stray".to_owned(),
+		);
+		assert!(!held.await.expect("read"));
 	}
 
 	#[tokio::test]

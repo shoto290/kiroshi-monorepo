@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime};
 
 use crate::db::repositories::space_children::SpaceChild::{
-	self, Bot, Conversation, Message, Mission, Routine, RoutineRun, Section, Turn,
+	self, Bot, BotHeldAlone, Conversation, Message, Mission, Routine, RoutineRun, Section, Turn,
 };
 use crate::db::{DatabaseError, DatabaseState};
 
@@ -24,7 +24,7 @@ pub(super) struct Held {
 enum Check {
 	Space,
 	Child(SpaceChild),
-	PluginScope,
+	PluginScope(SpaceChild),
 	NotAllSpaces,
 }
 
@@ -46,7 +46,9 @@ const SPACE_FILTER: &[Held] = &[
 	Held { argument: "/allSpaces", check: Check::NotAllSpaces, is_optional: false },
 ];
 const PLUGIN_SCOPE: &[Held] =
-	&[Held { argument: "/scope", check: Check::PluginScope, is_optional: false }];
+	&[Held { argument: "/scope", check: Check::PluginScope(Bot), is_optional: false }];
+const PLUGIN_WRITE_SCOPE: &[Held] =
+	&[Held { argument: "/scope", check: Check::PluginScope(BotHeldAlone), is_optional: false }];
 const CONVERSATION_ID: &[Held] = &[child(Conversation, "/conversationId")];
 const CONVERSATION_AND_BOT: &[Held] =
 	&[child(Conversation, "/conversationId"), child(Bot, "/botId")];
@@ -61,7 +63,7 @@ const NEW_MESSAGE: &[Held] = &[
 	optional_child(Message, "/message/repliedToMessageId"),
 ];
 const BOT_ID: &[Held] = &[child(Bot, "/botId")];
-const BOT_AS_ID: &[Held] = &[child(Bot, "/id")];
+const BOT_WRITE_AS_ID: &[Held] = &[child(BotHeldAlone, "/id")];
 const BOT_AND_SPACE: &[Held] = &[child(Bot, "/botId"), space("/spaceId")];
 const MESSAGE_AS_ID: &[Held] = &[child(Message, "/id")];
 const MISSION_ID: &[Held] = &[child(Mission, "/missionId")];
@@ -120,11 +122,11 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 	("companion_launch_outcome", Reach::Free),
 	("window_declare_maximize_button", Reach::HostOnly),
 	("conversation_duplicate_bot", Reach::Scoped(BOT_AND_SPACE)),
-	("conversation_update_bot", Reach::Scoped(BOT_AS_ID)),
-	("conversation_delete_bot", Reach::Scoped(BOT_AS_ID)),
-	("conversation_set_bot_avatar_image", Reach::Scoped(BOT_AS_ID)),
-	("conversation_set_bot_memory", Reach::Scoped(BOT_AS_ID)),
-	("conversation_record_bot_commands", Reach::Scoped(BOT_ID)),
+	("conversation_update_bot", Reach::Scoped(BOT_WRITE_AS_ID)),
+	("conversation_delete_bot", Reach::Scoped(BOT_WRITE_AS_ID)),
+	("conversation_set_bot_avatar_image", Reach::Scoped(BOT_WRITE_AS_ID)),
+	("conversation_set_bot_memory", Reach::Scoped(BOT_WRITE_AS_ID)),
+	("conversation_record_bot_commands", Reach::Scoped(&[child(BotHeldAlone, "/botId")])),
 	("conversation_bot_commands", Reach::Scoped(BOT_ID)),
 	("conversation_main_chat", Reach::Scoped(BOT_AND_SPACE)),
 	(
@@ -210,19 +212,19 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 	("mission_answered", Reach::Scoped(MISSION_ID)),
 	("notification_show", Reach::HostOnly),
 	("plugin_skills", Reach::Scoped(PLUGIN_SCOPE)),
-	("plugin_create_skill", Reach::Scoped(PLUGIN_SCOPE)),
-	("plugin_update_skill", Reach::Scoped(PLUGIN_SCOPE)),
-	("plugin_set_skill_preloaded", Reach::Scoped(PLUGIN_SCOPE)),
-	("plugin_delete_skill", Reach::Scoped(PLUGIN_SCOPE)),
+	("plugin_create_skill", Reach::Scoped(PLUGIN_WRITE_SCOPE)),
+	("plugin_update_skill", Reach::Scoped(PLUGIN_WRITE_SCOPE)),
+	("plugin_set_skill_preloaded", Reach::Scoped(PLUGIN_WRITE_SCOPE)),
+	("plugin_delete_skill", Reach::Scoped(PLUGIN_WRITE_SCOPE)),
 	("plugin_skill_file", Reach::Scoped(PLUGIN_SCOPE)),
-	("plugin_write_skill_file", Reach::Scoped(PLUGIN_SCOPE)),
-	("plugin_delete_skill_file", Reach::Scoped(PLUGIN_SCOPE)),
+	("plugin_write_skill_file", Reach::Scoped(PLUGIN_WRITE_SCOPE)),
+	("plugin_delete_skill_file", Reach::Scoped(PLUGIN_WRITE_SCOPE)),
 	("plugin_mcp_servers", Reach::Scoped(PLUGIN_SCOPE)),
-	("plugin_set_mcp_server", Reach::Scoped(PLUGIN_SCOPE)),
-	("plugin_delete_mcp_server", Reach::Scoped(PLUGIN_SCOPE)),
+	("plugin_set_mcp_server", Reach::Scoped(PLUGIN_WRITE_SCOPE)),
+	("plugin_delete_mcp_server", Reach::Scoped(PLUGIN_WRITE_SCOPE)),
 	("plugin_history", Reach::Scoped(PLUGIN_SCOPE)),
 	("plugin_history_diff", Reach::Scoped(PLUGIN_SCOPE)),
-	("plugin_revert", Reach::Scoped(PLUGIN_SCOPE)),
+	("plugin_revert", Reach::Scoped(PLUGIN_WRITE_SCOPE)),
 	("routine_trigger_sources", Reach::Scoped(BOT_ID)),
 	(
 		"routine_create",
@@ -325,10 +327,10 @@ impl<R: Runtime> Lookup<'_, R> {
 				}
 				true
 			}
-			(Check::PluginScope, Some(scope)) => {
+			(Check::PluginScope(bot_kind), Some(scope)) => {
 				match (scope["kind"].as_str(), scope["id"].as_str()) {
 					(Some("space"), Some(space_id)) => space_id == self.shared_space_id,
-					(Some("bot"), Some(bot_id)) => self.holds_child(Bot, bot_id).await,
+					(Some("bot"), Some(bot_id)) => self.holds_child(bot_kind, bot_id).await,
 					_ => false,
 				}
 			}
