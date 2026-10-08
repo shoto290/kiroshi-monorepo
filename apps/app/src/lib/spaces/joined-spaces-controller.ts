@@ -161,15 +161,17 @@ const joinedSpaceOfRow = (
 ): JoinedSpace | undefined =>
 	joinedSpaces.find((joined) => rowIdOf(joined) === rowId)
 
+const isOpenIn =
+	(openId: string | null, selectedSpaceId: string | null) =>
+	(joined: JoinedSpace) =>
+		joined.id === openId && hostSpaceIdOf(joined) === selectedSpaceId
+
 export const openJoinedSpaceOf = (
 	joinedSpaces: JoinedSpace[],
 	openId: string | null,
 	selectedSpaceId: string | null,
 ): JoinedSpace | undefined =>
-	joinedSpaces.find(
-		(joined) =>
-			joined.id === openId && hostSpaceIdOf(joined) === selectedSpaceId,
-	)
+	joinedSpaces.find(isOpenIn(openId, selectedSpaceId))
 
 export const openRowIdOf = (
 	state: Pick<JoinedSpacesState, "joinedSpaces" | "removed" | "openId">,
@@ -332,11 +334,7 @@ export const createJoinedSpacesController = ({
 		joinedSpaceOfRow(current().joinedSpaces, rowId)
 
 	const isOpenJoined = (joined: JoinedSpace) =>
-		openJoinedSpaceOf(
-			[joined],
-			current().openId,
-			spaces.getState().selectedSpaceId,
-		) !== undefined
+		isOpenIn(current().openId, spaces.getState().selectedSpaceId)(joined)
 
 	const openJoined = () => current().joinedSpaces.find(isOpenJoined)
 
