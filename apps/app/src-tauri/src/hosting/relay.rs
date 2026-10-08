@@ -98,11 +98,10 @@ pub(super) async fn hosted<R: Runtime>(
 	mut stop: watch::Receiver<bool>,
 ) {
 	let mut backoff = Backoff::first();
-	let mut is_reregistered = false;
+	let mut replaced = None;
 	loop {
 		let next =
-			attempted(&app, &mut hosted, &local, &mut stop, &mut backoff, &mut is_reregistered)
-				.await;
+			attempted(&app, &mut hosted, &local, &mut stop, &mut backoff, &mut replaced).await;
 		let instance_id = hosted.instance_id.as_deref();
 		match next {
 			Next::Stopped => return,
@@ -129,7 +128,7 @@ async fn attempted<R: Runtime>(
 	local: &LocalApi,
 	stop: &mut watch::Receiver<bool>,
 	backoff: &mut Backoff,
-	is_reregistered: &mut bool,
+	replaced: &mut Option<String>,
 ) -> Next {
 	let bearer = match app.state::<AccountSession>().bearer() {
 		Ok(Some(bearer)) => bearer,
@@ -142,7 +141,7 @@ async fn attempted<R: Runtime>(
 	};
 	let instance_id = match hosted.instance_id.clone() {
 		Some(instance_id) => instance_id,
-		None => match registered(app, &bearer, hosted).await {
+		None => match registered(app, &bearer, hosted, replaced.as_deref()).await {
 			Ok(_) if *stop.borrow() => return Next::Stopped,
 			Ok(instance_id) => instance_id,
 			Err(next) => return next,
@@ -153,7 +152,7 @@ async fn attempted<R: Runtime>(
 	match opened {
 		None => Next::Stopped,
 		Some(Opened::Socket(socket)) => {
-			*is_reregistered = false;
+			*replaced = None;
 			backoff.reset();
 			entered(app, &hosted.space_id, Some(&instance_id), HostingState::Online);
 			let ids = Ids { space_id: &hosted.space_id, instance_id: &instance_id };
@@ -173,9 +172,8 @@ async fn attempted<R: Runtime>(
 		Some(Opened::Forbidden) => Next::Settled(HostingState::Failed {
 			reason: "the account does not own this instance (relay answered 403)".to_owned(),
 		}),
-		Some(Opened::Unknown) if !*is_reregistered => {
-			*is_reregistered = true;
-			hosted.instance_id = None;
+		Some(Opened::Unknown) if replaced.is_none() => {
+			*replaced = hosted.instance_id.take();
 			Next::Reregister
 		}
 		Some(Opened::Unknown) => Next::Settled(HostingState::Failed {
@@ -190,6 +188,7 @@ async fn registered<R: Runtime>(
 	app: &AppHandle<R>,
 	bearer: &str,
 	hosted: &mut Hosted,
+	replaced: Option<&str>,
 ) -> Result<String, Next> {
 	let cloud = &app.state::<Hosting>().cloud;
 	let instance_id = match cloud.register_instance(bearer, &hosted.name).await {
@@ -211,7 +210,11 @@ async fn registered<R: Runtime>(
 			reason: format!("the registered instance {instance_id} was not stored: {failure:?}"),
 		}));
 	}
-	eprintln!("space {} registered instance {instance_id}", hosted.space_id);
+	eprintln!(
+		"space {} registered instance {instance_id} in place of instance {}",
+		hosted.space_id,
+		replaced.unwrap_or("none")
+	);
 	hosted.instance_id = Some(instance_id.clone());
 	Ok(instance_id)
 }

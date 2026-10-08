@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
-use std::time::Duration;
 
 use futures_util::StreamExt;
 use serde_json::{json, Value};
@@ -14,7 +13,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 use super::commands::{announce_change, announce_removal, ready};
 use super::contract::{JoinedSpace, JoinedSpaceConnection, JoinedSpaceError};
-use super::member_link::{MemberLink, Presence};
+use super::member_link::{MemberLink, Presence, LEARN_BOUND};
 use super::proxy;
 use crate::account::cloud::Cloud;
 use crate::account::session::AccountSession;
@@ -26,9 +25,9 @@ use crate::hosting::relay::{
 	opened, sent, until_stopped, Backoff, Opened, Socket, PING_EVERY, SILENCE_BOUND,
 };
 
-const MEMBERSHIP_ENDED: u16 = 4003;
+const HOST_ABSENT: u16 = 4002;
 
-const LEARN_BOUND: Duration = Duration::from_secs(30);
+const MEMBERSHIP_ENDED: u16 = 4003;
 
 const CALLS_IN_FLIGHT: usize = 64;
 
@@ -220,18 +219,10 @@ async fn learned<R: Runtime>(
 	link: &MemberLink,
 ) -> Result<String, JoinedSpaceError> {
 	let offline = || JoinedSpaceError::HostOffline { id: id.to_owned() };
-	let mut presence = link.presence();
-	let settled = timeout(LEARN_BOUND, presence.wait_for(|now| *now != Presence::Connecting))
-		.await
-		.ok()
-		.and_then(Result::ok)
-		.map(|now| *now);
-	match settled {
-		Some(Presence::Online) => {}
-		Some(Presence::Ended) => {
-			return Err(JoinedSpaceError::UnknownJoinedSpace { id: id.to_owned() })
-		}
-		_ => return Err(offline()),
+	match link.settled().await {
+		Presence::Online => {}
+		Presence::Ended => return Err(JoinedSpaceError::UnknownJoinedSpace { id: id.to_owned() }),
+		Presence::Connecting | Presence::Down => return Err(offline()),
 	}
 	let answer = timeout(LEARN_BOUND, link.called(SHARED_SPACE_COMMAND, json!({})))
 		.await
@@ -397,6 +388,9 @@ async fn online(socket: Socket, link: &MemberLink, stop: &mut watch::Receiver<bo
 fn closed_by_relay(frame: Option<CloseFrame>) -> Ended {
 	match frame.map(|frame| u16::from(frame.code)) {
 		Some(MEMBERSHIP_ENDED) => Ended::Evicted,
+		Some(HOST_ABSENT) => {
+			Ended::Dropped(format!("the relay room has no host (code {HOST_ABSENT})"))
+		}
 		code => Ended::Dropped(format!("the member relay closed the socket with code {code:?}")),
 	}
 }

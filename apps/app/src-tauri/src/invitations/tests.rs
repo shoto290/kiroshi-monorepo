@@ -44,6 +44,7 @@ struct Cloud {
 	called: Arc<Mutex<Vec<String>>>,
 	unknown_instances: Arc<Mutex<Vec<String>>>,
 	call_delay: Arc<Mutex<Duration>>,
+	member_delay: Arc<Mutex<Duration>>,
 	is_refusing_members: Arc<AtomicBool>,
 	members: mpsc::UnboundedSender<WebSocket>,
 }
@@ -109,6 +110,8 @@ async fn member_relay(
 	if cloud.unknown_instances.lock().expect("the cloud").contains(&instance_id) {
 		return StatusCode::NOT_FOUND.into_response();
 	}
+	let delay = *cloud.member_delay.lock().expect("the cloud");
+	tokio::time::sleep(delay).await;
 	upgrade.on_upgrade(move |socket| async move {
 		cloud.members.send(socket).expect("the test holds the member sockets");
 	})
@@ -163,6 +166,7 @@ impl Harness {
 			called: Arc::default(),
 			unknown_instances: Arc::default(),
 			call_delay: Arc::default(),
+			member_delay: Arc::default(),
 			is_refusing_members: Arc::default(),
 			members: members_in,
 		};
@@ -607,6 +611,35 @@ fn a_live_relay_closed_4002_answers_503_reopens_and_keeps_the_entry() {
 		assert_eq!(answered.status(), StatusCode::OK);
 		assert_eq!(harness.stored().await.len(), 1);
 		assert!(harness.heard(REMOVED_EVENT).is_empty());
+	});
+}
+
+#[test]
+fn every_invoke_sent_right_after_connecting_a_learned_entry_gets_the_host_answer() {
+	run(async {
+		let mut harness = Harness::new(Some(BEARER)).await;
+		let id = harness.accepted().await;
+		let state = harness.app.state::<DatabaseState>();
+		let repository = state.as_ref().expect("the database").joined_spaces();
+		repository.learned(id.clone(), SHARED_SPACE.to_owned()).await.expect("the shared space");
+		*harness.cloud.member_delay.lock().expect("the cloud") = Duration::from_millis(300);
+
+		let connection = harness.connect(&id).await.expect("the connection");
+		let invoking = futures_util::future::join_all(
+			(0..3).map(|_| proxied(&connection, "conversation_list")),
+		);
+		let answering = async {
+			let mut member = harness.member().await;
+			for _ in 0..3 {
+				let invoked = call(&mut member).await;
+				send(&mut member, json!({ "id": invoked["id"], "status": 200, "body": [] })).await;
+			}
+		};
+		let (answers, ()) = tokio::join!(invoking, answering);
+
+		assert_eq!(connection.remote_space_id.as_deref(), Some(SHARED_SPACE));
+		let statuses: Vec<StatusCode> = answers.iter().map(reqwest::Response::status).collect();
+		assert_eq!(statuses, vec![StatusCode::OK; 3]);
 	});
 }
 
