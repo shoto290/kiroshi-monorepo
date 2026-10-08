@@ -83,7 +83,7 @@ pub async fn joined_space_connect<R: Runtime>(
 		JoinedReach::Link { host_url, token } => {
 			Ok(JoinedSpaceConnection::over(found, host_url, token))
 		}
-		JoinedReach::Relay { instance_id } => relay::connected(&app, found, instance_id).await,
+		JoinedReach::Relay { .. } => relay::connected(&app, found.id).await,
 	}
 }
 

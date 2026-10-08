@@ -61,7 +61,27 @@ struct Linked {
 enum Ended {
 	Stopped,
 	Evicted,
+	SignedOut(&'static str),
 	Dropped(String),
+}
+
+#[derive(Debug)]
+pub enum RelayJoinError {
+	SignedOut,
+	Account(String),
+	Joined(JoinedSpaceError),
+}
+
+impl From<JoinedSpaceError> for RelayJoinError {
+	fn from(error: JoinedSpaceError) -> Self {
+		RelayJoinError::Joined(error)
+	}
+}
+
+impl From<db::DatabaseError> for RelayJoinError {
+	fn from(error: db::DatabaseError) -> Self {
+		RelayJoinError::Joined(error.into())
+	}
 }
 
 impl RelayGuests {
@@ -88,13 +108,41 @@ impl RelayGuests {
 			link: Arc::clone(&guest.link),
 		})
 	}
+
+	fn left(&self, id: &str, link: &Arc<MemberLink>) -> Option<Guest> {
+		let mut guests = self.guests();
+		let is_this_guest = guests.get(id).is_some_and(|guest| Arc::ptr_eq(&guest.link, link));
+		is_this_guest.then(|| guests.remove(id)).flatten()
+	}
+
+	#[cfg(test)]
+	pub(crate) fn is_running(&self, id: &str) -> bool {
+		self.guests().contains_key(id)
+	}
+
+	#[cfg(test)]
+	pub(crate) fn turn(&self) -> &tokio::sync::Mutex<()> {
+		&self.turn
+	}
+}
+
+fn is_signed_in<R: Runtime>(app: &AppHandle<R>) -> Result<bool, String> {
+	app.state::<AccountSession>()
+		.bearer()
+		.map(|bearer| bearer.is_some())
+		.map_err(|error| format!("the account session store failed: {error:?}"))
 }
 
 pub async fn joined<R: Runtime>(
 	app: &AppHandle<R>,
 	instance_id: String,
 	name: Option<String>,
-) -> Result<JoinedSpace, JoinedSpaceError> {
+) -> Result<JoinedSpace, RelayJoinError> {
+	let guests = app.state::<RelayGuests>();
+	let _turn = guests.turn.lock().await;
+	if !is_signed_in(app).map_err(RelayJoinError::Account)? {
+		return Err(RelayJoinError::SignedOut);
+	}
 	let state = app.state::<db::DatabaseState>();
 	let repository = ready(&state)?.joined_spaces();
 	let reach = JoinedReach::Relay { instance_id: instance_id.clone() };
@@ -112,15 +160,14 @@ pub async fn joined<R: Runtime>(
 	};
 	let joined = repository.join(candidate).await?;
 	announce_change(app, joined.id.clone())?;
-	Ok(JoinedSpace::presented(joined, app.state::<RelayGuests>().cloud()))
+	Ok(JoinedSpace::presented(joined, guests.cloud()))
 }
 
 pub async fn connected<R: Runtime>(
 	app: &AppHandle<R>,
-	mut found: joined_spaces::JoinedSpace,
-	instance_id: String,
+	id: String,
 ) -> Result<JoinedSpaceConnection, JoinedSpaceError> {
-	let reached = started(app, &found.id, instance_id).await?;
+	let (mut found, reached) = started(app, &id).await?;
 	if found.remote_space_id.is_none() {
 		found.remote_space_id = Some(learned(app, &found.id, &reached.link).await?);
 	}
@@ -130,12 +177,26 @@ pub async fn connected<R: Runtime>(
 async fn started<R: Runtime>(
 	app: &AppHandle<R>,
 	id: &str,
-	instance_id: String,
-) -> Result<Reached, JoinedSpaceError> {
+) -> Result<(joined_spaces::JoinedSpace, Reached), JoinedSpaceError> {
 	let guests = app.state::<RelayGuests>();
 	let _turn = guests.turn.lock().await;
+	let state = app.state::<db::DatabaseState>();
+	let found = ready(&state)?.joined_spaces().find(id.to_owned()).await?;
+	let unknown = || JoinedSpaceError::UnknownJoinedSpace { id: id.to_owned() };
+	let found = found.ok_or_else(unknown)?;
+	let JoinedReach::Relay { instance_id } = found.reach.clone() else {
+		return Err(unknown());
+	};
+	match is_signed_in(app) {
+		Ok(true) => {}
+		Ok(false) => return Err(JoinedSpaceError::HostOffline { id: id.to_owned() }),
+		Err(reason) => {
+			eprintln!("joined space {id} was not connected: {reason}");
+			return Err(JoinedSpaceError::HostOffline { id: id.to_owned() });
+		}
+	}
 	if let Some(reached) = guests.reached(id) {
-		return Ok(reached);
+		return Ok((found, reached));
 	}
 	let link = Arc::new(MemberLink::new());
 	let token = Arc::new(HostToken::random());
@@ -151,7 +212,7 @@ async fn started<R: Runtime>(
 		link: Arc::clone(&link),
 	};
 	guests.guests().insert(id.to_owned(), Guest { origin, token, link, stop, run });
-	Ok(reached)
+	Ok((found, reached))
 }
 
 async fn learned<R: Runtime>(
@@ -196,11 +257,9 @@ pub async fn closed<R: Runtime>(app: &AppHandle<R>, id: &str) {
 	}
 }
 
-pub async fn signed_out<R: Runtime>(app: &AppHandle<R>) {
-	let Some(guests) = app.try_state::<RelayGuests>() else {
-		return;
-	};
-	let _turn = guests.turn.lock().await;
+pub async fn signed_out<R: Runtime>(app: &AppHandle<R>) -> Option<tokio::sync::MutexGuard<'_, ()>> {
+	let guests = app.try_state::<RelayGuests>()?.inner();
+	let turn = guests.turn.lock().await;
 	let running: Vec<(String, Guest)> = guests.guests().drain().collect();
 	for (id, guest) in running {
 		finished(&id, guest).await;
@@ -208,6 +267,7 @@ pub async fn signed_out<R: Runtime>(app: &AppHandle<R>) {
 	if let Err(failure) = relay_entries_dropped(app).await {
 		eprintln!("the relay spaces were not all dropped on sign out: {failure:?}");
 	}
+	Some(turn)
 }
 
 async fn relay_entries_dropped<R: Runtime>(app: &AppHandle<R>) -> Result<(), JoinedSpaceError> {
@@ -240,7 +300,15 @@ async fn guest_linked<R: Runtime>(
 			Ended::Stopped => return linked.link.closed(Presence::Ended),
 			Ended::Evicted => {
 				linked.link.closed(Presence::Ended);
-				return evicted(&app, &linked.id).await;
+				return evicted(&app, &linked).await;
+			}
+			Ended::SignedOut(reason) => {
+				linked.link.closed(Presence::Down);
+				app.state::<RelayGuests>().left(&linked.id, &linked.link);
+				return eprintln!(
+					"joined space {} (instance {}) left its member relay: {reason}",
+					linked.id, linked.instance_id
+				);
 			}
 			Ended::Dropped(reason) => {
 				linked.link.closed(Presence::Down);
@@ -265,7 +333,7 @@ async fn attempted<R: Runtime>(
 ) -> Ended {
 	let bearer = match app.state::<AccountSession>().bearer() {
 		Ok(Some(bearer)) => bearer,
-		Ok(None) => return Ended::Dropped("no account is signed in".to_owned()),
+		Ok(None) => return Ended::SignedOut("no account is signed in"),
 		Err(error) => {
 			return Ended::Dropped(format!("the account session store failed: {error:?}"))
 		}
@@ -278,7 +346,7 @@ async fn attempted<R: Runtime>(
 			online(*socket, &linked.link, stop).await
 		}
 		Some(Opened::Unknown) => Ended::Evicted,
-		Some(Opened::Revoked) => Ended::Dropped("the relay refused the account (401)".to_owned()),
+		Some(Opened::Revoked) => Ended::SignedOut("the relay refused the account (401)"),
 		Some(Opened::Forbidden) => {
 			Ended::Dropped("the account is not a member of this instance (403)".to_owned())
 		}
@@ -334,8 +402,9 @@ fn closed_by_relay(frame: Option<CloseFrame>) -> Ended {
 	}
 }
 
-async fn evicted<R: Runtime>(app: &AppHandle<R>, id: &str) {
-	app.state::<RelayGuests>().guests().remove(id);
+async fn evicted<R: Runtime>(app: &AppHandle<R>, linked: &Linked) {
+	let id = &linked.id;
+	app.state::<RelayGuests>().left(id, &linked.link);
 	if let Err(failure) = entry_evicted(app, id).await {
 		eprintln!("joined space {id} whose membership ended was not evicted: {failure:?}");
 	}

@@ -187,7 +187,7 @@ pub async fn sign_out<R: Runtime>(app: &AppHandle<R>) -> Result<(), AccountError
 	closed(&mut waiting).await;
 	hosting::signed_out(app).await;
 	invitations::signed_out(app).await;
-	joined_spaces::relay::signed_out(app).await;
+	let _relay_turn = joined_spaces::relay::signed_out(app).await;
 	if let Some(bearer) = session.bearer()? {
 		if let Err(reason) = session.cloud.sign_out(&bearer).await {
 			eprintln!(

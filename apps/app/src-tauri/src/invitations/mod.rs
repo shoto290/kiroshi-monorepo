@@ -13,6 +13,7 @@ use crate::account::session::AccountSession;
 use crate::events;
 use crate::joined_spaces;
 use crate::joined_spaces::contract::JoinedSpace;
+use crate::joined_spaces::relay::RelayJoinError;
 use contract::{Invitation, InvitationError, InvitationsChanged, CHANGED_EVENT};
 
 const INVITATIONS_EVERY: Duration = Duration::from_secs(30);
@@ -80,9 +81,16 @@ pub async fn accept<R: Runtime>(
 		Err(InvitationCallError::AlreadyJoined) => invitations.invited_name(&instance_id),
 		Err(error) => return Err(error.into()),
 	};
-	let joined = joined_spaces::relay::joined(app, instance_id, name)
-		.await
-		.map_err(|error| InvitationError::Storage { detail: format!("{error:?}") })?;
+	let joined =
+		joined_spaces::relay::joined(app, instance_id, name).await.map_err(
+			|error| match error {
+				RelayJoinError::SignedOut => InvitationError::NotSignedIn,
+				RelayJoinError::Account(detail) => InvitationError::Storage { detail },
+				RelayJoinError::Joined(error) => {
+					InvitationError::Storage { detail: format!("{error:?}") }
+				}
+			},
+		)?;
 	reread(app).await;
 	Ok(joined)
 }
