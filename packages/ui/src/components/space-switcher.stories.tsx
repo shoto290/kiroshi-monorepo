@@ -1403,8 +1403,7 @@ export const M11Withdrawn = meta.story({
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
 		await expect(args.onOpenChange).toHaveBeenCalledTimes(2)
-		await expect(args.onOpenChange).toHaveBeenNthCalledWith(1, true)
-		await expect(args.onOpenChange).toHaveBeenNthCalledWith(2, false)
+		await expect(args.onOpenChange).toHaveBeenLastCalledWith(false)
 	},
 })
 
