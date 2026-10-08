@@ -167,9 +167,7 @@ const InviteField = ({
 			>
 				{refusal
 					? t(`space.members.invite.refusal.${refusal}`, { email })
-					: failureText
-						? null
-						: t("space.members.invite.hint")}
+					: !failureText && t("space.members.invite.hint")}
 				<span role="status">{failureText}</span>
 			</p>
 		</form>
