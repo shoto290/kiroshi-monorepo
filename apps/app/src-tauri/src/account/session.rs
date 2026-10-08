@@ -16,6 +16,8 @@ use crate::environment::contract::{EnvError, EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
 use crate::events;
 use crate::hosting;
+use crate::invitations;
+use crate::joined_spaces;
 
 pub struct AccountSession {
 	cloud: Cloud,
@@ -158,6 +160,7 @@ async fn settled<R: Runtime>(
 	entered(&app, next);
 	if is_signed_in {
 		hosting::resumed(&app).await;
+		invitations::resumed(&app);
 	}
 }
 
@@ -173,6 +176,9 @@ pub async fn restore<R: Runtime>(app: AppHandle<R>) {
 		entered(&app, next);
 	}
 	hosting::resumed(&app).await;
+	if matches!(session.current(), AccountState::SignedIn(_)) {
+		invitations::resumed(&app);
+	}
 }
 
 pub async fn sign_out<R: Runtime>(app: &AppHandle<R>) -> Result<(), AccountError> {
@@ -180,6 +186,8 @@ pub async fn sign_out<R: Runtime>(app: &AppHandle<R>) -> Result<(), AccountError
 	let mut waiting = session.turn.lock().await;
 	closed(&mut waiting).await;
 	hosting::signed_out(app).await;
+	invitations::signed_out(app).await;
+	joined_spaces::relay::signed_out(app).await;
 	if let Some(bearer) = session.bearer()? {
 		if let Err(reason) = session.cloud.sign_out(&bearer).await {
 			eprintln!(

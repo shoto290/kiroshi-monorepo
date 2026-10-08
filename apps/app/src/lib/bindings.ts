@@ -130,6 +130,9 @@ export const commands = {
 	hostingInviteMember: (spaceId: string, email: string) => typedError<Member, MembersError>(__TAURI_INVOKE("hosting_invite_member", { spaceId, email })),
 	hostingWithdrawInvitation: (spaceId: string, userId: string) => typedError<Member[], MembersError>(__TAURI_INVOKE("hosting_withdraw_invitation", { spaceId, userId })),
 	hostingRemoveMember: (spaceId: string, userId: string) => typedError<Member[], MembersError>(__TAURI_INVOKE("hosting_remove_member", { spaceId, userId })),
+	invitationsList: () => typedError<Invitation[], InvitationError>(__TAURI_INVOKE("invitations_list")),
+	invitationAccept: (instanceId: string) => typedError<JoinedSpace, InvitationError>(__TAURI_INVOKE("invitation_accept", { instanceId })),
+	invitationDecline: (instanceId: string) => typedError<null, InvitationError>(__TAURI_INVOKE("invitation_decline", { instanceId })),
 	joinedSpacesList: () => typedError<JoinedSpace[], JoinedSpaceError>(__TAURI_INVOKE("joined_spaces_list")),
 	joinedSpaceAdd: (link: string, name: string | null) => typedError<JoinedSpace, JoinedSpaceError>(__TAURI_INVOKE("joined_space_add", { link, name })),
 	joinedSpaceConnect: (id: string) => typedError<JoinedSpaceConnection, JoinedSpaceError>(__TAURI_INVOKE("joined_space_connect", { id })),
@@ -215,6 +218,10 @@ export const HOSTING_CHANGED_EVENT = "hosting://changed" as const;
 export const HOSTING_MEMBERS_CHANGED_EVENT = "hosting://members-changed" as const;
 
 export const HOST_PRESENCE_EVENT = "host://presence" as const;
+
+export const INVITATION_CHANGED_EVENT = "invitation://changed" as const;
+
+export const JOINED_SPACE_REMOVED_EVENT = "joined-space://removed" as const;
 
 export const MAXIMIZE_BUTTON_EVENT = "window-maximize-button" as const;
 
@@ -686,6 +693,19 @@ export type Install_Serialize = ({ nothing: {
 	kind: "refused",
 } & InstallRefusal }) & { key?: never; nothing?: never; oauth?: never };
 
+export type Invitation = {
+	instanceId: string,
+	instanceName: string,
+	inviterEmail: string,
+	invitedAt: string,
+};
+
+export type InvitationError = { kind: "notSignedIn" } | { kind: "offline"; reason: string } | { kind: "serversUnreachable"; reason: string } | { kind: "withdrawn" } | { kind: "unknownInvitation" } | { kind: "storage"; detail: string };
+
+export type InvitationsChanged = {
+	invitations: Invitation[],
+};
+
 export type JoinedSpace = {
 	id: string,
 	hostUrl: string,
@@ -701,7 +721,12 @@ export type JoinedSpaceConnection = {
 	name: string,
 };
 
-export type JoinedSpaceError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "refusedLink"; part: LinkPart; message: string } | { kind: "unknownJoinedSpace"; id: string } | { kind: "undeliverable"; detail: string };
+export type JoinedSpaceError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "refusedLink"; part: LinkPart; message: string } | { kind: "unknownJoinedSpace"; id: string } | { kind: "undeliverable"; detail: string } | { kind: "hostOffline"; id: string } | { kind: "proxyUnavailable"; detail: string };
+
+export type JoinedSpaceRemoved = {
+	id: string,
+	name: string,
+};
 
 export type Json = null | boolean | number | null | string | Json[] | { [key in string]: Json };
 

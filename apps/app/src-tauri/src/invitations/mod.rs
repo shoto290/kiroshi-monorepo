@@ -1,0 +1,161 @@
+pub mod commands;
+pub mod contract;
+
+use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::Duration;
+
+use tauri::async_runtime::JoinHandle;
+use tauri::{AppHandle, Manager, Runtime};
+use tokio::time::{interval, MissedTickBehavior};
+
+use crate::account::cloud::{Cloud, InvitationCallError};
+use crate::account::session::AccountSession;
+use crate::events;
+use crate::joined_spaces;
+use crate::joined_spaces::contract::JoinedSpace;
+use contract::{Invitation, InvitationError, InvitationsChanged, CHANGED_EVENT};
+
+const INVITATIONS_EVERY: Duration = Duration::from_secs(30);
+
+pub struct Invitations {
+	cloud: Cloud,
+	every: Duration,
+	last: Mutex<Option<Vec<Invitation>>>,
+	poll: Mutex<Option<JoinHandle<()>>>,
+	turn: tokio::sync::Mutex<()>,
+}
+
+impl Invitations {
+	pub fn new(api_url: &str) -> Self {
+		Self {
+			cloud: Cloud::new(api_url),
+			every: INVITATIONS_EVERY,
+			last: Mutex::new(None),
+			poll: Mutex::new(None),
+			turn: tokio::sync::Mutex::new(()),
+		}
+	}
+
+	#[cfg(test)]
+	pub(crate) fn polling_every(self, every: Duration) -> Self {
+		Self { every, ..self }
+	}
+
+	fn last(&self) -> MutexGuard<'_, Option<Vec<Invitation>>> {
+		self.last.lock().unwrap_or_else(PoisonError::into_inner)
+	}
+
+	fn poll(&self) -> MutexGuard<'_, Option<JoinHandle<()>>> {
+		self.poll.lock().unwrap_or_else(PoisonError::into_inner)
+	}
+
+	fn invited_name(&self, instance_id: &str) -> Option<String> {
+		self.last()
+			.iter()
+			.flatten()
+			.find(|invitation| invitation.instance_id == instance_id)
+			.map(|invitation| invitation.instance_name.clone())
+	}
+}
+
+pub async fn read<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<Invitation>, InvitationError> {
+	let invitations = app.state::<Invitations>();
+	let _turn = invitations.turn.lock().await;
+	let bearer = bearer_of(app)?;
+	let listed = invitations.cloud.invitations(&bearer).await?;
+	if invitations.last().as_ref() != Some(&listed) {
+		announced(app, &invitations, listed.clone());
+	}
+	Ok(listed)
+}
+
+pub async fn accept<R: Runtime>(
+	app: &AppHandle<R>,
+	instance_id: String,
+) -> Result<JoinedSpace, InvitationError> {
+	let invitations = app.state::<Invitations>();
+	let bearer = bearer_of(app)?;
+	let name = match invitations.cloud.accept_invitation(&bearer, &instance_id).await {
+		Ok(joined) => Some(joined.name),
+		Err(InvitationCallError::AlreadyJoined) => invitations.invited_name(&instance_id),
+		Err(error) => return Err(error.into()),
+	};
+	let joined = joined_spaces::relay::joined(app, instance_id, name)
+		.await
+		.map_err(|error| InvitationError::Storage { detail: format!("{error:?}") })?;
+	reread(app).await;
+	Ok(joined)
+}
+
+pub async fn decline<R: Runtime>(
+	app: &AppHandle<R>,
+	instance_id: String,
+) -> Result<(), InvitationError> {
+	let bearer = bearer_of(app)?;
+	app.state::<Invitations>().cloud.decline_invitation(&bearer, &instance_id).await?;
+	reread(app).await;
+	Ok(())
+}
+
+async fn reread<R: Runtime>(app: &AppHandle<R>) {
+	if let Err(failure) = read(app).await {
+		eprintln!("the invitations were not read back: {failure:?}");
+	}
+}
+
+pub fn resumed<R: Runtime>(app: &AppHandle<R>) {
+	let Some(invitations) = app.try_state::<Invitations>() else {
+		return;
+	};
+	let mut poll = invitations.poll();
+	if poll.is_none() {
+		*poll = Some(tauri::async_runtime::spawn(polled(app.clone())));
+	}
+}
+
+async fn polled<R: Runtime>(app: AppHandle<R>) {
+	let mut polls = interval(app.state::<Invitations>().every);
+	polls.set_missed_tick_behavior(MissedTickBehavior::Delay);
+	loop {
+		polls.tick().await;
+		if let Err(failure) = read(&app).await {
+			eprintln!("the invitations were not polled: {failure:?}");
+		}
+	}
+}
+
+pub async fn signed_out<R: Runtime>(app: &AppHandle<R>) {
+	let Some(invitations) = app.try_state::<Invitations>() else {
+		return;
+	};
+	let poll = invitations.poll().take();
+	if let Some(poll) = poll {
+		poll.abort();
+		if let Err(error) = poll.await {
+			if !matches!(&error, tauri::Error::JoinError(joined) if joined.is_cancelled()) {
+				eprintln!("the invitation poll ended abnormally: {error}");
+			}
+		}
+	}
+	let _turn = invitations.turn.lock().await;
+	announced(app, &invitations, Vec::new());
+}
+
+fn bearer_of<R: Runtime>(app: &AppHandle<R>) -> Result<String, InvitationError> {
+	match app.state::<AccountSession>().bearer() {
+		Ok(Some(bearer)) => Ok(bearer),
+		Ok(None) => Err(InvitationError::NotSignedIn),
+		Err(error) => Err(InvitationError::Storage { detail: format!("{error:?}") }),
+	}
+}
+
+fn announced<R: Runtime>(app: &AppHandle<R>, invitations: &Invitations, listed: Vec<Invitation>) {
+	*invitations.last() = Some(listed.clone());
+	if let Err(error) = events::emit(app, CHANGED_EVENT, InvitationsChanged { invitations: listed })
+	{
+		eprintln!("the invitations did not reach the front: {error}");
+	}
+}
+
+#[cfg(test)]
+mod tests;

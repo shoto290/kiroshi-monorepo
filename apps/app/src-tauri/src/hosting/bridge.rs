@@ -15,6 +15,8 @@ const HOST_ONLY_REFUSAL: &str = "this command belongs to the host";
 
 const OTHER_SPACE_REFUSAL: &str = "this command reaches outside the shared space";
 
+pub(crate) const SHARED_SPACE_COMMAND: &str = "relay_shared_space";
+
 #[derive(Clone)]
 pub struct LocalApi {
 	origin: String,
@@ -60,6 +62,15 @@ pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
 		}
 		(id, _, _) => Err(refused(id)),
 	}
+}
+
+pub(super) fn shared_space_answer(text: &str, shared_space_id: &str) -> Option<String> {
+	let frame: Value = serde_json::from_str(text).ok()?;
+	if frame.get("command").and_then(Value::as_str) != Some(SHARED_SPACE_COMMAND) {
+		return None;
+	}
+	let id = frame.get("id").filter(|id| id.is_string() || id.is_number())?.clone();
+	Some(answer(id, StatusCode::OK, json!({ "spaceId": shared_space_id })))
 }
 
 pub(super) fn belongs_to_the_host(command: &str, args: &Value) -> bool {
@@ -142,6 +153,18 @@ mod tests {
 			member_call(r#"{"id": 3, "command": "agent_models"}"#),
 			Ok(MemberCall { id: json!(3), command: "agent_models".to_owned(), args: json!({}) })
 		);
+	}
+
+	#[test]
+	fn the_shared_space_frame_is_answered_with_the_shared_space_and_others_are_left_alone() {
+		assert_eq!(
+			shared_space_answer(r#"{"id": 4, "command": "relay_shared_space"}"#, "s1")
+				.map(|answer| serde_json::from_str::<Value>(&answer).expect("a json answer")),
+			Some(json!({ "id": 4, "status": 200, "body": { "spaceId": "s1" } }))
+		);
+		assert_eq!(shared_space_answer(r#"{"id": 4, "command": "space_list"}"#, "s1"), None);
+		assert_eq!(shared_space_answer(r#"{"command": "relay_shared_space"}"#, "s1"), None);
+		assert_eq!(shared_space_answer("not json", "s1"), None);
 	}
 
 	#[test]

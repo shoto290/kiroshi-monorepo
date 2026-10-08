@@ -30,6 +30,7 @@ use crate::account::session::restore;
 use crate::account::session::AccountSession;
 use crate::agent::protocol::OauthCredentials;
 use crate::db::connection::temp_dir;
+use crate::db::repositories::joined_spaces::JoinedReach;
 use crate::db::{self, DatabaseState};
 use crate::environment::connection;
 use crate::environment::contract::{ConnectionKind, EnvOwner, EnvScope, ACCOUNT_BEARER};
@@ -38,6 +39,7 @@ use crate::events;
 use crate::joined_spaces::commands::joined_space_add;
 use crate::joined_spaces::contract::JoinedSpaceConnection;
 use crate::joined_spaces::link::joined_space;
+use crate::joined_spaces::relay::RelayGuests;
 use crate::mcp_oauth::credentials;
 
 const BEARER: &str = "bearer-that-never-leaves";
@@ -192,7 +194,13 @@ async fn joined_space_connected(
 	}
 	let id = args["id"].as_str().expect("a joined space id").to_owned();
 	let found = db::open(&database).joined_spaces().find(id).await.expect("the host reads");
-	answered_json(StatusCode::OK, json!(found.map(JoinedSpaceConnection::from)))
+	let connection = found.map(|found| match found.reach.clone() {
+		JoinedReach::Link { host_url, token } => {
+			JoinedSpaceConnection::over(found, host_url, token)
+		}
+		JoinedReach::Relay { .. } => panic!("the host joined by link"),
+	});
+	answered_json(StatusCode::OK, json!(connection))
 }
 
 #[derive(Clone)]
@@ -359,6 +367,7 @@ impl Harness {
 		let app = mock_app();
 		app.manage::<DatabaseState>(Ok(db::open(&database)));
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
+		app.manage(RelayGuests::new(&cloud));
 		app.manage(
 			Hosting::new(
 				&cloud,
@@ -641,6 +650,22 @@ fn a_member_call_reaches_the_local_api_with_the_host_token_and_its_answer_comes_
 				"status": 200,
 				"body": { "command": "agent_models", "args": { "a": 1 } }
 			})
+		);
+	});
+}
+
+#[test]
+fn the_shared_space_frame_is_answered_with_the_hosted_space() {
+	run(async {
+		let mut harness = Harness::signed_in("shared-space").await;
+		harness.started().await;
+		let mut member = harness.member().await;
+
+		send(&mut member, r#"{"id": "s1", "command": "relay_shared_space"}"#).await;
+
+		assert_eq!(
+			answer(&mut member).await,
+			json!({ "id": "s1", "status": 200, "body": { "spaceId": PERSONAL } })
 		);
 	});
 }

@@ -1,7 +1,7 @@
 use tauri::Url;
 
 use super::contract::{JoinedSpaceError, LinkPart};
-use crate::db::repositories::joined_spaces::JoinedSpace;
+use crate::db::repositories::joined_spaces::{JoinedReach, JoinedSpace};
 
 const HOST_PARAMETER: &str = "host";
 const TOKEN_PARAMETER: &str = "token";
@@ -30,8 +30,10 @@ pub fn joined_space(
 		.unwrap_or_else(|| authority_of(&host));
 	Ok(JoinedSpace {
 		id,
-		host_url: host.as_str().trim_end_matches('/').to_owned(),
-		token,
+		reach: JoinedReach::Link {
+			host_url: host.as_str().trim_end_matches('/').to_owned(),
+			token,
+		},
 		remote_space_id,
 		name,
 	})
@@ -142,8 +144,10 @@ mod tests {
 			joined,
 			JoinedSpace {
 				id: "id".to_owned(),
-				host_url: "http://127.0.0.1:45367".to_owned(),
-				token: "abc".to_owned(),
+				reach: JoinedReach::Link {
+					host_url: "http://127.0.0.1:45367".to_owned(),
+					token: "abc".to_owned(),
+				},
 				remote_space_id: None,
 				name: "127.0.0.1:45367".to_owned(),
 			}
@@ -159,7 +163,9 @@ mod tests {
 		)
 		.expect("the link");
 
-		assert_eq!(joined.host_url, "https://host.test");
+		assert!(
+			matches!(&joined.reach, JoinedReach::Link { host_url, .. } if host_url == "https://host.test")
+		);
 		assert_eq!(joined.remote_space_id.as_deref(), Some("remote-1"));
 		assert_eq!(joined.name, "Studio");
 	}

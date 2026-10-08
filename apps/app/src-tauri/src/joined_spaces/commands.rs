@@ -1,25 +1,48 @@
 use serde::Serialize;
-use tauri::{AppHandle, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::contract::{JoinedSpace, JoinedSpaceConnection, JoinedSpaceError};
 use super::link;
+use super::relay::{self, RelayGuests};
 use crate::db;
+use crate::db::repositories::joined_spaces::JoinedReach;
 use crate::events;
 
 pub const CHANGED_EVENT: &str = "joined-space://changed";
 
-#[derive(Debug, Clone, Serialize)]
+pub const REMOVED_EVENT: &str = "joined-space://removed";
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JoinedSpaceChanged {
 	pub id: String,
 }
 
-fn ready(state: &db::DatabaseState) -> Result<&db::Database, JoinedSpaceError> {
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct JoinedSpaceRemoved {
+	pub id: String,
+	pub name: String,
+}
+
+pub(super) fn ready(state: &db::DatabaseState) -> Result<&db::Database, JoinedSpaceError> {
 	state.as_ref().map_err(|failure| JoinedSpaceError::Unavailable { failure: failure.into() })
 }
 
-fn announce_change<R: Runtime>(app: &AppHandle<R>, id: String) -> Result<(), JoinedSpaceError> {
+pub(super) fn announce_change<R: Runtime>(
+	app: &AppHandle<R>,
+	id: String,
+) -> Result<(), JoinedSpaceError> {
 	events::emit(app, CHANGED_EVENT, JoinedSpaceChanged { id })
+		.map_err(|error| JoinedSpaceError::Undeliverable { detail: error.to_string() })
+}
+
+pub(super) fn announce_removal<R: Runtime>(
+	app: &AppHandle<R>,
+	id: String,
+	name: String,
+) -> Result<(), JoinedSpaceError> {
+	events::emit(app, REMOVED_EVENT, JoinedSpaceRemoved { id, name })
 		.map_err(|error| JoinedSpaceError::Undeliverable { detail: error.to_string() })
 }
 
@@ -27,9 +50,10 @@ fn announce_change<R: Runtime>(app: &AppHandle<R>, id: String) -> Result<(), Joi
 #[specta::specta]
 pub async fn joined_spaces_list(
 	state: State<'_, db::DatabaseState>,
+	guests: State<'_, RelayGuests>,
 ) -> Result<Vec<JoinedSpace>, JoinedSpaceError> {
 	let stored = ready(&state)?.joined_spaces().list().await?;
-	Ok(stored.into_iter().map(JoinedSpace::from).collect())
+	Ok(stored.into_iter().map(|joined| JoinedSpace::presented(joined, guests.cloud())).collect())
 }
 
 #[tauri::command]
@@ -43,17 +67,24 @@ pub async fn joined_space_add<R: Runtime>(
 	let candidate = link::joined_space(&link, uuid::Uuid::new_v4().to_string(), name)?;
 	let joined = ready(&state)?.joined_spaces().join(candidate).await?;
 	announce_change(&app, joined.id.clone())?;
-	Ok(joined.into())
+	Ok(JoinedSpace::presented(joined, app.state::<RelayGuests>().cloud()))
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn joined_space_connect(
+pub async fn joined_space_connect<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	id: String,
 ) -> Result<JoinedSpaceConnection, JoinedSpaceError> {
 	let found = ready(&state)?.joined_spaces().find(id.clone()).await?;
-	found.map(JoinedSpaceConnection::from).ok_or(JoinedSpaceError::UnknownJoinedSpace { id })
+	let found = found.ok_or(JoinedSpaceError::UnknownJoinedSpace { id })?;
+	match found.reach.clone() {
+		JoinedReach::Link { host_url, token } => {
+			Ok(JoinedSpaceConnection::over(found, host_url, token))
+		}
+		JoinedReach::Relay { instance_id } => relay::connected(&app, found, instance_id).await,
+	}
 }
 
 #[tauri::command]
@@ -66,6 +97,7 @@ pub async fn joined_space_remove<R: Runtime>(
 	if !ready(&state)?.joined_spaces().remove(id.clone()).await? {
 		return Err(JoinedSpaceError::UnknownJoinedSpace { id });
 	}
+	relay::closed(&app, &id).await;
 	announce_change(&app, id)
 }
 
@@ -92,6 +124,7 @@ mod tests {
 	fn app_over(dir: &Path) -> App<MockRuntime> {
 		let app = mock_app();
 		app.manage::<db::DatabaseState>(Ok(db::open(dir)));
+		app.manage(RelayGuests::new("http://127.0.0.1:9"));
 		app
 	}
 
@@ -108,7 +141,7 @@ mod tests {
 	}
 
 	async fn list(app: &App<MockRuntime>) -> Vec<JoinedSpace> {
-		joined_spaces_list(app.state()).await.expect("the list")
+		joined_spaces_list(app.state(), app.state()).await.expect("the list")
 	}
 
 	#[tokio::test]
@@ -144,7 +177,9 @@ mod tests {
 
 		assert_eq!(second, JoinedSpace { name: "Renamed".to_owned(), ..first.clone() });
 		assert_eq!(list(&app).await, vec![second]);
-		let connection = joined_space_connect(app.state(), first.id).await.expect("the connection");
+		let connection = joined_space_connect(app.handle().clone(), app.state(), first.id)
+			.await
+			.expect("the connection");
 		assert_eq!(connection.token, "fresh");
 	}
 
@@ -188,8 +223,9 @@ mod tests {
 			serde_json::from_str::<Value>(&payload).expect("json"),
 			json!({ "id": added.id })
 		);
-		let connection =
-			joined_space_connect(app.state(), added.id.clone()).await.expect("the connection");
+		let connection = joined_space_connect(app.handle().clone(), app.state(), added.id.clone())
+			.await
+			.expect("the connection");
 		assert_eq!(connection.token, TOKEN);
 		assert_eq!(connection.host_url, added.host_url);
 	}
@@ -216,7 +252,9 @@ mod tests {
 			Err(JoinedSpaceError::UnknownJoinedSpace { id: added.id.clone() })
 		);
 		assert_eq!(
-			joined_space_connect(app.state(), added.id.clone()).await.map(|found| found.id),
+			joined_space_connect(app.handle().clone(), app.state(), added.id.clone())
+				.await
+				.map(|found| found.id),
 			Err(JoinedSpaceError::UnknownJoinedSpace { id: added.id })
 		);
 	}

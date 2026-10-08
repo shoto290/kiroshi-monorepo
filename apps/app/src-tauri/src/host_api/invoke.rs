@@ -13,6 +13,7 @@ use tauri::webview::InvokeRequest;
 use tauri::{AppHandle, Manager, Runtime, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tokio::sync::oneshot;
 
+use super::token::HostToken;
 use crate::routines::webhook::{named_here, Calls};
 
 pub const PATH: &str = "/api/invoke/{command}";
@@ -35,7 +36,7 @@ static DISPATCHER_OPENING: Mutex<()> = Mutex::new(());
 
 const BEARER: &str = "Bearer ";
 
-const JSON: &str = "application/json";
+pub(crate) const JSON: &str = "application/json";
 
 pub(crate) const BYTES: &str = "application/octet-stream";
 
@@ -45,12 +46,13 @@ pub(crate) const REFUSED: (StatusCode, &str) =
 pub(crate) const UNAUTHORIZED: (StatusCode, &str) =
 	(StatusCode::UNAUTHORIZED, "the call carried no valid bearer token");
 
-const UNREGISTERED: (StatusCode, &str) = (StatusCode::NOT_FOUND, "no command bears this name");
+pub(crate) const UNREGISTERED: (StatusCode, &str) =
+	(StatusCode::NOT_FOUND, "no command bears this name");
 
-const TOO_LARGE: (StatusCode, &str) =
+pub(crate) const TOO_LARGE: (StatusCode, &str) =
 	(StatusCode::PAYLOAD_TOO_LARGE, "the call carried more than the cap");
 
-const UNREADABLE: (StatusCode, &str) =
+pub(crate) const UNREADABLE: (StatusCode, &str) =
 	(StatusCode::BAD_REQUEST, "the call carried no readable JSON arguments");
 
 const UNANSWERED: (StatusCode, &str) =
@@ -79,7 +81,7 @@ async fn guarded<R: Runtime>(
 	next.run(request).await
 }
 
-fn declares_more_than_the_cap(headers: &HeaderMap) -> bool {
+pub(crate) fn declares_more_than_the_cap(headers: &HeaderMap) -> bool {
 	headers
 		.get(header::CONTENT_LENGTH)
 		.and_then(|value| value.to_str().ok())
@@ -88,9 +90,10 @@ fn declares_more_than_the_cap(headers: &HeaderMap) -> bool {
 }
 
 pub(crate) fn authorized<R: Runtime>(calls: &Calls<R>, headers: &HeaderMap) -> bool {
-	let Some(token) = &calls.token else {
-		return false;
-	};
+	calls.token.as_ref().is_some_and(|token| bearer_admitted(token, headers))
+}
+
+pub(crate) fn bearer_admitted(token: &HostToken, headers: &HeaderMap) -> bool {
 	headers
 		.get(header::AUTHORIZATION)
 		.and_then(|value| value.to_str().ok())
@@ -126,14 +129,14 @@ pub(crate) fn names_an_app_command(command: &str) -> bool {
 			.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
 }
 
-fn arguments(body: &[u8]) -> Option<Value> {
+pub(crate) fn arguments(body: &[u8]) -> Option<Value> {
 	if body.is_empty() {
 		return Some(Value::Object(Map::new()));
 	}
 	serde_json::from_slice(body).ok()
 }
 
-fn unread(rejection: BytesRejection) -> Response {
+pub(crate) fn unread(rejection: BytesRejection) -> Response {
 	match rejection.status() {
 		StatusCode::PAYLOAD_TOO_LARGE => TOO_LARGE.into_response(),
 		_ => UNREADABLE.into_response(),

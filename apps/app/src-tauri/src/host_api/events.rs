@@ -13,6 +13,7 @@ use tokio::sync::broadcast::Receiver;
 use tokio::time::{error::Elapsed, timeout};
 
 use super::invoke::{self, REFUSED, UNAUTHORIZED};
+use super::token::HostToken;
 use crate::events::{self, Frame};
 use crate::routines::webhook::{named_here, Calls};
 
@@ -47,9 +48,10 @@ pub(crate) async fn guarded<R: Runtime>(
 }
 
 fn queried_token_admitted<R: Runtime>(calls: &Calls<R>, uri: &Uri) -> bool {
-	let Some(token) = &calls.token else {
-		return false;
-	};
+	calls.token.as_ref().is_some_and(|token| query_admitted(token, uri))
+}
+
+pub(crate) fn query_admitted(token: &HostToken, uri: &Uri) -> bool {
 	uri.query()
 		.and_then(|query| query.split('&').find_map(|pair| pair.strip_prefix(TOKEN_PARAMETER)))
 		.is_some_and(|presented| token.admits(presented))
@@ -64,7 +66,7 @@ async fn opened<R: Runtime>(State(calls): State<Calls<R>>, upgrade: WebSocketUpg
 		.on_upgrade(|socket| relayed(socket, heard))
 }
 
-async fn relayed(mut socket: WebSocket, mut heard: Receiver<Frame>) {
+pub(crate) async fn relayed(mut socket: WebSocket, mut heard: Receiver<Frame>) {
 	loop {
 		tokio::select! {
 			frame = heard.recv() => match frame {
