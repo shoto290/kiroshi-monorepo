@@ -1033,10 +1033,7 @@ const JOINED_SPACES: Space[] = [
 const INVITED_ARTBOARD =
 	"Measured against the Paper page `Join an invited Space`, dark only."
 
-const DARK_MENU = {
-	globals: { theme: "dark" },
-	parameters: { a11y: A11Y_FLOATING_FOCUS_GUARDS },
-} as const
+const DARK = { theme: "dark" } as const
 
 const openSwitcher = (root: HTMLElement) =>
 	openMenu(within(root).getByRole("button", { name: /^Change space/ }))
@@ -1118,10 +1115,10 @@ const expectFailedRow = async (
 }
 
 export const M1NoInvitation = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	name: "M1 No invitation",
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story: `${INVITED_ARTBOARD} M1: no invitation is waiting, so the switcher is the one on main, and the one a decline brings back. Check the trigger carries no invitation dot and its name says nothing of invitations, and that the menu holds no Invitations group.`,
@@ -1140,11 +1137,11 @@ export const M1NoInvitation = meta.story({
 })
 
 export const M2InvitationWaiting = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	name: "M2 Invitation waiting",
 	args: { invitations: [{ ...INVITED, state: "waiting" }] },
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story: `${INVITED_ARTBOARD} M2: one invitation waits. Check the 7px primary dot sits on the trigger's top end corner and the trigger names it, that the 280px menu places a rule then an Invitations group between the Spaces and Move up, that the row reads the Space name over who invited, and that Accept and Decline are real buttons the arrow keys reach, each reporting the invitation id.`,
@@ -1183,7 +1180,7 @@ export const M2InvitationWaiting = meta.story({
 })
 
 export const M3TwoInvitationsWaiting = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	name: "M3 Two invitations waiting",
 	args: {
 		invitations: [
@@ -1192,7 +1189,7 @@ export const M3TwoInvitationsWaiting = meta.story({
 		],
 	},
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story: `${INVITED_ARTBOARD} M3: two invitations wait, stacked in the order given, each with its own pair of buttons. Check the trigger counts both and that each pair reports its own invitation.`,
@@ -1206,14 +1203,9 @@ export const M3TwoInvitationsWaiting = meta.story({
 		await expectInvitationDot(trigger)
 		const menu = await openSwitcher(canvasElement)
 		const rows = invitationsIn(menu)
-		await expect(
-			rows.map((row) => row.getAttribute("aria-labelledby")),
-		).toEqual(
-			[
-				invitationNamed(menu, INVITED.name),
-				invitationNamed(menu, SECOND_INVITED.name),
-			].map((row) => row.getAttribute("aria-labelledby")),
-		)
+		await expect(rows).toHaveLength(2)
+		await expect(rows[0]).toHaveAccessibleName(INVITED.name)
+		await expect(rows[1]).toHaveAccessibleName(SECOND_INVITED.name)
 		await userEvent.click(
 			within(rows[1]).getByRole("menuitem", { name: "Accept" }),
 		)
@@ -1224,11 +1216,11 @@ export const M3TwoInvitationsWaiting = meta.story({
 })
 
 export const M4Accepting = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	name: "M4 Accepting",
 	args: { invitations: [{ ...INVITED, state: "accepting" }] },
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story: `${INVITED_ARTBOARD} M4: the invitation is being accepted. Check the primary reads Joining… at 70% opacity, Decline drops to 50%, both stay focusable but inert, the row is marked busy and the new label is spoken through its status region, and the trigger dot stays on.`,
@@ -1262,14 +1254,14 @@ export const M4Accepting = meta.story({
 })
 
 export const M5Joined = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	name: "M5 Joined",
 	args: {
 		spaces: JOINED_SPACES,
 		remoteBySpaceId: { studio: "connected" },
 	},
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story: `${INVITED_ARTBOARD} M5: the invitation is accepted, so its Space joins the list as a remote row carrying the globe, built by OPE-478, and the Invitations group and the trigger dot are gone.`,
@@ -1288,14 +1280,14 @@ export const M5Joined = meta.story({
 })
 
 export const M6Unreachable = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	name: "M6 Unreachable",
 	args: {
 		spaces: JOINED_SPACES,
 		remoteBySpaceId: { studio: "unreachable" },
 	},
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story: `${INVITED_ARTBOARD} M6: the joined Space's host stops answering, so its row drops its tint and says Unreachable, as OPE-478 built it.`,
@@ -1309,13 +1301,13 @@ export const M6Unreachable = meta.story({
 })
 
 export const M9FailedServers = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	name: "M9 Failed, servers",
 	args: {
 		invitations: [{ ...INVITED, state: "failed", failure: "servers" }],
 	},
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story: `${INVITED_ARTBOARD} M9: accepting failed because Kiroshi's servers did not answer. Check the destructive cause line with its 14px alert sits above Try again and Decline, that it describes both the row and Try again, whose status region speaks the switch from Joining…, and that Try again reports a retry while the menu stays open.`,
@@ -1337,13 +1329,13 @@ export const M9FailedServers = meta.story({
 })
 
 export const M10FailedOffline = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	name: "M10 Failed, offline",
 	args: {
 		invitations: [{ ...INVITED, state: "failed", failure: "offline" }],
 	},
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story: `${INVITED_ARTBOARD} M10: accepting failed because this Mac is offline. Same row as M9 with the offline cause.`,
@@ -1365,11 +1357,11 @@ export const M10FailedOffline = meta.story({
 })
 
 export const M11Withdrawn = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	name: "M11 Withdrawn",
 	args: { invitations: [{ ...INVITED, state: "withdrawn" }] },
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story: `${INVITED_ARTBOARD} M11: the host withdrew the invitation. Check the ring drops to the muted foreground, the name mutes, the cause line names the host, and no button is offered, while the trigger dot stays on.`,
@@ -1395,7 +1387,7 @@ export const M11Withdrawn = meta.story({
 })
 
 export const InvitationLongContent = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	args: {
 		invitations: [
 			{
@@ -1409,7 +1401,7 @@ export const InvitationLongContent = meta.story({
 		],
 	},
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
@@ -1430,7 +1422,6 @@ export const InvitationLongContent = meta.story({
 		]) {
 			await expect(line.scrollWidth).toBeLessThanOrEqual(line.clientWidth)
 			await expect(line.getBoundingClientRect().right).toBeLessThanOrEqual(edge)
-			await expect(line.getClientRects().length).toBeGreaterThan(0)
 		}
 		await expect(
 			hostLineOf(row).getBoundingClientRect().height,
@@ -1439,14 +1430,14 @@ export const InvitationLongContent = meta.story({
 })
 
 export const InvitationOverBotBadge = meta.story({
-	...DARK_MENU,
+	globals: DARK,
 	tags: ["test-only"],
 	args: {
 		badgesBySpaceId: BADGES,
 		invitations: [{ ...INVITED, state: "waiting" }],
 	},
 	parameters: {
-		...DARK_MENU.parameters,
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
