@@ -1364,20 +1364,33 @@ export const M11Withdrawn = meta.story({
 		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
-				story: `${INVITED_ARTBOARD} M11: the host withdrew the invitation. Check the ring drops to the muted foreground, the name mutes, the cause line names the host, and no button is offered, while the trigger dot stays on.`,
+				story: `${INVITED_ARTBOARD} M11: the host withdrew the invitation. Check the ring drops to the muted foreground, the name mutes, the cause line names the host, and no button is offered, while the trigger dot stays on. The row is an inert menu item the arrow keys land on, read as the Space name with the cause as its description, and highlighted like any other row.`,
 			},
 		},
 	},
-	play: async ({ canvasElement }) => {
+	play: async ({ args, canvasElement, userEvent }) => {
 		await expectInvitationDot(
 			within(canvasElement).getByRole("button", { name: /1 invitation$/ }),
 		)
 		const menu = await openSwitcher(canvasElement)
-		const row = invitationNamed(menu, INVITED.name)
+		const row = within(menu).getByRole("menuitem", { name: INVITED.name })
 		const cause = `${INVITED.hostEmail} withdrew this invitation. Ask them to invite you again.`
 		await expect(causeOf(row)).toHaveTextContent(cause)
 		await expect(row).toHaveAccessibleDescription(cause)
-		await expect(within(row).queryAllByRole("menuitem")).toHaveLength(0)
+		await expect(row).toHaveAttribute("aria-disabled", "true")
+		await expect(getComputedStyle(row).opacity).toBe("1")
+		await expect(row.querySelectorAll("button, [role=menuitem]")).toHaveLength(
+			0,
+		)
+
+		await focusByArrows(row, userEvent.keyboard)
+		await expect(row).toHaveAccessibleName(INVITED.name)
+		await expect(row).toHaveAccessibleDescription(cause)
+		await userEvent.keyboard("{Enter}")
+		await expect(screen.getByRole("menu")).toBeVisible()
+		await expect(args.onAcceptInvitation).not.toHaveBeenCalled()
+		await expect(args.onDeclineInvitation).not.toHaveBeenCalled()
+		await expect(args.onRetryInvitation).not.toHaveBeenCalled()
 		const name = within(row).getByText(INVITED.name)
 		await expect(getComputedStyle(name).color).toBe(
 			getComputedStyle(hostLineOf(row)).color,

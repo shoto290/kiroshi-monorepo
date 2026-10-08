@@ -21,6 +21,8 @@ const GROUP_LABEL = "pt-1.5 pb-0.5"
 
 const INVITATION = "flex flex-col gap-2 px-2 pt-1.5 pb-2"
 
+const INVITATION_WITHDRAWN = "rounded-xl outline-hidden focus:bg-accent"
+
 const HEADING = "flex items-start gap-2"
 
 const RING =
@@ -95,16 +97,8 @@ const SpaceInvitationRow = ({
 				? t("spaces.invitations.withdrawn", { email: hostEmail })
 				: null
 
-	return (
-		<div
-			aria-busy={isAccepting}
-			aria-describedby={cause ? causeId : undefined}
-			aria-labelledby={nameId}
-			className={INVITATION}
-			data-slot="space-invitation"
-			data-state={invitation.state}
-			role="group"
-		>
+	const details = (
+		<>
 			<div className={HEADING}>
 				<span
 					aria-hidden="true"
@@ -131,44 +125,73 @@ const SpaceInvitationRow = ({
 					{cause}
 				</p>
 			) : null}
-			{isWithdrawn ? null : (
-				<div className={cn(ACTIONS, INDENTED)}>
-					<ContextMenuPrimitive.Item
-						aria-describedby={isFailed ? causeId : undefined}
-						className={cn(buttonVariants({ size: "sm" }), ACTION, PRIMARY_BUSY)}
-						closeOnClick={false}
-						disabled={isAccepting}
-						nativeButton
-						onClick={() =>
-							isFailed ? onRetryInvitation?.(id) : onAcceptInvitation?.(id)
-						}
-						render={<button type="button" />}
-					>
-						<span role="status">
-							{t(
-								isAccepting
-									? "spaces.invitations.joining"
-									: isFailed
-										? "spaces.invitations.retry"
-										: "spaces.invitations.accept",
-							)}
-						</span>
-					</ContextMenuPrimitive.Item>
-					<ContextMenuPrimitive.Item
-						className={cn(
-							buttonVariants({ size: "sm", variant: "outline" }),
-							ACTION,
-							SECONDARY_BUSY,
+		</>
+	)
+
+	if (isWithdrawn) {
+		return (
+			<ContextMenuPrimitive.Item
+				aria-describedby={causeId}
+				aria-labelledby={nameId}
+				className={cn(INVITATION, INVITATION_WITHDRAWN)}
+				closeOnClick={false}
+				data-slot="space-invitation"
+				data-state={invitation.state}
+				disabled
+				label={name}
+			>
+				{details}
+			</ContextMenuPrimitive.Item>
+		)
+	}
+
+	return (
+		<div
+			aria-busy={isAccepting}
+			aria-describedby={cause ? causeId : undefined}
+			aria-labelledby={nameId}
+			className={INVITATION}
+			data-slot="space-invitation"
+			data-state={invitation.state}
+			role="group"
+		>
+			{details}
+			<div className={cn(ACTIONS, INDENTED)}>
+				<ContextMenuPrimitive.Item
+					aria-describedby={isFailed ? causeId : undefined}
+					className={cn(buttonVariants({ size: "sm" }), ACTION, PRIMARY_BUSY)}
+					closeOnClick={false}
+					disabled={isAccepting}
+					nativeButton
+					onClick={() =>
+						isFailed ? onRetryInvitation?.(id) : onAcceptInvitation?.(id)
+					}
+					render={<button type="button" />}
+				>
+					<span role="status">
+						{t(
+							isAccepting
+								? "spaces.invitations.joining"
+								: isFailed
+									? "spaces.invitations.retry"
+									: "spaces.invitations.accept",
 						)}
-						disabled={isAccepting}
-						nativeButton
-						onClick={() => onDeclineInvitation?.(id)}
-						render={<button type="button" />}
-					>
-						{t("spaces.invitations.decline")}
-					</ContextMenuPrimitive.Item>
-				</div>
-			)}
+					</span>
+				</ContextMenuPrimitive.Item>
+				<ContextMenuPrimitive.Item
+					className={cn(
+						buttonVariants({ size: "sm", variant: "outline" }),
+						ACTION,
+						SECONDARY_BUSY,
+					)}
+					disabled={isAccepting}
+					nativeButton
+					onClick={() => onDeclineInvitation?.(id)}
+					render={<button type="button" />}
+				>
+					{t("spaces.invitations.decline")}
+				</ContextMenuPrimitive.Item>
+			</div>
 		</div>
 	)
 }
