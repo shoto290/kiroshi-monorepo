@@ -170,7 +170,6 @@ const InviteField = ({
 					email={email}
 					failure={failure}
 					id={helperId}
-					key="failure"
 					space={space}
 				/>
 			) : (
