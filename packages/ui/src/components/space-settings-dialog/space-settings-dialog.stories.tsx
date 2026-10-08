@@ -1348,10 +1348,9 @@ export const MembersOpenHosting = meta.story({
 		await expect(await hostingPanelIn()).toBeVisible()
 		await expect(SPACE_ARGS.onClose).not.toHaveBeenCalled()
 
-		await userEvent.click(within(dialog).getByRole("tab", { name: "Members" }))
-		await expect(
-			within(dialog).getByRole("tab", { name: "Members" }),
-		).toHaveAttribute("aria-selected", "true")
+		const members = within(dialog).getByRole("tab", { name: "Members" })
+		await userEvent.click(members)
+		await expect(members).toHaveAttribute("aria-selected", "true")
 		await expect(await membersPanelIn()).toBeVisible()
 	},
 })
