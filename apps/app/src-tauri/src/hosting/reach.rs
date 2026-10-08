@@ -15,13 +15,13 @@ pub(super) enum Reach {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct Held {
-	pub(super) argument: &'static str,
-	pub(super) check: Check,
+	argument: &'static str,
+	check: Check,
 	is_optional: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) enum Check {
+enum Check {
 	Space,
 	Child(SpaceChild),
 	PluginScope,
@@ -41,7 +41,6 @@ const fn optional_child(kind: SpaceChild, argument: &'static str) -> Held {
 }
 
 const SPACE_ID: &[Held] = &[space("/spaceId")];
-const SPACE_AS_ID: &[Held] = &[space("/id")];
 const SPACE_FILTER: &[Held] = &[
 	space("/spaceId"),
 	Held { argument: "/allSpaces", check: Check::NotAllSpaces, is_optional: false },
@@ -256,7 +255,7 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 	),
 	("space_list", Reach::HostOnly),
 	("space_create", Reach::HostOnly),
-	("space_update", Reach::Scoped(SPACE_AS_ID)),
+	("space_update", Reach::Scoped(&[space("/id")])),
 	("space_reorder", Reach::HostOnly),
 	("space_delete", Reach::HostOnly),
 	("space_export", Reach::HostOnly),
@@ -288,8 +287,10 @@ pub(super) async fn stays_in_the_shared_space<R: Runtime>(
 	command: &str,
 	args: &Value,
 ) -> bool {
-	let Some(Reach::Scoped(helds)) = reach_of(command) else {
-		return reach_of(command) == Some(Reach::Free);
+	let helds = match reach_of(command) {
+		Some(Reach::Scoped(helds)) => helds,
+		Some(Reach::Free) => return true,
+		Some(Reach::HostOnly) | None => return false,
 	};
 	let lookup = Lookup { app, shared_space_id, command };
 	for held in helds {
