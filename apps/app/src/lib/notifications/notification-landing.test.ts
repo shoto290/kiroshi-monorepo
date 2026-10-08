@@ -114,7 +114,12 @@ const aWorld = async () => {
 			spaces.subscribe,
 			spaces.getState,
 		)
-		useSpaceEntry({ roster, user: reader, selectedSpaceId })
+		useSpaceEntry({
+			roster,
+			user: reader,
+			selectedSpaceId,
+			openRowId: selectedSpaceId,
+		})
 	})
 
 	return {

@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
 	createJoinedSpacesController,
 	type JoinedSpacesTransport,
+	openLocalSpaceOf,
+	openRowIdOf,
 	remoteMarksOf,
 	rosterSpaceIdsOf,
 	shownJoinedSpacesOf,
@@ -25,6 +27,8 @@ const GARAGE: JoinedSpace = {
 	remoteSpaceId: "garage",
 	name: "Garage",
 }
+
+const GARAGE_ROW = "joined:joined-garage"
 
 const ATTIC: JoinedSpace = {
 	id: "joined-attic",
@@ -149,7 +153,7 @@ describe("the switcher rows", () => {
 
 		expect(switcherSpacesOf(local as never, [GARAGE])).toEqual([
 			local[0],
-			{ id: "garage", name: "Garage" },
+			{ id: GARAGE_ROW, name: "Garage" },
 		])
 	})
 
@@ -164,22 +168,29 @@ describe("the switcher rows", () => {
 				},
 			),
 		).toEqual({
-			garage: "connected",
-			attic: "unreachable",
-			loft: "unreachable",
+			[GARAGE_ROW]: "connected",
+			"joined:joined-attic": "unreachable",
+			"joined:j3": "unreachable",
 		})
 	})
 
 	it("keeps a joined space connected while its host is still connecting", () => {
 		expect(
 			remoteMarksOf([GARAGE], { [GARAGE.id]: { status: "connecting" } }),
-		).toEqual({ garage: "connected" })
+		).toEqual({ [GARAGE_ROW]: "connected" })
 	})
 
-	it("falls back to the joined id when the link names no remote space", () => {
-		expect(switcherSpacesOf([], [{ ...GARAGE, remoteSpaceId: null }])).toEqual([
-			{ id: GARAGE.id, name: "Garage" },
+	it("keeps a joined row apart from a local space carrying the same id", () => {
+		const local = [{ id: "personal", name: "Personal" }]
+		const hostPersonal = { ...GARAGE, remoteSpaceId: "personal" }
+
+		expect(switcherSpacesOf(local as never, [hostPersonal])).toEqual([
+			local[0],
+			{ id: GARAGE_ROW, name: "Garage" },
 		])
+		expect(
+			remoteMarksOf([hostPersonal], { [GARAGE.id]: { status: "up" } }),
+		).toEqual({ [GARAGE_ROW]: "connected" })
 	})
 })
 
@@ -195,6 +206,12 @@ describe("the roster spaces", () => {
 
 	it("reads the remote space alone while its host is active", () => {
 		expect(rosterSpaceIdsOf([], [GARAGE], GARAGE.id)).toEqual(["garage"])
+	})
+
+	it("falls back to the joined id when the link names no remote space", () => {
+		expect(
+			rosterSpaceIdsOf([], [{ ...GARAGE, remoteSpaceId: null }], GARAGE.id),
+		).toEqual([GARAGE.id])
 	})
 })
 
@@ -242,7 +259,7 @@ describe("selecting a space", () => {
 		joined.watch()
 		await settle()
 
-		joined.selectSpace("garage")
+		joined.selectSpace(GARAGE_ROW)
 
 		expect(spaces.getState().selectedSpaceId).toBe("garage")
 		expect(hosts.activate).toHaveBeenLastCalledWith(GARAGE.id)
@@ -252,7 +269,7 @@ describe("selecting a space", () => {
 		const { joined, spaces, hosts, home } = await gearFor([GARAGE])
 		joined.watch()
 		await settle()
-		joined.selectSpace("garage")
+		joined.selectSpace(GARAGE_ROW)
 
 		joined.selectSpace(home.id)
 
@@ -442,7 +459,7 @@ describe("leaving a space", () => {
 		const gear = await gearFor([GARAGE])
 		gear.joined.watch()
 		await settle()
-		gear.joined.selectSpace("garage")
+		gear.joined.selectSpace(GARAGE_ROW)
 		gear.joined.askToLeave()
 		return gear
 	}
@@ -494,6 +511,8 @@ const STUDIO: JoinedSpace = {
 	name: "Studio Nord",
 }
 
+const STUDIO_ROW = "joined:joined-studio"
+
 const HOST_EMAIL = "lea@example.com"
 
 const REMOVED_NOTICE = "lea@example.com removed you from Studio Nord."
@@ -537,7 +556,7 @@ describe("a host removing the reader", () => {
 			backSpaceId: gear.home.id,
 		})
 		expect(switcherSpacesOf([], shown)).toEqual([
-			{ id: "studio", name: "Studio Nord" },
+			{ id: STUDIO_ROW, name: "Studio Nord" },
 		])
 		expect(gear.reportRemoval).not.toHaveBeenCalled()
 
@@ -566,7 +585,7 @@ describe("a host removing the reader", () => {
 
 	it("keeps an unreachable host as an unreachable row, never as removed", async () => {
 		const gear = await withStudio()
-		gear.joined.selectSpace("studio")
+		gear.joined.selectSpace(STUDIO_ROW)
 
 		gear.hosts.record(STUDIO.id, { status: "down" })
 
@@ -576,7 +595,7 @@ describe("a host removing the reader", () => {
 				gear.joined.getState().joinedSpaces,
 				gear.hosts.getState().connections,
 			),
-		).toEqual({ studio: "unreachable" })
+		).toEqual({ [STUDIO_ROW]: "unreachable" })
 	})
 })
 
@@ -620,5 +639,103 @@ describe("a read dropping a joined space", () => {
 		expect(gear.spaces.getState().selectedSpaceId).toBe("studio")
 		expect(gear.joined.getState().removed?.joined).toEqual(STUDIO)
 		expect(gear.hosts.forget).not.toHaveBeenCalled()
+	})
+})
+
+const HOST_PERSONAL: JoinedSpace = {
+	id: "joined-personal",
+	hostUrl: "http://192.168.1.22:45367",
+	remoteSpaceId: "personal",
+	name: "Personal",
+}
+
+const HOST_PERSONAL_ROW = "joined:joined-personal"
+
+describe("a local and a joined space both carrying the id personal", () => {
+	const withBothPersonals = async () => {
+		const gear = await gearFor([HOST_PERSONAL])
+		gear.joined.watch()
+		await settle()
+		return gear
+	}
+
+	const switcherOf = (gear: Awaited<ReturnType<typeof withBothPersonals>>) => {
+		const shown = shownJoinedSpacesOf(gear.joined.getState())
+		return {
+			rowIds: switcherSpacesOf(gear.spaces.getState().spaces, shown).map(
+				(row) => row.id,
+			),
+			checked: openRowIdOf(
+				gear.joined.getState(),
+				gear.spaces.getState().selectedSpaceId,
+			),
+			marks: remoteMarksOf(shown, gear.hosts.getState().connections),
+		}
+	}
+
+	it("checks the joined row only and marks it alone while it is open", async () => {
+		const gear = await withBothPersonals()
+
+		gear.joined.selectSpace(HOST_PERSONAL_ROW)
+
+		const switcher = switcherOf(gear)
+		expect(switcher.rowIds).toContain("personal")
+		expect(switcher.rowIds).toContain(HOST_PERSONAL_ROW)
+		expect(switcher.checked).toBe(HOST_PERSONAL_ROW)
+		expect(Object.keys(switcher.marks)).toEqual([HOST_PERSONAL_ROW])
+		expect(
+			openLocalSpaceOf(gear.spaces.getState().spaces, switcher.checked),
+		).toBeUndefined()
+		expect(gear.spaces.getState().selectedSpaceId).toBe("personal")
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(HOST_PERSONAL.id)
+	})
+
+	it("checks the local row only, with no mark, once the local one is open", async () => {
+		const gear = await withBothPersonals()
+		gear.joined.selectSpace(HOST_PERSONAL_ROW)
+
+		gear.joined.selectSpace("personal")
+
+		const switcher = switcherOf(gear)
+		expect(switcher.checked).toBe("personal")
+		expect(switcher.marks.personal).toBeUndefined()
+		expect(
+			openLocalSpaceOf(gear.spaces.getState().spaces, switcher.checked)?.id,
+		).toBe("personal")
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(null)
+	})
+
+	it("leaves the joined one and opens the first local space", async () => {
+		const gear = await withBothPersonals()
+		gear.joined.selectSpace(HOST_PERSONAL_ROW)
+		gear.joined.askToLeave()
+
+		await gear.joined.leave(HOST_PERSONAL.id)
+
+		const [firstLocal] = gear.spaces.getState().spaces
+		expect(gear.wire.transport.remove).toHaveBeenCalledWith(HOST_PERSONAL.id)
+		expect(switcherOf(gear).checked).toBe(firstLocal?.id)
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(null)
+	})
+
+	it("reopens the joined one remembered at relaunch", async () => {
+		const gear = await gearFor([HOST_PERSONAL])
+		gear.joined.restore(HOST_PERSONAL_ROW)
+
+		gear.joined.watch()
+		await settle()
+
+		expect(switcherOf(gear).checked).toBe(HOST_PERSONAL_ROW)
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(HOST_PERSONAL.id)
+	})
+
+	it("keeps the local one open when it was the one remembered", async () => {
+		const gear = await withBothPersonals()
+		gear.joined.selectSpace("personal")
+
+		gear.joined.restore("personal")
+
+		expect(switcherOf(gear).checked).toBe("personal")
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(null)
 	})
 })

@@ -76,7 +76,7 @@ export function App() {
 	})
 
 	const switcher = useSwitcherSpaces(
-		core.spaces.state.spaces,
+		core.spaces.state,
 		core.joinedSpaces,
 		core.invitations,
 	)
@@ -125,7 +125,7 @@ export function App() {
 						selectedConversationId={
 							rosterView.selectedConversationId ?? undefined
 						}
-						selectedSpaceId={scopes.selectedSpaceId ?? undefined}
+						selectedSpaceId={switcher.selectedSpaceId ?? undefined}
 						spaces={switcher.spaces}
 						remoteBySpaceId={switcher.remoteBySpaceId}
 						invitations={switcher.invitations}

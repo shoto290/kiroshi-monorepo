@@ -13,12 +13,13 @@ import {
 	createJoinedSpacesController,
 	type JoinedSpacesController,
 	type JoinedSpacesState,
+	openRowIdOf,
 	type RemovedSpace,
 	remoteMarksOf,
 	shownJoinedSpacesOf,
 	switcherSpacesOf,
 } from "./joined-spaces-controller"
-import type { SpacesController } from "./spaces-controller"
+import type { SpacesController, SpacesState } from "./spaces-controller"
 
 import { isDesktopHost, joinedHosts } from "../host"
 import { useController, useControllerState } from "../use-controller"
@@ -93,16 +94,20 @@ const removedScreenOf = (
 	}
 
 export const useSwitcherSpaces = (
-	spaces: Space[],
+	{ spaces, selectedSpaceId }: Pick<SpacesState, "spaces" | "selectedSpaceId">,
 	{ state, hosts, controller }: JoinedSpaces,
 	invitations: Invitations,
 ) => {
-	const { joinedSpaces, removed } = state
+	const { joinedSpaces, removed, openId } = state
 	const { connections } = hosts
 	return useMemo(() => {
 		const shownJoined = shownJoinedSpacesOf({ joinedSpaces, removed })
 		return {
 			spaces: switcherSpacesOf(spaces, shownJoined),
+			selectedSpaceId: openRowIdOf(
+				{ joinedSpaces, removed, openId },
+				selectedSpaceId,
+			),
 			remoteBySpaceId: remoteMarksOf(shownJoined, connections),
 			invitations: invitationRowsOf(invitations.state),
 			...invitationCallbacksOf(invitations.controller),
@@ -110,8 +115,10 @@ export const useSwitcherSpaces = (
 		}
 	}, [
 		spaces,
+		selectedSpaceId,
 		joinedSpaces,
 		removed,
+		openId,
 		connections,
 		invitations.state,
 		invitations.controller,

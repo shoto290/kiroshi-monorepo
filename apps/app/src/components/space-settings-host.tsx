@@ -7,7 +7,7 @@ import { toEnvironmentRows } from "@/lib/environment/environment-rows"
 import { useHosting } from "@/lib/host/use-hosting"
 import { useMembers } from "@/lib/host/use-members"
 import { useShareLink } from "@/lib/host/use-share-link"
-import { joinedSpaceOfRow } from "@/lib/spaces/joined-spaces-controller"
+import { openJoinedSpaceOf } from "@/lib/spaces/joined-spaces-controller"
 import { toSpaceSettingsValue } from "@/lib/spaces/space-settings"
 import type { ApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import type { SettingsPanels } from "@/lib/workspace/use-settings-panels"
@@ -55,8 +55,9 @@ export const SpaceSettingsHost = ({
 	const hosting = useHosting(editedSpace)
 	const isHosted = hosting?.hosting === "online"
 	const members = useMembers(editedSpace, isHosted)
-	const joinedSpace = joinedSpaceOfRow(
+	const joinedSpace = openJoinedSpaceOf(
 		joinedSpaces.state.joinedSpaces,
+		joinedSpaces.state.openId,
 		selectedSpaceId,
 	)
 

@@ -14,6 +14,10 @@ import type { SettingsTarget } from "../applications/settings-target"
 import { useApplicationInstalls } from "../applications/use-application-installs"
 import { useApplicationMarks } from "../applications/use-application-marks"
 import type { EnvScope } from "../conversations/store-contract"
+import {
+	openLocalSpaceOf,
+	openRowIdOf,
+} from "../spaces/joined-spaces-controller"
 
 export const useApplicationScopes = (core: WorkspaceCore) => {
 	const {
@@ -21,6 +25,7 @@ export const useApplicationScopes = (core: WorkspaceCore) => {
 		botConnections,
 		botMcpServers,
 		chat,
+		joinedSpaces,
 		roster,
 		serverEnvironment,
 		spaceConnections,
@@ -38,9 +43,8 @@ export const useApplicationScopes = (core: WorkspaceCore) => {
 		openedMcpServer?.kind === "server" ? openedMcpServer.name : null
 
 	const { selectedSpaceId, isSettingsOpen: isSpaceEditing } = spaces.state
-	const selectedSpace = spaces.state.spaces.find(
-		(space) => space.id === selectedSpaceId,
-	)
+	const openRowId = openRowIdOf(joinedSpaces.state, selectedSpaceId)
+	const selectedSpace = openLocalSpaceOf(spaces.state.spaces, openRowId)
 
 	const reopenSessions = useMemo(
 		() =>
@@ -107,6 +111,7 @@ export const useApplicationScopes = (core: WorkspaceCore) => {
 		botApplications,
 		isSpaceEditing,
 		openedMcpServer,
+		openRowId,
 		selectedSpace,
 		selectedSpaceId,
 		serverEnvironmentSection,
