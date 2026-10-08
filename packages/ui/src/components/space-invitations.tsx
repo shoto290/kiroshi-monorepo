@@ -148,7 +148,7 @@ const SpaceInvitationRow = ({
 	return (
 		<div
 			aria-busy={isAccepting}
-			aria-describedby={cause ? causeId : undefined}
+			aria-describedby={isFailed ? causeId : undefined}
 			aria-labelledby={nameId}
 			className={INVITATION}
 			data-slot="space-invitation"
