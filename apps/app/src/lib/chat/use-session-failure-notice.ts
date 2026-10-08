@@ -102,7 +102,10 @@ export const useSessionFailureNotice = ({
 		if (!error) {
 			return
 		}
-		if (error.error.kind === "serverEnvRejected") {
+		if (
+			error.error.kind === "serverEnvRejected" ||
+			error.error.kind === "hostOffline"
+		) {
 			return
 		}
 		if (error.error.kind === "resumeFailed") {

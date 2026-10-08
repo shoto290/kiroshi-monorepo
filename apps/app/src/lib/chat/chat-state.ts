@@ -132,6 +132,7 @@ const TRANSPORT_KINDS: Record<TransportError["kind"], true> = {
 	writeFailed: true,
 	readFailed: true,
 	unknownFailure: true,
+	hostOffline: true,
 }
 
 const fieldIn = (reason: unknown, field: string): unknown =>

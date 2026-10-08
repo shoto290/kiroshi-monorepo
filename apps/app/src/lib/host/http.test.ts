@@ -6,6 +6,7 @@ import {
 	bridgeGeneratedBindings,
 	createHttpHost,
 	type HostSocket,
+	raiseHostOfflineNotice,
 	raiseRefusalNotice,
 } from "./http"
 
@@ -192,6 +193,59 @@ describe("invoke over http", () => {
 			expect.objectContaining({ method: "POST" }),
 		)
 		vi.unstubAllGlobals()
+	})
+})
+
+describe("a host that is offline", () => {
+	const offline = { status: 503, body: "the host of this space is offline" }
+	const HOST_OFFLINE = {
+		kind: "hostOffline",
+		detail: "the host of this space is offline",
+	}
+
+	it("rejects every request with the host-offline cause and no refusal", async () => {
+		const { host, onRefused } = hostOf({ answer: offline })
+
+		const refusals = [host.invoke("bot_list"), host.invoke("conversation_list")]
+
+		for (const refusal of refusals) {
+			await expect(refusal).rejects.toEqual(HOST_OFFLINE)
+		}
+		expect(onRefused).not.toHaveBeenCalled()
+	})
+
+	it("reports the host down once across repeated refusals and a socket close", async () => {
+		const { host, sockets, onDown } = hostOf({ answer: offline })
+		host.openEvents()
+
+		await expect(host.invoke("bot_list")).rejects.toMatchObject(HOST_OFFLINE)
+		sockets[0]?.drop()
+		await expect(host.invoke("bot_list")).rejects.toMatchObject(HOST_OFFLINE)
+
+		expect(onDown).toHaveBeenCalledOnce()
+	})
+
+	it("keeps refusing another cause with its text and status", async () => {
+		const { host, onDown, onRefused } = hostOf({
+			answer: { status: 502, body: "the host broke" },
+		})
+
+		await expect(host.invoke("bot_list")).rejects.toBe("the host broke")
+		expect(onRefused).toHaveBeenCalledExactlyOnceWith("the host broke", 502)
+		expect(onDown).not.toHaveBeenCalled()
+	})
+})
+
+describe("the host-offline notice", () => {
+	beforeEach(() => failureNotice.mockClear())
+
+	it("names the offline host and offers no retry", () => {
+		raiseHostOfflineNotice()
+
+		expect(failureNotice).toHaveBeenCalledExactlyOnceWith({
+			title: "Couldn’t reach the host of this space",
+			description: "Its Mac is offline. Try again once it’s back online.",
+		})
 	})
 })
 

@@ -47,6 +47,8 @@ const BYTES = "application/octet-stream"
 
 const JSON_TYPE = "application/json"
 
+const HOST_OFFLINE_STATUS = 503
+
 const AVATARS_DIR = "avatars"
 
 const ATTACHMENTS_DIR = "attachments"
@@ -99,6 +101,12 @@ export const raiseRefusalNotice = (message: string, status?: number) => {
 		description: message,
 	})
 }
+
+export const raiseHostOfflineNotice = () =>
+	raiseFailureNotice({
+		title: i18n.t("chat:screen.notice.hostOffline.title"),
+		description: i18n.t("chat:screen.notice.hostOffline.description"),
+	})
 
 const isFrame = (value: unknown): value is Frame =>
 	typeof value === "object" &&
@@ -185,6 +193,9 @@ export const createHttpHost = ({
 			if (isCommandError) {
 				throw reason
 			}
+			if (response.status === HOST_OFFLINE_STATUS) {
+				return goOffline(reason)
+			}
 			return refuse(reason, response.status)
 		}
 		return (await answerOf(response)) as T
@@ -213,6 +224,11 @@ export const createHttpHost = ({
 			presence = "down"
 			onDown()
 		}
+	}
+
+	const goOffline = (reason: unknown): never => {
+		markDown()
+		throw { kind: "hostOffline", detail: messageOf(reason) }
 	}
 
 	const connect = () => {
