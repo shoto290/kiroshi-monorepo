@@ -2,6 +2,7 @@ pub mod bridge;
 pub mod commands;
 pub mod contract;
 mod members;
+mod reach;
 mod relay;
 
 use std::collections::HashMap;

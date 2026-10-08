@@ -260,7 +260,7 @@ async fn online<R: Runtime>(
 				silence.as_mut().reset(Instant::now() + SILENCE_BOUND);
 				match received(frame, ids) {
 					Received::Call(call) => {
-						invokes.spawn(bridge::bridged(local.clone(), call));
+						invokes.spawn(bridge::bridged(app.clone(), local.clone(), ids.space_id.to_owned(), call));
 						continue;
 					}
 					Received::Answer(answer) => Message::text(answer),

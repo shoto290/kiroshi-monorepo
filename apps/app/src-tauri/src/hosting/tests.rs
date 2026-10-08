@@ -38,7 +38,6 @@ use crate::joined_spaces::commands::joined_space_add;
 use crate::joined_spaces::contract::JoinedSpaceConnection;
 use crate::joined_spaces::link::joined_space;
 use crate::mcp_oauth::credentials;
-use crate::spaces::contract::Space;
 
 const BEARER: &str = "bearer-that-never-leaves";
 const LOCAL_TOKEN: &str = "host-token-of-the-loopback";
@@ -177,14 +176,6 @@ async fn invoked(Path(command): Path<String>, headers: HeaderMap, args: String) 
 	answered_json(StatusCode::OK, json!({ "command": command, "args": args }))
 }
 
-async fn spaces_listed(Served(database): Served<PathBuf>, headers: HeaderMap) -> Response {
-	if bearer_of(&headers) != LOCAL_TOKEN {
-		return StatusCode::UNAUTHORIZED.into_response();
-	}
-	let stored = db::open(&database).spaces().list().await.expect("the host lists its spaces");
-	answered_json(StatusCode::OK, json!(stored.into_iter().map(Space::from).collect::<Vec<_>>()))
-}
-
 async fn joined_space_connected(
 	Path(command): Path<String>,
 	Served(database): Served<PathBuf>,
@@ -294,14 +285,6 @@ impl Harness {
 	) -> Self {
 		let local = Router::new().route(INVOKE_ROUTE, post(invoked));
 		Self::serving(name, refusal, bearer, members_every, temp_dir(), local).await
-	}
-
-	async fn listing_spaces(name: &str) -> Self {
-		let database = temp_dir();
-		let local =
-			Router::new().route(INVOKE_ROUTE, post(spaces_listed)).with_state(database.clone());
-		Self::serving(name, None, Some(BEARER), super::members::MEMBERS_EVERY, database, local)
-			.await
 	}
 
 	async fn connecting_joined_spaces(name: &str) -> Self {
@@ -648,14 +631,14 @@ fn a_member_call_reaches_the_local_api_with_the_host_token_and_its_answer_comes_
 		harness.started().await;
 		let mut member = harness.member().await;
 
-		send(&mut member, r#"{"id": "c1", "command": "space_list", "args": {"a": 1}}"#).await;
+		send(&mut member, r#"{"id": "c1", "command": "agent_models", "args": {"a": 1}}"#).await;
 
 		assert_eq!(
 			answer(&mut member).await,
 			json!({
 				"id": "c1",
 				"status": 200,
-				"body": { "command": "space_list", "args": { "a": 1 } }
+				"body": { "command": "agent_models", "args": { "a": 1 } }
 			})
 		);
 	});
@@ -670,7 +653,7 @@ fn a_malformed_member_frame_is_answered_400_and_the_socket_stays_open() {
 
 		send(&mut member, r#"{"id": "m1", "command": 7}"#).await;
 		let refused = answer(&mut member).await;
-		send(&mut member, r#"{"id": "m2", "command": "space_list"}"#).await;
+		send(&mut member, r#"{"id": "m2", "command": "agent_models"}"#).await;
 		let answered = answer(&mut member).await;
 
 		assert_eq!((refused["id"].clone(), refused["status"].clone()), (json!("m1"), json!(400)));
@@ -700,7 +683,7 @@ fn a_member_frame_naming_a_host_member_command_is_refused_and_others_still_forwa
 				json!({ "id": command, "status": 403, "body": { "error": "this command belongs to the host" } })
 			);
 		}
-		send(&mut member, r#"{"id": "after", "command": "space_list"}"#).await;
+		send(&mut member, r#"{"id": "after", "command": "agent_models"}"#).await;
 		let answered = answer(&mut member).await;
 
 		assert_eq!(
@@ -733,7 +716,7 @@ async fn refused_with(mut harness: Harness, command: &str, args: Value) -> (Valu
 	let frame = json!({ "id": command, "command": command, "args": args });
 	send(&mut member, &frame.to_string()).await;
 	let refused = answer(&mut member).await;
-	send(&mut member, r#"{"id": "after", "command": "space_list"}"#).await;
+	send(&mut member, r#"{"id": "after", "command": "agent_models"}"#).await;
 	let answered = answer(&mut member).await;
 
 	assert_eq!(
@@ -786,10 +769,13 @@ fn a_relay_guest_cannot_cancel_the_host_agent_sign_in() {
 #[test]
 fn a_relay_guest_cannot_delete_a_space_and_its_instance_registration() {
 	run(async {
-		let listed =
-			refused_on(Harness::listing_spaces("space_delete").await, "space_delete").await;
-		let spaces = listed["body"].as_array().expect("a space list");
-		assert!(spaces.iter().any(|space| space["id"] == PERSONAL), "{listed}");
+		let (harness, effects) = Harness::applying_host_effects("space_delete").await;
+
+		refused_on(harness, "space_delete").await;
+
+		let spaces = db::open(&effects.database).spaces().list().await.expect("the host lists");
+		assert!(spaces.iter().any(|space| space.id == PERSONAL), "{spaces:?}");
+		assert_eq!(effects.reached(), ["agent_models"]);
 	});
 }
 
@@ -949,7 +935,7 @@ fn a_relay_guest_cannot_shut_the_host_agent_down() {
 		refused_with(harness, "agent_shutdown", json!({ "scope": { "conversationId": "c1" } }))
 			.await;
 
-		assert_eq!(effects.reached(), ["space_list"]);
+		assert_eq!(effects.reached(), ["agent_models"]);
 	});
 }
 
@@ -1005,7 +991,7 @@ fn a_relay_guest_cannot_add_a_server_to_the_host_person_plugin() {
 
 		refused_with(harness, "plugin_set_mcp_server", args).await;
 
-		assert_eq!(effects.reached(), ["space_list"]);
+		assert_eq!(effects.reached(), ["agent_models"]);
 	});
 }
 
@@ -1032,7 +1018,7 @@ fn a_local_event_is_forwarded_to_the_relay() {
 		let mut harness = Harness::signed_in("event").await;
 		harness.started().await;
 		let mut member = harness.member().await;
-		send(&mut member, r#"{"id": "warm", "command": "space_list"}"#).await;
+		send(&mut member, r#"{"id": "warm", "command": "agent_models"}"#).await;
 		answer(&mut member).await;
 
 		events::emit(harness.app.handle(), "test://forwarded", json!({ "n": 1 })).expect("emitted");
@@ -1609,5 +1595,416 @@ fn a_space_that_is_not_online_does_not_poll_its_members() {
 		tokio::time::sleep(POLL_EVERY * 3).await;
 
 		assert!(harness.member_calls().is_empty());
+	});
+}
+
+const ELSEWHERE: &str = "elsewhere";
+const OTHER_SPACE_REFUSAL: &str = "this command reaches outside the shared space";
+const TWO_SPACES: &str = "
+	INSERT INTO spaces (id, name, colour, position, created_at)
+		VALUES ('elsewhere', 'Elsewhere', 'blue', 1, 1);
+	INSERT INTO sections (id, space_id, name, position, created_at)
+		VALUES ('s-mine', 'personal', 'Mine', 0, 1), ('s-theirs', 'elsewhere', 'Theirs', 0, 1);
+	INSERT INTO bots (id, name, model, created_at)
+		VALUES ('b-mine', 'Mine', 'sonnet', 1), ('b-theirs', 'Theirs', 'sonnet', 1),
+			('b-shared', 'Shared', 'sonnet', 1);
+	INSERT INTO bot_spaces (bot_id, space_id, joined_at)
+		VALUES ('b-mine', 'personal', 1), ('b-theirs', 'elsewhere', 1),
+			('b-shared', 'elsewhere', 1), ('b-shared', 'personal', 2);
+	INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
+		VALUES ('c-mine', 'topic', 'personal', 'Mine', 1, 1),
+			('c-theirs', 'topic', 'elsewhere', 'Theirs', 1, 1);
+	INSERT INTO turns (id, conversation_id, seq, started_at)
+		VALUES ('t-mine', 'c-mine', 1, 1), ('t-theirs', 'c-theirs', 1, 1);
+	INSERT INTO messages
+			(id, conversation_id, turn_id, seq, role, content, completion_state, created_at)
+		VALUES ('m-mine', 'c-mine', 't-mine', 1, 'user', 'mine', 'complete', 1),
+			('m-theirs', 'c-theirs', 't-theirs', 1, 'user', 'theirs', 'complete', 1);
+";
+
+struct Guest {
+	harness: Harness,
+	effects: HostEffects,
+	member: WebSocket,
+}
+
+impl Guest {
+	async fn of_two_spaces(name: &str) -> Self {
+		let (mut harness, effects) = Harness::applying_host_effects(name).await;
+		db::open(&effects.database)
+			.call_mut(|connection| Ok(connection.execute_batch(TWO_SPACES)?))
+			.await
+			.expect("the two spaces are planted");
+		harness.started().await;
+		let member = harness.member().await;
+		harness.reached(HostingState::Online).await;
+		Self { harness, effects, member }
+	}
+
+	async fn called(&mut self, command: &str, args: Value) -> Value {
+		let frame = json!({ "id": command, "command": command, "args": args });
+		send(&mut self.member, &frame.to_string()).await;
+		answer(&mut self.member).await
+	}
+
+	async fn refused(&mut self, command: &str, args: Value) {
+		assert_eq!(
+			self.called(command, args.clone()).await,
+			json!({ "id": command, "status": 403, "body": { "error": OTHER_SPACE_REFUSAL } }),
+			"{command} {args}"
+		);
+	}
+
+	async fn forwarded(&mut self, command: &str, args: Value) {
+		let answered = self.called(command, args.clone()).await;
+		assert_eq!(answered["status"], json!(200), "{command} {args} {answered}");
+	}
+}
+
+async fn kept_in_the_shared_space(command: &str, other: Value, shared: Value) {
+	let mut guest = Guest::of_two_spaces(command).await;
+
+	guest.refused(command, other).await;
+	guest.forwarded(command, shared).await;
+
+	assert_eq!(guest.effects.reached(), [command]);
+	assert_eq!(guest.harness.state(), HostingState::Online);
+}
+
+async fn kept_in_the_space_named(command: &str, args: impl Fn(&str) -> Value) {
+	kept_in_the_shared_space(command, args(ELSEWHERE), args(PERSONAL)).await;
+}
+
+fn space_named(space_id: &str) -> Value {
+	json!({ "spaceId": space_id })
+}
+
+#[test]
+fn a_relay_guest_reads_the_bots_of_the_shared_space_only() {
+	run(kept_in_the_space_named("conversation_bots", space_named));
+}
+
+#[test]
+fn a_relay_guest_reads_the_bots_by_presence_of_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"conversation_bots_by_presence",
+		|space_id| json!({ "spaceId": space_id, "excludedConversationId": null }),
+	));
+}
+
+#[test]
+fn a_relay_guest_creates_a_bot_in_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"conversation_create_bot",
+		|space_id| json!({ "spaceId": space_id, "identity": {} }),
+	));
+}
+
+#[test]
+fn a_relay_guest_creates_a_bot_from_a_draft_in_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"conversation_create_bot_from_draft",
+		|space_id| json!({ "spaceId": space_id, "draft": {} }),
+	));
+}
+
+#[test]
+fn a_relay_guest_duplicates_a_bot_into_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"conversation_duplicate_bot",
+		|space_id| json!({ "botId": "b-mine", "spaceId": space_id }),
+	));
+}
+
+#[test]
+fn a_relay_guest_opens_a_main_chat_in_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"conversation_main_chat",
+		|space_id| json!({ "botId": "b-mine", "spaceId": space_id }),
+	));
+}
+
+#[test]
+fn a_relay_guest_creates_a_conversation_in_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"conversation_create",
+		|space_id| json!({ "spaceId": space_id, "sectionId": null, "title": "t", "botIds": ["b-mine"] }),
+	));
+}
+
+#[test]
+fn a_relay_guest_lists_the_conversations_of_the_shared_space_only() {
+	run(kept_in_the_space_named("conversation_list", space_named));
+}
+
+#[test]
+fn a_relay_guest_reads_the_hosting_state_of_the_shared_space_only() {
+	run(kept_in_the_space_named("hosting_state", space_named));
+}
+
+#[test]
+fn a_relay_guest_reads_the_mission_feed_of_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"mission_space_feed",
+		|space_id| json!({ "spaceId": space_id, "closedSince": 0 }),
+	));
+}
+
+#[test]
+fn a_relay_guest_searches_the_catalogue_of_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"search_catalogue",
+		|space_id| json!({ "query": "q", "spaceId": space_id, "allSpaces": false }),
+	));
+}
+
+#[test]
+fn a_relay_guest_reads_the_recent_chats_of_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"search_recent",
+		|space_id| json!({ "spaceId": space_id, "allSpaces": false }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_widen_a_search_to_every_space() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("all-spaces").await;
+
+		for command in ["search_catalogue", "search_recent"] {
+			let args = json!({ "query": "q", "spaceId": PERSONAL, "allSpaces": true });
+			guest.refused(command, args).await;
+		}
+
+		assert!(guest.effects.reached().is_empty());
+	});
+}
+
+#[test]
+fn a_relay_guest_lists_the_sections_of_the_shared_space_only() {
+	run(kept_in_the_space_named("section_list", space_named));
+}
+
+#[test]
+fn a_relay_guest_creates_a_section_in_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"section_create",
+		|space_id| json!({ "spaceId": space_id, "name": "n" }),
+	));
+}
+
+#[test]
+fn a_relay_guest_pins_the_roster_of_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"roster_pin",
+		|space_id| json!({ "spaceId": space_id, "pins": [] }),
+	));
+}
+
+#[test]
+fn a_relay_guest_moves_a_bot_to_a_section_of_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"bot_move_to_section",
+		|space_id| json!({ "botId": "b-mine", "sectionId": "s-mine", "spaceId": space_id }),
+	));
+}
+
+#[test]
+fn a_relay_guest_updates_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"space_update",
+		|space_id| json!({ "id": space_id, "name": "n", "colour": null }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_move_a_bot_out_of_the_shared_space() {
+	run(kept_in_the_space_named(
+		"bot_move_to_space",
+		|space_id| json!({ "botId": "b-mine", "spaceId": space_id }),
+	));
+}
+
+#[test]
+fn a_relay_guest_adds_a_bot_to_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"bot_add_to_space",
+		|space_id| json!({ "botId": "b-mine", "spaceId": space_id, "sectionId": null }),
+	));
+}
+
+#[test]
+fn a_relay_guest_removes_a_bot_from_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"bot_remove_from_space",
+		|space_id| json!({ "botId": "b-shared", "spaceId": space_id }),
+	));
+}
+
+#[test]
+fn a_relay_guest_reads_the_preferences_of_the_shared_space_only() {
+	run(kept_in_the_space_named("space_preferences", space_named));
+}
+
+#[test]
+fn a_relay_guest_sets_the_preferences_of_the_shared_space_only() {
+	run(kept_in_the_space_named(
+		"space_set_preferences",
+		|space_id| json!({ "spaceId": space_id, "preferences": {} }),
+	));
+}
+
+#[test]
+fn a_relay_guest_reaches_the_plugin_of_the_shared_space_or_its_bots_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("plugin-scopes").await;
+		let plugin_commands: Vec<&str> = super::reach::REACHES
+			.iter()
+			.map(|(command, _)| *command)
+			.filter(|command| command.starts_with("plugin_"))
+			.collect();
+
+		for command in &plugin_commands {
+			for other in [
+				json!({ "kind": "space", "id": ELSEWHERE }),
+				json!({ "kind": "bot", "id": "b-theirs" }),
+				json!({ "kind": "space" }),
+			] {
+				guest.refused(command, json!({ "scope": other })).await;
+			}
+			for shared in [
+				json!({ "kind": "space", "id": PERSONAL }),
+				json!({ "kind": "bot", "id": "b-mine" }),
+				json!({ "kind": "bot", "id": "b-shared" }),
+			] {
+				guest.forwarded(command, json!({ "scope": shared })).await;
+			}
+		}
+
+		let reached = guest.effects.reached();
+		assert_eq!(reached.len(), plugin_commands.len() * 3);
+	});
+}
+
+#[test]
+fn a_relay_guest_omitting_the_space_id_is_refused() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("omitted-space").await;
+
+		guest.refused("conversation_list", json!({})).await;
+		guest.refused("conversation_list", json!({ "spaceId": null })).await;
+
+		assert!(guest.effects.reached().is_empty());
+	});
+}
+
+#[test]
+fn a_relay_guest_reads_a_conversation_of_the_shared_space_only() {
+	run(kept_in_the_shared_space(
+		"conversation_message_page",
+		json!({ "conversationId": "c-theirs", "beforeSeq": null, "limit": 10 }),
+		json!({ "conversationId": "c-mine", "beforeSeq": null, "limit": 10 }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_seat_a_bot_of_another_space_in_a_shared_conversation() {
+	run(kept_in_the_shared_space(
+		"conversation_add_participant",
+		json!({ "conversationId": "c-mine", "botId": "b-theirs", "invitedByBotId": null }),
+		json!({ "conversationId": "c-mine", "botId": "b-shared", "invitedByBotId": null }),
+	));
+}
+
+#[test]
+fn a_relay_guest_updates_a_bot_of_the_shared_space_only() {
+	run(kept_in_the_shared_space(
+		"conversation_update_bot",
+		json!({ "id": "b-theirs", "identity": {} }),
+		json!({ "id": "b-mine", "identity": {} }),
+	));
+}
+
+#[test]
+fn a_bot_added_to_the_shared_space_from_another_one_belongs_to_the_shared_space() {
+	run(kept_in_the_shared_space(
+		"conversation_set_bot_memory",
+		json!({ "id": "b-theirs", "memory": "m" }),
+		json!({ "id": "b-shared", "memory": "m" }),
+	));
+}
+
+#[test]
+fn a_relay_guest_cannot_start_a_conversation_seating_a_bot_of_another_space() {
+	run(kept_in_the_shared_space(
+		"conversation_create",
+		json!({ "spaceId": PERSONAL, "sectionId": null, "title": "t", "botIds": ["b-mine", "b-theirs"] }),
+		json!({ "spaceId": PERSONAL, "sectionId": "s-mine", "title": "t", "botIds": ["b-mine", "b-shared"] }),
+	));
+}
+
+#[test]
+fn a_relay_guest_renames_a_section_of_the_shared_space_only() {
+	run(kept_in_the_shared_space(
+		"section_rename",
+		json!({ "id": "s-theirs", "name": "n" }),
+		json!({ "id": "s-mine", "name": "n" }),
+	));
+}
+
+#[test]
+fn a_relay_guest_completes_a_turn_of_the_shared_space_only() {
+	run(kept_in_the_shared_space(
+		"conversation_complete_turn",
+		json!({ "id": "t-theirs", "completedAt": 1 }),
+		json!({ "id": "t-mine", "completedAt": 1 }),
+	));
+}
+
+#[test]
+fn a_relay_guest_writes_a_message_of_the_shared_space_only() {
+	run(kept_in_the_shared_space(
+		"conversation_append_user_message",
+		json!({ "message": {
+			"id": "new", "conversationId": "c-mine", "turnId": "t-mine",
+			"authorBotId": null, "repliedToMessageId": "m-theirs", "content": "c", "createdAt": 1
+		} }),
+		json!({ "message": {
+			"id": "new", "conversationId": "c-mine", "turnId": "t-mine",
+			"authorBotId": "b-mine", "repliedToMessageId": "m-mine", "content": "c", "createdAt": 1
+		} }),
+	));
+}
+
+#[test]
+fn a_relay_guest_naming_a_row_the_host_does_not_hold_is_refused() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("unknown-child").await;
+
+		guest.refused("conversation_delete", json!({ "conversationId": "c-unknown" })).await;
+		guest.refused("conversation_delete_bot", json!({ "id": "b-unknown" })).await;
+		guest.refused("mission_detail", json!({ "missionId": "mi-unknown" })).await;
+		guest.refused("routine_key", json!({ "id": "r-unknown" })).await;
+		guest.refused("routine_renew_lease", json!({ "runId": "run-unknown" })).await;
+
+		assert!(guest.effects.reached().is_empty());
+	});
+}
+
+#[test]
+fn a_child_lookup_the_store_fails_is_refused() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("failed-lookup").await;
+		db::open(&guest.effects.database)
+			.call_mut(|connection| {
+				Ok(connection.execute_batch("ALTER TABLE sections RENAME TO sections_gone")?)
+			})
+			.await
+			.expect("the sections table is moved away");
+
+		guest.refused("section_rename", json!({ "id": "s-mine", "name": "n" })).await;
+
+		assert!(guest.effects.reached().is_empty());
+		assert_eq!(guest.harness.state(), HostingState::Online);
 	});
 }
