@@ -132,6 +132,7 @@ export function App() {
 						onAcceptInvitation={switcher.onAcceptInvitation}
 						onDeclineInvitation={switcher.onDeclineInvitation}
 						onRetryInvitation={switcher.onRetryInvitation}
+						onSpaceSwitcherOpenChange={switcher.onSpaceSwitcherOpenChange}
 						user={overlay.userSettings}
 					/>
 				}

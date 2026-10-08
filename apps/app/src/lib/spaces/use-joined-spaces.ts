@@ -80,6 +80,11 @@ const invitationCallbacksOf = (
 	},
 })
 
+const sweepOnCloseOf =
+	(controller: InvitationsController) => (isOpen: boolean) => {
+		if (!isOpen) controller.sweepWithdrawn()
+	}
+
 const removedScreenOf = (
 	removed: RemovedSpace | null,
 	spaces: Space[],
@@ -111,6 +116,7 @@ export const useSwitcherSpaces = (
 			remoteBySpaceId: remoteMarksOf(shownJoined, connections),
 			invitations: invitationRowsOf(invitations.state),
 			...invitationCallbacksOf(invitations.controller),
+			onSpaceSwitcherOpenChange: sweepOnCloseOf(invitations.controller),
 			removedScreen: removedScreenOf(removed, spaces, controller.leaveRemoved),
 		}
 	}, [
