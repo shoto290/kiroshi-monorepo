@@ -83,7 +83,7 @@ export const joinedHosts = createJoinedHosts({
 	openSocket: (url) => new WebSocket(url),
 	reportFailure: raiseRefusalNotice,
 	reportHostDown: raiseHostOfflineNotice,
-	endHostDown: endNotice,
+	endHostDown: (noticeId) => endNotice(noticeId),
 })
 
 export const invoke: typeof tauriInvoke = joinedHosts.invoke
