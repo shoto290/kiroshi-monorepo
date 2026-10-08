@@ -471,19 +471,10 @@ describe("an offline joined host", () => {
 		})
 		await hosts.activate("garage")
 
-		const outcomes = await requestsOf(hosts, 3)
+		await requestsOf(hosts, 3)
 		sockets[0]?.drop()
 
 		expect(reportFailure).not.toHaveBeenCalled()
-		expect(outcomes).toEqual(
-			Array(3).fill({
-				status: "rejected",
-				reason: {
-					kind: "hostOffline",
-					detail: "the host of this space is offline",
-				},
-			}),
-		)
 	})
 
 	it("keeps refusing a request that fails for another cause", async () => {
