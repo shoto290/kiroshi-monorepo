@@ -24,6 +24,8 @@ import {
 	createJoinedSpacesController,
 	type JoinedSpacesController,
 	type JoinedSpacesTransport,
+	openLocalSpaceOf,
+	openRowIdOf,
 } from "@/lib/spaces/joined-spaces-controller"
 import {
 	createSpacesController,
@@ -67,6 +69,8 @@ const GARAGE: JoinedSpace = {
 	remoteSpaceId: "garage",
 	name: "Garage",
 }
+
+const GARAGE_ROW = "joined:joined-garage"
 
 type Gear = {
 	spaces: SpacesController
@@ -145,8 +149,9 @@ const SpaceSettingsHarness = ({
 	} as unknown as SettingsPanels
 	const scopes = {
 		isSpaceEditing: spacesState.isSettingsOpen,
-		selectedSpace: spacesState.spaces.find(
-			(space) => space.id === selectedSpaceId,
+		selectedSpace: openLocalSpaceOf(
+			spacesState.spaces,
+			openRowIdOf(joinedState, selectedSpaceId),
 		),
 		selectedSpaceId,
 		setOpenedMcpServer: vi.fn(),
@@ -207,7 +212,7 @@ describe("SpaceSettingsHost on a joined space", () => {
 	it("opens the joined mode with the space name and host, without the local-only parts", async () => {
 		const gear = await gearWithGarage()
 
-		const dialog = openSettingsOf(gear, "garage")
+		const dialog = openSettingsOf(gear, GARAGE_ROW)
 
 		expect(within(dialog).getByDisplayValue("Garage")).toBeTruthy()
 		expect(within(dialog).getByDisplayValue(GARAGE.hostUrl)).toBeTruthy()
@@ -223,7 +228,7 @@ describe("SpaceSettingsHost on a joined space", () => {
 
 	it("leaves through the roster path, closes the dialog and selects the first local space", async () => {
 		const gear = await gearWithGarage()
-		const dialog = openSettingsOf(gear, "garage")
+		const dialog = openSettingsOf(gear, GARAGE_ROW)
 
 		await confirmLeave(dialog)
 
@@ -238,7 +243,7 @@ describe("SpaceSettingsHost on a joined space", () => {
 
 	it("resets the settings tab so the next Settings opens on the first tab", async () => {
 		const gear = await gearWithGarage()
-		const dialog = openSettingsOf(gear, "garage", APPLICATIONS_TAB)
+		const dialog = openSettingsOf(gear, GARAGE_ROW, APPLICATIONS_TAB)
 
 		await confirmLeave(dialog)
 		await waitFor(() =>
@@ -258,7 +263,7 @@ describe("SpaceSettingsHost on a joined space", () => {
 	it("keeps the space and raises the refusal when the leave fails", async () => {
 		const gear = await gearWithGarage()
 		gear.transport.remove.mockRejectedValueOnce(new Error("disk full"))
-		const dialog = openSettingsOf(gear, "garage")
+		const dialog = openSettingsOf(gear, GARAGE_ROW)
 
 		await confirmLeave(dialog)
 
@@ -393,7 +398,7 @@ describe("SpaceSettingsHost hosting on the desktop", () => {
 		vi.mocked(isDesktopHost).mockReturnValue(true)
 		const gear = await gearWithGarage()
 
-		const dialog = openSettingsOf(gear, "garage")
+		const dialog = openSettingsOf(gear, GARAGE_ROW)
 		await act(async () => undefined)
 
 		expect(
@@ -582,7 +587,7 @@ describe("SpaceSettingsHost members on the desktop", () => {
 		vi.mocked(isDesktopHost).mockReturnValue(true)
 		const gear = await gearWithGarage()
 
-		const dialog = openSettingsOf(gear, "garage")
+		const dialog = openSettingsOf(gear, GARAGE_ROW)
 		await act(async () => undefined)
 
 		expect(
