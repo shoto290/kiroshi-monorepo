@@ -59,7 +59,7 @@ fn framed<S: Serialize>(event: &str, payload: &S) -> serde_json::Result<Frame> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
 	use std::fs;
 	use std::path::{Path, PathBuf};
 
@@ -81,7 +81,7 @@ mod tests {
 		}
 	}
 
-	fn rust_files(dir: &Path) -> Vec<PathBuf> {
+	pub(crate) fn rust_files(dir: &Path) -> Vec<PathBuf> {
 		fs::read_dir(dir)
 			.expect("the source dir reads")
 			.map(|entry| entry.expect("an entry").path())
