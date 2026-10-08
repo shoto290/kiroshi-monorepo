@@ -204,6 +204,11 @@ export const remoteMarksOf = (
 		]),
 	)
 
+export const openLocalSpaceOf = (
+	spaces: Space[],
+	openRowId: string | null,
+): Space | undefined => spaces.find((space) => space.id === openRowId)
+
 export const rosterSpaceIdsOf = (
 	spaces: Space[],
 	joinedSpaces: JoinedSpace[],

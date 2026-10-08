@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
 	createJoinedSpacesController,
 	type JoinedSpacesTransport,
+	openLocalSpaceOf,
 	openRowIdOf,
 	remoteMarksOf,
 	rosterSpaceIdsOf,
@@ -684,6 +685,28 @@ describe("a local and a joined space both carrying the id personal", () => {
 		expect(Object.keys(switcher.marks)).toEqual([HOST_PERSONAL_ROW])
 		expect(gear.spaces.getState().selectedSpaceId).toBe("personal")
 		expect(gear.hosts.activate).toHaveBeenLastCalledWith(HOST_PERSONAL.id)
+	})
+
+	it("resolves no local space while the joined one is open", async () => {
+		const gear = await withBothPersonals()
+
+		gear.joined.selectSpace(HOST_PERSONAL_ROW)
+
+		expect(
+			openLocalSpaceOf(gear.spaces.getState().spaces, switcherOf(gear).checked),
+		).toBeUndefined()
+	})
+
+	it("resolves the local space once the local one is open", async () => {
+		const gear = await withBothPersonals()
+		gear.joined.selectSpace(HOST_PERSONAL_ROW)
+
+		gear.joined.selectSpace("personal")
+
+		expect(
+			openLocalSpaceOf(gear.spaces.getState().spaces, switcherOf(gear).checked)
+				?.id,
+		).toBe("personal")
 	})
 
 	it("checks the local row only, with no mark, once the local one is open", async () => {

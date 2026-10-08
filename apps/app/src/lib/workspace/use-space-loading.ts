@@ -17,16 +17,20 @@ type SpaceLoadingInput = {
 
 export const useSpaceLoading = ({ core, scopes }: SpaceLoadingInput) => {
 	const { joinedSpaces, roster, spaces, user } = core
-	const { selectedSpaceId } = scopes
+	const { selectedSpaceId, openRowId } = scopes
+	const activeHostId = joinedSpaces.hosts.active
 
 	const listedSpaces = rosterSpaceIdsOf(
 		spaces.state.spaces,
 		joinedSpaces.state.joinedSpaces,
-		joinedSpaces.hosts.active,
+		activeHostId,
 	).join(" ")
-	const spaceIds = useMemo(
-		() => (listedSpaces === "" ? [] : listedSpaces.split(" ")),
-		[listedSpaces],
+	const rosterScope = useMemo(
+		() => ({
+			hostId: activeHostId,
+			spaceIds: listedSpaces === "" ? [] : listedSpaces.split(" "),
+		}),
+		[activeHostId, listedSpaces],
 	)
 
 	const loadSpaces = useCallback(() => {
@@ -41,22 +45,30 @@ export const useSpaceLoading = ({ core, scopes }: SpaceLoadingInput) => {
 	}, [loadSpaces])
 
 	useEffect(() => {
+		const { spaceIds } = rosterScope
 		if (spaceIds.length === 0) {
 			return
 		}
 		const spaceId = spaces.controller.getState().selectedSpaceId
+		const rowId = openRowIdOf(joinedSpaces.controller.getState(), spaceId)
 		void roster.controller.load({
 			spaceIds,
 			spaceId,
-			lastRowId: lastBotIn(user.controller.getState().preferences, spaceId),
+			lastRowId: lastBotIn(user.controller.getState().preferences, rowId),
 		})
-	}, [roster.controller, spaces.controller, user.controller, spaceIds])
+	}, [
+		roster.controller,
+		spaces.controller,
+		joinedSpaces.controller,
+		user.controller,
+		rosterScope,
+	])
 
 	useSpaceEntry({
 		roster: roster.controller,
 		user: user.controller,
 		selectedSpaceId,
-		openRowId: openRowIdOf(joinedSpaces.state, selectedSpaceId),
+		openRowId,
 	})
 
 	return loadSpaces

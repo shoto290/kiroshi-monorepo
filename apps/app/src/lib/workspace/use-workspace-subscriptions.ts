@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useCallback, useEffect } from "react"
 
 import type { ApplicationScopes } from "./use-application-scopes"
 import type { RosterView } from "./use-roster-view"
@@ -9,6 +9,7 @@ import { USER_OWNER } from "./user-owner"
 import { useCompanionSettings } from "../bots/use-companion-settings"
 import { useCompanionAnnouncements } from "../companions/use-companion-announcements"
 import { useCompanionArrivals } from "../conversations/use-companion-arrivals"
+import { openRowIdOf } from "../spaces/joined-spaces-controller"
 
 type WorkspaceSubscriptionsInput = {
 	core: WorkspaceCore
@@ -30,11 +31,13 @@ export const useWorkspaceSubscriptions = ({
 		botMcpServers,
 		chat,
 		companionPlugin,
+		joinedSpaces,
 		roster,
 		serverEnvironment,
 		spaceConnections,
 		spaceEnvironment,
 		spaceMcpServers,
+		spaces,
 		user,
 		userConnections,
 		userMcpServers,
@@ -49,6 +52,16 @@ export const useWorkspaceSubscriptions = ({
 		settingsBotId,
 	} = rosterView
 	const { isSpaceEditing, openedMcpServer, selectedSpaceId } = scopes
+
+	const lastBotKeyOf = useCallback(
+		(spaceId: string | null) => {
+			const shown = spaces.controller.getState().selectedSpaceId
+			return spaceId === shown
+				? openRowIdOf(joinedSpaces.controller.getState(), shown)
+				: spaceId
+		},
+		[spaces.controller, joinedSpaces.controller],
+	)
 
 	useEffect(() => {
 		void user.controller.load()
@@ -125,7 +138,7 @@ export const useWorkspaceSubscriptions = ({
 		}
 		void chat.controller.open(selectedBotId, rosteredSpaceId)
 		void user.controller.setLastBot({
-			spaceId: rosteredSpaceId,
+			spaceId: lastBotKeyOf(rosteredSpaceId),
 			botId: selectedBotId,
 		})
 	}, [
@@ -134,6 +147,7 @@ export const useWorkspaceSubscriptions = ({
 		selectedBotId,
 		holdsSelectedBot,
 		rosteredSpaceId,
+		lastBotKeyOf,
 	])
 
 	useEffect(() => {
@@ -141,8 +155,8 @@ export const useWorkspaceSubscriptions = ({
 			return
 		}
 		void user.controller.setLastBot({
-			spaceId: roster.controller.getState().spaceId,
+			spaceId: lastBotKeyOf(roster.controller.getState().spaceId),
 			botId: selectedConversationId,
 		})
-	}, [roster.controller, user.controller, selectedConversationId])
+	}, [roster.controller, user.controller, selectedConversationId, lastBotKeyOf])
 }
