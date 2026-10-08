@@ -187,13 +187,12 @@ async fn started<R: Runtime>(
 	let JoinedReach::Relay { instance_id } = found.reach.clone() else {
 		return Err(unknown());
 	};
-	match is_signed_in(app) {
-		Ok(true) => {}
-		Ok(false) => return Err(JoinedSpaceError::HostOffline { id: id.to_owned() }),
-		Err(reason) => {
-			eprintln!("joined space {id} was not connected: {reason}");
-			return Err(JoinedSpaceError::HostOffline { id: id.to_owned() });
-		}
+	let is_signed_in = is_signed_in(app).unwrap_or_else(|reason| {
+		eprintln!("joined space {id} was not connected: {reason}");
+		false
+	});
+	if !is_signed_in {
+		return Err(JoinedSpaceError::HostOffline { id: id.to_owned() });
 	}
 	if let Some(reached) = guests.reached(id) {
 		return Ok((found, reached));
