@@ -32,11 +32,14 @@ use crate::db::{self, DatabaseState};
 use crate::environment::contract::{EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
 use crate::events;
+use crate::joined_spaces::commands::joined_space_add;
+use crate::joined_spaces::contract::JoinedSpaceConnection;
 use crate::spaces::contract::Space;
 
 const BEARER: &str = "bearer-that-never-leaves";
 const LOCAL_TOKEN: &str = "host-token-of-the-loopback";
 const PERSONAL: &str = "personal";
+const JOINED_SPACE_TOKEN: &str = "joined-space-token-of-the-host";
 const INVOKE_ROUTE: &str = "/api/invoke/{command}";
 const PATIENCE: Duration = Duration::from_secs(5);
 const OWNER_EMAIL: &str = "owner@example.com";
@@ -178,6 +181,24 @@ async fn spaces_listed(Served(database): Served<PathBuf>, headers: HeaderMap) ->
 	answered_json(StatusCode::OK, json!(stored.into_iter().map(Space::from).collect::<Vec<_>>()))
 }
 
+async fn joined_space_connected(
+	Path(command): Path<String>,
+	Served(database): Served<PathBuf>,
+	headers: HeaderMap,
+	args: String,
+) -> Response {
+	let args: Value = serde_json::from_str(&args).expect("json arguments");
+	if bearer_of(&headers) != LOCAL_TOKEN {
+		return StatusCode::UNAUTHORIZED.into_response();
+	}
+	if command != "joined_space_connect" {
+		return answered_json(StatusCode::OK, json!({ "command": command, "args": args }));
+	}
+	let id = args["id"].as_str().expect("a joined space id").to_owned();
+	let found = db::open(&database).joined_spaces().find(id).await.expect("the host reads");
+	answered_json(StatusCode::OK, json!(found.map(JoinedSpaceConnection::from)))
+}
+
 fn answered_json(status: StatusCode, body: Value) -> Response {
 	(status, [(header::CONTENT_TYPE, "application/json")], body.to_string()).into_response()
 }
@@ -218,6 +239,15 @@ impl Harness {
 		let database = temp_dir();
 		let local =
 			Router::new().route(INVOKE_ROUTE, post(spaces_listed)).with_state(database.clone());
+		Self::serving(name, None, Some(BEARER), super::members::MEMBERS_EVERY, database, local)
+			.await
+	}
+
+	async fn connecting_joined_spaces(name: &str) -> Self {
+		let database = temp_dir();
+		let local = Router::new()
+			.route(INVOKE_ROUTE, post(joined_space_connected))
+			.with_state(database.clone());
 		Self::serving(name, None, Some(BEARER), super::members::MEMBERS_EVERY, database, local)
 			.await
 	}
@@ -612,14 +642,18 @@ async fn a_relay_guest_is_refused(command: &str) {
 	refused_on(Harness::signed_in(command).await, command).await;
 }
 
-async fn refused_on(mut harness: Harness, command: &str) -> Value {
+async fn refused_on(harness: Harness, command: &str) -> Value {
+	refused_with(harness, command, json!({ "spaceId": PERSONAL })).await.1
+}
+
+async fn refused_with(mut harness: Harness, command: &str, args: Value) -> (Value, Value) {
 	assert!(HOST_ONLY_COMMANDS.contains(&command), "{command} is not host only");
 	restore(harness.app.handle().clone()).await;
 	harness.started().await;
 	let mut member = harness.member().await;
 	harness.reached(HostingState::Online).await;
 
-	let frame = json!({ "id": command, "command": command, "args": { "spaceId": PERSONAL } });
+	let frame = json!({ "id": command, "command": command, "args": args });
 	send(&mut member, &frame.to_string()).await;
 	let refused = answer(&mut member).await;
 	send(&mut member, r#"{"id": "after", "command": "space_list"}"#).await;
@@ -634,7 +668,7 @@ async fn refused_on(mut harness: Harness, command: &str) -> Value {
 	let session = harness.app.state::<AccountSession>();
 	assert!(matches!(session.current(), AccountState::SignedIn(_)), "{:?}", session.current());
 	assert_eq!(session.bearer().expect("the session store reads").as_deref(), Some(BEARER));
-	answered
+	(refused, answered)
 }
 
 #[test]
@@ -679,6 +713,23 @@ fn a_relay_guest_cannot_delete_a_space_and_its_instance_registration() {
 			refused_on(Harness::listing_spaces("space_delete").await, "space_delete").await;
 		let spaces = listed["body"].as_array().expect("a space list");
 		assert!(spaces.iter().any(|space| space["id"] == PERSONAL), "{listed}");
+	});
+}
+
+#[test]
+fn a_relay_guest_cannot_read_the_stored_token_of_a_joined_space() {
+	run(async {
+		let harness = Harness::connecting_joined_spaces("joined-connect").await;
+		let link = format!("http://127.0.0.1:1420/#host=http://h.test&token={JOINED_SPACE_TOKEN}");
+		let joined =
+			joined_space_add(harness.app.handle().clone(), harness.app.state(), link, None)
+				.await
+				.expect("the host joins a space");
+
+		let (refused, _) =
+			refused_with(harness, "joined_space_connect", json!({ "id": joined.id })).await;
+
+		assert!(!refused.to_string().contains(JOINED_SPACE_TOKEN), "{refused}");
 	});
 }
 
