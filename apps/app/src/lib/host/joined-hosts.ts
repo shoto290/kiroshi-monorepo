@@ -156,13 +156,17 @@ export const createJoinedHosts = ({
 		}
 	}
 
-	const markUp = (id: string) => {
-		record(id, { status: "up" })
+	const endDownNotice = (id: string) => {
 		const noticeId = downNotices.get(id)
 		if (noticeId) {
 			endHostDown(noticeId)
 			downNotices.delete(id)
 		}
+	}
+
+	const markUp = (id: string) => {
+		record(id, { status: "up" })
+		endDownNotice(id)
 	}
 
 	const openHost = (id: string, { hostUrl, token }: JoinedSpaceConnection) => {
@@ -245,8 +249,12 @@ export const createJoinedHosts = ({
 	}
 
 	const setActive = (active: string | null) => {
-		if (store.getState().active === active) {
+		const previous = store.getState().active
+		if (previous === active) {
 			return
+		}
+		if (previous) {
+			endDownNotice(previous)
 		}
 		store.setState({ ...store.getState(), active })
 		for (const subscription of subscriptions) {
@@ -270,6 +278,7 @@ export const createJoinedHosts = ({
 	const forget = (id: string) => {
 		hosts.get(id)?.close()
 		hosts.delete(id)
+		endDownNotice(id)
 		const { [id]: _forgotten, ...connections } = store.getState().connections
 		store.setState({ ...store.getState(), connections })
 		if (requested === id) {

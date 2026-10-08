@@ -5,6 +5,7 @@ import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import type { HostConnection } from "./connection"
+import { hostOfflineOf } from "./host-offline"
 
 export type HostSocket = Pick<
 	WebSocket,
@@ -198,6 +199,7 @@ export const createHttpHost = ({
 			}
 			return refuse(reason, response.status)
 		}
+		markAnswered()
 		return (await answerOf(response)) as T
 	}
 
@@ -219,6 +221,12 @@ export const createHttpHost = ({
 		}
 	}
 
+	const markAnswered = () => {
+		if (presence === "down") {
+			markUp()
+		}
+	}
+
 	const markDown = () => {
 		if (presence !== "down") {
 			presence = "down"
@@ -228,7 +236,7 @@ export const createHttpHost = ({
 
 	const goOffline = (reason: unknown): never => {
 		markDown()
-		throw { kind: "hostOffline", detail: messageOf(reason) }
+		throw hostOfflineOf(messageOf(reason))
 	}
 
 	const connect = () => {

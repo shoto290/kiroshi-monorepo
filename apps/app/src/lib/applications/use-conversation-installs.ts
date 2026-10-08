@@ -18,6 +18,7 @@ import type {
 import type { ReopenedScope } from "./session-reopening"
 
 import type { Space } from "../conversations/store-contract"
+import { isHostOffline } from "../host/host-offline"
 
 export type ConversationApplications = {
 	port: ApplicationPort
@@ -69,9 +70,11 @@ export const useConversationInstalls = (
 				}
 				console.error("applications: installs could not be read", reason)
 				setRead(landedRead(conversationId, NO_INSTALLS))
-				raiseFailureNotice({
-					title: i18n.t("chat:applicationInstall.unreadable"),
-				})
+				if (!isHostOffline(reason)) {
+					raiseFailureNotice({
+						title: i18n.t("chat:applicationInstall.unreadable"),
+					})
+				}
 			},
 		)
 	}, [port, conversationId])

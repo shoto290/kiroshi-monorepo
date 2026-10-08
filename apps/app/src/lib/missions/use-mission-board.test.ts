@@ -4,6 +4,7 @@ import { cleanup, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { BLANK_BOT_PERMISSIONS } from "@workspace/ui/components/bot-settings"
+import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 
 import type { MissionChanged, MissionOnBoard } from "./mission-contract"
 import { aMission } from "./mission-fixtures"
@@ -11,6 +12,11 @@ import { missionsTransport } from "./missions-transport"
 import { useMissionBoard } from "./use-mission-board"
 
 import type { Bot } from "@/lib/conversations/store-contract"
+import { hostOfflineOf } from "@/lib/host/host-offline"
+
+vi.mock("@workspace/ui/components/notice-surface", () => ({
+	raiseFailureNotice: vi.fn(),
+}))
 
 vi.mock("./missions-transport", () => ({
 	missionsTransport: {
@@ -101,5 +107,26 @@ describe("useMissionBoard", () => {
 
 		await waitFor(() => expect(readBoard).toHaveBeenCalled())
 		expect(result.current).toEqual([])
+	})
+
+	it("raises its own notice when the board cannot be read", async () => {
+		readBoard.mockRejectedValue(new Error("no board"))
+
+		renderHook(() => useMissionBoard())
+
+		await waitFor(() => expect(raiseFailureNotice).toHaveBeenCalledOnce())
+	})
+
+	it("raises no notice of its own when the host of the space is offline", async () => {
+		readBoard.mockRejectedValue(
+			hostOfflineOf("the host of this space is offline"),
+		)
+
+		const { result } = renderHook(() => useMissionBoard())
+
+		await waitFor(() => expect(readBoard).toHaveBeenCalled())
+		await Promise.resolve()
+		expect(result.current).toEqual([])
+		expect(raiseFailureNotice).not.toHaveBeenCalled()
 	})
 })

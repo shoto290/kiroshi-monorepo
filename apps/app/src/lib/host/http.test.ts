@@ -225,6 +225,26 @@ describe("a host that is offline", () => {
 		expect(onDown).toHaveBeenCalledOnce()
 	})
 
+	it("reports the host up once a request succeeds after it went down", async () => {
+		const { host, fetch, onDown, onUp } = hostOf({ answer: offline })
+		host.openEvents()
+		await expect(host.invoke("bot_list")).rejects.toMatchObject(HOST_OFFLINE)
+
+		fetch.mockResolvedValueOnce(answerWith({}))
+		await host.invoke("bot_list")
+
+		expect(onDown).toHaveBeenCalledOnce()
+		expect(onUp).toHaveBeenCalledOnce()
+	})
+
+	it("reports nothing up when a request succeeds before the host was ever down", async () => {
+		const { host, onUp } = hostOf()
+
+		await host.invoke("bot_list")
+
+		expect(onUp).not.toHaveBeenCalled()
+	})
+
 	it("keeps refusing another cause with its text and status", async () => {
 		const { host, onDown, onRefused } = hostOf({
 			answer: { status: 502, body: "the host broke" },

@@ -6,6 +6,7 @@ import type {
 	PermissionDecision,
 	RuntimeScope,
 } from "@/lib/bindings"
+import type { HostOffline } from "@/lib/host/host-offline"
 
 export type {
 	AgentCommand_Serialize as AgentCommand,
@@ -21,7 +22,7 @@ export type {
 type FrontTransportError =
 	| { kind: "readFailed"; detail: string }
 	| { kind: "unknownFailure"; detail: string }
-	| { kind: "hostOffline"; detail: string }
+	| HostOffline
 
 export type TransportError = HostTransportError | FrontTransportError
 

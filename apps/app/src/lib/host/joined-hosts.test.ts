@@ -438,16 +438,70 @@ describe("an offline joined host", () => {
 		expect(reportHostDown).toHaveBeenCalledOnce()
 	})
 
-	it("raises no second notice when the space is selected again while it is open", async () => {
-		const { hosts, reportHostDown } = joinedHostsOf({ answer: answerOffline })
+	it("ends the notice when another space becomes active", async () => {
+		const { hosts, reportHostDown, endHostDown } = joinedHostsOf({
+			answer: answerOffline,
+		})
 		await hosts.activate("garage")
-		await requestsOf(hosts, 1)
+		await requestsOf(hosts, 2)
 
 		await hosts.activate(null)
+
+		expect(endHostDown).toHaveBeenCalledExactlyOnceWith(
+			reportHostDown.mock.results[0]?.value,
+		)
+	})
+
+	it("raises the notice once more when the space is active again while still down", async () => {
+		const { hosts, sockets, reportHostDown } = joinedHostsOf({
+			answer: answerOffline,
+		})
 		await hosts.activate("garage")
+		await requestsOf(hosts, 2)
+		await hosts.activate(null)
+
+		await hosts.activate("garage")
+		await requestsOf(hosts, 3)
+		sockets[0]?.drop()
+
+		expect(reportHostDown).toHaveBeenCalledTimes(2)
+	})
+
+	it("ends the notice when the space is forgotten and raises it again on rejoin", async () => {
+		const { hosts, reportHostDown, endHostDown } = joinedHostsOf({
+			answer: answerOffline,
+		})
+		await hosts.activate("garage")
+		await requestsOf(hosts, 2)
+
+		hosts.forget("garage")
+		await settle()
+
+		expect(endHostDown).toHaveBeenCalledExactlyOnceWith(
+			reportHostDown.mock.results[0]?.value,
+		)
+
+		await hosts.activate("garage")
+		await requestsOf(hosts, 2)
+
+		expect(reportHostDown).toHaveBeenCalledTimes(2)
+	})
+
+	it("ends the notice once a request succeeds while the socket stays open", async () => {
+		const answers = [answerOffline, answerOffline, answerJoined]
+		const { hosts, sockets, reportHostDown, endHostDown } = joinedHostsOf({
+			answer: () => (answers.shift() ?? answerJoined)(),
+		})
+		await hosts.activate("garage")
+		sockets[0]?.open()
+
+		await requestsOf(hosts, 2)
 		await requestsOf(hosts, 1)
 
-		expect(reportHostDown).toHaveBeenCalledOnce()
+		expect(endHostDown).toHaveBeenCalledExactlyOnceWith(
+			reportHostDown.mock.results[0]?.value,
+		)
+		expect(hosts.getState().connections.garage).toEqual({ status: "up" })
 	})
 
 	it("ends the notice once the host comes back up", async () => {

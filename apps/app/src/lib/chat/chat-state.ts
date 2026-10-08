@@ -17,6 +17,7 @@ import type {
 	TurnState,
 } from "../agent/contract"
 import type { TranscriptMessage } from "../conversations/transcript-contract"
+import { isHostOffline } from "../host/host-offline"
 import {
 	NO_REPORTED_RUNS,
 	type ReportedRunsByTurnId,
@@ -173,20 +174,25 @@ const refusalOf = (reason: unknown): string => {
 	return failure === null ? outer : `${outer}, ${failure}`
 }
 
-export const toStoreError = (reason: unknown): TransportError => ({
+const unlessHostOffline =
+	(toError: (reason: unknown) => TransportError) =>
+	(reason: unknown): TransportError =>
+		isHostOffline(reason) ? reason : toError(reason)
+
+export const toStoreError = unlessHostOffline((reason) => ({
 	kind: "writeFailed",
 	detail: `the transcript store refused it (${refusalOf(reason)})`,
-})
+}))
 
-export const toAnswerError = (reason: unknown): TransportError => ({
+export const toAnswerError = unlessHostOffline((reason) => ({
 	kind: "unknownFailure",
 	detail: refusalOf(reason),
-})
+}))
 
-export const toReadError = (reason: unknown): TransportError => ({
+export const toReadError = unlessHostOffline((reason) => ({
 	kind: "readFailed",
 	detail: detailOf(reason),
-})
+}))
 
 export const chatErrorOf = (
 	error: TransportError,

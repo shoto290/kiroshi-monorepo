@@ -9,6 +9,9 @@ import {
 	isSameRuntimeScope,
 	isSessionReady,
 	isTurnBusy,
+	toAnswerError,
+	toReadError,
+	toStoreError,
 	toTransportError,
 } from "./chat-state"
 
@@ -18,6 +21,7 @@ import {
 	message,
 	named,
 } from "../conversations/transcript-fixtures"
+import { hostOfflineOf } from "../host/host-offline"
 
 const AT = 1_000
 
@@ -696,6 +700,19 @@ describe("the outbox a prompt waits in", () => {
 		})
 
 		expect(queued(reset)).toEqual(["one", "two", "three"])
+	})
+})
+
+describe("a request refused because the host of the space is offline", () => {
+	const offline = hostOfflineOf("the host of this space is offline")
+
+	it.each([
+		["toTransportError", toTransportError],
+		["toReadError", toReadError],
+		["toStoreError", toStoreError],
+		["toAnswerError", toAnswerError],
+	])("keeps the host-offline cause through %s", (_name, toError) => {
+		expect(toError(offline)).toBe(offline)
 	})
 })
 
