@@ -186,6 +186,7 @@ type SpaceSwitcherProps = SpaceSelection &
 		onJoinSpace?: () => void
 		onOpenSpaceSettings?: () => void
 		onLeaveSpace?: () => void
+		onOpenChange?: (isOpen: boolean) => void
 	}
 
 const SpaceSwitcher = ({
@@ -203,6 +204,7 @@ const SpaceSwitcher = ({
 	onAcceptInvitation,
 	onDeclineInvitation,
 	onRetryInvitation,
+	onOpenChange,
 }: SpaceSwitcherProps) => {
 	const { t } = useTranslation("bots")
 	const selected =
@@ -235,7 +237,7 @@ const SpaceSwitcher = ({
 			)
 
 	return (
-		<ContextMenu>
+		<ContextMenu onOpenChange={(isOpen) => onOpenChange?.(isOpen)}>
 			<ContextMenuPressTrigger
 				render={
 					<Button

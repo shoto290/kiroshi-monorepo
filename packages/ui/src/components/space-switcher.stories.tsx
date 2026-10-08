@@ -199,6 +199,7 @@ const meta = preview.meta({
 		onAcceptInvitation: fn(),
 		onDeclineInvitation: fn(),
 		onRetryInvitation: fn(),
+		onOpenChange: fn(),
 	},
 	render: (args) => <SwitcherLine {...args} />,
 })
@@ -1396,6 +1397,13 @@ export const M11Withdrawn = meta.story({
 			getComputedStyle(hostLineOf(row)).color,
 		)
 		await expect(slotsIn(row, "space-invitation-ring")[0].style.color).toBe("")
+
+		await expect(args.onOpenChange).toHaveBeenCalledTimes(1)
+		await expect(args.onOpenChange).toHaveBeenLastCalledWith(true)
+		await userEvent.keyboard("{Escape}")
+		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+		await expect(args.onOpenChange).toHaveBeenCalledTimes(2)
+		await expect(args.onOpenChange).toHaveBeenLastCalledWith(false)
 	},
 })
 

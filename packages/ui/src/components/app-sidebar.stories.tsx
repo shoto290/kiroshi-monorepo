@@ -669,6 +669,7 @@ const meta = preview.meta({
 		onSelectSpace: fn(),
 		onCreateSpace: fn(),
 		onOpenSpaceSettings: fn(),
+		onSpaceSwitcherOpenChange: fn(),
 	},
 	argTypes: {
 		selectedBotId: { control: "text" },

@@ -1818,6 +1818,7 @@ interface AppSidebarProps
 	onAcceptInvitation?: SpaceInvitationCallbacks["onAcceptInvitation"]
 	onDeclineInvitation?: SpaceInvitationCallbacks["onDeclineInvitation"]
 	onRetryInvitation?: SpaceInvitationCallbacks["onRetryInvitation"]
+	onSpaceSwitcherOpenChange?: (isOpen: boolean) => void
 	onOpenSpaceSettings?: () => void
 	updateBadge?: ReactNode
 	user?: UserChipIdentity
@@ -1874,6 +1875,7 @@ const AppSidebarBase = ({
 	onAcceptInvitation,
 	onDeclineInvitation,
 	onRetryInvitation,
+	onSpaceSwitcherOpenChange,
 	onOpenSpaceSettings,
 	updateBadge,
 	user,
@@ -2087,6 +2089,7 @@ const AppSidebarBase = ({
 					onDeclineInvitation={onDeclineInvitation}
 					onJoinSpace={onJoinSpace}
 					onLeaveSpace={onLeaveSpace}
+					onOpenChange={onSpaceSwitcherOpenChange}
 					onOpenSpaceSettings={onOpenSpaceSettings}
 					onReorderSpaces={onReorderSpaces}
 					onRetryInvitation={onRetryInvitation}
