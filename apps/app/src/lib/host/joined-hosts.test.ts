@@ -348,6 +348,57 @@ describe("listening across hosts", () => {
 	})
 })
 
+describe("listening to the active host only", () => {
+	it("hears nothing while the local host is active", async () => {
+		const { hosts, local } = joinedHostsOf()
+
+		await hosts.listenToActiveHost("companion://created", vi.fn())
+
+		expect(local.listen).not.toHaveBeenCalled()
+	})
+
+	it("hears a local event emitted by the joined host once it is active", async () => {
+		const { hosts, local, sockets } = joinedHostsOf()
+		const fromHost = vi.fn()
+		await hosts.listenToActiveHost("companion://created", fromHost)
+
+		await hosts.activate("garage")
+		await settle()
+		sockets[0]?.send({ event: "companion://created", payload: { id: "b9" } })
+
+		expect(local.listen).not.toHaveBeenCalled()
+		expect(fromHost).toHaveBeenCalledExactlyOnceWith(
+			expect.objectContaining({ payload: { id: "b9" } }),
+		)
+	})
+
+	it("stops hearing the joined host once the local host is active again", async () => {
+		const { hosts, sockets } = joinedHostsOf()
+		const fromHost = vi.fn()
+		await hosts.activate("garage")
+		await hosts.listenToActiveHost("companion://created", fromHost)
+
+		await hosts.activate(null)
+		await settle()
+		sockets[0]?.send({ event: "companion://created", payload: { id: "b9" } })
+
+		expect(fromHost).not.toHaveBeenCalled()
+	})
+
+	it("keeps the local subscription to the same event on the local host", async () => {
+		const { hosts, local, sockets } = joinedHostsOf()
+		const fromLocal = vi.fn()
+		await hosts.listen("companion://created", fromLocal)
+
+		await hosts.activate("garage")
+		await settle()
+		sockets[0]?.send({ event: "companion://created", payload: { id: "b9" } })
+
+		expect(local.listen).toHaveBeenCalledOnce()
+		expect(fromLocal).not.toHaveBeenCalled()
+	})
+})
+
 describe("a joined space event", () => {
 	it("stays on the local host while a joined host is active", async () => {
 		const { hosts, local } = joinedHostsOf()

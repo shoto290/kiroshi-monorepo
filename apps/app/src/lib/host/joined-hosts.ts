@@ -97,12 +97,17 @@ export type JoinedHostsOptions = {
 	endHostDown: (noticeId: string) => void
 }
 
+type Route = (event: string) => Listen
+
 type Subscription = {
 	event: string
 	handler: EventCallback<unknown>
+	route: Route
 	source: Listen
 	unlisten: UnlistenFn
 }
+
+const unheard: Listen = async () => () => undefined
 
 const isLocalCommand = (command: string): boolean =>
 	command.startsWith(TAURI_PLUGIN_PREFIX) || LOCAL_COMMANDS.has(command)
@@ -223,13 +228,15 @@ export const createJoinedHosts = ({
 		return joined ? joined.listen : local.listen
 	}
 
+	const activeHostListener = (): Listen => activeHost()?.listen ?? unheard
+
 	const reportListenFailure = (reason: unknown): UnlistenFn => {
 		reportFailure(describeRejection(reason))
 		return () => undefined
 	}
 
 	const relocate = (subscription: Subscription) => {
-		const source = listenerFor(subscription.event)
+		const source = subscription.route(subscription.event)
 		if (source === subscription.source) {
 			return
 		}
@@ -292,21 +299,28 @@ export const createJoinedHosts = ({
 		return joined ? joined.invoke(command, args) : local.invoke(...call)
 	}
 
-	const listen: Listen = async (event, handler) => {
-		const source = listenerFor(event)
-		const subscription: Subscription = {
-			event,
-			handler: handler as EventCallback<unknown>,
-			source,
-			unlisten: await source(event, handler),
+	const routedListen =
+		(route: Route): Listen =>
+		async (event, handler) => {
+			const source = route(event)
+			const subscription: Subscription = {
+				event,
+				handler: handler as EventCallback<unknown>,
+				route,
+				source,
+				unlisten: await source(event, handler),
+			}
+			subscriptions.add(subscription)
+			relocate(subscription)
+			return () => {
+				subscriptions.delete(subscription)
+				subscription.unlisten()
+			}
 		}
-		subscriptions.add(subscription)
-		relocate(subscription)
-		return () => {
-			subscriptions.delete(subscription)
-			subscription.unlisten()
-		}
-	}
+
+	const listen = routedListen(listenerFor)
+
+	const listenToActiveHost = routedListen(activeHostListener)
 
 	const fileSrc = (path: string): string =>
 		(activeHost() ?? local).fileSrc(path)
@@ -321,6 +335,7 @@ export const createJoinedHosts = ({
 		forget,
 		invoke,
 		listen,
+		listenToActiveHost,
 		fileSrc,
 	}
 }

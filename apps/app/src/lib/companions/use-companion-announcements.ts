@@ -11,6 +11,7 @@ import {
 
 export type CompanionAnnouncements = {
 	onCreated: (created: CompanionCreated) => void
+	onHostCreated: () => void
 	onFirstRunDone: () => void
 }
 
@@ -50,6 +51,7 @@ export const useCompanionAnnouncements = (
 
 		const listening = Promise.all([
 			companionsTransport.onCreated(created),
+			companionsTransport.onHostCreated(() => announce.current.onHostCreated()),
 			companionsTransport.onFirstRunDone(() =>
 				announce.current.onFirstRunDone(),
 			),

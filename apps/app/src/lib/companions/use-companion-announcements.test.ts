@@ -15,6 +15,8 @@ import {
 } from "./companions-transport"
 import { useCompanionAnnouncements } from "./use-companion-announcements"
 
+import { joinedHosts } from "../host"
+
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }))
 
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }))
@@ -73,7 +75,8 @@ const listening = async (announcements: {
 	onCreated: () => void
 	onFirstRunDone: () => void
 }) => {
-	const rendered = renderHook(() => useCompanionAnnouncements(announcements))
+	const heard = { onHostCreated: vi.fn(), ...announcements }
+	const rendered = renderHook(() => useCompanionAnnouncements(heard))
 	await settling()
 	return rendered
 }
@@ -200,5 +203,64 @@ describe("useCompanionAnnouncements", () => {
 			expect.any(Error),
 		)
 		reported.mockRestore()
+	})
+})
+
+describe("a companion created on the active joined host", () => {
+	const sockets: WebSocket[] = []
+
+	class HostSocket {
+		onopen = null
+		onclose = null
+		onmessage: ((message: MessageEvent) => void) | null = null
+		constructor() {
+			sockets.push(this as unknown as WebSocket)
+		}
+		close() {}
+	}
+
+	const emitOnHost = (event: string, payload: unknown) =>
+		act(async () => {
+			sockets[0]?.onmessage?.(
+				new MessageEvent("message", {
+					data: JSON.stringify({ event, payload }),
+				}),
+			)
+		})
+
+	beforeEach(() => {
+		sockets.length = 0
+		vi.stubGlobal("WebSocket", HostSocket)
+		hostInvoke.mockImplementation(async (command) =>
+			command === "joined_space_connect"
+				? { hostUrl: "http://192.168.1.22:45367", token: "joined" }
+				: NOTHING_HAPPENED,
+		)
+	})
+
+	afterEach(async () => {
+		await joinedHosts.activate(null)
+		joinedHosts.forget("joined-personal")
+		vi.unstubAllGlobals()
+	})
+
+	it("reaches the joined roster reload and not the local announcement", async () => {
+		const onCreated = vi.fn()
+		const onHostCreated = vi.fn()
+		renderHook(() =>
+			useCompanionAnnouncements({
+				onCreated,
+				onHostCreated,
+				onFirstRunDone: vi.fn(),
+			}),
+		)
+		await settling()
+
+		await act(() => joinedHosts.activate("joined-personal"))
+		await settling()
+		await emitOnHost(CREATED_EVENT, { id: "b7", name: "Quill" })
+
+		expect(onHostCreated).toHaveBeenCalledOnce()
+		expect(onCreated).not.toHaveBeenCalled()
 	})
 })

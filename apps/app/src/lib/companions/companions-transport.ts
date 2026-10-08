@@ -1,4 +1,4 @@
-import { invoke, listen } from "../host"
+import { invoke, listen, listenToActiveHost } from "../host"
 
 export const CREATED_EVENT = "companion://created"
 
@@ -23,6 +23,8 @@ export type LaunchOutcome = {
 export const companionsTransport = {
 	onCreated: (listener: (created: CompanionCreated) => void) =>
 		listen<CompanionCreated>(CREATED_EVENT, ({ payload }) => listener(payload)),
+	onHostCreated: (listener: () => void) =>
+		listenToActiveHost(CREATED_EVENT, () => listener()),
 	onFirstRunDone: (listener: () => void) =>
 		listen(FIRST_RUN_DONE_EVENT, () => listener()),
 	onSeedRefused: (listener: (refused: CompanionSeedRefused) => void) =>

@@ -70,11 +70,14 @@ export const useWorkspaceSubscriptions = ({
 
 	useCompanionAnnouncements({
 		onCreated: (created) => {
-			void roster.controller.reload()
+			if (joinedSpaces.hosts.active === null) {
+				void roster.controller.reload()
+			}
 			if (!user.controller.getState().preferences.firstRunDone) {
 				void onboarding.controller.greetCompanion(created)
 			}
 		},
+		onHostCreated: () => void roster.controller.reload(),
 		onFirstRunDone: () => void user.controller.load(),
 	})
 
