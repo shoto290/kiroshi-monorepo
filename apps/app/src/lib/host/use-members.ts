@@ -1,13 +1,10 @@
 import { useEffect } from "react"
 
-import type {
-	MembersPanelProps,
-	SpaceMember,
-} from "@workspace/ui/components/space-settings-dialog/members-panel"
+import type { MembersPanelProps } from "@workspace/ui/components/space-settings-dialog/members-panel"
 
 import type { HostedSpace } from "./hosting-controller"
 import { isDesktopHost } from "./index"
-import { createMembersController } from "./members-controller"
+import { createMembersController, toSpaceMember } from "./members-controller"
 
 import type { Member } from "../bindings"
 import { useController } from "../use-controller"
@@ -19,19 +16,13 @@ export type MembersProps = Pick<
 	| "onEmailChange"
 	| "onInvite"
 	| "refusal"
+	| "failure"
 	| "removing"
 	| "onRemove"
 	| "onWithdraw"
 	| "onRemoveConfirm"
 	| "onRemoveCancel"
 >
-
-const toSpaceMember = (member: Member): SpaceMember => ({
-	id: member.userId,
-	name: member.name ?? undefined,
-	email: member.email,
-	status: member.status,
-})
 
 const hostFirst = (members: Member[]) => [
 	...members.filter((member) => member.status === "host"),
@@ -63,6 +54,7 @@ export const useMembers = (
 		onEmailChange: controller.setEmail,
 		onInvite: controller.invite,
 		refusal: state.refusal,
+		failure: state.failure,
 		removing: state.removing ? toSpaceMember(state.removing) : null,
 		onRemove: (member) => controller.askRemove(member.id),
 		onWithdraw: (member) => controller.withdraw(member.id),

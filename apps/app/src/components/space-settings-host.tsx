@@ -1,5 +1,3 @@
-import { flushSync } from "react-dom"
-
 import type { EnvironmentWrite } from "@workspace/ui/components/environment-panel"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
 import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
@@ -14,6 +12,8 @@ import { toSpaceSettingsValue } from "@/lib/spaces/space-settings"
 import type { ApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import type { SettingsPanels } from "@/lib/workspace/use-settings-panels"
 import type { WorkspaceCore } from "@/lib/workspace/use-workspace-core"
+
+const SPACE_TAB = "space"
 
 type SpaceSettingsHostProps = {
 	core: WorkspaceCore
@@ -41,6 +41,7 @@ export const SpaceSettingsHost = ({
 		selectedSpaceId,
 		serverEnvironmentSection,
 		setOpenedMcpServer,
+		setSettingsTab,
 		settingsTab,
 		spaceApplications,
 	} = scopes
@@ -84,11 +85,6 @@ export const SpaceSettingsHost = ({
 
 	const hostingProps = hosting ? { ...hosting, onSignIn: signIn } : {}
 
-	const openHosting = () => {
-		flushSync(close)
-		openSpaceHosting()
-	}
-
 	const membersProps =
 		members && selectedSpace
 			? {
@@ -96,7 +92,7 @@ export const SpaceSettingsHost = ({
 						<MembersPanel
 							{...members}
 							isHosted={isHosted}
-							onOpenHosting={openHosting}
+							onOpenHosting={openSpaceHosting}
 							shareLink={shareLink ?? null}
 							space={selectedSpace.name}
 						/>
@@ -113,7 +109,8 @@ export const SpaceSettingsHost = ({
 			kind: "space",
 			id: selectedSpaceId,
 		}),
-		tab: settingsTab,
+		tab: settingsTab ?? SPACE_TAB,
+		onTabChange: setSettingsTab,
 		onMcpServerOpen: (name: string | null) =>
 			setOpenedMcpServer(
 				name

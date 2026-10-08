@@ -149,6 +149,7 @@ const SpaceSettingsHarness = ({
 		),
 		selectedSpaceId,
 		setOpenedMcpServer: vi.fn(),
+		setSettingsTab,
 		settingsTab,
 		spaceApplications: { mcpServers: [] },
 	} as unknown as ApplicationScopes
@@ -538,11 +539,12 @@ describe("SpaceSettingsHost members on the desktop", () => {
 		expect(commands.hostingMembers).not.toHaveBeenCalled()
 	})
 
-	it("lands on the Hosting tab of the same space on Open Hosting", async () => {
+	it("switches the open dialog to Hosting on Open Hosting, then back to Members on a rail click", async () => {
 		vi.mocked(isDesktopHost).mockReturnValue(true)
 		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "off" })
 		const gear = await gearWithGarage()
 		const dialog = await openMembersOf(gear)
+		const setSettingsOpen = vi.spyOn(gear.spaces, "setSettingsOpen")
 
 		fireEvent.click(
 			await within(dialog).findByRole("button", {
@@ -550,19 +552,29 @@ describe("SpaceSettingsHost members on the desktop", () => {
 			}),
 		)
 
-		const reopened = await screen.findByRole("dialog")
 		expect(
-			await within(reopened).findByRole("tab", {
+			await within(dialog).findByRole("tab", {
 				name: HOSTING_TAB_NAME,
 				selected: true,
 			}),
 		).toBeTruthy()
 		expect(
-			within(reopened).getByRole("switch", {
+			within(dialog).getByRole("switch", {
 				name: i18n.t("settings:space.hosting.label"),
 			}),
 		).toBeTruthy()
+		expect(screen.getByRole("dialog")).toBe(dialog)
+		expect(setSettingsOpen).not.toHaveBeenCalledWith(false)
 		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
+
+		fireEvent.click(within(dialog).getByRole("tab", { name: MEMBERS_TAB_NAME }))
+
+		expect(
+			await within(dialog).findByRole("tab", {
+				name: MEMBERS_TAB_NAME,
+				selected: true,
+			}),
+		).toBeTruthy()
 	})
 
 	it("shows no Members entry on a joined space", async () => {

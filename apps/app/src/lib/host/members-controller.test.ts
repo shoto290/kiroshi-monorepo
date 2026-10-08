@@ -35,6 +35,20 @@ const ALEX_JOINED: Member = {
 	status: "joined",
 }
 
+const SAM_PENDING_ROW = {
+	id: "sam",
+	name: undefined,
+	email: "sam@example.com",
+	status: "pending",
+}
+
+const ALEX_JOINED_ROW = {
+	id: "alex",
+	name: "Alex Moreau",
+	email: "alex@example.com",
+	status: "joined",
+}
+
 const ok = <Data>(data: Data) => ({ status: "ok" as const, data })
 
 const refused = (error: MembersError) => ({ status: "error" as const, error })
@@ -132,27 +146,37 @@ describe("createMembersController", () => {
 		},
 	)
 
-	it("raises a failure notice and keeps the list when an invite fails otherwise", async () => {
-		const { controller, reportFailure } = await watchHome({
-			invite: vi.fn(async () => refused({ kind: "limitReached" })),
-		})
+	it.each([
+		[{ kind: "notHosting" }, "notHosting"],
+		[{ kind: "notOwner" }, "notOwner"],
+		[{ kind: "needsSignIn" }, "needsSignIn"],
+		[{ kind: "unreachable", reason: "relay down" }, "unreachable"],
+		[{ kind: "limitReached" }, "limitReached"],
+		[{ kind: "unknownMember" }, "generic"],
+		[{ kind: "sessionStore", detail: "locked" }, "generic"],
+	] as const)(
+		"holds the invite failure for %o as %s, without a notice",
+		async (error, reason) => {
+			const { controller, reportFailure, reportSuccess } = await watchHome({
+				invite: vi.fn(async () => refused(error)),
+			})
 
-		controller.invite("sam@example.com")
-		await settle()
+			controller.invite("sam@example.com")
+			await settle()
 
-		expect(reportFailure).toHaveBeenCalledWith({
-			title: "Invite people",
-			description: "Something went wrong, nothing was changed.",
-		})
-		expect(controller.getState().members).toEqual([
-			STEVE,
-			SAM_PENDING,
-			ALEX_JOINED,
-		])
-		expect(controller.getState().refusal).toBeUndefined()
-	})
+			expect(controller.getState().failure).toEqual({
+				action: "invite",
+				reason,
+				email: "sam@example.com",
+			})
+			expect(controller.getState().refusal).toBeUndefined()
+			expect(controller.getState().members).toHaveLength(3)
+			expect(reportFailure).not.toHaveBeenCalled()
+			expect(reportSuccess).not.toHaveBeenCalled()
+		},
+	)
 
-	it("raises a failure notice when the invite is rejected", async () => {
+	it("holds a generic invite failure when the invite is rejected", async () => {
 		const { reportFailure, controller } = await watchHome({
 			invite: vi.fn(async () => {
 				throw new Error("ipc closed")
@@ -162,7 +186,40 @@ describe("createMembersController", () => {
 		controller.invite("sam@example.com")
 		await settle()
 
-		expect(reportFailure).toHaveBeenCalledOnce()
+		expect(controller.getState().failure).toEqual({
+			action: "invite",
+			reason: "generic",
+			email: "sam@example.com",
+		})
+		expect(reportFailure).not.toHaveBeenCalled()
+	})
+
+	it("clears the previous failure when a new action starts", async () => {
+		const invite = vi
+			.fn<MembersTransport["invite"]>()
+			.mockResolvedValueOnce(refused({ kind: "limitReached" }))
+			.mockReturnValueOnce(new Promise(() => undefined))
+		const { controller } = await watchHome({ invite })
+
+		controller.invite("sam@example.com")
+		await settle()
+		expect(controller.getState().failure).toBeDefined()
+
+		controller.invite("sam@example.com")
+		expect(controller.getState().failure).toBeUndefined()
+	})
+
+	it("clears the failure when the watched space changes", async () => {
+		const { controller, unwatch } = await watchHome({
+			invite: vi.fn(async () => refused({ kind: "limitReached" })),
+		})
+		controller.invite("sam@example.com")
+		await settle()
+
+		unwatch()
+		controller.watch({ id: "garage", name: "Garage" })
+
+		expect(controller.getState().failure).toBeUndefined()
 	})
 
 	it("raises a failure notice when the read fails", async () => {
@@ -192,20 +249,50 @@ describe("createMembersController", () => {
 		})
 	})
 
-	it("keeps the list and names the member when the withdraw fails", async () => {
-		const { controller, reportFailure, reportSuccess } = await watchHome({
-			withdraw: vi.fn(async () => refused({ kind: "notPending" })),
+	it.each([
+		[{ kind: "unknownMember" }, "gone"],
+		[{ kind: "notPending" }, "joined"],
+		[{ kind: "notHosting" }, "notHosting"],
+		[{ kind: "notOwner" }, "notOwner"],
+		[{ kind: "needsSignIn" }, "needsSignIn"],
+		[{ kind: "unreachable", reason: "relay down" }, "unreachable"],
+		[{ kind: "notJoined" }, "generic"],
+	] as const)(
+		"keeps the list and holds the withdraw failure for %o as %s, without a notice",
+		async (error, reason) => {
+			const { controller, reportFailure, reportSuccess } = await watchHome({
+				withdraw: vi.fn(async () => refused(error)),
+			})
+
+			controller.withdraw("sam")
+			await settle()
+
+			expect(controller.getState().failure).toEqual({
+				action: "withdraw",
+				reason,
+				member: SAM_PENDING_ROW,
+			})
+			expect(reportFailure).not.toHaveBeenCalled()
+			expect(reportSuccess).not.toHaveBeenCalled()
+			expect(controller.getState().members).toHaveLength(3)
+		},
+	)
+
+	it("holds a generic withdraw failure when the withdraw is rejected", async () => {
+		const { controller } = await watchHome({
+			withdraw: vi.fn(async () => {
+				throw new Error("ipc closed")
+			}),
 		})
 
 		controller.withdraw("sam")
 		await settle()
 
-		expect(reportFailure).toHaveBeenCalledWith({
-			title: "Remove sam@example.com",
-			description: "Something went wrong, nothing was changed.",
+		expect(controller.getState().failure).toEqual({
+			action: "withdraw",
+			reason: "generic",
+			member: SAM_PENDING_ROW,
 		})
-		expect(reportSuccess).not.toHaveBeenCalled()
-		expect(controller.getState().members).toHaveLength(3)
 	})
 
 	it("removes a joined member only once the removal is confirmed", async () => {
@@ -223,6 +310,54 @@ describe("createMembersController", () => {
 		expect(controller.getState().members).toEqual([STEVE, SAM_PENDING])
 	})
 
+	it.each([
+		[{ kind: "unknownMember" }, "gone"],
+		[{ kind: "notJoined" }, "pending"],
+		[{ kind: "hostNotRemovable" }, "host"],
+		[{ kind: "notHosting" }, "notHosting"],
+		[{ kind: "notOwner" }, "notOwner"],
+		[{ kind: "needsSignIn" }, "needsSignIn"],
+		[{ kind: "unreachable", reason: "relay down" }, "unreachable"],
+		[{ kind: "notPending" }, "generic"],
+	] as const)(
+		"keeps the list and holds the remove failure for %o as %s, without a notice",
+		async (error, reason) => {
+			const { controller, reportFailure } = await watchHome({
+				remove: vi.fn(async () => refused(error)),
+			})
+
+			controller.askRemove("alex")
+			controller.confirmRemove()
+			await settle()
+
+			expect(controller.getState().failure).toEqual({
+				action: "remove",
+				reason,
+				member: ALEX_JOINED_ROW,
+			})
+			expect(reportFailure).not.toHaveBeenCalled()
+			expect(controller.getState().members).toHaveLength(3)
+		},
+	)
+
+	it("holds a generic remove failure when the remove is rejected", async () => {
+		const { controller } = await watchHome({
+			remove: vi.fn(async () => {
+				throw new Error("ipc closed")
+			}),
+		})
+
+		controller.askRemove("alex")
+		controller.confirmRemove()
+		await settle()
+
+		expect(controller.getState().failure).toEqual({
+			action: "remove",
+			reason: "generic",
+			member: ALEX_JOINED_ROW,
+		})
+	})
+
 	it("closes the removal without a call on cancel", async () => {
 		const { controller, transport } = await watchHome()
 
@@ -236,7 +371,7 @@ describe("createMembersController", () => {
 	})
 
 	it("drops the answers that land after the space is unwatched", async () => {
-		const { controller, unwatch, reportFailure } = await watchHome({
+		const { controller, unwatch } = await watchHome({
 			invite: vi.fn(async () => refused({ kind: "limitReached" })),
 		})
 
@@ -244,6 +379,6 @@ describe("createMembersController", () => {
 		unwatch()
 		await settle()
 
-		expect(reportFailure).not.toHaveBeenCalled()
+		expect(controller.getState().failure).toBeUndefined()
 	})
 })
