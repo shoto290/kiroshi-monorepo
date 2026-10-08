@@ -72,6 +72,8 @@ const gearFor = async (listed: Invitation[] = [STUDIO]) => {
 	return { wire, admit, reportFailure, invitations, rows }
 }
 
+type Gear = Awaited<ReturnType<typeof gearFor>>
+
 describe("listing invitations", () => {
 	it("shows every listed invitation as a waiting row", async () => {
 		const gear = await gearFor()
@@ -206,5 +208,100 @@ describe("declining an invitation", () => {
 		expect(gear.reportFailure).toHaveBeenCalledWith(
 			expect.objectContaining({ description: "no route" }),
 		)
+	})
+})
+
+describe("sweeping withdrawn invitations when the switcher closes", () => {
+	const HARBOUR: Invitation = {
+		instanceId: "instance-harbour",
+		instanceName: "Harbour",
+		inviterEmail: "sam@example.com",
+		invitedAt: "2026-10-08T10:00:00Z",
+	}
+
+	const HARBOUR_ROW = {
+		id: HARBOUR.instanceId,
+		name: "Harbour",
+		hostEmail: "sam@example.com",
+		state: "waiting",
+	}
+
+	const withdrawnGear = async (listed: Invitation[] = [STUDIO]) => {
+		const gear = await gearFor(listed)
+		gear.wire.transport.accept.mockRejectedValueOnce({ kind: "withdrawn" })
+		await gear.invitations.accept(STUDIO.instanceId)
+		return gear
+	}
+
+	it("removes every withdrawn invitation", async () => {
+		const gear = await withdrawnGear()
+
+		gear.invitations.sweepWithdrawn()
+
+		expect(gear.rows()).toEqual([])
+	})
+
+	const HARBOUR_STATES: [string, (gear: Gear) => Promise<unknown>][] = [
+		["waiting", async () => undefined],
+		[
+			"accepting",
+			async (gear) => {
+				gear.wire.transport.accept.mockReturnValueOnce(new Promise(() => {}))
+				void gear.invitations.accept(HARBOUR.instanceId)
+			},
+		],
+		[
+			"failed",
+			async (gear) => {
+				gear.wire.transport.accept.mockRejectedValueOnce(OFFLINE)
+				await gear.invitations.accept(HARBOUR.instanceId)
+			},
+		],
+	]
+
+	it.each(HARBOUR_STATES)(
+		"keeps a %s invitation with its status",
+		async (state, reach) => {
+			const gear = await withdrawnGear([STUDIO, HARBOUR])
+			await reach(gear)
+			const harbourRow = gear
+				.rows()
+				.find((row) => row.id === HARBOUR.instanceId)
+
+			gear.invitations.sweepWithdrawn()
+
+			expect(harbourRow?.state).toBe(state)
+			expect(gear.rows()).toEqual([harbourRow])
+		},
+	)
+
+	it("keeps a swept invitation out when the list still carries it", async () => {
+		const gear = await withdrawnGear([STUDIO, HARBOUR])
+		gear.invitations.sweepWithdrawn()
+
+		gear.wire.announce([STUDIO, HARBOUR])
+
+		expect(gear.rows()).toEqual([HARBOUR_ROW])
+	})
+
+	it("keeps a swept invitation out of a later list read", async () => {
+		const gear = await withdrawnGear()
+		gear.invitations.sweepWithdrawn()
+
+		gear.invitations.watch()
+		await settle()
+
+		expect(gear.wire.transport.list).toHaveBeenCalledTimes(2)
+		expect(gear.rows()).toEqual([])
+	})
+
+	it("shows a new invitation for the same space as waiting", async () => {
+		const gear = await withdrawnGear()
+		gear.invitations.sweepWithdrawn()
+		gear.wire.announce([])
+
+		gear.wire.announce([{ ...STUDIO, invitedAt: "2026-10-09T09:00:00Z" }])
+
+		expect(gear.rows()).toEqual([WAITING_ROW])
 	})
 })

@@ -36,6 +36,7 @@ export type InvitationsController = {
 	watch: () => () => void
 	accept: (id: string) => Promise<void>
 	decline: (id: string) => Promise<void>
+	sweepWithdrawn: () => void
 }
 
 export type InvitationsTransport = {
@@ -140,6 +141,7 @@ export const createInvitationsController = ({
 	const stateStore = createStore(initialInvitationsState)
 	const current = stateStore.getState
 	let latestRead = 0
+	let swept: Invitation[] = []
 
 	const set = (fields: Partial<InvitationsState>) =>
 		stateStore.setState({ ...current(), ...fields })
@@ -163,8 +165,16 @@ export const createInvitationsController = ({
 	const isAccepting = (id: string) =>
 		current().statuses[id]?.state === "accepting"
 
-	const refresh = (listed: Invitation[]) => {
+	const isSwept = (invitation: Invitation) =>
+		swept.some(
+			({ instanceId, invitedAt }) =>
+				instanceId === invitation.instanceId &&
+				invitedAt === invitation.invitedAt,
+		)
+
+	const refresh = (received: Invitation[]) => {
 		latestRead += 1
+		const listed = received.filter((invitation) => !isSwept(invitation))
 		const isListed = (id: string) =>
 			listed.some((invitation) => invitation.instanceId === id)
 		const stillAccepting = current().invitations.filter(
@@ -206,6 +216,18 @@ export const createInvitationsController = ({
 				(invitation) => invitation.instanceId !== id,
 			),
 		)
+
+	const isWithdrawnInvitation = ({ instanceId }: Invitation) =>
+		current().statuses[instanceId]?.state === "withdrawn"
+
+	const sweepWithdrawn = () => {
+		const withdrawn = current().invitations.filter(isWithdrawnInvitation)
+		if (withdrawn.length === 0) {
+			return
+		}
+		swept = [...swept, ...withdrawn]
+		show(current().invitations.filter((invitation) => !isSwept(invitation)))
+	}
 
 	const invitationOf = (id: string) =>
 		current().invitations.find((invitation) => invitation.instanceId === id)
@@ -255,5 +277,6 @@ export const createInvitationsController = ({
 		watch,
 		accept,
 		decline,
+		sweepWithdrawn,
 	}
 }
