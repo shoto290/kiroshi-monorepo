@@ -27,6 +27,29 @@ type SpaceMember = {
 
 type InviteRefusal = "invited" | "self" | "malformed"
 
+type MembersFailureReason =
+	| "notHosting"
+	| "notOwner"
+	| "needsSignIn"
+	| "unreachable"
+	| "generic"
+
+type MembersFailure =
+	| {
+			action: "invite"
+			reason: MembersFailureReason | "limitReached"
+	  }
+	| {
+			action: "withdraw"
+			reason: MembersFailureReason | "gone" | "joined"
+			member: SpaceMember
+	  }
+	| {
+			action: "remove"
+			reason: MembersFailureReason | "gone" | "pending" | "host"
+			member: SpaceMember
+	  }
+
 type MembersPanelProps = {
 	space: string
 	members: SpaceMember[]
@@ -34,6 +57,7 @@ type MembersPanelProps = {
 	onEmailChange: (email: string) => void
 	onInvite: (email: string) => void
 	refusal?: InviteRefusal
+	failure?: MembersFailure
 	isHosted: boolean
 	onOpenHosting: () => void
 	shareLink: string | null
@@ -51,16 +75,53 @@ const nameOf = (member: SpaceMember) => member.name ?? member.email
 
 const firstNameOf = (member: SpaceMember) => nameOf(member).split(/\s+/)[0]
 
+const failureKeyOf = (failure: MembersFailure) => {
+	switch (failure.action) {
+		case "invite":
+			return `space.members.failure.invite.${failure.reason}` as const
+		case "withdraw":
+			return `space.members.failure.withdraw.${failure.reason}` as const
+		case "remove":
+			return `space.members.failure.remove.${failure.reason}` as const
+	}
+}
+
+type FailureLineProps = {
+	failure: MembersFailure
+	space: string
+	email: string
+	id?: string
+}
+
+const FailureLine = ({ failure, space, email, id }: FailureLineProps) => {
+	const { t } = useTranslation("settings")
+	const name = failure.action === "invite" ? "" : nameOf(failure.member)
+
+	return (
+		<p className="break-words text-destructive text-xs" id={id} role="status">
+			{t(failureKeyOf(failure), {
+				space,
+				email,
+				name,
+			})}
+		</p>
+	)
+}
+
 type InviteFieldProps = Pick<
 	MembersPanelProps,
-	"email" | "onEmailChange" | "onInvite" | "refusal"
->
+	"space" | "email" | "onEmailChange" | "onInvite" | "refusal"
+> & {
+	failure?: MembersFailure
+}
 
 const InviteField = ({
+	space,
 	email,
 	onEmailChange,
 	onInvite,
 	refusal,
+	failure,
 }: InviteFieldProps) => {
 	const { t } = useTranslation("settings")
 	const id = useId()
@@ -104,17 +165,27 @@ const InviteField = ({
 					{t("space.members.invite.action")}
 				</Button>
 			</div>
-			<p
-				className={cn(
-					"break-words text-xs",
-					refusal ? "text-destructive" : "text-muted-foreground",
-				)}
-				id={helperId}
-			>
-				{refusal
-					? t(`space.members.invite.refusal.${refusal}`, { email })
-					: t("space.members.invite.hint")}
-			</p>
+			{failure && !refusal ? (
+				<FailureLine
+					email={email}
+					failure={failure}
+					id={helperId}
+					key="failure"
+					space={space}
+				/>
+			) : (
+				<p
+					className={cn(
+						"break-words text-xs",
+						refusal ? "text-destructive" : "text-muted-foreground",
+					)}
+					id={helperId}
+				>
+					{refusal
+						? t(`space.members.invite.refusal.${refusal}`, { email })
+						: t("space.members.invite.hint")}
+				</p>
+			)}
 		</form>
 	)
 }
@@ -217,6 +288,7 @@ const MembersPanel = ({
 	onEmailChange,
 	onInvite,
 	refusal,
+	failure,
 	isHosted,
 	onOpenHosting,
 	shareLink,
@@ -254,23 +326,34 @@ const MembersPanel = ({
 			{isHosted ? (
 				<InviteField
 					email={email}
+					failure={failure?.action === "invite" ? failure : undefined}
 					onEmailChange={onEmailChange}
 					onInvite={onInvite}
 					refusal={refusal}
+					space={space}
 				/>
 			) : (
 				<HostingNeeded onOpenHosting={onOpenHosting} />
 			)}
-			<ul className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-x-2.5 divide-y divide-border rounded-xl border border-border">
-				{members.map((member) => (
-					<MemberRow
-						key={member.id}
-						member={member}
-						onRemove={onRemove}
-						onWithdraw={onWithdraw}
+			<div className="flex flex-col gap-1.5">
+				<ul className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-x-2.5 divide-y divide-border rounded-xl border border-border">
+					{members.map((member) => (
+						<MemberRow
+							key={member.id}
+							member={member}
+							onRemove={onRemove}
+							onWithdraw={onWithdraw}
+						/>
+					))}
+				</ul>
+				{failure && failure.action !== "invite" ? (
+					<FailureLine
+						email={failure.member.email}
+						failure={failure}
+						space={space}
 					/>
-				))}
-			</ul>
+				) : null}
+			</div>
 			<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
 			<ConfirmDialog
 				confirmLabel={t("space.members.remove")}
@@ -286,6 +369,7 @@ const MembersPanel = ({
 
 export {
 	type InviteRefusal,
+	type MembersFailure,
 	MembersPanel,
 	type MembersPanelProps,
 	type SpaceMember,
