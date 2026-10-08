@@ -74,8 +74,11 @@ const anAwayConversation = async (): Promise<AwayConversation> => {
 	})
 	const controller = createRosterController(store)
 	await controller.load({
-		spaceIds: ["personal", away.id],
-		spaceId: "personal",
+		spaces: ["personal", away.id].map((id) => ({
+			spaceRowId: id,
+			spaceId: id,
+		})),
+		spaceRowId: "personal",
 		lastRowId: null,
 	})
 	return {

@@ -14,5 +14,6 @@ export type CollapsedSections = {
 
 export const useCollapsedSections = (
 	store: TranscriptStore,
+	hostSpaceIdOf: (spaceRowId: string) => string,
 ): CollapsedSections =>
-	useController(() => createCollapsedSectionsController(store))
+	useController(() => createCollapsedSectionsController(store, hostSpaceIdOf))

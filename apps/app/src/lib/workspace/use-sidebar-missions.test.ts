@@ -160,6 +160,7 @@ const renderSidebarMissions = (
 						state: {
 							rosters: { "s-1": [BOT], "s-2": [BOT] },
 							conversationRosters: { "s-1": [LISTED] },
+							spaceRowId: selectedSpaceId,
 						},
 						controller: { select, selectConversation },
 					},

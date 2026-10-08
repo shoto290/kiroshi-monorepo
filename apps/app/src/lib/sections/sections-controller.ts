@@ -8,6 +8,7 @@ export type BotSections = {
 	move: (botId: string, sectionId: string | null) => void
 	clear: (sectionId: string) => void
 	pin: (pins: RosterPin[]) => void
+	hostSpaceIdOf: (spaceRowId: string) => string
 }
 
 export type SectionsState = {
@@ -86,7 +87,7 @@ export const createSectionsController = (
 	}
 
 	const read = async (spaceId: string) =>
-		hold(spaceId, await store.sections(spaceId))
+		hold(spaceId, await store.sections(bots.hostSpaceIdOf(spaceId)))
 
 	const reload = (spaceId: string) => {
 		void enqueue(() => read(spaceId)).catch(() => undefined)
@@ -125,7 +126,10 @@ export const createSectionsController = (
 
 		create: (spaceId: string, name: string, botId: string | null = null) =>
 			enqueue(async () => {
-				const created = await store.createSection(spaceId, name)
+				const created = await store.createSection(
+					bots.hostSpaceIdOf(spaceId),
+					name,
+				)
 				hold(spaceId, [...sectionsIn(current(), spaceId), created])
 				if (botId) {
 					await store.moveBotToSection(botId, created.id)
@@ -149,9 +153,9 @@ export const createSectionsController = (
 		pin: (spaceId: string, pins: RosterPin[]) => {
 			hold(spaceId, repositioned(sectionsIn(current(), spaceId), pins))
 			bots.pin(pins)
-			return enqueue(() => store.pinRoster(spaceId, pins)).catch(() =>
-				reload(spaceId),
-			)
+			return enqueue(() =>
+				store.pinRoster(bots.hostSpaceIdOf(spaceId), pins),
+			).catch(() => reload(spaceId))
 		},
 
 		remove: (id: string) =>

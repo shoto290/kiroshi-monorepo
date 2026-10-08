@@ -96,11 +96,11 @@ export const useSidebarActions = ({
 				void roster.create()
 			},
 			onCreateSection: (name, rowId) => {
-				const { rosters, conversationRosters } = roster.getState()
+				const { rosters, conversationRosters, spaceRowId } = roster.getState()
 				const born = newSectionFor({
 					rosters,
 					conversationRosters,
-					shownSpaceId: spaces.getState().selectedSpaceId,
+					shownSpaceId: spaceRowId,
 					rowId,
 				})
 				if (!born) {

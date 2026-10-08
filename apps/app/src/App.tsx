@@ -63,13 +63,13 @@ export function App() {
 	const companionMenu = useCompanionMenuLookup({
 		actions: rosterLines.sidebarActions,
 		conversationRosters: core.roster.state.conversationRosters,
-		openSpaceId: scopes.selectedSpaceId ?? null,
+		openSpaceId: scopes.openRowId,
 		rosters: core.roster.state.rosters,
 		sectionsBySpaceId: core.sections.state.sections,
 		spaces: core.spaces.state.spaces,
 	})
 	const selectCompanion = useCompanionSelectGuard({
-		openSpaceId: scopes.selectedSpaceId ?? null,
+		openSpaceId: scopes.openRowId,
 		rosters: core.roster.state.rosters,
 		select: core.roster.controller.select,
 		leaveMission: core.openedMission.leave,

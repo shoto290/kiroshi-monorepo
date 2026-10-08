@@ -15,6 +15,7 @@ const silentBots: BotSections = {
 	move: () => undefined,
 	clear: () => undefined,
 	pin: () => undefined,
+	hostSpaceIdOf: (spaceRowId) => spaceRowId,
 }
 
 const atTop = (id: string) => ({ id, sectionId: null })

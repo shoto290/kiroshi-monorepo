@@ -14,6 +14,7 @@ type PluginPanel = {
 
 type RosterPanel = {
 	spaceOfConversation: (conversationId: string) => string | undefined
+	hostSpaceIdOf: (spaceRowId: string) => string
 	reload: () => Promise<void>
 }
 
@@ -44,9 +45,12 @@ export const startEvolutionSource = ({
 	}
 
 	const readSpacePanel = (conversationId: string) => {
-		const spaceId = roster.spaceOfConversation(conversationId)
-		if (spaceId) {
-			readOpenPanel(spacePlugin, spacePluginScope(spaceId))
+		const spaceRowId = roster.spaceOfConversation(conversationId)
+		if (spaceRowId) {
+			readOpenPanel(
+				spacePlugin,
+				spacePluginScope(roster.hostSpaceIdOf(spaceRowId)),
+			)
 		}
 	}
 

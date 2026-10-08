@@ -3,7 +3,7 @@ import type {
 	SelectedRow,
 } from "../missions/opened-mission-controller"
 
-type ShownRoster = SelectedRow & { spaceId: string | null }
+type ShownRoster = SelectedRow & { spaceRowId: string | null }
 
 type Source<State> = {
 	getState: () => State
@@ -35,18 +35,18 @@ export const createShownMemory = ({
 	const rememberRow = () => {
 		const state = roster.getState()
 		const rowId = rowOf(state)
-		const hasMoved = state.spaceId !== seenSpaceId || rowId !== seenRowId
-		seenSpaceId = state.spaceId
+		const hasMoved = state.spaceRowId !== seenSpaceId || rowId !== seenRowId
+		seenSpaceId = state.spaceRowId
 		seenRowId = rowId
-		if (!hasMoved || openedMission.getState() || !state.spaceId || !rowId) {
+		if (!hasMoved || openedMission.getState() || !state.spaceRowId || !rowId) {
 			return
 		}
-		lastRows.set(state.spaceId, rowId)
+		lastRows.set(state.spaceRowId, rowId)
 	}
 
 	const rememberMission = () => {
 		const opened = openedMission.getState()
-		const spaceId = opened?.spaceId ?? roster.getState().spaceId
+		const spaceId = opened?.spaceId ?? roster.getState().spaceRowId
 		if (opened && spaceId) {
 			lastMissions.set(spaceId, opened.missionId)
 		}

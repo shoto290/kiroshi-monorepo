@@ -34,6 +34,7 @@ const withSection = (
 
 export const createCollapsedSectionsController = (
 	store: TranscriptStore,
+	hostSpaceIdOf: (spaceRowId: string) => string,
 ): CollapsedSectionsController => {
 	const stateStore = createStore(initialCollapsedSectionsState)
 	const current = stateStore.getState
@@ -47,7 +48,9 @@ export const createCollapsedSectionsController = (
 		set({ ...current().collapsedBySpaceId, [spaceId]: collapsed })
 
 	const read = async (spaceId: string) => {
-		const { collapsedSectionIds } = await store.spacePreferences(spaceId)
+		const { collapsedSectionIds } = await store.spacePreferences(
+			hostSpaceIdOf(spaceId),
+		)
 		hold(spaceId, collapsedSectionIds ?? [])
 	}
 
@@ -60,7 +63,9 @@ export const createCollapsedSectionsController = (
 	const writes = createWriteLoop<string[], SpacePreferences>({
 		enqueue,
 		write: (spaceId, collapsedSectionIds) =>
-			store.setSpacePreferences(spaceId, { collapsedSectionIds }),
+			store.setSpacePreferences(hostSpaceIdOf(spaceId), {
+				collapsedSectionIds,
+			}),
 		apply: (spaceId, written) =>
 			hold(spaceId, written.collapsedSectionIds ?? []),
 		onRefused: reloadAll,

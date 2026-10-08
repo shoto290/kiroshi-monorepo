@@ -74,8 +74,12 @@ export const useWorkspaceCore = () => {
 		move: roster.controller.moveToSection,
 		clear: roster.controller.clearSection,
 		pin: roster.controller.pin,
+		hostSpaceIdOf: roster.controller.hostSpaceIdOf,
 	})
-	const collapsedSections = useCollapsedSections(store)
+	const collapsedSections = useCollapsedSections(
+		store,
+		roster.controller.hostSpaceIdOf,
+	)
 	const companionPlugin = usePlugin(store)
 	const botMcpServers = useMcpServers(store)
 	const spaceMcpServers = useMcpServers(store)

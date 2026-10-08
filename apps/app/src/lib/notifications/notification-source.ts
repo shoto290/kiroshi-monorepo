@@ -63,6 +63,7 @@ type RosterSource = {
 		conversationRosters: Record<string, Conversation[]>
 	}
 	spaceOfConversation: (conversationId: string) => string | undefined
+	hostSpaceIdOf: (spaceRowId: string) => string
 	select: (botId: string) => void
 	selectConversation: (conversationId: string) => void
 }
@@ -413,7 +414,7 @@ export const startNotificationSource = ({
 		}
 
 		roster.select(mission.botId)
-		spaces.select(spaceId)
+		spaces.select(roster.hostSpaceIdOf(spaceId))
 		missions.open({ missionId, rowId: mission.botId, spaceId })
 	}
 
@@ -433,7 +434,7 @@ export const startNotificationSource = ({
 		}
 
 		roster.select(botId)
-		spaces.select(spaceId)
+		spaces.select(roster.hostSpaceIdOf(spaceId))
 	}
 
 	const landOnConversation = (conversationId: string) => {
@@ -444,7 +445,7 @@ export const startNotificationSource = ({
 		}
 
 		roster.selectConversation(conversationId)
-		spaces.select(spaceId)
+		spaces.select(roster.hostSpaceIdOf(spaceId))
 	}
 
 	const activate = ({ kind, id }: NotificationTarget) => {

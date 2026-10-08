@@ -6,7 +6,7 @@ import {
 	openLocalSpaceOf,
 	openRowIdOf,
 	remoteMarksOf,
-	rosterSpaceIdsOf,
+	rosterSpacesOf,
 	shownJoinedSpacesOf,
 	switcherSpacesOf,
 } from "./joined-spaces-controller"
@@ -198,20 +198,22 @@ describe("the roster spaces", () => {
 	it("reads the local spaces while the local host is active", () => {
 		const local = [{ id: "home" }, { id: "work" }]
 
-		expect(rosterSpaceIdsOf(local as never, [GARAGE], null)).toEqual([
-			"home",
-			"work",
+		expect(rosterSpacesOf(local as never, [GARAGE], null)).toEqual([
+			{ spaceRowId: "home", spaceId: "home" },
+			{ spaceRowId: "work", spaceId: "work" },
 		])
 	})
 
 	it("reads the remote space alone while its host is active", () => {
-		expect(rosterSpaceIdsOf([], [GARAGE], GARAGE.id)).toEqual(["garage"])
+		expect(rosterSpacesOf([], [GARAGE], GARAGE.id)).toEqual([
+			{ spaceRowId: GARAGE_ROW, spaceId: "garage" },
+		])
 	})
 
 	it("falls back to the joined id when the link names no remote space", () => {
 		expect(
-			rosterSpaceIdsOf([], [{ ...GARAGE, remoteSpaceId: null }], GARAGE.id),
-		).toEqual([GARAGE.id])
+			rosterSpacesOf([], [{ ...GARAGE, remoteSpaceId: null }], GARAGE.id),
+		).toEqual([{ spaceRowId: GARAGE_ROW, spaceId: GARAGE.id }])
 	})
 })
 

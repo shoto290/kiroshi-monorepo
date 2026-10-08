@@ -60,6 +60,7 @@ const createPanels = ({ botId, spaceId = null }: OpenPanels) => {
 		roster: {
 			spaceOfConversation: (id: string) =>
 				id === "chat-1" ? "space-1" : undefined,
+			hostSpaceIdOf: (spaceRowId: string) => spaceRowId,
 			reload: vi.fn(() => Promise.resolve()),
 		},
 		companionPlugin: {

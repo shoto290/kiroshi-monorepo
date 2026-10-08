@@ -12,7 +12,7 @@ import type { TranscriptStore } from "../conversations/store-port"
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 const entered = async (store: TranscriptStore, spaceId = "personal") => {
-	const controller = createCollapsedSectionsController(store)
+	const controller = createCollapsedSectionsController(store, (id) => id)
 	await controller.enter(spaceId)
 	return controller
 }

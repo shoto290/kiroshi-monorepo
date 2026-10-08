@@ -27,6 +27,7 @@ export const useSpaceEntry = ({
 		}
 		void user.setLastSpace(openRowId)
 		roster.enter({
+			spaceRowId: openRowId,
 			spaceId: selectedSpaceId,
 			lastRowId: lastBotIn(user.getState().preferences, openRowId),
 		})
