@@ -17,7 +17,7 @@ use tauri::{App, Listener, Manager};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-use super::bridge::{LocalApi, HOST_ONLY_COMMANDS};
+use super::bridge::{belongs_to_the_host, LocalApi};
 use super::contract::{
 	HostingState, Member, MemberStatus, MembersError, CHANGED_EVENT, MEMBERS_CHANGED_EVENT,
 };
@@ -724,7 +724,7 @@ async fn refused_on(harness: Harness, command: &str) -> Value {
 }
 
 async fn refused_with(mut harness: Harness, command: &str, args: Value) -> (Value, Value) {
-	assert!(HOST_ONLY_COMMANDS.contains(&command), "{command} is not host only");
+	assert!(belongs_to_the_host(command, &args), "{command} is not host only");
 	restore(harness.app.handle().clone()).await;
 	harness.started().await;
 	let mut member = harness.member().await;
@@ -986,6 +986,44 @@ fn a_relay_guest_cannot_change_the_host_profile() {
 #[test]
 fn a_relay_guest_cannot_change_the_host_profile_picture() {
 	run(a_relay_guest_is_refused("user_set_profile_picture"));
+}
+
+fn a_stdio_server_on(scope: Value) -> Value {
+	json!({
+		"scope": scope,
+		"name": "spawned",
+		"config": { "command": "spawned-by-the-guest" },
+		"mark": null
+	})
+}
+
+#[test]
+fn a_relay_guest_cannot_add_a_server_to_the_host_person_plugin() {
+	run(async {
+		let (harness, effects) = Harness::applying_host_effects("plugin-person").await;
+		let args = a_stdio_server_on(json!({ "kind": "user" }));
+
+		refused_with(harness, "plugin_set_mcp_server", args).await;
+
+		assert_eq!(effects.reached(), ["space_list"]);
+	});
+}
+
+#[test]
+fn a_relay_guest_adding_a_server_to_a_space_plugin_reaches_the_host() {
+	run(async {
+		let (mut harness, effects) = Harness::applying_host_effects("plugin-space").await;
+		harness.started().await;
+		let mut member = harness.member().await;
+		let args = a_stdio_server_on(json!({ "kind": "space", "id": PERSONAL }));
+
+		let frame = json!({ "id": "p", "command": "plugin_set_mcp_server", "args": args });
+		send(&mut member, &frame.to_string()).await;
+		let answered = answer(&mut member).await;
+
+		assert_eq!((answered["id"].clone(), answered["status"].clone()), (json!("p"), json!(200)));
+		assert_eq!(effects.reached(), ["plugin_set_mcp_server"]);
+	});
 }
 
 #[test]

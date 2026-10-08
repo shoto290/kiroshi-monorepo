@@ -83,16 +83,23 @@ pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
 		Some(args) => Some(args.clone()).filter(Value::is_object),
 	};
 	match (id, command, args) {
-		(Some(id), Some(command), Some(_)) if HOST_ONLY_COMMANDS.contains(&command) => Err(answer(
-			id,
-			StatusCode::FORBIDDEN,
-			json!({ "error": "this command belongs to the host" }),
-		)),
+		(Some(id), Some(command), Some(args)) if belongs_to_the_host(command, &args) => {
+			Err(answer(
+				id,
+				StatusCode::FORBIDDEN,
+				json!({ "error": "this command belongs to the host" }),
+			))
+		}
 		(Some(id), Some(command), Some(args)) => {
 			Ok(MemberCall { id, command: command.to_owned(), args })
 		}
 		(id, _, _) => Err(refused(id)),
 	}
+}
+
+pub(super) fn belongs_to_the_host(command: &str, args: &Value) -> bool {
+	HOST_ONLY_COMMANDS.contains(&command)
+		|| (command.starts_with("plugin_") && args["scope"]["kind"] == "user")
 }
 
 pub(super) fn refused(id: Option<Value>) -> String {
@@ -205,8 +212,7 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn every_host_only_command_is_a_registered_command() {
+	fn registered_commands() -> Vec<String> {
 		let bindings =
 			std::env::temp_dir().join(format!("kiroshi-host-only-{}.ts", uuid::Uuid::new_v4()));
 		crate::commands::builder()
@@ -215,9 +221,42 @@ mod tests {
 			.expect("the command surface exports");
 		let surface = std::fs::read_to_string(&bindings).expect("the bindings read back");
 		std::fs::remove_file(&bindings).expect("the bindings are cleaned up");
+		surface
+			.split("__TAURI_INVOKE(\"")
+			.skip(1)
+			.filter_map(|invoked| invoked.split('"').next())
+			.map(str::to_owned)
+			.collect()
+	}
+
+	#[test]
+	fn every_host_only_command_is_a_registered_command() {
+		let registered = registered_commands();
 
 		for command in HOST_ONLY_COMMANDS {
-			assert!(surface.contains(&format!("__TAURI_INVOKE(\"{command}\"")), "{command}");
+			assert!(registered.iter().any(|known| known == command), "{command}");
+		}
+	}
+
+	#[test]
+	fn a_plugin_command_on_the_host_person_plugin_is_refused_and_on_a_space_or_bot_forwarded() {
+		let plugin_commands: Vec<String> = registered_commands()
+			.into_iter()
+			.filter(|command| command.starts_with("plugin_"))
+			.collect();
+		assert!(!plugin_commands.is_empty());
+
+		for command in &plugin_commands {
+			let person =
+				json!({ "id": "m", "command": command, "args": { "scope": { "kind": "user" } } });
+			let refusal = member_call(&person.to_string()).expect_err(command);
+			assert_eq!(status_of(&refusal), (json!("m"), json!(403)), "{command}");
+			for scope in
+				[json!({ "kind": "space", "id": "s" }), json!({ "kind": "bot", "id": "b" })]
+			{
+				let frame = json!({ "id": "m", "command": command, "args": { "scope": scope } });
+				assert!(member_call(&frame.to_string()).is_ok(), "{command} {scope}");
+			}
 		}
 	}
 
