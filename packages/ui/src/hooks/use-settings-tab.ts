@@ -15,15 +15,9 @@ export const useSettingsTab = (
 		if (isOpen) setChosen(tab)
 	}
 
-	if (onTabChange) {
-		return {
-			value: tab,
-			onValueChange: (value: unknown) => onTabChange(String(value)),
-		}
-	}
-
 	return {
-		value: chosen,
-		onValueChange: (value: unknown) => setChosen(String(value)),
+		value: onTabChange ? tab : chosen,
+		onValueChange: (value: unknown) =>
+			(onTabChange ?? setChosen)(String(value)),
 	}
 }
