@@ -2025,7 +2025,10 @@ const PLUGIN_READS: [&str; 5] = [
 	"plugin_history_diff",
 ];
 
-async fn footprint_of(database: &PathBuf, bot_id: &str) -> (bool, Vec<String>, Vec<String>) {
+async fn footprint_of(
+	database: &std::path::Path,
+	bot_id: &str,
+) -> (bool, Vec<String>, Vec<String>) {
 	let bot_id = bot_id.to_owned();
 	db::open(database)
 		.call(move |connection| {
