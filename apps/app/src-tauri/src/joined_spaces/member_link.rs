@@ -11,6 +11,8 @@ use crate::events::Frame;
 
 const CALL_BOUND: Duration = Duration::from_secs(300);
 
+pub(super) const LEARN_BOUND: Duration = Duration::from_secs(30);
+
 const BUFFERED_EVENTS: usize = 256;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,6 +60,16 @@ impl MemberLink {
 
 	pub(super) fn presence(&self) -> watch::Receiver<Presence> {
 		self.presence.subscribe()
+	}
+
+	pub(super) async fn settled(&self) -> Presence {
+		let mut presence = self.presence();
+		let settled = timeout(LEARN_BOUND, presence.wait_for(|now| *now != Presence::Connecting))
+			.await
+			.ok()
+			.and_then(Result::ok)
+			.map(|now| *now);
+		settled.unwrap_or(Presence::Connecting)
 	}
 
 	pub(super) fn connecting(&self) {

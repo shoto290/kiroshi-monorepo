@@ -15,7 +15,7 @@ use serde_json::Value;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
-use super::member_link::MemberLink;
+use super::member_link::{MemberLink, Presence};
 use crate::host_api::invoke::{
 	self, arguments, bearer_admitted, declares_more_than_the_cap, names_an_app_command, unread,
 	JSON, MAX_BODY_BYTES, REFUSED, TOO_LARGE, UNAUTHORIZED, UNREADABLE, UNREGISTERED,
@@ -102,6 +102,9 @@ async fn invoked(
 	let Some(arguments) = arguments else {
 		return UNREADABLE.into_response();
 	};
+	if proxy.link.settled().await != Presence::Online {
+		return HOST_OFFLINE.into_response();
+	}
 	match proxy.link.called(&command, arguments).await {
 		Some(answer) => answered(answer.status, answer.body),
 		None => HOST_OFFLINE.into_response(),
@@ -121,6 +124,9 @@ fn is_json_answered(status: StatusCode) -> bool {
 }
 
 async fn events_opened(State(proxy): State<Proxy>, upgrade: WebSocketUpgrade) -> Response {
+	if proxy.link.settled().await != Presence::Online {
+		return HOST_OFFLINE.into_response();
+	}
 	let Some(heard) = proxy.link.subscribed() else {
 		return HOST_OFFLINE.into_response();
 	};
