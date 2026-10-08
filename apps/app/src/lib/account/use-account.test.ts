@@ -9,11 +9,7 @@ import {
 } from "@workspace/ui/components/notice-surface"
 import { en } from "@workspace/ui/lib/i18n-en"
 
-import {
-	type SignOutLeaving,
-	signOutLeavingOf,
-	useAccount,
-} from "./use-account"
+import { signOutLeavingOf, useAccount } from "./use-account"
 
 import { ACCOUNT_CHANGED_EVENT, type AccountState, commands } from "../bindings"
 import { listen } from "../host"
@@ -185,7 +181,7 @@ describe("useAccount", () => {
 
 	it("asks before signing out of a joined relay space, then signs out and raises the notice", async () => {
 		vi.mocked(commands.accountState).mockResolvedValue(SIGNED_IN)
-		const leaving: SignOutLeaving | null = signOutLeavingOf(
+		const leaving = signOutLeavingOf(
 			[
 				{
 					id: "joined-studio",
