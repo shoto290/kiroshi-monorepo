@@ -118,9 +118,9 @@ const InviteField = ({
 	const { t } = useTranslation("settings")
 	const id = useId()
 	const helperId = `${id}-helper`
-	const [sentOver, setSentOver] = useState<MembersFailure>()
+	const [resentFailure, setResentFailure] = useState<MembersFailure>()
 	const failureText = useFailureText(
-		refusal || failure === sentOver ? undefined : failure,
+		refusal || failure === resentFailure ? undefined : failure,
 		space,
 	)
 	const isEmpty = email.trim() === ""
@@ -128,7 +128,7 @@ const InviteField = ({
 	const submit = (event: FormEvent) => {
 		event.preventDefault()
 		if (!isEmpty) {
-			setSentOver(failure)
+			setResentFailure(failure)
 			onInvite(email)
 		}
 	}
