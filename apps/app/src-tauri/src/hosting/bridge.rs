@@ -11,7 +11,7 @@ use crate::missions::github::installed_tls_provider;
 
 const INVOKE_BOUND: Duration = Duration::from_secs(300);
 
-pub(super) const HOST_ONLY_COMMANDS: [&str; 12] = [
+pub(super) const HOST_ONLY_COMMANDS: [&str; 13] = [
 	"hosting_members",
 	"hosting_invite_member",
 	"hosting_withdraw_invitation",
@@ -24,6 +24,7 @@ pub(super) const HOST_ONLY_COMMANDS: [&str; 12] = [
 	"agent_sign_in_code",
 	"agent_sign_in_cancel",
 	"space_delete",
+	"joined_space_connect",
 ];
 
 #[derive(Clone)]
