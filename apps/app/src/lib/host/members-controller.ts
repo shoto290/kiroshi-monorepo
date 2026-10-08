@@ -82,13 +82,11 @@ const INVITE_REFUSALS: Partial<Record<MembersError["kind"], InviteRefusal>> = {
 	notAnEmail: "malformed",
 }
 
-type ReasonOf<Action extends MembersFailure["action"]> = Extract<
-	MembersFailure,
-	{ action: Action }
->["reason"]
-
 type FailureReasons<Action extends MembersFailure["action"]> = Partial<
-	Record<MembersError["kind"], ReasonOf<Action>>
+	Record<
+		MembersError["kind"],
+		Extract<MembersFailure, { action: Action }>["reason"]
+	>
 >
 
 const SHARED_REASONS = {
