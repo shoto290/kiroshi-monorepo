@@ -1,6 +1,7 @@
 import {
 	type NoticeMessage,
 	raiseFailureNotice,
+	raiseTransientNotice,
 } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
@@ -17,6 +18,7 @@ export type AccountController = {
 	signIn: (email: string) => void
 	cancel: () => void
 	signOut: () => void
+	signOutLeaving: (spaceNames: string) => Promise<void>
 }
 
 const SIGNED_OUT: AccountState = { kind: "signedOut" }
@@ -51,6 +53,17 @@ const perform = async (command: AccountCommand) => {
 
 const attempt = (command: AccountCommand, failureTitle: string) => {
 	perform(command).catch(() => reportFailure(failureTitle))
+}
+
+const signOutLeaving = async (spaceNames: string) => {
+	await perform(commands.accountSignOut).catch((reason: unknown) => {
+		reportFailure(i18n.t("settings:account.signOutFailed"))
+		throw reason
+	})
+	raiseTransientNotice({
+		type: "info",
+		title: i18n.t("bots:spaces.signOut.notice", { name: spaceNames }),
+	})
 }
 
 export const createAccountController = (): AccountController => {
@@ -106,5 +119,6 @@ export const createAccountController = (): AccountController => {
 				commands.accountSignOut,
 				i18n.t("settings:account.signOutFailed"),
 			),
+		signOutLeaving,
 	}
 }

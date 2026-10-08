@@ -2,14 +2,22 @@ import type { JoinSpaceState } from "@workspace/ui/components/join-space-dialog"
 import {
 	type NoticeMessage,
 	raiseFailureNotice,
+	raiseTransientNotice,
 } from "@workspace/ui/components/notice-surface"
 import type { Space as SwitcherSpace } from "@workspace/ui/components/space"
 import type { SpaceRemote } from "@workspace/ui/components/space-switcher"
 import { i18n } from "@workspace/ui/lib/i18n"
 
+import { type SpaceInviters, storedInviters } from "./space-inviters"
 import type { SpacesController } from "./spaces-controller"
 
-import { commands, type JoinedSpace, type JoinedSpaceError } from "../bindings"
+import {
+	commands,
+	JOINED_SPACE_REMOVED_EVENT,
+	type JoinedSpace,
+	type JoinedSpaceError,
+	type JoinedSpaceRemoved,
+} from "../bindings"
 import { joinedHosts, listen } from "../host"
 import { createStore } from "../store"
 import type { Space } from "../conversations/store-contract"
@@ -20,8 +28,15 @@ import {
 	type JoinedHosts,
 } from "../host/joined-hosts"
 
+export type RemovedSpace = {
+	joined: JoinedSpace
+	hostEmail: string
+	backSpaceId: string | null
+}
+
 export type JoinedSpacesState = {
 	joinedSpaces: JoinedSpace[]
+	removed: RemovedSpace | null
 	hasFailedToLoad: boolean
 	isJoinOpen: boolean
 	joinLink: string
@@ -42,6 +57,9 @@ export type JoinedSpacesController = {
 	askToLeave: () => void
 	setLeaveOpen: (isLeaveOpen: boolean) => void
 	leave: (id: string) => Promise<void>
+	admit: (joined: JoinedSpace, hostEmail: string) => Promise<void>
+	leaveRemoved: () => void
+	hostEmailOf: (id: string) => string
 }
 
 export type JoinedSpacesTransport = {
@@ -49,6 +67,9 @@ export type JoinedSpacesTransport = {
 	add: (link: string) => Promise<JoinedSpace>
 	remove: (id: string) => Promise<void>
 	onChanged: (listener: () => void) => Promise<() => void>
+	onRemoved: (
+		listener: (removed: JoinedSpaceRemoved) => void,
+	) => Promise<() => void>
 }
 
 type JoinedSpacesHosts = Pick<
@@ -61,6 +82,8 @@ type JoinedSpacesControllerOptions = {
 	hosts?: JoinedSpacesHosts
 	transport?: JoinedSpacesTransport
 	reportFailure?: (notice: NoticeMessage) => void
+	reportRemoval?: (title: string) => void
+	inviters?: SpaceInviters
 	probeTimeout?: number
 }
 
@@ -84,7 +107,14 @@ const joinedSpacesTransport: JoinedSpacesTransport = {
 		dataOf(await commands.joinedSpaceRemove(id))
 	},
 	onChanged: (listener) => listen(JOINED_SPACE_CHANGED_EVENT, () => listener()),
+	onRemoved: (listener) =>
+		listen<JoinedSpaceRemoved>(JOINED_SPACE_REMOVED_EVENT, ({ payload }) =>
+			listener(payload),
+		),
 }
+
+const raiseRemovalNotice = (title: string) =>
+	raiseTransientNotice({ type: "info", title })
 
 const isJoinedSpaceError = (reason: unknown): reason is JoinedSpaceError =>
 	typeof reason === "object" && reason !== null && "kind" in reason
@@ -104,6 +134,19 @@ const rowIdOf = (joined: JoinedSpace): string =>
 
 const isUnreachable = (connection: JoinedHostState | undefined) =>
 	connection?.status === "down" || connection?.status === "refused"
+
+const RELAY_HOST_SUFFIX = "/relay/member"
+
+export const isRelaySpace = (joined: JoinedSpace) =>
+	joined.hostUrl.endsWith(RELAY_HOST_SUFFIX)
+
+export const shownJoinedSpacesOf = ({
+	joinedSpaces,
+	removed,
+}: Pick<JoinedSpacesState, "joinedSpaces" | "removed">): JoinedSpace[] =>
+	removed && !joinedSpaces.some((joined) => joined.id === removed.joined.id)
+		? [...joinedSpaces, removed.joined]
+		: joinedSpaces
 
 export const joinedSpaceOfRow = (
 	joinedSpaces: JoinedSpace[],
@@ -141,6 +184,7 @@ export const rosterSpaceIdsOf = (
 
 const initialJoinedSpacesState: JoinedSpacesState = {
 	joinedSpaces: [],
+	removed: null,
 	hasFailedToLoad: false,
 	isJoinOpen: false,
 	joinLink: "",
@@ -154,12 +198,15 @@ export const createJoinedSpacesController = ({
 	hosts = joinedHosts,
 	transport = joinedSpacesTransport,
 	reportFailure = raiseFailureNotice,
+	reportRemoval = raiseRemovalNotice,
+	inviters = storedInviters,
 	probeTimeout = PROBE_TIMEOUT,
 }: JoinedSpacesControllerOptions): JoinedSpacesController => {
 	const stateStore = createStore(initialJoinedSpacesState)
 	const current = stateStore.getState
 	let latestRead = 0
 	let isJoining = false
+	let previousLocalId: string | null = null
 
 	const set = (fields: Partial<JoinedSpacesState>) =>
 		stateStore.setState({ ...current(), ...fields })
@@ -203,7 +250,7 @@ export const createJoinedSpacesController = ({
 
 	const watch = () => {
 		void read()
-		const detach = transport
+		const detachChanges = transport
 			.onChanged(() => {
 				void read()
 			})
@@ -211,8 +258,15 @@ export const createJoinedSpacesController = ({
 				noteFailedLoad(reason)
 				return undefined
 			})
+		const detachRemovals = transport
+			.onRemoved(noteRemoval)
+			.catch((reason: unknown) => {
+				reportRefusal(reason)
+				return undefined
+			})
 		return () => {
-			void detach.then((unlisten) => unlisten?.())
+			void detachChanges.then((unlisten) => unlisten?.())
+			void detachRemovals.then((unlisten) => unlisten?.())
 		}
 	}
 
@@ -222,9 +276,87 @@ export const createJoinedSpacesController = ({
 	const joinedOfRow = (rowId: string | null) =>
 		joinedSpaceOfRow(current().joinedSpaces, rowId)
 
+	const isLocalSpace = (id: string | null) =>
+		spaces.getState().spaces.some((space) => space.id === id)
+
+	const notePreviousLocal = () => {
+		const { selectedSpaceId } = spaces.getState()
+		if (isLocalSpace(selectedSpaceId)) previousLocalId = selectedSpaceId
+	}
+
+	const backSpaceId = () =>
+		isLocalSpace(previousLocalId)
+			? previousLocalId
+			: (spaces.getState().spaces[0]?.id ?? null)
+
+	const isOpen = (id: string) =>
+		hosts.getState().active === id ||
+		joinedOfRow(spaces.getState().selectedSpaceId)?.id === id
+
+	const dropRemoved = (id: string, name: string, hostEmail: string) => {
+		hosts.forget(id)
+		inviters.forget(id)
+		set({ joinedSpaces: heldWithout(id) })
+		reportRemoval(
+			i18n.t("bots:spaces.removed.notice", { email: hostEmail, name }),
+		)
+	}
+
+	const settleRemoval = ({ joined, hostEmail }: RemovedSpace) => {
+		set({ removed: null })
+		dropRemoved(joined.id, joined.name, hostEmail)
+	}
+
+	const removedOpenSpace = (id: string, name: string): JoinedSpace =>
+		current().joinedSpaces.find((joined) => joined.id === id) ?? {
+			id,
+			name,
+			hostUrl: "",
+			remoteSpaceId: spaces.getState().selectedSpaceId,
+		}
+
+	const noteRemoval = ({ id, name }: JoinedSpaceRemoved) => {
+		const hostEmail = inviters.of(id)
+		if (!isOpen(id)) {
+			dropRemoved(id, name, hostEmail)
+			return
+		}
+		set({
+			removed: {
+				joined: removedOpenSpace(id, name),
+				hostEmail,
+				backSpaceId: backSpaceId(),
+			},
+		})
+	}
+
 	const selectSpace = (id: string) => {
+		const { removed } = current()
+		if (removed && rowIdOf(removed.joined) === id) {
+			return
+		}
+		if (removed) settleRemoval(removed)
+		notePreviousLocal()
 		spaces.select(id)
 		void hosts.activate(joinedOfRow(id)?.id ?? null)
+	}
+
+	const leaveRemoved = () => {
+		const { removed } = current()
+		if (!removed) {
+			return
+		}
+		settleRemoval(removed)
+		if (removed.backSpaceId) selectSpace(removed.backSpaceId)
+	}
+
+	const admit = async (joined: JoinedSpace, hostEmail: string) => {
+		inviters.remember(joined.id, hostEmail)
+		set({ joinedSpaces: [...heldWithout(joined.id), joined] })
+		await hosts.connect(joined.id)
+		await read()
+		const learned = current().joinedSpaces.find((held) => held.id === joined.id)
+		selectSpace(rowIdOf(learned ?? joined))
 	}
 
 	const probe = (id: string) =>
@@ -328,5 +460,8 @@ export const createJoinedSpacesController = ({
 			}),
 		setLeaveOpen: (isLeaveOpen: boolean) => set({ isLeaveOpen }),
 		leave,
+		admit,
+		leaveRemoved,
+		hostEmailOf: inviters.of,
 	}
 }

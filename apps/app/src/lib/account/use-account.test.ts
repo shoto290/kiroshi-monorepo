@@ -3,10 +3,17 @@
 import { act, cleanup, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
+import {
+	raiseFailureNotice,
+	raiseTransientNotice,
+} from "@workspace/ui/components/notice-surface"
 import { en } from "@workspace/ui/lib/i18n-en"
 
-import { useAccount } from "./use-account"
+import {
+	type SignOutLeaving,
+	signOutLeavingOf,
+	useAccount,
+} from "./use-account"
 
 import { ACCOUNT_CHANGED_EVENT, type AccountState, commands } from "../bindings"
 import { listen } from "../host"
@@ -24,6 +31,7 @@ vi.mock("../bindings", async (importOriginal) => ({
 
 vi.mock("@workspace/ui/components/notice-surface", () => ({
 	raiseFailureNotice: vi.fn(),
+	raiseTransientNotice: vi.fn(),
 }))
 
 const EMAIL = "ada.martin@example.com"
@@ -172,6 +180,61 @@ describe("useAccount", () => {
 		act(() => result.current.onCancel())
 		await settling()
 
+		expect(commands.accountSignOut).toHaveBeenCalledOnce()
+	})
+
+	it("asks before signing out of a joined relay space, then signs out and raises the notice", async () => {
+		vi.mocked(commands.accountState).mockResolvedValue(SIGNED_IN)
+		const leaving: SignOutLeaving | null = signOutLeavingOf(
+			[
+				{
+					id: "joined-studio",
+					hostUrl: "wss://cloud.kiroshi.test/instances/studio/relay/member",
+					remoteSpaceId: "studio",
+					name: "Studio Nord",
+				},
+			],
+			() => "lea@example.com",
+		)
+		const { result } = renderHook(() => useAccount(PROFILE_NAME, leaving))
+		await settling()
+
+		act(() => result.current.onSignOut())
+
+		expect(commands.accountSignOut).not.toHaveBeenCalled()
+		expect(result.current.signOutConfirmation).toEqual(
+			expect.objectContaining({
+				open: true,
+				title: "Sign out of Kiroshi?",
+				description:
+					"Studio Nord leaves this Mac until you sign in again. Its conversations stay with lea@example.com.",
+				confirmLabel: "Sign out",
+			}),
+		)
+
+		await act(() => result.current.signOutConfirmation?.onConfirm())
+
+		expect(commands.accountSignOut).toHaveBeenCalledOnce()
+		expect(raiseTransientNotice).toHaveBeenCalledWith({
+			type: "info",
+			title: "Signed out. Studio Nord left this Mac.",
+		})
+	})
+
+	it("signs out without asking when no relay space is joined", async () => {
+		vi.mocked(commands.accountState).mockResolvedValue(SIGNED_IN)
+		const { result } = renderHook(() =>
+			useAccount(
+				PROFILE_NAME,
+				signOutLeavingOf([], () => ""),
+			),
+		)
+		await settling()
+
+		act(() => result.current.onSignOut())
+		await settling()
+
+		expect(result.current.signOutConfirmation).toBe(null)
 		expect(commands.accountSignOut).toHaveBeenCalledOnce()
 	})
 

@@ -3,10 +3,12 @@ import type { EventCallback, UnlistenFn } from "@tauri-apps/api/event"
 
 import { createHttpHost, type HostSocket, type HttpHost } from "./http"
 
-import type {
-	commands,
-	JoinedSpaceConnection,
-	JoinedSpaceError,
+import {
+	type commands,
+	INVITATION_CHANGED_EVENT,
+	JOINED_SPACE_REMOVED_EVENT,
+	type JoinedSpaceConnection,
+	type JoinedSpaceError,
 } from "../bindings"
 import { createStore } from "../store"
 
@@ -35,6 +37,9 @@ export const LOCAL_COMMANDS: ReadonlySet<string> = new Set([
 	"account_state",
 	"account_sign_in",
 	"account_sign_out",
+	"invitations_list",
+	"invitation_accept",
+	"invitation_decline",
 ])
 
 export const JOINED_SPACE_CHANGED_EVENT = "joined-space://changed"
@@ -43,6 +48,8 @@ const LOCAL_EVENTS: ReadonlySet<string> = new Set([
 	"host://presence",
 	"hosting://changed",
 	JOINED_SPACE_CHANGED_EVENT,
+	JOINED_SPACE_REMOVED_EVENT,
+	INVITATION_CHANGED_EVENT,
 	"window-maximize-button",
 	"notification://activated",
 	"user://first-run-done",

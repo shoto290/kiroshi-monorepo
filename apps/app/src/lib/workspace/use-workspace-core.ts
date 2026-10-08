@@ -23,7 +23,7 @@ import { createMessageLandingController } from "../search/message-landing-contro
 import { useCollapsedSections } from "../sections/use-collapsed-sections"
 import { useSections } from "../sections/use-sections"
 import { createShownMemory } from "../sidebar/shown-memory"
-import { useJoinedSpaces } from "../spaces/use-joined-spaces"
+import { useInvitations, useJoinedSpaces } from "../spaces/use-joined-spaces"
 import { useSpaces } from "../spaces/use-spaces"
 import { useUser } from "../user/use-user"
 
@@ -92,6 +92,7 @@ export const useWorkspaceCore = () => {
 	const userPlugin = usePlugin(store)
 	const spaces = useSpaces(store)
 	const joinedSpaces = useJoinedSpaces(spaces.controller)
+	const invitations = useInvitations(joinedSpaces.controller)
 	const spacePlugin = usePlugin(store)
 	const preferences = user.state.preferences
 
@@ -108,6 +109,7 @@ export const useWorkspaceCore = () => {
 		conversationRuntimes,
 		drafts,
 		driver,
+		invitations,
 		joinedSpaces,
 		messageLandings,
 		openedMission,

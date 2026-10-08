@@ -1,7 +1,9 @@
+import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { UserSettingsDialog } from "@workspace/ui/components/user-settings-dialog"
 
-import { useAccount } from "@/lib/account/use-account"
+import { signOutLeavingOf, useAccount } from "@/lib/account/use-account"
 import { openedServerScope } from "@/lib/applications/application-settings"
+import { isRelaySpace } from "@/lib/spaces/joined-spaces-controller"
 import { toNotificationChange } from "@/lib/user/user-settings"
 import type { ApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import type { SettingsPanels } from "@/lib/workspace/use-settings-panels"
@@ -22,7 +24,7 @@ export const UserSettingsHost = ({
 	panels,
 	scopes,
 }: UserSettingsHostProps) => {
-	const { preferences, user, userMcpServers } = core
+	const { joinedSpaces, preferences, user, userMcpServers } = core
 	const { userSettings } = overlay
 	const { applicationToOpenOn, closeSettingsTab, personSkills, userHistory } =
 		panels
@@ -32,56 +34,65 @@ export const UserSettingsHost = ({
 		settingsTab,
 		userApplications,
 	} = scopes
-	const account = useAccount(userSettings.name)
+	const { signOutConfirmation, ...account } = useAccount(
+		userSettings.name,
+		signOutLeavingOf(
+			joinedSpaces.state.joinedSpaces.filter(isRelaySpace),
+			joinedSpaces.controller.hostEmailOf,
+		),
+	)
 
 	return (
-		<UserSettingsDialog
-			account={account}
-			applications={{
-				servers: userApplications.mcpServers,
-				haveFailedToLoad: userMcpServers.state.hasFailedToLoad,
-				onServerCreate: userApplications.onMcpServerCreate,
-				onServerChange: userApplications.onMcpServerChange,
-				onServerDelete: userApplications.onMcpServerDelete,
-				onServerConnect: userApplications.onServerConnect,
-				onServerOpen: (name) =>
-					setOpenedMcpServer(openedServerScope(name, USER_OWNER)),
-				serverConnection: userApplications.serverConnection,
-				serverEnvironment: serverEnvironmentSection,
-				catalogue: userApplications.mcpCatalogue,
-				serverToOpen: applicationToOpenOn({ kind: "user" }),
-			}}
-			history={userHistory}
-			tab={settingsTab}
-			onClose={() => {
-				closeSettingsTab()
-				user.controller.setSettingsOpen(false)
-			}}
-			language={preferences.language}
-			onLanguageChange={(next) => {
-				void user.controller.setLanguage(next)
-			}}
-			onPictureRemove={() => {
-				void user.controller.removePicture()
-			}}
-			onPictureUpload={(file) => {
-				void user.controller.uploadPicture(file)
-			}}
-			onValueChange={(value) => {
-				if (value.name !== userSettings.name) {
-					user.controller.rename(value.name)
-				}
-				if (value.colorScheme !== userSettings.colorScheme) {
-					void user.controller.setColorScheme(value.colorScheme)
-				}
-				const notification = toNotificationChange(value, userSettings)
-				if (notification) {
-					void user.controller.setNotification(notification)
-				}
-			}}
-			open={user.state.isSettingsOpen}
-			{...personSkills}
-			value={userSettings}
-		/>
+		<>
+			<UserSettingsDialog
+				account={account}
+				applications={{
+					servers: userApplications.mcpServers,
+					haveFailedToLoad: userMcpServers.state.hasFailedToLoad,
+					onServerCreate: userApplications.onMcpServerCreate,
+					onServerChange: userApplications.onMcpServerChange,
+					onServerDelete: userApplications.onMcpServerDelete,
+					onServerConnect: userApplications.onServerConnect,
+					onServerOpen: (name) =>
+						setOpenedMcpServer(openedServerScope(name, USER_OWNER)),
+					serverConnection: userApplications.serverConnection,
+					serverEnvironment: serverEnvironmentSection,
+					catalogue: userApplications.mcpCatalogue,
+					serverToOpen: applicationToOpenOn({ kind: "user" }),
+				}}
+				history={userHistory}
+				tab={settingsTab}
+				onClose={() => {
+					closeSettingsTab()
+					user.controller.setSettingsOpen(false)
+				}}
+				language={preferences.language}
+				onLanguageChange={(next) => {
+					void user.controller.setLanguage(next)
+				}}
+				onPictureRemove={() => {
+					void user.controller.removePicture()
+				}}
+				onPictureUpload={(file) => {
+					void user.controller.uploadPicture(file)
+				}}
+				onValueChange={(value) => {
+					if (value.name !== userSettings.name) {
+						user.controller.rename(value.name)
+					}
+					if (value.colorScheme !== userSettings.colorScheme) {
+						void user.controller.setColorScheme(value.colorScheme)
+					}
+					const notification = toNotificationChange(value, userSettings)
+					if (notification) {
+						void user.controller.setNotification(notification)
+					}
+				}}
+				open={user.state.isSettingsOpen}
+				{...personSkills}
+				value={userSettings}
+			/>
+			{signOutConfirmation ? <ConfirmDialog {...signOutConfirmation} /> : null}
+		</>
 	)
 }
