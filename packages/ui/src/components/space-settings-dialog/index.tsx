@@ -78,6 +78,7 @@ type SpaceSettingsDialogProps = PluginSessionsProps & {
 	onEnvironmentSet: (write: EnvironmentWrite) => void | Promise<void>
 	onEnvironmentDelete: (name: string) => void | Promise<void>
 	tab?: string
+	onTabChange?: (tab: string) => void
 	history: PluginHistory
 	members?: ReactNode
 	className?: string
@@ -94,6 +95,7 @@ const SpaceSettingsDialog = ({
 	onEnvironmentSet,
 	onEnvironmentDelete,
 	tab,
+	onTabChange,
 	history,
 	onDelete,
 	isDeletable = true,
@@ -191,6 +193,7 @@ const SpaceSettingsDialog = ({
 				</>
 			)}
 			sessions={sessions}
+			onTabChange={onTabChange}
 			tab={tab ?? FIRST_TAB}
 		>
 			<SettingsScrollingPanel value={FIRST_TAB}>
