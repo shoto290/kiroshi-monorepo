@@ -514,6 +514,16 @@ mod tests {
 				('unled', 'b1', 'assistant', 1, 0), ('drifting', 'b1', 'lead', 1, 0);
 	";
 
+	const A_SHARED_SPACE: &str = "
+		INSERT INTO spaces (id, name, colour, position, created_at)
+			VALUES ('shared', 'Personal', 'red', 1, 1);
+		INSERT INTO bot_spaces (bot_id, space_id, joined_at) VALUES ('b1', 'shared', 1);
+		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
+			VALUES ('shared-chat', 'main', 'shared', 'Chat', 1, 1);
+		INSERT INTO conversation_participants (conversation_id, bot_id, role, joined_at, join_seq)
+			VALUES ('shared-chat', 'b1', 'assistant', 1, 0);
+	";
+
 	const A_MISSION: &str = "
 		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
 			VALUES ('errand', 'mission', 'personal', 'Ship it', 1, 1);
@@ -708,6 +718,18 @@ mod tests {
 			.expect("the roster reads")
 	}
 
+	async fn roster_of(app: &App<MockRuntime>, space_id: &str) -> Vec<String> {
+		ready(&app.state::<db::DatabaseState>())
+			.expect("the database opens")
+			.conversations()
+			.bots(Some(space_id.to_owned()))
+			.await
+			.expect("the roster reads")
+			.into_iter()
+			.map(|bot| bot.id)
+			.collect()
+	}
+
 	async fn is_first_run_done(app: &App<MockRuntime>) -> bool {
 		ready(&app.state::<db::DatabaseState>())
 			.expect("the database opens")
@@ -766,6 +788,21 @@ mod tests {
 			.and_then(|root| bundles::generated(&root, id))
 			.expect("the bundle is written");
 		assert_eq!(bundled.output_style, bundles::DEFAULT_OUTPUT_STYLE);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_companion_created_from_a_shared_space_that_is_not_the_first_lands_only_there() {
+		let app = a_host("shared").await;
+		planted(&app, A_SHARED_SPACE).await;
+
+		let created =
+			serving(&app, "shared-chat").answer(a_create(json!({}))).await.expect("it is created");
+
+		let id = created["id"].as_str().expect("the companion is named");
+		assert!(roster_of(&app, "shared").await.contains(&id.to_owned()), "missing from its space");
+		assert!(!roster_of(&app, "personal").await.contains(&id.to_owned()), "leaked elsewhere");
 
 		cleaned(&app);
 	}
