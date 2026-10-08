@@ -117,11 +117,10 @@ pub async fn joined<R: Runtime>(
 
 pub async fn connected<R: Runtime>(
 	app: &AppHandle<R>,
-	found: joined_spaces::JoinedSpace,
+	mut found: joined_spaces::JoinedSpace,
 	instance_id: String,
 ) -> Result<JoinedSpaceConnection, JoinedSpaceError> {
 	let reached = started(app, &found.id, instance_id).await?;
-	let mut found = found;
 	if found.remote_space_id.is_none() {
 		found.remote_space_id = Some(learned(app, &found.id, &reached.link).await?);
 	}
@@ -146,8 +145,13 @@ async fn started<R: Runtime>(
 		.map_err(|error| JoinedSpaceError::ProxyUnavailable { detail: error.to_string() })?;
 	let linked = Linked { id: id.to_owned(), instance_id, link: Arc::clone(&link) };
 	let run = tauri::async_runtime::spawn(guest_linked(app.clone(), linked, stopped));
+	let reached = Reached {
+		origin: origin.clone(),
+		token: token.bearer().to_owned(),
+		link: Arc::clone(&link),
+	};
 	guests.guests().insert(id.to_owned(), Guest { origin, token, link, stop, run });
-	guests.reached(id).ok_or_else(|| JoinedSpaceError::UnknownJoinedSpace { id: id.to_owned() })
+	Ok(reached)
 }
 
 async fn learned<R: Runtime>(
@@ -201,37 +205,21 @@ pub async fn signed_out<R: Runtime>(app: &AppHandle<R>) {
 	for (id, guest) in running {
 		finished(&id, guest).await;
 	}
-	let state = app.state::<db::DatabaseState>();
-	let repository = match ready(&state) {
-		Ok(database) => database.joined_spaces(),
-		Err(failure) => return eprintln!("no relay space was dropped on sign out: {failure:?}"),
-	};
-	let listed = match repository.list().await {
-		Ok(listed) => listed,
-		Err(failure) => return eprintln!("no relay space was dropped on sign out: {failure:?}"),
-	};
-	for joined in listed {
-		if matches!(joined.reach, JoinedReach::Relay { .. }) {
-			dropped_on_sign_out(app, repository, joined.id).await;
-		}
+	if let Err(failure) = relay_entries_dropped(app).await {
+		eprintln!("the relay spaces were not all dropped on sign out: {failure:?}");
 	}
 }
 
-async fn dropped_on_sign_out<R: Runtime>(
-	app: &AppHandle<R>,
-	repository: &db::repositories::JoinedSpacesRepository,
-	id: String,
-) {
-	let removed = match repository.remove(id.clone()).await {
-		Ok(removed) => removed,
-		Err(failure) => return eprintln!("relay space {id} was kept on sign out: {failure:?}"),
-	};
-	if !removed {
-		return;
+async fn relay_entries_dropped<R: Runtime>(app: &AppHandle<R>) -> Result<(), JoinedSpaceError> {
+	let state = app.state::<db::DatabaseState>();
+	let repository = ready(&state)?.joined_spaces();
+	for joined in repository.list().await? {
+		let is_relay = matches!(joined.reach, JoinedReach::Relay { .. });
+		if is_relay && repository.remove(joined.id.clone()).await? {
+			announce_change(app, joined.id)?;
+		}
 	}
-	if let Err(failure) = announce_change(app, id.clone()) {
-		eprintln!("the sign out drop of relay space {id} did not reach the front: {failure:?}");
-	}
+	Ok(())
 }
 
 async fn finished(id: &str, guest: Guest) {
@@ -348,31 +336,21 @@ fn closed_by_relay(frame: Option<CloseFrame>) -> Ended {
 
 async fn evicted<R: Runtime>(app: &AppHandle<R>, id: &str) {
 	app.state::<RelayGuests>().guests().remove(id);
+	if let Err(failure) = entry_evicted(app, id).await {
+		eprintln!("joined space {id} whose membership ended was not evicted: {failure:?}");
+	}
+}
+
+async fn entry_evicted<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<(), JoinedSpaceError> {
 	let state = app.state::<db::DatabaseState>();
-	let repository = match ready(&state) {
-		Ok(database) => database.joined_spaces(),
-		Err(failure) => {
-			return eprintln!("joined space {id} whose membership ended was kept: {failure:?}")
-		}
+	let repository = ready(&state)?.joined_spaces();
+	let Some(found) = repository.find(id.to_owned()).await? else {
+		return Ok(());
 	};
-	let name = match repository.find(id.to_owned()).await {
-		Ok(Some(found)) => found.name,
-		Ok(None) => return,
-		Err(failure) => {
-			return eprintln!("joined space {id} whose membership ended was kept: {failure:?}")
-		}
-	};
-	match repository.remove(id.to_owned()).await {
-		Ok(true) => {}
-		Ok(false) => return,
-		Err(failure) => {
-			return eprintln!("joined space {id} whose membership ended was kept: {failure:?}")
-		}
+	if !repository.remove(id.to_owned()).await? {
+		return Ok(());
 	}
 	eprintln!("joined space {id} was removed: its membership ended");
-	let announced = announce_change(app, id.to_owned())
-		.and_then(|()| announce_removal(app, id.to_owned(), name));
-	if let Err(failure) = announced {
-		eprintln!("the removal of joined space {id} did not reach the front: {failure:?}");
-	}
+	announce_change(app, id.to_owned())?;
+	announce_removal(app, id.to_owned(), found.name)
 }
