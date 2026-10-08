@@ -90,6 +90,8 @@ export const invoke: typeof tauriInvoke = joinedHosts.invoke
 
 export const listen = joinedHosts.listen
 
+export const listenToActiveHost = joinedHosts.listenToActiveHost
+
 export function isDesktopHost(): boolean {
 	return httpHost === null && hasTauriInternals()
 }

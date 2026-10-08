@@ -23,7 +23,7 @@ type RosterSource = {
 	getState: () => {
 		rosters: Record<string, BadgedBot[]>
 		soloThreads: SoloThreads
-		spaceId: string | null
+		spaceRowId: string | null
 		selectedBotId: string | null
 	}
 	subscribe: (listener: () => void) => () => void
@@ -57,10 +57,10 @@ export const createBotBadgeSource = ({
 		},
 		selection: {
 			getState: () => {
-				const { rosters, spaceId, selectedBotId } = roster.getState()
+				const { rosters, spaceRowId, selectedBotId } = roster.getState()
 				return {
 					ids: rosterLinesIn(rosters).map(rosterLineKey),
-					selectedId: selectedLineKey(spaceId, selectedBotId),
+					selectedId: selectedLineKey(spaceRowId, selectedBotId),
 				}
 			},
 			subscribe: roster.subscribe,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react"
+import { useEffect } from "react"
 
 import type { ApplicationScopes } from "./use-application-scopes"
 import type { RosterView } from "./use-roster-view"
@@ -9,7 +9,6 @@ import { USER_OWNER } from "./user-owner"
 import { useCompanionSettings } from "../bots/use-companion-settings"
 import { useCompanionAnnouncements } from "../companions/use-companion-announcements"
 import { useCompanionArrivals } from "../conversations/use-companion-arrivals"
-import { openRowIdOf } from "../spaces/joined-spaces-controller"
 
 type WorkspaceSubscriptionsInput = {
 	core: WorkspaceCore
@@ -37,7 +36,6 @@ export const useWorkspaceSubscriptions = ({
 		spaceConnections,
 		spaceEnvironment,
 		spaceMcpServers,
-		spaces,
 		user,
 		userConnections,
 		userMcpServers,
@@ -53,16 +51,6 @@ export const useWorkspaceSubscriptions = ({
 	} = rosterView
 	const { isSpaceEditing, openedMcpServer, selectedSpaceId } = scopes
 
-	const lastBotKeyOf = useCallback(
-		(spaceId: string | null) => {
-			const shown = spaces.controller.getState().selectedSpaceId
-			return spaceId === shown
-				? openRowIdOf(joinedSpaces.controller.getState(), shown)
-				: spaceId
-		},
-		[spaces.controller, joinedSpaces.controller],
-	)
-
 	useEffect(() => {
 		void user.controller.load()
 		return user.controller.followOtherWindows()
@@ -70,11 +58,14 @@ export const useWorkspaceSubscriptions = ({
 
 	useCompanionAnnouncements({
 		onCreated: (created) => {
-			void roster.controller.reload()
+			if (joinedSpaces.hosts.active === null) {
+				void roster.controller.reload()
+			}
 			if (!user.controller.getState().preferences.firstRunDone) {
 				void onboarding.controller.greetCompanion(created)
 			}
 		},
+		onHostCreated: () => void roster.controller.reload(),
 		onFirstRunDone: () => void user.controller.load(),
 	})
 
@@ -136,18 +127,21 @@ export const useWorkspaceSubscriptions = ({
 		if (!selectedBotId || !holdsSelectedBot) {
 			return
 		}
-		void chat.controller.open(selectedBotId, rosteredSpaceId)
+		void chat.controller.open(
+			selectedBotId,
+			rosteredSpaceId && roster.controller.hostSpaceIdOf(rosteredSpaceId),
+		)
 		void user.controller.setLastBot({
-			spaceId: lastBotKeyOf(rosteredSpaceId),
+			spaceId: rosteredSpaceId,
 			botId: selectedBotId,
 		})
 	}, [
 		chat.controller,
+		roster.controller,
 		user.controller,
 		selectedBotId,
 		holdsSelectedBot,
 		rosteredSpaceId,
-		lastBotKeyOf,
 	])
 
 	useEffect(() => {
@@ -155,8 +149,8 @@ export const useWorkspaceSubscriptions = ({
 			return
 		}
 		void user.controller.setLastBot({
-			spaceId: lastBotKeyOf(roster.controller.getState().spaceId),
+			spaceId: roster.controller.getState().spaceRowId,
 			botId: selectedConversationId,
 		})
-	}, [roster.controller, user.controller, selectedConversationId, lastBotKeyOf])
+	}, [roster.controller, user.controller, selectedConversationId])
 }

@@ -33,8 +33,8 @@ const opening = (
 	spaceId = "personal",
 	spaceIds: string[] = [spaceId],
 ) => ({
-	spaceIds,
-	spaceId,
+	spaces: spaceIds.map((id) => ({ spaceRowId: id, spaceId: id })),
+	spaceRowId: spaceId,
 	lastRowId,
 })
 
@@ -585,7 +585,11 @@ describe("createRosterController on a space", () => {
 		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
 		const read = vi.spyOn(store, "bots")
 
-		controller.enter({ spaceId: elsewhere.id, lastRowId: null })
+		controller.enter({
+			spaceRowId: elsewhere.id,
+			spaceId: elsewhere.id,
+			lastRowId: null,
+		})
 
 		const state = controller.getState()
 		expect(state.bots.map((bot) => bot.id)).toEqual([away.id])
@@ -599,7 +603,11 @@ describe("createRosterController on a space", () => {
 		const controller = createRosterController(store)
 		await controller.load(opening(null, "personal", ["personal", empty.id]))
 
-		controller.enter({ spaceId: empty.id, lastRowId: null })
+		controller.enter({
+			spaceRowId: empty.id,
+			spaceId: empty.id,
+			lastRowId: null,
+		})
 
 		expect(controller.getState().bots).toEqual([])
 		expect(controller.getState().selectedBotId).toBeNull()
@@ -613,7 +621,11 @@ describe("createRosterController on a space", () => {
 		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
 		controller.edit("default")
 
-		controller.enter({ spaceId: elsewhere.id, lastRowId: null })
+		controller.enter({
+			spaceRowId: elsewhere.id,
+			spaceId: elsewhere.id,
+			lastRowId: null,
+		})
 
 		expect(controller.getState()).toMatchObject({
 			settingsBotId: null,
@@ -626,7 +638,11 @@ describe("createRosterController on a space", () => {
 		const controller = createRosterController(store)
 		await controller.load(opening())
 
-		controller.enter({ spaceId: "vacances", lastRowId: null })
+		controller.enter({
+			spaceRowId: "vacances",
+			spaceId: "vacances",
+			lastRowId: null,
+		})
 
 		expect(controller.getState().rosters.vacances).toEqual([])
 	})
@@ -669,7 +685,7 @@ describe("createRosterController on a space", () => {
 
 		const state = controller.getState()
 		expect(copy?.name).toBe("Claude copy")
-		expect(state.spaceId).toBe(elsewhere.id)
+		expect(state.spaceRowId).toBe(elsewhere.id)
 		expect(state.selectedBotId).toBe(copy?.id)
 		expect(state.rosters[elsewhere.id].map((bot) => bot.id)).toEqual([copy?.id])
 		expect(state.rosters.personal.map((bot) => bot.id)).toEqual(["default"])
@@ -686,7 +702,7 @@ describe("createRosterController on a space", () => {
 
 		const state = controller.getState()
 		expect(copy).toBeNull()
-		expect(state.spaceId).toBe("personal")
+		expect(state.spaceRowId).toBe("personal")
 		expect(state.selectedBotId).toBe("default")
 		expect(state.rosters[elsewhere.id]).toEqual([])
 		expect(state.rosters.personal.map((bot) => bot.id)).toEqual(["default"])
@@ -704,7 +720,7 @@ describe("createRosterController on a space", () => {
 
 		const state = controller.getState()
 		expect(moved?.id).toBe("default")
-		expect(state.spaceId).toBe(elsewhere.id)
+		expect(state.spaceRowId).toBe(elsewhere.id)
 		expect(state.selectedBotId).toBe("default")
 		expect(state.rosters.personal).toEqual([])
 		expect(state.rosters[elsewhere.id].map((bot) => bot.id)).toEqual([
@@ -727,7 +743,7 @@ describe("createRosterController on a space", () => {
 
 		const state = controller.getState()
 		expect(moved).toBeNull()
-		expect(state.spaceId).toBe("personal")
+		expect(state.spaceRowId).toBe("personal")
 		expect(state.rosters.personal.map((bot) => bot.id)).toEqual(["default"])
 		expect(state.rosters[elsewhere.id]).toEqual([])
 	})
@@ -1524,7 +1540,11 @@ describe("createRosterController on conversations", () => {
 		const controller = createRosterController(store)
 		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
 
-		controller.enter({ spaceId: elsewhere.id, lastRowId: room.id })
+		controller.enter({
+			spaceRowId: elsewhere.id,
+			spaceId: elsewhere.id,
+			lastRowId: room.id,
+		})
 
 		expect(controller.getState().selectedConversationId).toBe(room.id)
 		expect(controller.getState().selectedBotId).toBeNull()

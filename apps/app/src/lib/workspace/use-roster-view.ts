@@ -19,7 +19,7 @@ export const useRosterView = ({ core, drivers }: RosterViewInput) => {
 		conversations,
 		conversationRosters,
 		soloThreads,
-		spaceId: rosteredSpaceId,
+		spaceRowId: rosteredSpaceId,
 		selectedBotId,
 		selectedConversationId,
 		settingsBotId,

@@ -3,7 +3,7 @@ import type {
 	SelectedRow,
 } from "../missions/opened-mission-controller"
 
-type ShownRoster = SelectedRow & { spaceId: string | null }
+type ShownRoster = SelectedRow & { spaceRowId: string | null }
 
 type Source<State> = {
 	getState: () => State
@@ -29,24 +29,24 @@ export const createShownMemory = ({
 }: ShownMemorySources): ShownMemory => {
 	const lastRows = new Map<string, string>()
 	const lastMissions = new Map<string, string>()
-	let seenSpaceId: string | null = null
+	let seenSpaceRowId: string | null = null
 	let seenRowId: string | null = null
 
 	const rememberRow = () => {
 		const state = roster.getState()
 		const rowId = rowOf(state)
-		const hasMoved = state.spaceId !== seenSpaceId || rowId !== seenRowId
-		seenSpaceId = state.spaceId
+		const hasMoved = state.spaceRowId !== seenSpaceRowId || rowId !== seenRowId
+		seenSpaceRowId = state.spaceRowId
 		seenRowId = rowId
-		if (!hasMoved || openedMission.getState() || !state.spaceId || !rowId) {
+		if (!hasMoved || openedMission.getState() || !state.spaceRowId || !rowId) {
 			return
 		}
-		lastRows.set(state.spaceId, rowId)
+		lastRows.set(state.spaceRowId, rowId)
 	}
 
 	const rememberMission = () => {
 		const opened = openedMission.getState()
-		const spaceId = opened?.spaceId ?? roster.getState().spaceId
+		const spaceId = opened?.spaceId ?? roster.getState().spaceRowId
 		if (opened && spaceId) {
 			lastMissions.set(spaceId, opened.missionId)
 		}

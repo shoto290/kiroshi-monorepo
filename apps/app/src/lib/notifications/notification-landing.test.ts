@@ -82,8 +82,8 @@ const aWorld = async () => {
 	await spaces.load(null)
 	const roster = createRosterController(store)
 	await roster.load({
-		spaceIds: [HOME, elsewhere.id],
-		spaceId: HOME,
+		spaces: [HOME, elsewhere.id].map((id) => ({ spaceRowId: id, spaceId: id })),
+		spaceRowId: HOME,
 		lastRowId: null,
 	})
 

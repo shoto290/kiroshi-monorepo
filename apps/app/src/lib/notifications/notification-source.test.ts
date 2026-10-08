@@ -177,6 +177,7 @@ const createFakeRoster = (
 			)
 				? SPACE
 				: undefined,
+		hostSpaceIdOf: (spaceRowId: string) => spaceRowId,
 		select: vi.fn(),
 		selectConversation: vi.fn(),
 		hold: (held: { id: string; name: string }[]) => {

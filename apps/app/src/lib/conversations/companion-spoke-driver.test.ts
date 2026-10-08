@@ -65,7 +65,11 @@ const createRoom = async (
 	const roster = createRosterController(store, {
 		reportFailure: () => undefined,
 	})
-	await roster.load({ spaceIds: [SPACE], spaceId: SPACE, lastRowId: null })
+	await roster.load({
+		spaces: [{ spaceRowId: SPACE, spaceId: SPACE }],
+		spaceRowId: SPACE,
+		lastRowId: null,
+	})
 	const spokenWords = createSpokenWords()
 	const spoken: SpokenWord[] = []
 	spokenWords.subscribe((word) => {

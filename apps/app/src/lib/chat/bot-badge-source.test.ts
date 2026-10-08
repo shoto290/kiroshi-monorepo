@@ -77,7 +77,7 @@ const createFakeRoster = (
 	const state = {
 		rosters,
 		selectedBotId,
-		spaceId: HOME,
+		spaceRowId: HOME,
 		soloThreads: threadsIn(rosters),
 	}
 	const listeners = new Set<() => void>()

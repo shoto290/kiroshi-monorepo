@@ -46,8 +46,8 @@ type Selection = {
 	selectedConversationId: string | null
 }
 
-const aRoster = (spaceId: string, selection: Selection) => {
-	const store = createStore({ spaceId, ...selection })
+const aRoster = (spaceRowId: string, selection: Selection) => {
+	const store = createStore({ spaceRowId, ...selection })
 	return {
 		...store,
 		select: (id: string) =>
@@ -63,7 +63,7 @@ const aRoster = (spaceId: string, selection: Selection) => {
 				selectedConversationId: id,
 			}),
 		enter: (next: string, landing: Selection) =>
-			store.setState({ spaceId: next, ...landing }),
+			store.setState({ spaceRowId: next, ...landing }),
 	}
 }
 
@@ -115,9 +115,9 @@ const mountSwitch = async ({
 	const openedMission = createOpenedMissionController(roster)
 	const shownMemory = createShownMemory({ roster, openedMission })
 	const showLastMission = vi.fn(() => {
-		const { spaceId } = roster.getState()
+		const { spaceRowId } = roster.getState()
 		const missionId =
-			shownMemory.lastMissionIn(spaceId) ?? `first-of-${spaceId}`
+			shownMemory.lastMissionIn(spaceRowId) ?? `first-of-${spaceRowId}`
 		openedMission.open({ missionId, rowId: MISSION_ROW })
 		roster.select(MISSION_ROW)
 	})

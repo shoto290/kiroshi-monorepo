@@ -14,7 +14,7 @@ import { type SidebarPanel, useSidebarTab } from "../user/use-sidebar-tab"
 import type { User } from "../user/use-user"
 
 type PanelRoster = Pick<RosterController, "select" | "selectConversation"> & {
-	getState: () => { spaceId: string | null }
+	getState: () => { spaceRowId: string | null }
 }
 
 type PanelMemory = Pick<ShownMemory, "lastRowIn">
@@ -62,12 +62,12 @@ const showLastConversation = (
 	shownMemory: PanelMemory,
 	sidebarRosters: SidebarRosters,
 ) => {
-	const { spaceId } = roster.getState()
-	if (spaceId === null) {
+	const { spaceRowId } = roster.getState()
+	if (spaceRowId === null) {
 		return
 	}
-	const displayedRoster = displayedIn(sidebarRosters, spaceId)
-	const lastRowId = shownMemory.lastRowIn(spaceId)
+	const displayedRoster = displayedIn(sidebarRosters, spaceRowId)
+	const lastRowId = shownMemory.lastRowIn(spaceRowId)
 	const rowId = isDisplayed(displayedRoster, lastRowId)
 		? lastRowId
 		: topRowIdOf(displayedRoster)

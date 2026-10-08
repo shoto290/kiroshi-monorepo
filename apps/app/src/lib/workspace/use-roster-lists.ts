@@ -41,8 +41,7 @@ export const useRosterLists = ({
 	rosterView,
 	waitingMissionCount,
 }: RosterListsInput) => {
-	const { conversationRuntimes, roster, spaces } = core
-	const { selectedSpaceId } = spaces.state
+	const { conversationRuntimes, roster } = core
 	const { badges, conversationBadges } = drivers
 	const { now, previews, rosters, working } = rosterLines
 	const {
@@ -161,9 +160,9 @@ export const useRosterLists = ({
 			toRailSignals({
 				conversationsBySpaceId: rosterConversationsBySpace,
 				waitingMissionCount,
-				spaceId: selectedSpaceId,
+				spaceId: rosteredSpaceId,
 			}),
-		[rosterConversationsBySpace, waitingMissionCount, selectedSpaceId],
+		[rosterConversationsBySpace, waitingMissionCount, rosteredSpaceId],
 	)
 
 	return {

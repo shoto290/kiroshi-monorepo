@@ -38,9 +38,10 @@ export const useWorkspaceDrivers = (core: WorkspaceCore) => {
 		homeBotId: () => roster.controller.getState().selectedBotId,
 		send: chat.controller.send,
 		greet: async (botId, text) => {
+			const { spaceRowId } = roster.controller.getState()
 			await chat.controller.openAside(
 				botId,
-				roster.controller.getState().spaceId,
+				spaceRowId && roster.controller.hostSpaceIdOf(spaceRowId),
 			)
 			await chat.controller.sendTo(botId, text)
 		},

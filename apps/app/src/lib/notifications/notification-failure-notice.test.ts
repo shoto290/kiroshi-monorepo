@@ -59,6 +59,7 @@ const idleRuntimes = {
 const emptyRoster = {
 	getState: () => ({ rosters: {}, conversations: [], conversationRosters: {} }),
 	spaceOfConversation: () => undefined,
+	hostSpaceIdOf: (spaceRowId: string) => spaceRowId,
 	select: () => undefined,
 	selectConversation: () => undefined,
 }

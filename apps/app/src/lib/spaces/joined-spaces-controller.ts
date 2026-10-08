@@ -20,6 +20,7 @@ import {
 } from "../bindings"
 import { joinedHosts, listen } from "../host"
 import { createStore } from "../store"
+import type { RosterSpace } from "../bots/roster-controller"
 import type { Space } from "../conversations/store-contract"
 import {
 	describeJoinError,
@@ -209,13 +210,15 @@ export const openLocalSpaceOf = (
 	openRowId: string | null,
 ): Space | undefined => spaces.find((space) => space.id === openRowId)
 
-export const rosterSpaceIdsOf = (
+export const rosterSpacesOf = (
 	spaces: Space[],
 	joinedSpaces: JoinedSpace[],
 	activeHostId: string | null,
-): string[] => {
+): RosterSpace[] => {
 	const active = joinedSpaces.find((joined) => joined.id === activeHostId)
-	return active ? [hostSpaceIdOf(active)] : spaces.map((space) => space.id)
+	return active
+		? [{ spaceRowId: rowIdOf(active), spaceId: hostSpaceIdOf(active) }]
+		: spaces.map((space) => ({ spaceRowId: space.id, spaceId: space.id }))
 }
 
 const initialJoinedSpacesState: JoinedSpacesState = {
