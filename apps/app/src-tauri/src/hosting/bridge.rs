@@ -1,11 +1,9 @@
 use std::time::Duration;
 
 use reqwest::{Client, StatusCode};
-use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Runtime};
 
-use super::contract::MEMBERS_CHANGED_EVENT;
 use super::reach::{self, Reach};
 
 use crate::host_api::invoke::names_an_app_command;
@@ -77,25 +75,6 @@ pub(super) fn refused(id: Option<Value>) -> String {
 	)
 }
 
-const OWNER_ONLY_EVENTS: [&str; 1] = [MEMBERS_CHANGED_EVENT];
-
-#[derive(Deserialize)]
-struct NamedFrame {
-	event: String,
-}
-
-pub(super) fn stays_local(frame: &str) -> bool {
-	match serde_json::from_str::<NamedFrame>(frame) {
-		Ok(named) => OWNER_ONLY_EVENTS.contains(&named.event.as_str()),
-		Err(error) => {
-			eprintln!(
-				"a local event frame carried no readable name and was kept off the relay: {error}"
-			);
-			true
-		}
-	}
-}
-
 pub(super) fn forwarded(frame: &str) -> String {
 	format!("{{\"event\":{frame}}}")
 }
@@ -148,6 +127,8 @@ fn answer(id: Value, status: StatusCode, body: Value) -> String {
 
 #[cfg(test)]
 mod tests {
+	use std::path::Path;
+
 	use super::*;
 
 	fn status_of(answer: &str) -> (Value, Value) {
@@ -223,6 +204,48 @@ mod tests {
 		assert_eq!(classified, registered);
 	}
 
+	fn declared_event_name(line: &str) -> Option<&str> {
+		let (declared, value) =
+			line.trim_start_matches("pub ").strip_prefix("const ")?.split_once(": &str = \"")?;
+		let is_an_event = declared.ends_with("_EVENT") || declared.ends_with("_CHANNEL");
+		let name = value.strip_suffix("\";")?;
+		(is_an_event && !name.contains(char::is_whitespace)).then_some(name)
+	}
+
+	#[test]
+	fn the_audience_table_classifies_every_published_event_once_and_nothing_else() {
+		let sources =
+			crate::events::tests::rust_files(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src"));
+		let mut published: Vec<String> = sources
+			.iter()
+			.flat_map(|path| {
+				let source = std::fs::read_to_string(path).expect("the file reads");
+				source
+					.lines()
+					.filter_map(|line| declared_event_name(line.trim()))
+					.map(str::to_owned)
+					.collect::<Vec<_>>()
+			})
+			.collect();
+		let mut classified: Vec<String> =
+			reach::AUDIENCES.iter().map(|(event, _)| (*event).to_owned()).collect();
+		published.sort();
+		classified.sort();
+
+		assert_eq!(classified, published);
+	}
+
+	#[test]
+	fn an_event_name_is_read_from_its_constant_only() {
+		assert_eq!(
+			declared_event_name(r#"pub const CHANGED_EVENT: &str = "a://b";"#),
+			Some("a://b")
+		);
+		assert_eq!(declared_event_name(r#"const EVENT_CHANNEL: &str = "a://c";"#), Some("a://c"));
+		assert_eq!(declared_event_name(r#"const INSERT_EVENT: &str = "INSERT INTO x"#), None);
+		assert_eq!(declared_event_name(r#"const LINK: &str = "a://d";"#), None);
+	}
+
 	#[test]
 	fn a_plugin_command_on_the_host_person_plugin_is_refused_and_on_a_space_or_bot_forwarded() {
 		let plugin_commands: Vec<String> = registered_commands()
@@ -243,22 +266,6 @@ mod tests {
 				assert!(member_call(&frame.to_string()).is_ok(), "{command} {scope}");
 			}
 		}
-	}
-
-	#[test]
-	fn only_an_owner_only_event_name_stays_local() {
-		assert!(stays_local(r#"{"event":"hosting://members-changed","payload":{"members":[]}}"#));
-		assert!(!stays_local(
-			r#"{"event":"hosting://changed","payload":"hosting://members-changed"}"#
-		));
-		assert!(!stays_local(r#"{"event":"hosting://members-changed-later","payload":1}"#));
-		assert!(!stays_local(r#"{"event":"test://forwarded","payload":{"n":1}}"#));
-	}
-
-	#[test]
-	fn a_frame_without_a_readable_name_stays_local() {
-		assert!(stays_local("not json"));
-		assert!(stays_local(r#"{"payload":1}"#));
 	}
 
 	#[test]

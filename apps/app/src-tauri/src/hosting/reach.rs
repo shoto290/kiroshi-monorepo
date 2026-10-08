@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+use serde::Deserialize;
 use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime};
 
@@ -26,6 +29,7 @@ enum Check {
 	Child(SpaceChild),
 	PluginScope(SpaceChild),
 	NotAllSpaces,
+	Absent,
 }
 
 const fn space(argument: &'static str) -> Held {
@@ -56,6 +60,11 @@ const CONVERSATION_AND_MESSAGE: &[Held] =
 	&[child(Conversation, "/conversationId"), child(Message, "/messageId")];
 const RUNTIME_SCOPE: &[Held] =
 	&[child(Conversation, "/scope/conversationId"), child(Bot, "/scope/botId")];
+const RUNTIME_SCOPE_IN_THE_BOT_DIRECTORY: &[Held] = &[
+	child(Conversation, "/scope/conversationId"),
+	child(Bot, "/scope/botId"),
+	Held { argument: "/cwd", check: Check::Absent, is_optional: true },
+];
 const NEW_MESSAGE: &[Held] = &[
 	child(Conversation, "/message/conversationId"),
 	child(Turn, "/message/turnId"),
@@ -72,7 +81,7 @@ const ROUTINE_RUN_ID: &[Held] = &[child(RoutineRun, "/runId")];
 const SECTION_AS_ID: &[Held] = &[child(Section, "/id")];
 
 pub(super) const REACHES: &[(&str, Reach)] = &[
-	("account_state", Reach::Free),
+	("account_state", Reach::HostOnly),
 	("account_sign_in", Reach::HostOnly),
 	("account_sign_out", Reach::HostOnly),
 	("application_catalogue", Reach::Free),
@@ -94,7 +103,7 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 	("agent_models", Reach::Free),
 	("agent_tools", Reach::Free),
 	("agent_title", Reach::Free),
-	("agent_start_or_resume_session", Reach::Scoped(RUNTIME_SCOPE)),
+	("agent_start_or_resume_session", Reach::Scoped(RUNTIME_SCOPE_IN_THE_BOT_DIRECTORY)),
 	(
 		"agent_submit_prompt",
 		Reach::Scoped(&[
@@ -274,13 +283,45 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 	("bot_remove_from_space", Reach::Scoped(BOT_AND_SPACE)),
 	("space_preferences", Reach::Scoped(SPACE_ID)),
 	("space_set_preferences", Reach::Scoped(SPACE_ID)),
-	("user_preferences", Reach::Free),
+	("user_preferences", Reach::HostOnly),
 	("user_set_preferences", Reach::HostOnly),
 	("user_set_profile_picture", Reach::HostOnly),
 ];
 
+#[derive(Clone, Copy)]
+pub(super) enum Audience {
+	HostOnly,
+	Scoped(Held),
+}
+
+const IN_THE_CONVERSATION: Audience = Audience::Scoped(child(Conversation, "/conversationId"));
+
+pub(super) const AUDIENCES: &[(&str, Audience)] = &[
+	("account://changed", Audience::HostOnly),
+	("agent://event", Audience::Scoped(child(Conversation, "/scope/conversationId"))),
+	("agent://sign-in-started", Audience::HostOnly),
+	("application://installed", IN_THE_CONVERSATION),
+	("companion://created", Audience::Scoped(child(Bot, "/id"))),
+	("companion://seed-refused", Audience::HostOnly),
+	("conversation://companion-arrived", IN_THE_CONVERSATION),
+	("conversation://companion-spoke", IN_THE_CONVERSATION),
+	("host://presence", Audience::HostOnly),
+	("hosting://changed", Audience::Scoped(space("/spaceId"))),
+	("hosting://members-changed", Audience::HostOnly),
+	("joined-space://changed", Audience::HostOnly),
+	("mission://changed", Audience::Scoped(child(Mission, "/missionId"))),
+	("notification://activated", Audience::HostOnly),
+	("routine://changed", IN_THE_CONVERSATION),
+	("user://first-run-done", Audience::HostOnly),
+	("window-maximize-button", Audience::HostOnly),
+];
+
 pub(super) fn reach_of(command: &str) -> Option<Reach> {
 	REACHES.iter().find(|(name, _)| *name == command).map(|(_, reach)| *reach)
+}
+
+fn audience_of(event: &str) -> Option<Audience> {
+	AUDIENCES.iter().find(|(name, _)| *name == event).map(|(_, audience)| *audience)
 }
 
 pub(super) async fn stays_in_the_shared_space<R: Runtime>(
@@ -294,7 +335,7 @@ pub(super) async fn stays_in_the_shared_space<R: Runtime>(
 		Some(Reach::Free) => return true,
 		Some(Reach::HostOnly) | None => return false,
 	};
-	let lookup = Lookup { app, shared_space_id, command };
+	let lookup = Lookup { app, shared_space_id, relayed: command };
 	for held in helds {
 		if !lookup.holds(held, args.pointer(held.argument)).await {
 			return false;
@@ -303,16 +344,83 @@ pub(super) async fn stays_in_the_shared_space<R: Runtime>(
 	true
 }
 
+#[derive(Deserialize)]
+struct Published {
+	event: String,
+	#[serde(default)]
+	payload: Value,
+}
+
+pub(super) struct GuestEvents {
+	shared_space_id: String,
+	held_children: HashMap<(SpaceChild, String), bool>,
+}
+
+impl GuestEvents {
+	pub(super) fn new(shared_space_id: &str) -> Self {
+		Self { shared_space_id: shared_space_id.to_owned(), held_children: HashMap::new() }
+	}
+
+	pub(super) async fn reach_the_guest<R: Runtime>(
+		&mut self,
+		app: &AppHandle<R>,
+		frame: &str,
+	) -> bool {
+		let published = match serde_json::from_str::<Published>(frame) {
+			Ok(published) => published,
+			Err(error) => return self.kept_off("without a readable name", &error.to_string()),
+		};
+		let event = published.event.as_str();
+		let held = match audience_of(event) {
+			Some(Audience::Scoped(held)) => held,
+			Some(Audience::HostOnly) => return false,
+			None => return self.kept_off(event, "no audience classifies it"),
+		};
+		let scope = published.payload.pointer(held.argument).filter(|scope| !scope.is_null());
+		let Some(scope) = scope else {
+			return self.kept_off(event, &format!("its payload carries no {}", held.argument));
+		};
+		let lookup = Lookup { app, shared_space_id: &self.shared_space_id, relayed: event };
+		match (held.check, scope) {
+			(Check::Child(kind), Value::String(child_id)) if never_changes_space(kind) => {
+				let key = (kind, child_id.to_owned());
+				if let Some(is_held) = self.held_children.get(&key) {
+					return *is_held;
+				}
+				let Some(is_held) = lookup.resolved_child(kind, child_id).await else {
+					return false;
+				};
+				self.held_children.insert(key, is_held);
+				is_held
+			}
+			_ => lookup.holds(&held, Some(scope)).await,
+		}
+	}
+
+	fn kept_off(&self, event: &str, reason: &str) -> bool {
+		eprintln!(
+			"the event {event} was kept off the relay of space {}: {reason}",
+			self.shared_space_id
+		);
+		false
+	}
+}
+
+fn never_changes_space(kind: SpaceChild) -> bool {
+	!matches!(kind, Bot | BotHeldAlone)
+}
+
 struct Lookup<'a, R: Runtime> {
 	app: &'a AppHandle<R>,
 	shared_space_id: &'a str,
-	command: &'a str,
+	relayed: &'a str,
 }
 
 impl<R: Runtime> Lookup<'_, R> {
 	async fn holds(&self, held: &Held, value: Option<&Value>) -> bool {
 		match (held.check, value) {
 			(_, None | Some(Value::Null)) => held.is_optional,
+			(Check::Absent, Some(_)) => false,
 			(Check::NotAllSpaces, Some(all_spaces)) => all_spaces == &Value::Bool(false),
 			(Check::Space, Some(Value::String(space_id))) => space_id == self.shared_space_id,
 			(Check::Child(kind), Some(Value::String(child_id))) => {
@@ -339,23 +447,27 @@ impl<R: Runtime> Lookup<'_, R> {
 	}
 
 	async fn holds_child(&self, kind: SpaceChild, child_id: &str) -> bool {
+		self.resolved_child(kind, child_id).await == Some(true)
+	}
+
+	async fn resolved_child(&self, kind: SpaceChild, child_id: &str) -> Option<bool> {
 		let state = self.app.state::<DatabaseState>();
 		let database = match state.as_ref() {
 			Ok(database) => database,
-			Err(failure) => return self.refused_on_failure(kind, failure),
+			Err(failure) => return self.unresolved(kind, failure),
 		};
 		let shared_space_id = self.shared_space_id.to_owned();
 		match database.space_children().holds(shared_space_id, kind, child_id.to_owned()).await {
-			Ok(is_held) => is_held,
-			Err(failure) => self.refused_on_failure(kind, &failure),
+			Ok(is_held) => Some(is_held),
+			Err(failure) => self.unresolved(kind, &failure),
 		}
 	}
 
-	fn refused_on_failure(&self, kind: SpaceChild, failure: &DatabaseError) -> bool {
+	fn unresolved(&self, kind: SpaceChild, failure: &DatabaseError) -> Option<bool> {
 		eprintln!(
-			"a relayed {} call was refused: the {kind:?} lookup in shared space {} failed: {failure:?}",
-			self.command, self.shared_space_id
+			"the relayed {} was refused: the {kind:?} lookup in shared space {} failed: {failure:?}",
+			self.relayed, self.shared_space_id
 		);
-		false
+		None
 	}
 }

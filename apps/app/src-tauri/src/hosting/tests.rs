@@ -22,6 +22,7 @@ use super::contract::{
 	HostingState, Member, MemberStatus, MembersError, CHANGED_EVENT, MEMBERS_CHANGED_EVENT,
 };
 use super::members::{invite, list, remove, withdraw};
+use super::reach;
 use super::{resumed, signed_out, start, stop, Hosting};
 use crate::spaces::commands::space_delete;
 use crate::account::contract::AccountState;
@@ -766,6 +767,24 @@ fn a_relay_guest_cannot_cancel_the_host_agent_sign_in() {
 	run(a_relay_guest_is_refused("agent_sign_in_cancel"));
 }
 
+async fn a_relay_guest_is_refused_before_the_local_api(command: &str) {
+	let (harness, effects) = Harness::applying_host_effects(command).await;
+
+	refused_on(harness, command).await;
+
+	assert_eq!(effects.reached(), ["agent_models"]);
+}
+
+#[test]
+fn a_relay_guest_cannot_read_the_host_account() {
+	run(a_relay_guest_is_refused_before_the_local_api("account_state"));
+}
+
+#[test]
+fn a_relay_guest_cannot_read_the_host_preferences() {
+	run(a_relay_guest_is_refused_before_the_local_api("user_preferences"));
+}
+
 #[test]
 fn a_relay_guest_cannot_delete_a_space_and_its_instance_registration() {
 	run(async {
@@ -1021,10 +1040,10 @@ fn a_local_event_is_forwarded_to_the_relay() {
 		send(&mut member, r#"{"id": "warm", "command": "agent_models"}"#).await;
 		answer(&mut member).await;
 
-		events::emit(harness.app.handle(), "test://forwarded", json!({ "n": 1 })).expect("emitted");
+		let payload = json!({ "spaceId": PERSONAL, "n": 1 });
+		events::emit(harness.app.handle(), "hosting://changed", payload).expect("emitted");
 		let forwarded =
-			next_text(&mut member, |frame| frame["event"].to_string().contains("test://forwarded"))
-				.await;
+			next_text(&mut member, |frame| frame["event"]["payload"]["n"] == json!(1)).await;
 
 		assert!(forwarded["event"].to_string().contains(r#""n":1"#), "{forwarded}");
 	});
@@ -1045,10 +1064,11 @@ fn the_first_member_announcement_of_an_online_space_sends_nothing_on_the_relay()
 		}
 		assert_eq!(harness.heard_member_lists().len(), 1);
 
-		events::emit(harness.app.handle(), "test://after-members", json!(1)).expect("emitted");
+		let payload = json!({ "spaceId": PERSONAL, "n": 1 });
+		events::emit(harness.app.handle(), "hosting://changed", payload.clone()).expect("emitted");
 		let first = next_text(&mut member, |_| true).await;
 
-		assert_eq!(first, json!({ "event": { "event": "test://after-members", "payload": 1 } }));
+		assert_eq!(first, json!({ "event": { "event": "hosting://changed", "payload": payload } }));
 	});
 }
 
@@ -2302,4 +2322,150 @@ fn a_relay_guest_moves_a_bot_of_the_shared_space_alone_into_the_shared_space() {
 		"bot_move_to_space",
 		json!({ "botId": "b-mine", "spaceId": PERSONAL }),
 	));
+}
+
+fn a_runtime_scope(conversation_id: &str) -> Value {
+	json!({ "conversationId": conversation_id, "botId": "b-mine", "runtimeSessionId": "r", "epoch": 0 })
+}
+
+#[test]
+fn a_relay_guest_cannot_pick_the_start_folder_of_a_session() {
+	run(async {
+		let command = "agent_start_or_resume_session";
+		let mut guest = Guest::of_two_spaces("start-folder").await;
+
+		guest.refused(command, json!({ "scope": a_runtime_scope("c-mine"), "cwd": "/" })).await;
+		guest.forwarded(command, json!({ "scope": a_runtime_scope("c-mine"), "cwd": null })).await;
+		guest.forwarded(command, json!({ "scope": a_runtime_scope("c-mine") })).await;
+
+		assert_eq!(guest.effects.reached(), [command, command]);
+	});
+}
+
+fn a_shared_space_marker() -> (&'static str, Value) {
+	("hosting://changed", json!({ "spaceId": PERSONAL, "marker": true }))
+}
+
+fn as_forwarded((event, payload): (&str, Value)) -> Value {
+	json!({ "event": { "event": event, "payload": payload } })
+}
+
+fn an_agent_event_of(scope: Value) -> (&'static str, Value) {
+	("agent://event", json!({ "scope": scope, "event": { "type": "turnStarted" } }))
+}
+
+impl Guest {
+	async fn first_event_after(&mut self, published: Vec<(&str, Value)>) -> Value {
+		for (event, payload) in published {
+			events::emit(self.harness.app.handle(), event, payload).expect("emitted");
+		}
+		next_text(&mut self.member, |frame| frame.get("event").is_some()).await
+	}
+
+	async fn breaks_the_child_lookups(&self) {
+		db::open(&self.effects.database)
+			.call_mut(|connection| {
+				Ok(connection.execute_batch("ALTER TABLE conversations RENAME TO gone")?)
+			})
+			.await
+			.expect("the conversations table is renamed");
+	}
+}
+
+fn a_conversation_in(space_id: &str) -> &'static str {
+	if space_id == PERSONAL {
+		"c-mine"
+	} else {
+		"c-theirs"
+	}
+}
+
+async fn only_the_shared_space_frame_is_heard(of_space: impl Fn(&str) -> (&'static str, Value)) {
+	let mut guest = Guest::of_two_spaces("scoped-event").await;
+
+	let heard = guest.first_event_after(vec![of_space(ELSEWHERE), of_space(PERSONAL)]).await;
+
+	assert_eq!(heard, as_forwarded(of_space(PERSONAL)));
+}
+
+#[test]
+fn a_relay_guest_hears_an_agent_event_of_the_shared_space_only() {
+	run(only_the_shared_space_frame_is_heard(|space_id| {
+		an_agent_event_of(a_runtime_scope(a_conversation_in(space_id)))
+	}));
+}
+
+#[test]
+fn a_relay_guest_hears_a_routine_change_of_the_shared_space_only() {
+	run(only_the_shared_space_frame_is_heard(|space_id| {
+		("routine://changed", json!({ "conversationId": a_conversation_in(space_id) }))
+	}));
+}
+
+#[test]
+fn a_relay_guest_hears_a_hosting_change_of_the_shared_space_only() {
+	run(only_the_shared_space_frame_is_heard(|space_id| {
+		("hosting://changed", json!({ "spaceId": space_id, "state": "online" }))
+	}));
+}
+
+#[test]
+fn a_relay_guest_hears_no_host_only_event() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("host-only-events").await;
+		let host_only = reach::AUDIENCES
+			.iter()
+			.filter(|(_, audience)| matches!(audience, reach::Audience::HostOnly))
+			.map(|(event, _)| (*event, json!({ "spaceId": PERSONAL, "conversationId": "c-mine" })));
+
+		let heard =
+			guest.first_event_after(host_only.chain([a_shared_space_marker()]).collect()).await;
+
+		assert_eq!(heard, as_forwarded(a_shared_space_marker()));
+	});
+}
+
+async fn kept_off_the_relay(published: (&'static str, Value)) {
+	let mut guest = Guest::of_two_spaces("kept-off").await;
+
+	let heard = guest.first_event_after(vec![published, a_shared_space_marker()]).await;
+
+	assert_eq!(heard, as_forwarded(a_shared_space_marker()));
+}
+
+#[test]
+fn a_relay_guest_hears_no_event_left_unclassified() {
+	run(kept_off_the_relay(("test://unclassified", json!({ "spaceId": PERSONAL }))));
+}
+
+#[test]
+fn a_relay_guest_hears_no_event_whose_payload_misses_its_scope() {
+	run(kept_off_the_relay(an_agent_event_of(Value::Null)));
+}
+
+#[test]
+fn a_relay_guest_hears_no_event_whose_child_lookup_failed() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("failed-lookup").await;
+		guest.breaks_the_child_lookups().await;
+
+		let published = vec![an_agent_event_of(a_runtime_scope("c-mine")), a_shared_space_marker()];
+		let heard = guest.first_event_after(published).await;
+
+		assert_eq!(heard, as_forwarded(a_shared_space_marker()));
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_known_child_again_without_another_lookup() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("cached-child").await;
+		let mine = an_agent_event_of(a_runtime_scope("c-mine"));
+		assert_eq!(guest.first_event_after(vec![mine.clone()]).await, as_forwarded(mine.clone()));
+
+		guest.breaks_the_child_lookups().await;
+		let heard = guest.first_event_after(vec![mine.clone()]).await;
+
+		assert_eq!(heard, as_forwarded(mine));
+	});
 }

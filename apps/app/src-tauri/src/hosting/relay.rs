@@ -19,6 +19,7 @@ use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 
 use super::bridge::{self, LocalApi};
 use super::contract::HostingState;
+use super::reach;
 use super::{entered, members, Hosting};
 use crate::account::cloud::RegisterError;
 use crate::account::session::AccountSession;
@@ -249,6 +250,7 @@ async fn online<R: Runtime>(
 ) -> Ended {
 	let (mut sink, mut stream) = socket.split();
 	let mut heard = events::subscribed(app);
+	let mut guest_events = reach::GuestEvents::new(ids.space_id);
 	let mut pings = interval_at(Instant::now() + PING_EVERY, PING_EVERY);
 	let mut invokes = JoinSet::new();
 	let silence = sleep(SILENCE_BOUND);
@@ -276,8 +278,12 @@ async fn online<R: Runtime>(
 				}
 			},
 			frame = heard.recv() => match frame {
-				Ok(frame) if bridge::stays_local(&frame) => continue,
-				Ok(frame) => Message::text(bridge::forwarded(&frame)),
+				Ok(frame) => {
+					if !guest_events.reach_the_guest(app, &frame).await {
+						continue;
+					}
+					Message::text(bridge::forwarded(&frame))
+				}
 				Err(RecvError::Lagged(missed)) => {
 					eprintln!("the relay of space {} missed {missed} events", ids.space_id);
 					continue;

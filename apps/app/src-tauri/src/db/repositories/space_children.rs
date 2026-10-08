@@ -3,7 +3,7 @@ use rusqlite::{params, Connection};
 use crate::db::repositories::bot_spaces;
 use crate::db::{Access, DatabaseError};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SpaceChild {
 	Conversation,
 	Bot,
