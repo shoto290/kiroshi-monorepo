@@ -2284,3 +2284,19 @@ fn a_relay_guest_reverts_the_plugin_of_a_bot_of_the_shared_space_alone() {
 		a_bot_plugin("b-mine"),
 	));
 }
+
+#[test]
+fn a_relay_guest_cannot_move_a_bot_also_in_another_space_into_the_shared_space() {
+	run(a_write_on_a_bot_in_two_spaces_is_refused(
+		"bot_move_to_space",
+		json!({ "botId": "b-shared", "spaceId": PERSONAL }),
+	));
+}
+
+#[test]
+fn a_relay_guest_moves_a_bot_of_the_shared_space_alone_into_the_shared_space() {
+	run(a_write_on_a_bot_of_the_shared_space_alone_is_forwarded(
+		"bot_move_to_space",
+		json!({ "botId": "b-mine", "spaceId": PERSONAL }),
+	));
+}

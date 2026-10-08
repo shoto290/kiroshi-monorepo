@@ -262,7 +262,7 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 	("space_delete", Reach::HostOnly),
 	("space_export", Reach::HostOnly),
 	("space_import", Reach::HostOnly),
-	("bot_move_to_space", Reach::Scoped(BOT_AND_SPACE)),
+	("bot_move_to_space", Reach::Scoped(&[child(BotHeldAlone, "/botId"), space("/spaceId")])),
 	(
 		"bot_add_to_space",
 		Reach::Scoped(&[
