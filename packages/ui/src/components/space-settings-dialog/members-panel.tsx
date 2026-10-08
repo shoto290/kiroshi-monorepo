@@ -38,6 +38,7 @@ type MembersFailure =
 	| {
 			action: "invite"
 			reason: MembersFailureReason | "limitReached"
+			email: string
 	  }
 	| {
 			action: "withdraw"
@@ -86,26 +87,17 @@ const failureKeyOf = (failure: MembersFailure) => {
 	}
 }
 
-type FailureLineProps = {
-	failure: MembersFailure
-	space: string
-	email: string
-	id?: string
-}
-
-const FailureLine = ({ failure, space, email, id }: FailureLineProps) => {
+const useFailureText = (failure: MembersFailure | undefined, space: string) => {
 	const { t } = useTranslation("settings")
-	const name = failure.action === "invite" ? "" : nameOf(failure.member)
-
-	return (
-		<p className="break-words text-destructive text-xs" id={id} role="status">
-			{t(failureKeyOf(failure), {
-				space,
-				email,
-				name,
-			})}
-		</p>
-	)
+	if (!failure) {
+		return ""
+	}
+	const isInvite = failure.action === "invite"
+	return t(failureKeyOf(failure), {
+		space,
+		email: isInvite ? failure.email : failure.member.email,
+		name: isInvite ? "" : nameOf(failure.member),
+	})
 }
 
 type InviteFieldProps = Pick<
@@ -126,6 +118,7 @@ const InviteField = ({
 	const { t } = useTranslation("settings")
 	const id = useId()
 	const helperId = `${id}-helper`
+	const failureText = useFailureText(refusal ? undefined : failure, space)
 	const isEmpty = email.trim() === ""
 
 	const submit = (event: FormEvent) => {
@@ -165,26 +158,20 @@ const InviteField = ({
 					{t("space.members.invite.action")}
 				</Button>
 			</div>
-			{failure && !refusal ? (
-				<FailureLine
-					email={email}
-					failure={failure}
-					id={helperId}
-					space={space}
-				/>
-			) : (
-				<p
-					className={cn(
-						"break-words text-xs",
-						refusal ? "text-destructive" : "text-muted-foreground",
-					)}
-					id={helperId}
-				>
-					{refusal
-						? t(`space.members.invite.refusal.${refusal}`, { email })
+			<p
+				className={cn(
+					"break-words text-xs",
+					refusal || failureText ? "text-destructive" : "text-muted-foreground",
+				)}
+				id={helperId}
+			>
+				{refusal
+					? t(`space.members.invite.refusal.${refusal}`, { email })
+					: failureText
+						? null
 						: t("space.members.invite.hint")}
-				</p>
-			)}
+				<span role="status">{failureText}</span>
+			</p>
 		</form>
 	)
 }
@@ -319,6 +306,10 @@ const MembersPanel = ({
 	}
 
 	const name = asked ? firstNameOf(asked) : ""
+	const listFailureText = useFailureText(
+		failure?.action === "invite" ? undefined : failure,
+		space,
+	)
 
 	return (
 		<div className="flex flex-col gap-6" data-slot="members-panel">
@@ -334,7 +325,7 @@ const MembersPanel = ({
 			) : (
 				<HostingNeeded onOpenHosting={onOpenHosting} />
 			)}
-			<div className="flex flex-col gap-1.5">
+			<div>
 				<ul className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-x-2.5 divide-y divide-border rounded-xl border border-border">
 					{members.map((member) => (
 						<MemberRow
@@ -345,13 +336,12 @@ const MembersPanel = ({
 						/>
 					))}
 				</ul>
-				{failure && failure.action !== "invite" ? (
-					<FailureLine
-						email={failure.member.email}
-						failure={failure}
-						space={space}
-					/>
-				) : null}
+				<p
+					className="break-words text-destructive text-xs not-empty:pt-1.5"
+					role="status"
+				>
+					{listFailureText}
+				</p>
 			</div>
 			<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
 			<ConfirmDialog

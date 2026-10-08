@@ -1352,6 +1352,7 @@ settings-space-spacesettingsdialog--last-space
 settings-space-spacesettingsdialog--mcp-servers
 settings-space-spacesettingsdialog--mcp-servers-unavailable
 settings-space-spacesettingsdialog--members-failure-copy
+settings-space-spacesettingsdialog--members-failure-regions
 settings-space-spacesettingsdialog--members-i-1
 settings-space-spacesettingsdialog--members-i-10
 settings-space-spacesettingsdialog--members-i-2

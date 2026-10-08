@@ -1356,8 +1356,18 @@ export const MembersOpenHosting = meta.story({
 	},
 })
 
+const filledRegionIn = (panel: HTMLElement) => {
+	const [line, ...others] = within(panel)
+		.getAllByRole("status")
+		.filter((region) => region.textContent)
+	if (!line || others.length > 0) {
+		throw new Error("Expected exactly one filled failure region")
+	}
+	return line
+}
+
 const failureLineIn = async (panel: HTMLElement, message: string) => {
-	const line = within(panel).getByRole("status")
+	const line = filledRegionIn(panel)
 	await expect(line.textContent).toBe(message)
 	await expect(getComputedStyle(line).color).toBe(
 		probedStyleOf("text-destructive", "color", panel),
@@ -1379,12 +1389,27 @@ const expectBelowListAboveShareLink = async (
 	)
 }
 
+const EditableMembersPanel = (props: MembersPanelProps) => {
+	const [email, setEmail] = useState(props.email)
+
+	return <MembersPanel {...props} email={email} onEmailChange={setEmail} />
+}
+
 export const MembersInviteFailed = meta.story({
-	args: membersArgs({
-		members: [STEVE],
-		email: "sam@example.com",
-		failure: { action: "invite", reason: "generic" },
-	}),
+	args: {
+		...membersArgs(),
+		members: (
+			<EditableMembersPanel
+				{...MEMBERS_PANEL}
+				email="sam@example.com"
+				failure={{
+					action: "invite",
+					reason: "generic",
+					email: "sam@example.com",
+				}}
+			/>
+		),
+	},
 	parameters: {
 		docs: {
 			description: {
@@ -1393,7 +1418,7 @@ export const MembersInviteFailed = meta.story({
 			},
 		},
 	},
-	play: async () => {
+	play: async ({ userEvent }) => {
 		const panel = await membersPanelIn()
 		const message =
 			"Couldn’t invite sam@example.com. Nothing changed, try again."
@@ -1413,6 +1438,10 @@ export const MembersInviteFailed = meta.story({
 		await expect(line.getBoundingClientRect().bottom).toBeLessThanOrEqual(
 			within(panel).getByRole("list").getBoundingClientRect().top,
 		)
+
+		await userEvent.type(field, ".org")
+		await expect(field).toHaveValue("sam@example.com.org")
+		await expect(line.textContent).toBe(message)
 	},
 })
 
@@ -1474,27 +1503,27 @@ const LONG_MEMBER: SpaceMember = {
 
 const FAILURE_COPY: [MembersFailure, string][] = [
 	[
-		{ action: "invite", reason: "notHosting" },
+		{ action: "invite", reason: "notHosting", email: "sam@example.com" },
 		"Personal isn’t hosted anymore. Turn on hosting to invite sam@example.com.",
 	],
 	[
-		{ action: "invite", reason: "limitReached" },
+		{ action: "invite", reason: "limitReached", email: "sam@example.com" },
 		"Personal can’t take more members. Remove someone to invite sam@example.com.",
 	],
 	[
-		{ action: "invite", reason: "notOwner" },
+		{ action: "invite", reason: "notOwner", email: "sam@example.com" },
 		"This account doesn’t host Personal. Sign in with the account that does to invite sam@example.com.",
 	],
 	[
-		{ action: "invite", reason: "needsSignIn" },
+		{ action: "invite", reason: "needsSignIn", email: "sam@example.com" },
 		"Couldn’t invite sam@example.com, you’re signed out. Sign in to Kiroshi and invite them again.",
 	],
 	[
-		{ action: "invite", reason: "unreachable" },
+		{ action: "invite", reason: "unreachable", email: "sam@example.com" },
 		"Couldn’t reach Kiroshi to invite sam@example.com. Check your connection and try again.",
 	],
 	[
-		{ action: "invite", reason: "generic" },
+		{ action: "invite", reason: "generic", email: "sam@example.com" },
 		"Couldn’t invite sam@example.com. Nothing changed, try again.",
 	],
 	[
@@ -1560,7 +1589,7 @@ const FAILURE_COPY: [MembersFailure, string][] = [
 ]
 
 const LONG_FAILURES: MembersFailure[] = [
-	{ action: "invite", reason: "generic" },
+	{ action: "invite", reason: "generic", email: LONG_EMAIL },
 	{ action: "remove", reason: "generic", member: LONG_MEMBER },
 ]
 
@@ -1592,19 +1621,69 @@ export const MembersFailureCopy = meta.story({
 	render: () => <FailureCopy />,
 	play: async ({ canvasElement }) => {
 		const panels = slotsIn(canvasElement, "members-panel")
-		const lines = panels.map(
-			(panel) => within(panel).getByRole("status").textContent,
-		)
+		const lines = panels.map((panel) => filledRegionIn(panel).textContent)
 		await expect(lines.slice(0, FAILURE_COPY.length)).toEqual(
 			FAILURE_COPY.map(([, message]) => message),
 		)
 		for (const panel of panels.slice(FAILURE_COPY.length)) {
-			const line = within(panel).getByRole("status")
+			const line = filledRegionIn(panel)
 			await expect(line.scrollWidth).toBeLessThanOrEqual(line.clientWidth)
 			await expect(line.getBoundingClientRect().right).toBeLessThanOrEqual(
 				panel.getBoundingClientRect().right,
 			)
 		}
+	},
+})
+
+const FailingMembersPanel = () => {
+	const [failure, setFailure] = useState<MembersFailure>()
+
+	return (
+		<MembersPanel
+			{...MEMBERS_PANEL}
+			email="sam@example.com"
+			failure={failure}
+			members={[STEVE, SAM_CARTER]}
+			onInvite={(email) =>
+				setFailure({ action: "invite", reason: "generic", email })
+			}
+			onRemove={(member) =>
+				setFailure({ action: "remove", reason: "generic", member })
+			}
+		/>
+	)
+}
+
+export const MembersFailureRegions = meta.story({
+	tags: ["test-only"],
+	render: () => <FailingMembersPanel />,
+	play: async ({ canvasElement, userEvent }) => {
+		const panel = slotIn(canvasElement, "members-panel")
+		const regions = within(panel).getAllByRole("status")
+		await expect(regions).toHaveLength(2)
+		const [inviteRegion, listRegion] = regions
+		for (const region of regions) {
+			await expect(region).toBeEmptyDOMElement()
+		}
+		await expect(listRegion.getBoundingClientRect().height).toBe(0)
+
+		await userEvent.click(within(panel).getByRole("button", { name: "Invite" }))
+		await expect(within(panel).getAllByRole("status")[0]).toBe(inviteRegion)
+		await expect(inviteRegion).toHaveTextContent(
+			"Couldn’t invite sam@example.com. Nothing changed, try again.",
+		)
+		await expect(inviteFieldIn(panel)).toHaveAccessibleDescription(
+			"Couldn’t invite sam@example.com. Nothing changed, try again.",
+		)
+
+		await userEvent.click(
+			within(panel).getByRole("button", { name: "Remove Sam Carter" }),
+		)
+		await expect(within(panel).getAllByRole("status")[1]).toBe(listRegion)
+		await expect(listRegion).toHaveTextContent(
+			"Couldn’t remove Sam Carter. Nothing changed, try again.",
+		)
+		await expect(inviteRegion).toBeEmptyDOMElement()
 	},
 })
 
