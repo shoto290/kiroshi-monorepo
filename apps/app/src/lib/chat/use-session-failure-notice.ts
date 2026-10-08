@@ -15,6 +15,7 @@ import {
 	needsFreshSession,
 	noticeTitleFor,
 } from "@/lib/chat/screen-model"
+import { isHostOffline } from "@/lib/host/host-offline"
 
 type SessionFailure = {
 	error: ChatError | undefined
@@ -104,7 +105,7 @@ export const useSessionFailureNotice = ({
 		}
 		if (
 			error.error.kind === "serverEnvRejected" ||
-			error.error.kind === "hostOffline"
+			isHostOffline(error.error)
 		) {
 			return
 		}
