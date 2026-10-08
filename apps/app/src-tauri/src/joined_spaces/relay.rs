@@ -388,7 +388,9 @@ async fn online(socket: Socket, link: &MemberLink, stop: &mut watch::Receiver<bo
 fn closed_by_relay(frame: Option<CloseFrame>) -> Ended {
 	match frame.map(|frame| u16::from(frame.code)) {
 		Some(MEMBERSHIP_ENDED) => Ended::Evicted,
-		Some(HOST_ABSENT) => Ended::Dropped("the relay room has no host (code 4002)".to_owned()),
+		Some(HOST_ABSENT) => {
+			Ended::Dropped(format!("the relay room has no host (code {HOST_ABSENT})"))
+		}
 		code => Ended::Dropped(format!("the member relay closed the socket with code {code:?}")),
 	}
 }
