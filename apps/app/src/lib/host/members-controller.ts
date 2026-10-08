@@ -232,7 +232,7 @@ export const createMembersController = ({
 	}
 
 	const invite = (email: string) => {
-		patch({ failure: undefined })
+		patch({ refusal: undefined, failure: undefined })
 		run(
 			(spaceId) => transport.invite(spaceId, email),
 			(member) =>

@@ -209,6 +209,30 @@ describe("createMembersController", () => {
 		expect(controller.getState().failure).toBeUndefined()
 	})
 
+	it("replaces a refusal with the failure when the same email is resent and fails", async () => {
+		const invite = vi
+			.fn<MembersTransport["invite"]>()
+			.mockResolvedValueOnce(refused({ kind: "alreadyInvited" }))
+			.mockResolvedValueOnce(
+				refused({ kind: "unreachable", reason: "relay down" }),
+			)
+		const { controller } = await watchHome({ invite })
+
+		controller.invite("sam@example.com")
+		await settle()
+		expect(controller.getState().refusal).toBe("invited")
+
+		controller.invite("sam@example.com")
+		await settle()
+
+		expect(controller.getState().refusal).toBeUndefined()
+		expect(controller.getState().failure).toEqual({
+			action: "invite",
+			reason: "unreachable",
+			email: "sam@example.com",
+		})
+	})
+
 	it("clears the failure when the watched space changes", async () => {
 		const { controller, unwatch } = await watchHome({
 			invite: vi.fn(async () => refused({ kind: "limitReached" })),
