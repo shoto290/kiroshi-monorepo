@@ -3,7 +3,10 @@ import { useCallback, useEffect, useMemo } from "react"
 import type { ApplicationScopes } from "./use-application-scopes"
 import type { WorkspaceCore } from "./use-workspace-core"
 
-import { rosterSpaceIdsOf } from "../spaces/joined-spaces-controller"
+import {
+	openRowIdOf,
+	rosterSpaceIdsOf,
+} from "../spaces/joined-spaces-controller"
 import { useSpaceEntry } from "../spaces/use-space-entry"
 import { lastBotIn } from "../user/preferences-mirror"
 
@@ -27,10 +30,11 @@ export const useSpaceLoading = ({ core, scopes }: SpaceLoadingInput) => {
 	)
 
 	const loadSpaces = useCallback(() => {
-		void spaces.controller.load(
-			user.controller.getState().preferences.lastSpaceId,
-		)
-	}, [spaces.controller, user.controller])
+		const { lastSpaceId } = user.controller.getState().preferences
+		void spaces.controller
+			.load(lastSpaceId)
+			.then(() => joinedSpaces.controller.restore(lastSpaceId))
+	}, [spaces.controller, joinedSpaces.controller, user.controller])
 
 	useEffect(() => {
 		loadSpaces()
@@ -52,6 +56,7 @@ export const useSpaceLoading = ({ core, scopes }: SpaceLoadingInput) => {
 		roster: roster.controller,
 		user: user.controller,
 		selectedSpaceId,
+		openRowId: openRowIdOf(joinedSpaces.state, selectedSpaceId),
 	})
 
 	return loadSpaces

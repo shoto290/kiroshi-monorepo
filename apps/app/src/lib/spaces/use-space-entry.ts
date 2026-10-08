@@ -12,21 +12,23 @@ export type SpaceEntry = {
 	roster: RosterController
 	user: SpaceMemory
 	selectedSpaceId: string | null
+	openRowId: string | null
 }
 
 export const useSpaceEntry = ({
 	roster,
 	user,
 	selectedSpaceId,
+	openRowId,
 }: SpaceEntry) => {
 	useEffect(() => {
-		if (!selectedSpaceId) {
+		if (!selectedSpaceId || !openRowId) {
 			return
 		}
-		void user.setLastSpace(selectedSpaceId)
+		void user.setLastSpace(openRowId)
 		roster.enter({
 			spaceId: selectedSpaceId,
 			lastRowId: lastBotIn(user.getState().preferences, selectedSpaceId),
 		})
-	}, [roster, user, selectedSpaceId])
+	}, [roster, user, selectedSpaceId, openRowId])
 }
