@@ -718,6 +718,18 @@ mod tests {
 			.expect("the roster reads")
 	}
 
+	async fn roster_of(app: &App<MockRuntime>, space_id: &str) -> Vec<String> {
+		ready(&app.state::<db::DatabaseState>())
+			.expect("the database opens")
+			.conversations()
+			.bots(Some(space_id.to_owned()))
+			.await
+			.expect("the roster reads")
+			.into_iter()
+			.map(|bot| bot.id)
+			.collect()
+	}
+
 	async fn is_first_run_done(app: &App<MockRuntime>) -> bool {
 		ready(&app.state::<db::DatabaseState>())
 			.expect("the database opens")
@@ -789,21 +801,8 @@ mod tests {
 			serving(&app, "shared-chat").answer(a_create(json!({}))).await.expect("it is created");
 
 		let id = created["id"].as_str().expect("the companion is named");
-		let listed_in = |space: &'static str| {
-			let app = &app;
-			async move {
-				ready(&app.state::<db::DatabaseState>())
-					.expect("the database opens")
-					.conversations()
-					.bots(Some(space.to_owned()))
-					.await
-					.expect("the roster reads")
-					.into_iter()
-					.any(|bot| bot.id == id)
-			}
-		};
-		assert!(listed_in("shared").await, "the companion is missing from the shared space");
-		assert!(!listed_in("personal").await, "the companion leaked into the first space");
+		assert!(roster_of(&app, "shared").await.contains(&id.to_owned()), "missing from its space");
+		assert!(!roster_of(&app, "personal").await.contains(&id.to_owned()), "leaked elsewhere");
 
 		cleaned(&app);
 	}
