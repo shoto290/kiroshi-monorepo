@@ -683,30 +683,11 @@ describe("a local and a joined space both carrying the id personal", () => {
 		expect(switcher.rowIds).toContain(HOST_PERSONAL_ROW)
 		expect(switcher.checked).toBe(HOST_PERSONAL_ROW)
 		expect(Object.keys(switcher.marks)).toEqual([HOST_PERSONAL_ROW])
+		expect(
+			openLocalSpaceOf(gear.spaces.getState().spaces, switcher.checked),
+		).toBeUndefined()
 		expect(gear.spaces.getState().selectedSpaceId).toBe("personal")
 		expect(gear.hosts.activate).toHaveBeenLastCalledWith(HOST_PERSONAL.id)
-	})
-
-	it("resolves no local space while the joined one is open", async () => {
-		const gear = await withBothPersonals()
-
-		gear.joined.selectSpace(HOST_PERSONAL_ROW)
-
-		expect(
-			openLocalSpaceOf(gear.spaces.getState().spaces, switcherOf(gear).checked),
-		).toBeUndefined()
-	})
-
-	it("resolves the local space once the local one is open", async () => {
-		const gear = await withBothPersonals()
-		gear.joined.selectSpace(HOST_PERSONAL_ROW)
-
-		gear.joined.selectSpace("personal")
-
-		expect(
-			openLocalSpaceOf(gear.spaces.getState().spaces, switcherOf(gear).checked)
-				?.id,
-		).toBe("personal")
 	})
 
 	it("checks the local row only, with no mark, once the local one is open", async () => {
@@ -718,6 +699,9 @@ describe("a local and a joined space both carrying the id personal", () => {
 		const switcher = switcherOf(gear)
 		expect(switcher.checked).toBe("personal")
 		expect(switcher.marks.personal).toBeUndefined()
+		expect(
+			openLocalSpaceOf(gear.spaces.getState().spaces, switcher.checked)?.id,
+		).toBe("personal")
 		expect(gear.hosts.activate).toHaveBeenLastCalledWith(null)
 	})
 
