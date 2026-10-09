@@ -213,7 +213,7 @@ describe("SpaceSettingsHost on a joined space", () => {
 		expect(within(dialog).getByDisplayValue(GARAGE.hostUrl)).toBeTruthy()
 		for (const localOnly of [
 			i18n.t("settings:space.colour.label"),
-			i18n.t("settings:space.share.label"),
+			"Share link",
 			i18n.t("settings:space.transfer.export"),
 			i18n.t("settings:space.transfer.import"),
 		]) {
@@ -507,7 +507,7 @@ describe("SpaceSettingsHost members on the desktop", () => {
 	it("shows the Share card in Members and no share link in any tab", async () => {
 		hostOnline()
 		const gear = await gearWithGarage()
-		const shareLabel = i18n.t("settings:space.share.label")
+		const shareLabel = "Share link"
 
 		const dialog = await openMembersOf(gear)
 

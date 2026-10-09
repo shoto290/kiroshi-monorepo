@@ -991,12 +991,6 @@ overlays-dialogsurface--dismissing
 overlays-dialogsurface--long-title
 overlays-dialogsurface--overflowing
 overlays-dialogsurface--sized
-overlays-joinspacedialog--empty
-overlays-joinspacedialog--host-unreachable
-overlays-joinspacedialog--invalid-link
-overlays-joinspacedialog--joining
-overlays-joinspacedialog--link-pasted
-overlays-joinspacedialog--long-content
 overlays-missionmenu--answer-the-question-leaves-the-card
 overlays-missionmenu--close-at-once
 overlays-missionmenu--closed
@@ -1361,10 +1355,6 @@ settings-settingsdialogshell--rail-icons-only
 settings-settingsdialogshell--skill-page-wording
 settings-settingsdialogshell--without-session-closes-unasked
 settings-space-joinedspacefields--default
-settings-space-sharelink--at-rest
-settings-space-sharelink--copied
-settings-space-sharelink--copy-focused
-settings-space-sharelink--host-not-up
 settings-space-spacefields--colourless
 settings-space-spacefields--default
 settings-space-spacefields--empty

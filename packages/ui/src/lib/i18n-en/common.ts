@@ -7,17 +7,6 @@ const common = {
 			title: "Couldn’t load your spaces",
 			description: "Your companions are still there.",
 		},
-		join: {
-			title: "Join a space",
-			description:
-				"Paste the link from the Kiroshi that hosts it. Its companions and conversations open here.",
-			label: "Link",
-			placeholder: "Paste a link",
-			invalidLink: "That isn’t a Kiroshi link. Copy it again from the host.",
-			hostUnreachable: "Couldn’t reach the host. Check it’s open, then retry.",
-			action: "Join",
-			joining: "Joining…",
-		},
 		leave: {
 			title: "Leave {{name}}?",
 			description:

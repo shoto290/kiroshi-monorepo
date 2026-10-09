@@ -1813,8 +1813,6 @@ interface AppSidebarProps
 	onSelectSpace?: (id: string) => void
 	onReorderSpaces?: (ids: string[]) => void
 	onCreateSpace?: () => void
-	/** @deprecated */
-	onJoinSpace?: () => void
 	onLeaveSpace?: () => void
 	spaceAccess?: ReactNode
 	remoteBySpaceId?: Record<string, SpaceRemote>
@@ -1872,7 +1870,6 @@ const AppSidebarBase = ({
 	onSelectSpace,
 	onReorderSpaces,
 	onCreateSpace,
-	onJoinSpace: _onJoinSpace,
 	onLeaveSpace,
 	spaceAccess,
 	remoteBySpaceId,
