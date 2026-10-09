@@ -275,6 +275,12 @@ export const createJoinedHosts = ({
 		})
 	}
 
+	const relocateAll = () => {
+		for (const subscription of subscriptions) {
+			relocate(subscription)
+		}
+	}
+
 	const setActive = (active: string | null) => {
 		const previous = store.getState().active
 		if (previous === active) {
@@ -284,22 +290,32 @@ export const createJoinedHosts = ({
 			endDownNotice(previous)
 		}
 		store.setState({ ...store.getState(), active })
-		for (const subscription of subscriptions) {
-			relocate(subscription)
-		}
+		relocateAll()
 	}
 
-	const activate = async (id: string | null): Promise<void> => {
+	const activate = async (
+		id: string | null,
+		sharedSpaceId?: string,
+	): Promise<void> => {
 		requested = id
 		if (id === null) {
 			setActive(null)
 			return
 		}
-		const host = await openConnection(id)
-		if (host && requested === id) {
-			setActive(id)
-			reportIfActiveDown(id)
+		sharedSpaceIds.set(id, sharedSpaceId ?? id)
+		const previous = store.getState().active
+		const opening = openConnection(id)
+		setActive(id)
+		const host = await opening
+		if (requested !== id) {
+			return
 		}
+		if (!host) {
+			setActive(previous)
+			return
+		}
+		relocateAll()
+		reportIfActiveDown(id)
 	}
 
 	const forget = (id: string) => {
@@ -314,10 +330,35 @@ export const createJoinedHosts = ({
 		}
 	}
 
+	const unreachable = (id: string) => {
+		const connection = store.getState().connections[id]
+		const failure =
+			connection?.status === "refused" ? connection.failure : "unreachable"
+		return new Error(`joined host ${id}: ${failure}`)
+	}
+
+	const invokeOnceOpen = async <T>(
+		id: string,
+		command: string,
+		args?: InvokeArgs,
+	): Promise<T> => {
+		const host = await openConnection(id)
+		if (!host) {
+			throw unreachable(id)
+		}
+		return host.invoke<T>(command, args)
+	}
+
 	const invoke: Invoke = (...call) => {
 		const [command, args] = call
-		const joined = isLocalCommand(command) ? undefined : activeHost()
-		return joined ? joined.invoke(command, args) : local.invoke(...call)
+		const { active } = store.getState()
+		if (isLocalCommand(command) || active === null) {
+			return local.invoke(...call)
+		}
+		const joined = hosts.get(active)
+		return joined
+			? joined.invoke(command, args)
+			: invokeOnceOpen(active, command, args)
 	}
 
 	const routedListen =

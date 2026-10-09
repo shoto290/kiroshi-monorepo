@@ -8,9 +8,14 @@ import { missionsBySpaceId } from "../missions/missions-model"
 type RosterViewInput = {
 	core: WorkspaceCore
 	drivers: WorkspaceDrivers
+	openRowId: string | null
 }
 
-export const useRosterView = ({ core, drivers }: RosterViewInput) => {
+export const useRosterView = ({
+	core,
+	drivers,
+	openRowId,
+}: RosterViewInput) => {
 	const { roster } = core
 	const { missionBoard, waitingMissionIds } = drivers
 
@@ -29,9 +34,12 @@ export const useRosterView = ({ core, drivers }: RosterViewInput) => {
 		isEditingConversation,
 		hasLoaded,
 	} = roster.state
-	const selected = bots.find((bot) => bot.id === selectedBotId)
+	const isOnOpenSpace = rosteredSpaceId === openRowId
+	const shownBotId = isOnOpenSpace ? selectedBotId : null
+	const shownConversationId = isOnOpenSpace ? selectedConversationId : null
+	const selected = bots.find((bot) => bot.id === shownBotId)
 	const selectedConversation = conversations.find(
-		(conversation) => conversation.id === selectedConversationId,
+		(conversation) => conversation.id === shownConversationId,
 	)
 	const settingsBot = bots.find((bot) => bot.id === settingsBotId)
 	const settingsConversation = conversations.find(

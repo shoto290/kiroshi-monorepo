@@ -275,6 +275,62 @@ describe("the active host", () => {
 		expect(hosts.getState().active).toBeNull()
 	})
 
+	it("holds a call made while the joined host opens, then sends it to that host only", async () => {
+		let open: () => void = () => undefined
+		const { hosts, local } = joinedHostsOf({
+			join: (id) =>
+				new Promise((resolve) => {
+					open = () => resolve(joinedConnection(id))
+				}),
+		})
+
+		const activating = hosts.activate("garage")
+		const answer = hosts.invoke("mission_list", { conversationId: "c1" })
+		open()
+		await activating
+
+		await expect(answer).resolves.toBe("joined")
+		expect(local.invoke).not.toHaveBeenCalled()
+	})
+
+	it("names the joined Space id from the moment the joined host is selected", async () => {
+		const { hosts } = joinedHostsOf({
+			join: () => new Promise(() => undefined),
+		})
+
+		void hosts.activate("garage", "personal")
+
+		expect(hosts.activeSpaceId()).toBe("personal")
+	})
+
+	it("refuses a call made while the joined host opens when it cannot connect", async () => {
+		const { hosts, local } = joinedHostsOf({
+			join: async () => ({
+				status: "error",
+				error: { kind: "undeliverable", detail: "no route" },
+			}),
+		})
+
+		const activating = hosts.activate("garage")
+		const answer = hosts.invoke("mission_list", { conversationId: "c1" })
+		await activating
+
+		await expect(answer).rejects.toThrow("no route")
+		expect(local.invoke).not.toHaveBeenCalled()
+	})
+
+	it("sends a call to the local host once it is selected again while the joined host opens", async () => {
+		const { hosts, local, fetch } = joinedHostsOf()
+
+		const activating = hosts.activate("garage")
+		await hosts.activate(null)
+		await hosts.invoke("mission_list", { conversationId: "c1" })
+		await activating
+
+		expect(local.invoke).toHaveBeenCalledOnce()
+		expect(fetch).not.toHaveBeenCalled()
+	})
+
 	it("builds file sources on the joined host while it is active", async () => {
 		const { hosts } = joinedHostsOf()
 		const avatar = "/data/avatars/b1.png"

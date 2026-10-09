@@ -10,7 +10,12 @@ import { newBotIdentity } from "@/lib/bots/bot-settings"
 import { createRosterController } from "@/lib/bots/roster-controller"
 import { createFakeTranscriptStore } from "@/lib/conversations/fake-transcript-store"
 import type { TranscriptStore } from "@/lib/conversations/store-port"
-import type { JoinedHostsState } from "@/lib/host/joined-hosts"
+import type { HostSocket } from "@/lib/host/http"
+import {
+	createJoinedHosts,
+	type JoinedHostsOptions,
+	type JoinedHostsState,
+} from "@/lib/host/joined-hosts"
 import {
 	createJoinedSpacesController,
 	openRowIdOf,
@@ -274,5 +279,172 @@ describe("a local and a joined Personal on mounted rosters", () => {
 		expect(namesIn("personal")).toContain(LOCAL_COMPANION)
 		expect(namesIn("personal")).not.toContain(HOST_COMPANION)
 		expect(selectedName()).not.toBe(HOST_COMPANION)
+	})
+})
+
+type JoinOutcome = Awaited<ReturnType<JoinedHostsOptions["join"]>>
+
+type RelayedCall = { command: string; params: unknown[] }
+
+const ROOM_DRAFT = {
+	spaceId: "personal",
+	sectionId: null,
+	title: "Launch",
+	botIds: ["default"],
+}
+
+const HOST_URL = "http://192.168.1.22:45367"
+
+const HOST_ROOM = "conversation-1"
+
+const LOCAL_ONLY_ROOM = "conversation-2"
+
+const storeWithRooms = async (count: number) => {
+	const store = createFakeTranscriptStore()
+	for (let room = 0; room < count; room += 1) {
+		await store.createConversation(ROOM_DRAFT)
+	}
+	return store
+}
+
+const answerFrom = async (
+	store: TranscriptStore,
+	{ command, params }: RelayedCall,
+): Promise<unknown> => {
+	const method = store[command as keyof TranscriptStore] as (
+		...params: unknown[]
+	) => Promise<unknown>
+	return method(...params)
+}
+
+const silentSocket = (): HostSocket => ({
+	onopen: null,
+	onmessage: null,
+	onclose: null,
+	close: () => undefined,
+})
+
+const deferredJoin = () => {
+	let release: (outcome: JoinOutcome) => void = () => undefined
+	const joining = new Promise<JoinOutcome>((resolve) => {
+		release = resolve
+	})
+	const open = () =>
+		release({
+			status: "ok",
+			data: {
+				id: HOST_PERSONAL.id,
+				hostUrl: HOST_URL,
+				token: "guest",
+				remoteSpaceId: HOST_PERSONAL.remoteSpaceId,
+				name: HOST_PERSONAL.name,
+			},
+		})
+	return { join: () => joining, open }
+}
+
+const relaunchedOnJoinedSpace = async () => {
+	const localStore = await storeWithRooms(2)
+	const hostStore = await storeWithRooms(1)
+	const localCalls: RelayedCall[] = []
+	const hostCalls: RelayedCall[] = []
+	const joining = deferredJoin()
+	const hosts = createJoinedHosts({
+		local: {
+			invoke: async <T>(command: string, args?: unknown) => {
+				const call = { command, ...(args as { params: unknown[] }) }
+				localCalls.push(call)
+				return (await answerFrom(localStore, call)) as T
+			},
+			listen: async () => () => undefined,
+			fileSrc: (path) => path,
+		},
+		join: joining.join,
+		fetch: async (url, init) => {
+			const command = String(url).split("/").at(-1) ?? ""
+			const call = { command, ...JSON.parse(String(init?.body)) }
+			hostCalls.push(call)
+			return new Response(JSON.stringify(await answerFrom(hostStore, call)), {
+				headers: { "content-type": "application/json" },
+			})
+		},
+		openSocket: silentSocket,
+		reportFailure: vi.fn(),
+		reportHostDown: () => "down",
+		endHostDown: vi.fn(),
+	})
+	const relayed = new Proxy({} as TranscriptStore, {
+		get:
+			(_, command: string) =>
+			(...params: unknown[]) =>
+				hosts.invoke(command, { params }),
+	})
+	const spaces = createSpacesController(localStore)
+	const joined = createJoinedSpacesController({
+		spaces,
+		hosts,
+		transport: transportOf([HOST_PERSONAL]),
+	})
+	joined.watch()
+	await settle()
+	const roster = createRosterController(relayed)
+	const user = {
+		getState: () => ({
+			preferences: { lastSpaceId: HOST_PERSONAL_ROW, lastBotIdBySpace: {} },
+		}),
+		setLastSpace: vi.fn(async () => undefined),
+	}
+	const inputOf = () => {
+		const { selectedSpaceId } = spaces.getState()
+		return {
+			core: {
+				joinedSpaces: {
+					state: joined.getState(),
+					controller: joined,
+					hosts: hosts.getState(),
+				},
+				roster: { controller: roster },
+				spaces: { state: spaces.getState(), controller: spaces },
+				user: { controller: user },
+			},
+			scopes: {
+				selectedSpaceId,
+				openRowId: openRowIdOf(joined.getState(), selectedSpaceId),
+			},
+		} as never
+	}
+	const view = renderHook((input) => useSpaceLoading(input), {
+		initialProps: inputOf(),
+	})
+	const follow = async () => {
+		for (let frame = 0; frame < 4; frame += 1) {
+			await act(settle)
+			view.rerender(inputOf())
+		}
+	}
+	await follow()
+	const openHost = async () => {
+		joining.open()
+		await follow()
+	}
+	return { localCalls, hostCalls, openHost }
+}
+
+describe("relaunching the app on a joined Space", () => {
+	it("sends nothing for the joined Space to the local host while its connection opens", async () => {
+		const { localCalls } = await relaunchedOnJoinedSpace()
+
+		expect(localCalls).toEqual([])
+	})
+
+	it("reads every conversation of the joined Space from the host with an id the host holds", async () => {
+		const { localCalls, hostCalls, openHost } = await relaunchedOnJoinedSpace()
+
+		await openHost()
+
+		const relayedToHost = JSON.stringify(hostCalls)
+		expect(relayedToHost).toContain(HOST_ROOM)
+		expect(relayedToHost).not.toContain(LOCAL_ONLY_ROOM)
+		expect(localCalls).toEqual([])
 	})
 })
