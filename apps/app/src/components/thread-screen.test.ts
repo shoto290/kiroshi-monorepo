@@ -2907,10 +2907,10 @@ describe("the first run in a solo thread", () => {
 				...thread.chat,
 				state: {
 					...thread.chat.state,
-					messages: thread.chat.state.messages.map((shown) =>
-						shown.role === "user"
-							? { ...shown, authorAccountId: GUEST_ACCOUNT, authorName: "Sam" }
-							: shown,
+					messages: thread.chat.state.messages.map((row) =>
+						row.role === "user"
+							? { ...row, authorAccountId: GUEST_ACCOUNT, authorName: "Sam" }
+							: row,
 					),
 				},
 			},
