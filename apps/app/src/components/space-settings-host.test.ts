@@ -414,13 +414,7 @@ const SAM_JOINED: Member = {
 
 const openMembersOf = async (
 	gear: Awaited<ReturnType<typeof gearWithGarage>>,
-) => {
-	const dialog = openSettingsOf(gear, gear.home.id)
-	fireEvent.click(
-		await within(dialog).findByRole("tab", { name: MEMBERS_TAB_NAME }),
-	)
-	return dialog
-}
+) => (await openShareOf(gear, gear.home.id)).dialog
 
 const removeSamOf = (dialog: HTMLElement) =>
 	within(dialog).findByRole("button", {

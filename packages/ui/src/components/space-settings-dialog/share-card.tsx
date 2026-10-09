@@ -34,7 +34,7 @@ const ShareCard = ({
 	const descriptionId = `${id}-description`
 	const isSignedOut = hosting === "signed-out"
 
-	const status: Record<"connecting" | "online", SettingsSwitchStatus> = {
+	const statusOf: Partial<Record<SpaceHosting, SettingsSwitchStatus>> = {
 		connecting: { tone: "pending", label: t("space.hosting.connecting") },
 		online: { tone: "done", label: t("space.hosting.online") },
 	}
@@ -61,13 +61,7 @@ const ShareCard = ({
 							: t("space.hosting.description", { name })}
 					</p>
 				</div>
-				<StatusLine
-					status={
-						hosting === "connecting" || hosting === "online"
-							? status[hosting]
-							: undefined
-					}
-				/>
+				<StatusLine status={statusOf[hosting]} />
 			</div>
 			{isSignedOut ? (
 				<Button aria-describedby={descriptionId} onClick={onSignIn}>

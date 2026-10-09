@@ -121,6 +121,9 @@ const InviteField = ({
 		space,
 	)
 	const isEmpty = email.trim() === ""
+	const hint = isHosted
+		? t("space.members.invite.hint")
+		: t("space.members.invite.notShared", { name: space })
 
 	const submit = (event: FormEvent) => {
 		event.preventDefault()
@@ -173,10 +176,7 @@ const InviteField = ({
 			>
 				{refusal
 					? t(`space.members.invite.refusal.${refusal}`, { email })
-					: !failureText &&
-						(isHosted
-							? t("space.members.invite.hint")
-							: t("space.members.invite.notShared", { name: space }))}
+					: !failureText && hint}
 				<span role="status">{failureText}</span>
 			</p>
 		</form>
