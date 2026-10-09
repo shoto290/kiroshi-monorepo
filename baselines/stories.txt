@@ -851,8 +851,6 @@ navigation-headeridentitybutton--in-layout
 navigation-headeridentitybutton--long-content
 navigation-headeridentitybutton--variants
 navigation-headeridentitybutton--working
-navigation-hostpill--details-open
-navigation-hostpill--details-open-offline
 navigation-hostpill--offline
 navigation-hostpill--online
 navigation-hostpill--themes-side-by-side

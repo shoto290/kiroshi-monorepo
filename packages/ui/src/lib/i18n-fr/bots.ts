@@ -101,9 +101,6 @@ const bots = {
 		host: {
 			online: "Connecté",
 			offline: "Non connecté",
-			onlineDetail: "Cet espace tourne sur un autre Mac. Il est connecté.",
-			offlineDetail:
-				"Cet espace tourne sur un autre Mac. Il est injoignable pour le moment.",
 		},
 		remove: {
 			lastSpace: "Un compagnon a besoin d’au moins un espace.",
