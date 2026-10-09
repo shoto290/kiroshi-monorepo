@@ -102,7 +102,6 @@ export const EveryState = meta.story({
 		const ladders = within(context.canvasElement).getAllByRole("group", {
 			name: "Sizes",
 		})
-		await expect(ladders.length).toBeGreaterThan(0)
 		for (const ladder of ladders)
 			await expect(
 				within(ladder).getAllByRole("img", { name: "Lyra" }),
