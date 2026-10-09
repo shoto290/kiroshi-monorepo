@@ -101,7 +101,6 @@ const openStudio = async () => {
 		spaces,
 		hosts: {
 			getState: () => ({ active: null, connections: {} }),
-			subscribe: () => () => undefined,
 			connect: async () => undefined,
 			activate: async () => undefined,
 			forget: () => undefined,

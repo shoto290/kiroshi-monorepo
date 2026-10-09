@@ -60,7 +60,7 @@ export type JoinedSpacesTransport = {
 
 type JoinedSpacesHosts = Pick<
 	JoinedHosts,
-	"getState" | "subscribe" | "connect" | "activate" | "forget"
+	"getState" | "connect" | "activate" | "forget"
 >
 
 type JoinedSpacesControllerOptions = {
