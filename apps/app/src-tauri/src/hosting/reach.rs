@@ -71,6 +71,11 @@ const NEW_MESSAGE: &[Held] = &[
 	optional_child(Bot, "/message/authorBotId"),
 	optional_child(Message, "/message/repliedToMessageId"),
 ];
+const OPENING_MESSAGE: &[Held] = &[
+	child(Conversation, "/message/conversationId"),
+	optional_child(Bot, "/message/authorBotId"),
+	optional_child(Message, "/message/repliedToMessageId"),
+];
 const BOT_ID: &[Held] = &[child(Bot, "/botId")];
 const BOT_WRITE_AS_ID: &[Held] = &[child(BotHeldAlone, "/id")];
 const BOT_AND_SPACE: &[Held] = &[child(Bot, "/botId"), space("/spaceId")];
@@ -186,7 +191,7 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 	("conversation_start_turn", Reach::Scoped(&[child(Conversation, "/turn/conversationId")])),
 	("conversation_complete_turn", Reach::Scoped(&[child(Turn, "/id")])),
 	("conversation_append_user_message", Reach::Scoped(NEW_MESSAGE)),
-	("conversation_send_user_message", Reach::Scoped(NEW_MESSAGE)),
+	("conversation_send_user_message", Reach::Scoped(OPENING_MESSAGE)),
 	("conversation_open_assistant_message", Reach::Scoped(NEW_MESSAGE)),
 	("conversation_append_text", Reach::Scoped(MESSAGE_AS_ID)),
 	("conversation_finalize_message", Reach::Scoped(MESSAGE_AS_ID)),

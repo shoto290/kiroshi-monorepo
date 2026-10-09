@@ -708,7 +708,7 @@ fn a_member_frame_naming_a_host_member_command_is_refused_and_others_still_forwa
 			send(&mut member, &frame.to_string()).await;
 			assert_eq!(
 				answer(&mut member).await,
-				json!({ "id": command, "status": 403, "body": { "error": "this command belongs to the host" } })
+				json!({ "id": command, "status": 403, "body": "this command belongs to the host" })
 			);
 		}
 		send(&mut member, r#"{"id": "after", "command": "agent_models"}"#).await;
@@ -749,7 +749,7 @@ async fn refused_with(mut harness: Harness, command: &str, args: Value) -> (Valu
 
 	assert_eq!(
 		refused,
-		json!({ "id": command, "status": 403, "body": { "error": "this command belongs to the host" } })
+		json!({ "id": command, "status": 403, "body": "this command belongs to the host" })
 	);
 	assert_eq!((answered["id"].clone(), answered["status"].clone()), (json!("after"), json!(200)));
 	assert_eq!(harness.state(), HostingState::Online);
@@ -1700,7 +1700,7 @@ impl Guest {
 	async fn refused(&mut self, command: &str, args: Value) {
 		assert_eq!(
 			self.called(command, args.clone()).await,
-			json!({ "id": command, "status": 403, "body": { "error": OTHER_SPACE_REFUSAL } }),
+			json!({ "id": command, "status": 403, "body": OTHER_SPACE_REFUSAL }),
 			"{command} {args}"
 		);
 	}
@@ -2558,6 +2558,10 @@ impl Authoring {
 
 	fn sent(&self, id: &str) -> Value {
 		self.turn(id);
+		self.unstarted(id)
+	}
+
+	fn unstarted(&self, id: &str) -> Value {
 		json!({
 			"message": {
 				"id": id,
@@ -2575,6 +2579,12 @@ impl Authoring {
 	}
 
 	async fn relayed(&self, frame: Value) -> Value {
+		let answer = self.answered(frame).await;
+		assert_eq!(answer["status"], json!(200), "{answer}");
+		answer["body"].clone()
+	}
+
+	async fn answered(&self, frame: Value) -> Value {
 		let call = super::bridge::member_call(&frame.to_string()).expect("a member call");
 		let answer = super::bridge::bridged(
 			self.app.handle().clone(),
@@ -2583,9 +2593,7 @@ impl Authoring {
 			call,
 		)
 		.await;
-		let answer: Value = serde_json::from_str(&answer).expect("a json answer");
-		assert_eq!(answer["status"], json!(200), "{answer}");
-		answer["body"].clone()
+		serde_json::from_str(&answer).expect("a json answer")
 	}
 
 	fn page(&self) -> Value {
@@ -2717,5 +2725,80 @@ fn a_message_written_on_a_signed_out_host_carries_no_account() {
 			Authoring::authors(&read),
 			vec![(json!("typed"), Value::Null, json!(HOST_NAME))]
 		);
+	});
+}
+
+#[test]
+fn a_guest_message_sent_on_a_turn_it_opens_lands_on_the_host_with_its_author() {
+	run(async {
+		let host = Authoring::new(Some(BEARER)).await;
+		let seq = host
+			.relayed(json!({
+				"id": 1,
+				"command": "conversation_send_user_message",
+				"from": GUEST,
+				"args": host.unstarted("first"),
+			}))
+			.await;
+
+		let read = direct(&host.window, "conversation_message_page", host.page());
+
+		assert!(seq.is_i64(), "{seq}");
+		assert_eq!(
+			Authoring::authors(&read),
+			vec![(json!("first"), json!(GUEST), json!(GUEST_EMAIL))]
+		);
+	});
+}
+
+#[test]
+fn a_guest_message_refused_by_the_host_answers_a_text_naming_the_refusal() {
+	run(async {
+		let host = Authoring::new(Some(BEARER)).await;
+		let mut elsewhere = host.unstarted("elsewhere");
+		elsewhere["message"]["conversationId"] = json!("a-conversation-of-no-shared-space");
+
+		let answer = host
+			.answered(json!({
+				"id": 1,
+				"command": "conversation_send_user_message",
+				"from": GUEST,
+				"args": elsewhere,
+			}))
+			.await;
+
+		assert_eq!(answer["status"], json!(403), "{answer}");
+		assert_eq!(answer["body"], json!(OTHER_SPACE_REFUSAL));
+	});
+}
+
+#[test]
+fn a_guest_message_naming_a_turn_of_another_conversation_is_refused_and_not_written() {
+	run(async {
+		let host = Authoring::new(Some(BEARER)).await;
+		host.turn("taken");
+		let room = direct(
+			&host.window,
+			"conversation_create",
+			json!({ "spaceId": PERSONAL, "sectionId": null, "title": "Room", "botIds": [] }),
+		);
+		let mut borrowed = host.unstarted("borrowed");
+		borrowed["message"]["conversationId"] = room["id"].clone();
+		borrowed["message"]["turnId"] = json!("taken");
+
+		let answer = host
+			.answered(json!({
+				"id": 1,
+				"command": "conversation_send_user_message",
+				"from": GUEST,
+				"args": borrowed,
+			}))
+			.await;
+		let mut room_page = host.page();
+		room_page["conversationId"] = room["id"].clone();
+		let read = direct(&host.window, "conversation_message_page", room_page);
+
+		assert_ne!(answer["status"], json!(200), "{answer}");
+		assert_eq!(Authoring::authors(&read), vec![]);
 	});
 }
