@@ -16,7 +16,7 @@ use crate::db::repositories::messages::AccountAuthor;
 use crate::db::{Database, DatabaseError};
 use crate::host_api::invoke::RELAYED_MEMBER_HEADER;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct RelayedMember {
 	pub(super) space_id: String,
 	pub(super) user_id: String,

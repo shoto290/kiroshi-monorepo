@@ -164,8 +164,7 @@ pub(super) async fn bridged<R: Runtime>(
 	let vouched = call.from.clone().map(|user_id| {
 		hosting.relayed.vouch(RelayedMember { space_id: shared_space_id.clone(), user_id })
 	});
-	let nonce = vouched.as_ref().map(|vouched| vouched.nonce.as_str());
-	match invoked(&local, &call, nonce).await {
+	match invoked(&local, &call, vouched.as_ref().map(|vouched| vouched.nonce.as_str())).await {
 		Ok((status, body)) => answer(call.id, status, body),
 		Err(reason) => answer(call.id, StatusCode::BAD_GATEWAY, json!({ "error": reason })),
 	}
