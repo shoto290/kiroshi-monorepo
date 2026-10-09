@@ -92,6 +92,9 @@ tokio-tungstenite = { version = "0.29", default-features = false, features = ["c
 # Splits that socket into the stream it is read from and the sink it is written to. Already in
 # the tree under axum and tokio-tungstenite; named here so no crate enters the lockfile through this line.
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+# Carries the bytes of a relayed avatar inside its JSON frame. Already in the tree under axum;
+# named here so no crate enters the lockfile through this line.
+base64 = "0.22"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
