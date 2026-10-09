@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import type { ConfirmDialogProps } from "@workspace/ui/components/confirm-dialog"
 import type {
@@ -96,6 +96,11 @@ export const useWatchedAccount = (): WatchedAccount => {
 
 export const signedInAccountIdOf = (state: AccountState): string | null =>
 	state.kind === "signedIn" ? state.id : null
+
+export const useSignedInAccountId = ({
+	controller,
+}: WatchedAccount): (() => string | null) =>
+	useCallback(() => signedInAccountIdOf(controller.getState()), [controller])
 
 export const useAccount = (
 	{ state, controller }: WatchedAccount,

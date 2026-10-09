@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react"
 
-import { useWatchedAccount } from "../account/use-account"
+import { useSignedInAccountId, useWatchedAccount } from "../account/use-account"
 import { applicationTransport } from "../applications/application-transport"
 import { connectionTransport } from "../applications/connection-transport"
 import { useApplications } from "../applications/use-applications"
@@ -31,14 +31,17 @@ import { useUser } from "../user/use-user"
 export const useWorkspaceCore = () => {
 	const store = useMemo(createTranscriptStore, [])
 	const driver = useMemo(() => createChatDriver(store), [store])
-	const chat = useChat(driver, store)
+	const account = useWatchedAccount()
+	const senderAccountId = useSignedInAccountId(account)
+	const chat = useChat(driver, store, { senderAccountId })
 	const roster = useRoster(store)
 	const conversationRuntimes = useMemo(
 		() =>
 			createConversationRuntimes(driver, store, {
 				onNamed: roster.controller.nameConversation,
+				senderAccountId,
 			}),
-		[driver, store, roster.controller],
+		[driver, store, roster.controller, senderAccountId],
 	)
 
 	useEffect(
@@ -94,7 +97,6 @@ export const useWorkspaceCore = () => {
 	const applications = useApplications(applicationTransport, store)
 	const catalogue = useModelCatalogue()
 	const user = useUser()
-	const account = useWatchedAccount()
 	const userPlugin = usePlugin(store)
 	const spaces = useSpaces(store)
 	const joinedSpaces = useJoinedSpaces(spaces.controller)

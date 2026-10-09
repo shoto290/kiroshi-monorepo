@@ -1,6 +1,10 @@
 import { useEffect, useRef, useSyncExternalStore } from "react"
 
-import { type ChatController, createChatController } from "./chat-controller"
+import {
+	type ChatController,
+	type ChatControllerOptions,
+	createChatController,
+} from "./chat-controller"
 import type { ChatState } from "./chat-state"
 import type { ChatDriver } from "./driver"
 import { type SidebarActivity, sidebarActivityFor } from "./screen-model"
@@ -19,9 +23,13 @@ export type Chat = {
 	controller: ChatController
 }
 
-export function useChat(driver: ChatDriver, store: TranscriptStore): Chat {
+export function useChat(
+	driver: ChatDriver,
+	store: TranscriptStore,
+	options?: ChatControllerOptions,
+): Chat {
 	const { state, controller } = useController(() =>
-		createChatController(driver, store),
+		createChatController(driver, store, options),
 	)
 
 	useEffect(() => controller.attach(), [controller])
