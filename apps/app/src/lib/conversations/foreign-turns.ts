@@ -1,17 +1,34 @@
 import type { TerminalCompletion } from "./transcript-contract"
 import type { TranscriptController } from "./transcript-controller"
 
-import type { AgentEvent, ChatMessage, RuntimeScope } from "../agent/contract"
+import type {
+	ActivityEvent,
+	AgentEvent,
+	ChatMessage,
+	RuntimeScope,
+	TurnState,
+} from "../agent/contract"
+import { isTurnBusy } from "../chat/chat-state"
 import {
 	ENDING_FOR,
 	ENDING_FOR_OUTCOME,
 	isWorthKeeping,
 } from "../chat/reply-endings"
+import { withActivity } from "../chat/working-kind"
+
+export type ForeignSpeaker = {
+	scope: RuntimeScope
+	activities: ActivityEvent[]
+	startedAt: number
+	hasWritten: boolean
+}
 
 type ForeignTurn = {
 	scope: RuntimeScope
 	held: Map<string, ChatMessage>
 	streamed: Map<string, number>
+	hasWritten: boolean
+	speaker: ForeignSpeaker | null
 }
 
 type ForeignTranscript = Pick<
@@ -22,6 +39,7 @@ type ForeignTranscript = Pick<
 export type ForeignTurns = {
 	claim: (scope: RuntimeScope) => void
 	render: (scope: RuntimeScope, event: AgentEvent) => void
+	speakersIn: (conversationId: string) => ForeignSpeaker[]
 }
 
 const keyOf = ({ runtimeSessionId, epoch }: RuntimeScope) =>
@@ -29,6 +47,7 @@ const keyOf = ({ runtimeSessionId, epoch }: RuntimeScope) =>
 
 export const createForeignTurns = (
 	transcript: ForeignTranscript,
+	now: () => number,
 ): ForeignTurns => {
 	const claimed = new Set<string>()
 	const turns = new Map<string, ForeignTurn>()
@@ -39,7 +58,13 @@ export const createForeignTurns = (
 		if (known) {
 			return known
 		}
-		const turn: ForeignTurn = { scope, held: new Map(), streamed: new Map() }
+		const turn: ForeignTurn = {
+			scope,
+			held: new Map(),
+			streamed: new Map(),
+			hasWritten: false,
+			speaker: null,
+		}
 		turns.set(key, turn)
 		return turn
 	}
@@ -53,10 +78,55 @@ export const createForeignTurns = (
 		transcript.stream({ conversationId: turn.scope.conversationId, id, text })
 	}
 
+	const reviseSpeaker = (
+		turn: ForeignTurn,
+		revise: (speaker: ForeignSpeaker) => ForeignSpeaker,
+	) => {
+		if (turn.speaker) {
+			turn.speaker = revise(turn.speaker)
+		}
+	}
+
+	const noteWriting = (turn: ForeignTurn) => {
+		if (turn.hasWritten) {
+			return
+		}
+		turn.hasWritten = true
+		reviseSpeaker(turn, (speaker) => ({ ...speaker, hasWritten: true }))
+	}
+
+	const openSpeaker = (turn: ForeignTurn) => {
+		turn.speaker ??= {
+			scope: turn.scope,
+			activities: [],
+			startedAt: now(),
+			hasWritten: turn.hasWritten,
+		}
+	}
+
+	const noteActivity = (turn: ForeignTurn, activity: ActivityEvent) => {
+		openSpeaker(turn)
+		reviseSpeaker(turn, (speaker) => ({
+			...speaker,
+			activities: withActivity(speaker.activities, activity),
+		}))
+	}
+
+	const noteTurnState = (turn: ForeignTurn, state: TurnState) => {
+		if (isTurnBusy(state)) {
+			openSpeaker(turn)
+		}
+	}
+
+	const closeSpeaker = (turn: ForeignTurn) => {
+		turn.speaker = null
+	}
+
 	const open = (turn: ForeignTurn, message: ChatMessage) => {
 		const { scope } = turn
 		turn.held.delete(message.id)
 		turn.streamed.set(message.id, 0)
+		noteWriting(turn)
 		transcript.append({
 			id: message.id,
 			conversationId: scope.conversationId,
@@ -136,8 +206,14 @@ export const createForeignTurns = (
 				return grow(turn, event.id, event.seq, event.text)
 			case "messageCompleted":
 				return complete(turn, event.message)
+			case "turnChanged":
+				return noteTurnState(turn, event.state)
+			case "activity":
+				return noteActivity(turn, event.activity)
 			case "turnEnded":
 				return end(turn, ENDING_FOR_OUTCOME[event.ended.outcome])
+			case "failed":
+				return closeSpeaker(turn)
 			default:
 				return
 		}
@@ -146,11 +222,16 @@ export const createForeignTurns = (
 	return {
 		claim: (scope) => {
 			claimed.add(keyOf(scope))
+			turns.delete(keyOf(scope))
 		},
 		render: (scope, event) => {
 			if (!claimed.has(keyOf(scope))) {
 				apply(turnAt(scope), event)
 			}
 		},
+		speakersIn: (conversationId) =>
+			[...turns.values()].flatMap(({ scope, speaker }) =>
+				speaker && scope.conversationId === conversationId ? speaker : [],
+			),
 	}
 }

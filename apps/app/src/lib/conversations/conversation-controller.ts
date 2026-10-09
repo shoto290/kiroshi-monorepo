@@ -7,7 +7,7 @@ import {
 	type MessageStoredListener,
 	type ReconnectionListener,
 } from "./create-live-listeners"
-import { createForeignTurns } from "./foreign-turns"
+import { createForeignTurns, type ForeignSpeaker } from "./foreign-turns"
 import { addresseesIn, toMentionTokens } from "./mentions"
 import { readConversation } from "./read-conversation"
 import { isNameless, leadOf, presentParticipants } from "./roster-conversations"
@@ -298,7 +298,7 @@ export const createConversationController = (
 		options.onMessageStored ?? createMessageStoredListener()
 	const onReconnected = options.onReconnected ?? createReconnectionListener()
 	const transcript = createTranscriptController(store)
-	const foreignTurns = createForeignTurns(transcript)
+	const foreignTurns = createForeignTurns(transcript, now)
 	const enqueue = createQueue()
 
 	const stateStore = createStore(initialState)
@@ -376,7 +376,7 @@ export const createConversationController = (
 				toPublishedBlocks(text, held.openMessages.has(id)).length > 0,
 		)
 
-	const speakingBots = (): SpeakingBot[] =>
+	const localSpeakingBots = (): SpeakingBot[] =>
 		runningSpeakers().map((held) => {
 			const hasPublished = hasPublishedBlock(held)
 			return {
@@ -386,6 +386,31 @@ export const createConversationController = (
 				stop: () => stopSpeaker(held.botId),
 			}
 		})
+
+	const foreignSpeakingBot = (speaker: ForeignSpeaker): SpeakingBot => ({
+		botId: speaker.scope.botId,
+		work: {
+			...workingFor(speaker.activities, speaker.hasWritten),
+			startedAt: speaker.startedAt,
+		},
+		hasPublished: speaker.hasWritten,
+		stop: () => stopForeignTurn(speaker.scope),
+	})
+
+	const foreignSpeakingBots = (): SpeakingBot[] =>
+		conversation
+			? foreignTurns.speakersIn(conversation.id).map(foreignSpeakingBot)
+			: []
+
+	const speakingBots = (): SpeakingBot[] => {
+		const seen = new Set(speakers.keys())
+		const foreign = foreignSpeakingBots().filter(({ botId }) => {
+			const isFirst = !seen.has(botId)
+			seen.add(botId)
+			return isFirst
+		})
+		return [...localSpeakingBots(), ...foreign]
+	}
 
 	const oldestPrompt = (): PendingPrompt | null =>
 		runningSpeakers()
@@ -768,6 +793,7 @@ export const createConversationController = (
 		}
 		if (scope && turn && isOpenConversation(turn.conversationId)) {
 			foreignTurns.render(scope, event)
+			sync()
 		}
 	}
 
@@ -1286,6 +1312,15 @@ export const createConversationController = (
 		}
 		if (held.scope) {
 			await driver.cancelTurn(held.scope).catch(() => undefined)
+		}
+	}
+
+	const stopForeignTurn = async (scope: RuntimeScope) => {
+		try {
+			await driver.cancelTurn(scope)
+		} catch (reason) {
+			noteSpeakerFailure(scope.botId, toTransportError(reason))
+			sync()
 		}
 	}
 
