@@ -122,16 +122,6 @@ const settings = {
 			label: "Colour",
 			none: "No colour",
 		},
-		share: {
-			label: "Share link",
-			copy: "Copy the share link",
-			copied: "Share link copied",
-			hint: "Paste it in Join a space on another Kiroshi.",
-			warning:
-				"Anyone with this link gets this space, its companions and its conversations.",
-			hostDown:
-				"The host isn’t running, so there’s no link yet. Restart Kiroshi to start it.",
-		},
 		transfer: {
 			export: "Export this space",
 			import: "Import a space",
