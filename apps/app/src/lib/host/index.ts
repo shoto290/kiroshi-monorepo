@@ -42,6 +42,8 @@ export const invoke: typeof tauriInvoke = joinedHosts.invoke
 
 export const listen = joinedHosts.listen
 
+export const activeJoinedSpaceId = joinedHosts.activeSpaceId
+
 export const listenToActiveHost = joinedHosts.listenToActiveHost
 
 export function isDesktopHost(): boolean {

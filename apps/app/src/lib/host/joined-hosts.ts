@@ -127,6 +127,7 @@ export const createJoinedHosts = ({
 }: JoinedHostsOptions) => {
 	const store = createStore<JoinedHostsState>({ active: null, connections: {} })
 	const hosts = new Map<string, HttpHost>()
+	const sharedSpaceIds = new Map<string, string>()
 	const pendingJoins = new Map<string, Promise<HttpHost | null>>()
 	const subscriptions = new Set<Subscription>()
 	const downNotices = new Map<string, string>()
@@ -168,7 +169,10 @@ export const createJoinedHosts = ({
 		endDownNotice(id)
 	}
 
-	const openHost = (id: string, { hostUrl, token }: JoinedSpaceConnection) => {
+	const openHost = (
+		id: string,
+		{ hostUrl, token, remoteSpaceId }: JoinedSpaceConnection,
+	) => {
 		const host = createHttpHost({
 			host: hostUrl,
 			token,
@@ -182,6 +186,7 @@ export const createJoinedHosts = ({
 			onRefused: reportFailure,
 		})
 		hosts.set(id, host)
+		sharedSpaceIds.set(id, remoteSpaceId ?? id)
 		host.openEvents()
 		return host
 	}
@@ -215,6 +220,11 @@ export const createJoinedHosts = ({
 	const activeHost = (): HttpHost | undefined => {
 		const { active } = store.getState()
 		return active ? hosts.get(active) : undefined
+	}
+
+	const activeSpaceId = (): string | null => {
+		const { active } = store.getState()
+		return active ? (sharedSpaceIds.get(active) ?? null) : null
 	}
 
 	const listenerFor = (event: string): Listen => {
@@ -277,6 +287,7 @@ export const createJoinedHosts = ({
 	const forget = (id: string) => {
 		hosts.get(id)?.close()
 		hosts.delete(id)
+		sharedSpaceIds.delete(id)
 		endDownNotice(id)
 		const { [id]: _forgotten, ...connections } = store.getState().connections
 		store.setState({ ...store.getState(), connections })
@@ -326,6 +337,7 @@ export const createJoinedHosts = ({
 		activate,
 		forget,
 		invoke,
+		activeSpaceId,
 		listen,
 		listenToActiveHost,
 		fileSrc,
