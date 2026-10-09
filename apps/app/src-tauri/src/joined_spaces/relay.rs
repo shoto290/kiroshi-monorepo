@@ -185,11 +185,12 @@ async fn memberships_followed<R: Runtime>(
 	};
 	let listed = guests.cloud.instances(&bearer).await?;
 	let state = app.state::<db::DatabaseState>();
-	let database = ready(&state).map_err(stored)?;
-	let hosted = database.space_hosting().registered_instance_ids().await.map_err(stored)?;
-	let held = database.joined_spaces().list().await.map_err(stored)?;
+	let database = ready(&state).map_err(described)?;
+	let hosted = database.space_hosting().registered_instance_ids().await.map_err(described)?;
+	let repository = database.joined_spaces();
+	let held = repository.list().await.map_err(described)?;
 	for instance in &listed {
-		listed_followed(app, &held, &hosted, instance).await?;
+		listed_followed(app, repository, &held, &hosted, instance).await?;
 	}
 	for (id, instance_id) in held.iter().filter_map(relay_instance) {
 		if !listed.iter().any(|instance| instance.id == instance_id) {
@@ -208,6 +209,7 @@ fn relay_instance(joined: &joined_spaces::JoinedSpace) -> Option<(&str, &str)> {
 
 async fn listed_followed<R: Runtime>(
 	app: &AppHandle<R>,
+	repository: &joined_spaces::JoinedSpacesRepository,
 	held: &[joined_spaces::JoinedSpace],
 	hosted: &[String],
 	instance: &CloudInstance,
@@ -224,10 +226,8 @@ async fn listed_followed<R: Runtime>(
 			name: instance.name.clone(),
 		},
 	};
-	let state = app.state::<db::DatabaseState>();
-	let joined =
-		ready(&state).map_err(stored)?.joined_spaces().join(entry).await.map_err(stored)?;
-	announce_change(app, joined.id).map_err(stored)
+	let joined = repository.join(entry).await.map_err(described)?;
+	announce_change(app, joined.id).map_err(described)
 }
 
 async fn unlisted_dropped<R: Runtime>(
@@ -239,10 +239,10 @@ async fn unlisted_dropped<R: Runtime>(
 	if let Some(guest) = guest {
 		finished(id, guest).await;
 	}
-	entry_evicted(app, id).await.map_err(stored)
+	entry_evicted(app, id).await.map_err(described)
 }
 
-fn stored(failure: impl std::fmt::Debug) -> String {
+fn described(failure: impl std::fmt::Debug) -> String {
 	format!("{failure:?}")
 }
 
