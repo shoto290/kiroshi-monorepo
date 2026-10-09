@@ -14,6 +14,7 @@ import {
 } from "./use-conversation-installs"
 
 import { hostOfflineOf } from "../host/host-offline"
+import { createJoinedHosts } from "../host/joined-hosts"
 
 vi.mock("@workspace/ui/components/notice-surface", () => ({
 	raiseFailureNotice: vi.fn(),
@@ -22,6 +23,15 @@ vi.mock("@workspace/ui/components/notice-surface", () => ({
 type Provided = {
 	children: ReactNode
 }
+
+const providing =
+	(applications: ConversationApplications) =>
+	({ children }: Provided) =>
+		createElement(
+			ConversationApplicationsContext.Provider,
+			{ value: applications },
+			children,
+		)
 
 const installsRefusedWith = (reason: unknown) => {
 	const installs = vi.fn(() => Promise.reject(reason))
@@ -34,13 +44,9 @@ const installsRefusedWith = (reason: unknown) => {
 		spaces: [],
 		onOpen: vi.fn(),
 	} satisfies ConversationApplications
-	const wrapper = ({ children }: Provided) =>
-		createElement(
-			ConversationApplicationsContext.Provider,
-			{ value: applications },
-			children,
-		)
-	renderHook(() => useConversationInstalls("conversation-1"), { wrapper })
+	renderHook(() => useConversationInstalls("conversation-1"), {
+		wrapper: providing(applications),
+	})
 	return installs
 }
 
@@ -68,6 +74,120 @@ describe("reading the installs of a conversation", () => {
 
 		await waitFor(() => expect(installs).toHaveBeenCalled())
 		await Promise.resolve()
+		expect(raiseFailureNotice).not.toHaveBeenCalled()
+	})
+})
+
+describe("reading installs while a joined Space is active", () => {
+	const SOLO_THREAD = "guest-solo-thread"
+	const SHARED_THREAD = "shared-thread"
+
+	const answerOf = (body: unknown, status = 200) =>
+		new Response(JSON.stringify(body), {
+			status,
+			headers: { "content-type": "application/json" },
+		})
+
+	const hostAnswering = async (url: URL | RequestInfo, init?: RequestInit) => {
+		const command = String(url).split("/").at(-1)
+		const args = JSON.parse(String(init?.body ?? "{}"))
+		if (command === "conversation_main_chat") {
+			return answerOf({ id: SHARED_THREAD })
+		}
+		return args.conversationId === SHARED_THREAD
+			? answerOf([])
+			: answerOf("this command reaches outside the shared space", 403)
+	}
+
+	const guestJoinedTo = async () => {
+		const local = {
+			invoke: vi.fn(async (command: string) =>
+				command === "conversation_main_chat"
+					? ({ id: SOLO_THREAD } as never)
+					: ([] as never),
+			),
+			listen: vi.fn(async () => () => undefined),
+			fileSrc: (path: string) => path,
+		}
+		const fetch = vi.fn(hostAnswering)
+		const hosts = createJoinedHosts({
+			local,
+			join: async (id) => ({
+				status: "ok",
+				data: {
+					id,
+					hostUrl: "http://192.168.1.20:45367",
+					token: "joined",
+					remoteSpaceId: null,
+					name: id,
+				},
+			}),
+			fetch: fetch as unknown as typeof globalThis.fetch,
+			openSocket: () => ({
+				onopen: null,
+				onmessage: null,
+				onclose: null,
+				close: () => undefined,
+			}),
+			reportFailure: vi.fn(),
+			reportHostDown: () => "down",
+			endHostDown: vi.fn(),
+		})
+		await hosts.invoke("conversation_main_chat", {
+			botId: "b1",
+			spaceId: "home",
+		})
+		await hosts.activate("garage")
+		await hosts.invoke("conversation_main_chat", { botId: "b2", spaceId: "g" })
+		return { hosts, local, fetch }
+	}
+
+	const installsAskedOf = (fetch: ReturnType<typeof vi.fn>) =>
+		fetch.mock.calls
+			.filter(([url]) => String(url).endsWith("/application_installs"))
+			.map(([, init]) => JSON.parse(String(init.body)).conversationId)
+
+	beforeEach(() => {
+		vi.mocked(raiseFailureNotice).mockClear()
+	})
+
+	afterEach(() => {
+		cleanup()
+		vi.restoreAllMocks()
+	})
+
+	it("reads a guest-local conversation on the guest, then the shared one on the host, with no notice", async () => {
+		const { hosts, local, fetch } = await guestJoinedTo()
+		const applications = {
+			port: {
+				installs: (conversationId: string) =>
+					hosts.invoke("application_installs", { conversationId }),
+				onInstalled: () => Promise.resolve(() => undefined),
+			} as unknown as ApplicationPort,
+			curated: [],
+			spaces: [],
+			onOpen: vi.fn(),
+		} satisfies ConversationApplications
+
+		const { rerender } = renderHook(
+			({ conversationId }) => useConversationInstalls(conversationId),
+			{
+				wrapper: providing(applications),
+				initialProps: { conversationId: SOLO_THREAD },
+			},
+		)
+		await waitFor(() =>
+			expect(local.invoke).toHaveBeenCalledWith("application_installs", {
+				conversationId: SOLO_THREAD,
+			}),
+		)
+
+		rerender({ conversationId: SHARED_THREAD })
+		await waitFor(() => expect(installsAskedOf(fetch)).toEqual([SHARED_THREAD]))
+
+		expect(local.invoke).not.toHaveBeenCalledWith("application_installs", {
+			conversationId: SHARED_THREAD,
+		})
 		expect(raiseFailureNotice).not.toHaveBeenCalled()
 	})
 })

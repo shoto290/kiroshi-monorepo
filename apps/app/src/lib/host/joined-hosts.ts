@@ -1,6 +1,7 @@
 import type { InvokeArgs, InvokeOptions } from "@tauri-apps/api/core"
 import type { EventCallback, UnlistenFn } from "@tauri-apps/api/event"
 
+import { createConversationProvenance } from "./conversation-provenance"
 import { createHttpHost, type HostSocket, type HttpHost } from "./http"
 
 import {
@@ -132,6 +133,7 @@ export const createJoinedHosts = ({
 	const subscriptions = new Set<Subscription>()
 	const downNotices = new Map<string, string>()
 	const reconnectionListeners = new Set<() => void>()
+	const provenance = createConversationProvenance()
 	let requested: string | null = null
 
 	const record = (id: string, state: JoinedHostState) => {
@@ -352,13 +354,21 @@ export const createJoinedHosts = ({
 	const invoke: Invoke = (...call) => {
 		const [command, args] = call
 		const { active } = store.getState()
-		if (isLocalCommand(command) || active === null) {
-			return local.invoke(...call)
+		if (
+			isLocalCommand(command) ||
+			active === null ||
+			provenance.namesOnlyElsewhere(active, args)
+		) {
+			return provenance.record(null, command, local.invoke(...call))
 		}
 		const joined = hosts.get(active)
-		return joined
-			? joined.invoke(command, args)
-			: invokeOnceOpen(active, command, args)
+		return provenance.record(
+			active,
+			command,
+			joined
+				? joined.invoke(command, args)
+				: invokeOnceOpen(active, command, args),
+		)
 	}
 
 	const routedListen =
