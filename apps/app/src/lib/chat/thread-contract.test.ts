@@ -122,6 +122,30 @@ describe("factsOf permission", () => {
 		expect(facts.isPromptPending).toBe(true)
 	})
 
+	it("carries the permission a turn started elsewhere raised in the companion thread", () => {
+		const facts = factsOf(
+			botThreadOf({
+				...initialChatState,
+				foreignTurn: {
+					scope: {
+						conversationId: "c-1",
+						botId: "b-1",
+						runtimeSessionId: "elsewhere",
+						epoch: 1,
+					},
+					activities: [],
+					startedAt: 0,
+					hasWritten: false,
+					permission: REQUEST,
+					question: null,
+				},
+			}),
+		)
+
+		expect(facts.permission).toEqual({ request: REQUEST, authorBotId: null })
+		expect(facts.isPromptPending).toBe(true)
+	})
+
 	it("leaves the companion thread permission null when nothing is pending", () => {
 		expect(factsOf(botThreadOf(initialChatState)).permission).toBeNull()
 	})

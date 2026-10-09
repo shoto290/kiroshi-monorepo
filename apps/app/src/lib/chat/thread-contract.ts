@@ -131,6 +131,9 @@ const permissionOf = (
 
 const botFactsOf = (thread: LoadedBotThread): ThreadFacts => {
 	const isReady = isSessionReady(thread.state)
+	const { foreignTurn } = thread.state
+	const permission = thread.state.permission ?? foreignTurn?.permission ?? null
+	const question = thread.state.question ?? foreignTurn?.question ?? null
 
 	return {
 		id: thread.bot.id,
@@ -142,13 +145,12 @@ const botFactsOf = (thread: LoadedBotThread): ThreadFacts => {
 		isBusy: isTurnBusy(thread.state.turn),
 		isLoadingOlder: thread.state.loadingOlder,
 		isLoadingNewer: thread.state.loadingNewer,
-		isPromptPending:
-			thread.state.permission !== null || thread.state.question !== null,
+		isPromptPending: permission !== null || question !== null,
 		isOverlayOpen: thread.isOverlayOpen,
 		canAttach: isReady,
-		permission: permissionOf(thread.state.permission),
+		permission: permissionOf(permission),
 		latestError: thread.state.errors.at(-1),
-		question: thread.state.question,
+		question,
 		refused: null,
 		rejectedPromptId: thread.state.rejectedPromptId,
 		workingBotIds: NO_WORKING_BOT_IDS,

@@ -11,7 +11,13 @@ import type { TranscriptStore } from "./store-port"
 import type { TranscriptMessage } from "./transcript-contract"
 import { message, seatBots } from "./transcript-fixtures"
 
-import type { AgentEvent, EventTurn, RuntimeScope } from "../agent/contract"
+import type {
+	AgentEvent,
+	EventTurn,
+	PermissionRequest,
+	QuestionRequest,
+	RuntimeScope,
+} from "../agent/contract"
 import { agentTransport } from "../agent/transport"
 import { useRosterReloads } from "../bots/use-roster-reloads"
 import { createChatController } from "../chat/chat-controller"
@@ -245,7 +251,15 @@ const openSoloChat = async () => {
 	await act(() => controller.open(BOT, null).then(() => undefined))
 	await settled()
 	const conversationId = controller.getState().conversationId ?? ""
-	return { store, scripted, controller, detach, botId: BOT, conversationId }
+	return {
+		store,
+		scripted,
+		driver,
+		controller,
+		detach,
+		botId: BOT,
+		conversationId,
+	}
 }
 
 const openRoom = async () => {
@@ -265,6 +279,7 @@ const openRoom = async () => {
 	return {
 		store,
 		scripted,
+		driver,
 		controller,
 		detach,
 		botId: bot?.id ?? "",
@@ -682,6 +697,211 @@ describe("a turn the other Mac started", () => {
 		await settled()
 
 		expect(speakersOf(controller.getState())).toEqual([botId])
+		detach()
+	})
+})
+
+const PERMISSION: PermissionRequest = {
+	id: "permission-1",
+	toolName: "Bash",
+	title: "Run ls",
+	detail: null,
+}
+
+const QUESTION: QuestionRequest = {
+	id: "question-1",
+	questions: [
+		{
+			question: "Which wall?",
+			header: "Wall",
+			options: [],
+			multiSelect: false,
+		},
+	],
+}
+
+const ANSWERS = { "Which wall?": "North" }
+
+const ASKED_PERMISSION: AgentEvent = {
+	type: "permissionRequested",
+	request: PERMISSION,
+}
+
+const ASKED_QUESTION: AgentEvent = {
+	type: "questionRequested",
+	request: QUESTION,
+}
+
+const PERMISSION_RESOLVED: AgentEvent = {
+	type: "permissionResolved",
+	id: PERMISSION.id,
+	decision: "allowOnce",
+}
+
+const promptOf = ({ pendingPrompt }: { pendingPrompt: unknown }) =>
+	pendingPrompt
+
+describe("a prompt raised by a turn the other Mac started", () => {
+	it.each(sides)(
+		"shows the approval in a room on %s, answers it with the foreign scope, and closes it once resolved",
+		async (_, emit: Emit, join) => {
+			const room = await openRoom()
+			await join()
+			const { controller, driver, detach, botId, conversationId } = room
+			const respond = vi.spyOn(driver, "respondToPermission")
+			const scope = { ...foreignScope(conversationId), botId }
+			const turn = storedTurn(conversationId)
+
+			await emit("agent://event", { scope, turn, event: ASKED_PERMISSION })
+
+			expect(promptOf(controller.getState())).toEqual({
+				kind: "permission",
+				botId,
+				request: PERMISSION,
+			})
+
+			await act(() => controller.respond(PERMISSION.id, "allowOnce"))
+
+			expect(respond).toHaveBeenCalledWith(scope, PERMISSION.id, "allowOnce")
+
+			await emit("agent://event", { scope, turn, event: PERMISSION_RESOLVED })
+
+			expect(promptOf(controller.getState())).toBeNull()
+			detach()
+		},
+	)
+
+	it("closes the approval in a room when it was resolved on the other side", async () => {
+		const { controller, detach, botId, conversationId } = await openRoom()
+		const scope = { ...foreignScope(conversationId), botId }
+		const turn = storedTurn(conversationId)
+
+		await emitLocally("agent://event", { scope, turn, event: ASKED_PERMISSION })
+		await emitLocally("agent://event", {
+			scope,
+			turn,
+			event: PERMISSION_RESOLVED,
+		})
+
+		expect(promptOf(controller.getState())).toBeNull()
+		detach()
+	})
+
+	it("shows the question in a room, answers it with the foreign scope, and closes it", async () => {
+		const { controller, driver, detach, botId, conversationId } =
+			await openRoom()
+		const answer = vi.spyOn(driver, "answerQuestion")
+		const scope = { ...foreignScope(conversationId), botId }
+		const turn = storedTurn(conversationId)
+
+		await emitLocally("agent://event", { scope, turn, event: ASKED_QUESTION })
+
+		expect(promptOf(controller.getState())).toEqual({
+			kind: "question",
+			botId,
+			request: QUESTION,
+		})
+
+		await act(() => controller.answer(QUESTION.id, ANSWERS))
+
+		expect(answer).toHaveBeenCalledWith(scope, QUESTION.id, ANSWERS)
+		expect(promptOf(controller.getState())).toBeNull()
+		detach()
+	})
+
+	it("closes the question in a room once the turn moves on after an answer given elsewhere", async () => {
+		const { controller, detach, botId, conversationId } = await openRoom()
+		const scope = { ...foreignScope(conversationId), botId }
+		const turn = storedTurn(conversationId)
+
+		await emitLocally("agent://event", { scope, turn, event: ASKED_QUESTION })
+		await emitLocally("agent://event", { scope, turn, event: SEARCHING })
+
+		expect(promptOf(controller.getState())).toBeNull()
+		detach()
+	})
+
+	it("keeps the approval open in a room and raises a notice when the answer is refused", async () => {
+		const { controller, driver, detach, botId, conversationId } =
+			await openRoom()
+		vi.spyOn(driver, "respondToPermission").mockRejectedValueOnce(
+			new Error("relay down"),
+		)
+		const scope = { ...foreignScope(conversationId), botId }
+		const turn = storedTurn(conversationId)
+		await emitLocally("agent://event", { scope, turn, event: ASKED_PERMISSION })
+
+		await act(() => controller.respond(PERMISSION.id, "allowOnce"))
+
+		expect(promptOf(controller.getState())).toMatchObject({
+			request: PERMISSION,
+		})
+		expect(controller.getState().latestError).not.toBeNull()
+		detach()
+	})
+
+	it("shows the approval in a solo chat, answers it with the foreign scope, and closes it once resolved", async () => {
+		const { controller, driver, detach, botId, conversationId } =
+			await openSoloChat()
+		const respond = vi.spyOn(driver, "respondToPermission")
+		const scope = foreignScope(conversationId)
+		const turn = storedTurn(conversationId)
+
+		await emitLocally("agent://event", { scope, turn, event: ASKED_PERMISSION })
+
+		expect(controller.stateFor(botId).foreignTurn?.permission).toEqual(
+			PERMISSION,
+		)
+
+		await act(() => controller.respond(PERMISSION.id, "allowOnce"))
+
+		expect(respond).toHaveBeenCalledWith(scope, PERMISSION.id, "allowOnce")
+
+		await emitLocally("agent://event", {
+			scope,
+			turn,
+			event: PERMISSION_RESOLVED,
+		})
+
+		expect(controller.stateFor(botId).foreignTurn?.permission).toBeNull()
+		detach()
+	})
+
+	it("shows the question in a solo chat, answers it with the foreign scope, and closes it when the turn ends", async () => {
+		const { controller, driver, detach, botId, conversationId } =
+			await openSoloChat()
+		const answer = vi.spyOn(driver, "answerQuestion").mockResolvedValue()
+		const scope = foreignScope(conversationId)
+		const turn = storedTurn(conversationId)
+
+		await emitLocally("agent://event", { scope, turn, event: ASKED_QUESTION })
+
+		expect(controller.stateFor(botId).foreignTurn?.question).toEqual(QUESTION)
+
+		await act(() => controller.answer(QUESTION.id, ANSWERS))
+
+		expect(answer).toHaveBeenCalledWith(scope, QUESTION.id, ANSWERS)
+
+		await emitLocally("agent://event", { scope, turn, event: TURN_ENDED })
+
+		expect(controller.stateFor(botId).foreignTurn).toBeNull()
+		detach()
+	})
+
+	it("keeps the question open in a solo chat and raises a notice when the answer is refused", async () => {
+		const { controller, driver, detach, botId, conversationId } =
+			await openSoloChat()
+		vi.spyOn(driver, "answerQuestion").mockRejectedValueOnce(
+			new Error("relay down"),
+		)
+		const scope = foreignScope(conversationId)
+		const turn = storedTurn(conversationId)
+		await emitLocally("agent://event", { scope, turn, event: ASKED_QUESTION })
+
+		await act(() => controller.answer(QUESTION.id, ANSWERS))
+
+		expect(controller.stateFor(botId).foreignTurn?.question).toEqual(QUESTION)
+		expect(controller.stateFor(botId).errors).not.toEqual([])
 		detach()
 	})
 })
