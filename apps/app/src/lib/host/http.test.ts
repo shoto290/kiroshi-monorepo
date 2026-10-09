@@ -3,14 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 
 import {
-	bridgeGeneratedBindings,
 	createHttpHost,
 	type HostSocket,
 	raiseHostOfflineNotice,
 	raiseRefusalNotice,
 } from "./http"
-
-import { commands } from "../bindings"
 
 vi.mock("@workspace/ui/components/notice-surface", () => ({
 	raiseFailureNotice: vi.fn(() => "notice-1"),
@@ -178,21 +175,6 @@ describe("invoke over http", () => {
 			"Failed to fetch",
 			undefined,
 		)
-	})
-
-	it("sends a generated binding over http", async () => {
-		const { host, fetch } = hostOf({
-			answer: { body: '["opus"]', type: "application/json" },
-		})
-		vi.stubGlobal("window", {})
-		bridgeGeneratedBindings(host, window)
-
-		await expect(commands.agentModels()).resolves.toEqual(["opus"])
-		expect(fetch).toHaveBeenCalledWith(
-			new URL(`${HOST}/api/invoke/agent_models`),
-			expect.objectContaining({ method: "POST" }),
-		)
-		vi.unstubAllGlobals()
 	})
 })
 

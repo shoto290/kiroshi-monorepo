@@ -11,6 +11,10 @@ import {
 	type ThreadMenuSlot,
 } from "@/components/thread-composer"
 import type { StagedAttachment } from "@/lib/chat/attachments"
+import {
+	type OpenJoinedHost,
+	OpenJoinedHostContext,
+} from "@/lib/spaces/open-joined-host"
 
 const NO_ATTACHMENTS: StagedAttachment[] = []
 
@@ -194,5 +198,40 @@ describe("ThreadComposer", () => {
 				.getByRole("button", { name: "Attach files" })
 				.hasAttribute("disabled"),
 		).toBe(true)
+	})
+
+	describe("in a joined space", () => {
+		const OFFLINE_NOTICE =
+			"Studio Nord is offline. You can write again once lea@example.com’s Mac is back."
+
+		const hostOf = (isOnline: boolean): OpenJoinedHost => ({
+			spaceName: "Studio Nord",
+			hostEmail: "lea@example.com",
+			isOnline,
+		})
+
+		const composerIn = (host: OpenJoinedHost) =>
+			createElement(
+				OpenJoinedHostContext.Provider,
+				{ value: host },
+				composerOf({ onSubmitPrompt: () => Promise.resolve(true) }),
+			)
+
+		it("shows the offline composer while the host is offline", () => {
+			render(composerIn(hostOf(false)))
+
+			expect(screen.getByText(OFFLINE_NOTICE)).toBeTruthy()
+			expect(screen.queryByRole("textbox")).toBeNull()
+		})
+
+		it("gives the field back once the host is online again", () => {
+			const { rerender } = render(composerIn(hostOf(false)))
+
+			rerender(composerIn(hostOf(true)))
+
+			expect(screen.queryByText(OFFLINE_NOTICE)).toBeNull()
+			type("back again")
+			expect(field().value).toBe("back again")
+		})
 	})
 })

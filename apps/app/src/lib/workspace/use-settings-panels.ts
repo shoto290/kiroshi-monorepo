@@ -17,7 +17,7 @@ import { toPluginSkills } from "../plugins/plugin-skills"
 
 const ACCOUNT_TAB = "account"
 
-const HOSTING_TAB = "hosting"
+const MEMBERS_TAB = "members"
 
 type SettingsPanelsInput = {
 	core: WorkspaceCore
@@ -112,10 +112,11 @@ export const useSettingsPanels = ({
 		user.controller.setSettingsOpen(true)
 	}
 
-	const openSpaceHosting = () => {
-		setSettingsTab(HOSTING_TAB)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the setter comes from useState in useApplicationScopes and never changes
+	const openSpaceMembers = useCallback(() => {
+		setSettingsTab(MEMBERS_TAB)
 		spaces.controller.setSettingsOpen(true)
-	}
+	}, [spaces.controller])
 
 	const conversationApplications = useMemo(
 		() => ({
@@ -142,7 +143,7 @@ export const useSettingsPanels = ({
 		companionSkills,
 		conversationApplications,
 		openAccountSettings,
-		openSpaceHosting,
+		openSpaceMembers,
 		personSkills,
 		sessionApplications,
 		spaceHistory,

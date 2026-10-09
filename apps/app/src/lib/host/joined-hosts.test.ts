@@ -104,13 +104,11 @@ describe("the local command list", () => {
 				"space_list",
 				"space_reorder",
 				"joined_spaces_list",
-				"joined_space_add",
 				"joined_space_connect",
 				"joined_space_remove",
 				"user_preferences",
 				"user_set_preferences",
 				"window_declare_maximize_button",
-				"host_share_link",
 			]),
 		)
 	})

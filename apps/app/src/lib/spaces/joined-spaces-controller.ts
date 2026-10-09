@@ -1,4 +1,3 @@
-import type { JoinSpaceState } from "@workspace/ui/components/join-space-dialog"
 import {
 	type NoticeMessage,
 	raiseFailureNotice,
@@ -29,19 +28,9 @@ import {
 	type JoinedHosts,
 } from "../host/joined-hosts"
 
-export type RemovedSpace = {
-	joined: JoinedSpace
-	hostEmail: string
-	backSpaceId: string | null
-}
-
 export type JoinedSpacesState = {
 	joinedSpaces: JoinedSpace[]
-	removed: RemovedSpace | null
 	hasFailedToLoad: boolean
-	isJoinOpen: boolean
-	joinLink: string
-	joinState: JoinSpaceState
 	isLeaveOpen: boolean
 	leavingId: string | null
 	openId: string | null
@@ -53,21 +42,15 @@ export type JoinedSpacesController = {
 	watch: () => () => void
 	selectSpace: (id: string) => void
 	restore: (rowId: string | null) => void
-	openJoin: () => void
-	setJoinOpen: (isJoinOpen: boolean) => void
-	changeJoinLink: (link: string) => void
-	join: () => Promise<void>
 	askToLeave: () => void
 	setLeaveOpen: (isLeaveOpen: boolean) => void
 	leave: (id: string) => Promise<void>
 	admit: (joined: JoinedSpace, hostEmail: string) => Promise<void>
-	leaveRemoved: () => void
 	hostEmailOf: (id: string) => string
 }
 
 export type JoinedSpacesTransport = {
 	list: () => Promise<JoinedSpace[]>
-	add: (link: string) => Promise<JoinedSpace>
 	remove: (id: string) => Promise<void>
 	onChanged: (listener: () => void) => Promise<() => void>
 	onRemoved: (
@@ -77,7 +60,7 @@ export type JoinedSpacesTransport = {
 
 type JoinedSpacesHosts = Pick<
 	JoinedHosts,
-	"getState" | "subscribe" | "connect" | "activate" | "forget"
+	"getState" | "connect" | "activate" | "forget"
 >
 
 type JoinedSpacesControllerOptions = {
@@ -85,16 +68,13 @@ type JoinedSpacesControllerOptions = {
 	hosts?: JoinedSpacesHosts
 	transport?: JoinedSpacesTransport
 	reportFailure?: (notice: NoticeMessage) => void
-	reportRemoval?: (title: string) => void
+	reportRemoval?: (notice: NoticeMessage) => void
 	inviters?: SpaceInviters
-	probeTimeout?: number
 }
 
 type CommandResult<T> =
 	| { status: "ok"; data: T }
 	| { status: "error"; error: JoinedSpaceError }
-
-const PROBE_TIMEOUT = 10_000
 
 const dataOf = <T>(result: CommandResult<T>): T => {
 	if (result.status === "error") {
@@ -105,7 +85,6 @@ const dataOf = <T>(result: CommandResult<T>): T => {
 
 const joinedSpacesTransport: JoinedSpacesTransport = {
 	list: async () => dataOf(await commands.joinedSpacesList()),
-	add: async (link) => dataOf(await commands.joinedSpaceAdd(link, null)),
 	remove: async (id) => {
 		dataOf(await commands.joinedSpaceRemove(id))
 	},
@@ -116,14 +95,11 @@ const joinedSpacesTransport: JoinedSpacesTransport = {
 		),
 }
 
-const raiseRemovalNotice = (title: string) =>
-	raiseTransientNotice({ type: "info", title })
+const raiseRemovalNotice = (notice: NoticeMessage) =>
+	raiseTransientNotice({ ...notice, type: "info" })
 
 const isJoinedSpaceError = (reason: unknown): reason is JoinedSpaceError =>
 	typeof reason === "object" && reason !== null && "kind" in reason
-
-const isRefusedLink = (reason: unknown) =>
-	isJoinedSpaceError(reason) && reason.kind === "refusedLink"
 
 const describeRefusal = (reason: unknown): string => {
 	if (isJoinedSpaceError(reason)) {
@@ -148,14 +124,6 @@ const RELAY_HOST_SUFFIX = "/relay/member"
 export const isRelaySpace = (joined: JoinedSpace) =>
 	joined.hostUrl.endsWith(RELAY_HOST_SUFFIX)
 
-export const shownJoinedSpacesOf = ({
-	joinedSpaces,
-	removed,
-}: Pick<JoinedSpacesState, "joinedSpaces" | "removed">): JoinedSpace[] =>
-	removed && !joinedSpaces.some((joined) => joined.id === removed.joined.id)
-		? [...joinedSpaces, removed.joined]
-		: joinedSpaces
-
 const joinedSpaceOfRow = (
 	joinedSpaces: JoinedSpace[],
 	rowId: string | null,
@@ -175,11 +143,11 @@ export const openJoinedSpaceOf = (
 	joinedSpaces.find(isOpenIn(openId, selectedSpaceId))
 
 export const openRowIdOf = (
-	state: Pick<JoinedSpacesState, "joinedSpaces" | "removed" | "openId">,
+	state: Pick<JoinedSpacesState, "joinedSpaces" | "openId">,
 	selectedSpaceId: string | null,
 ): string | null => {
 	const open = openJoinedSpaceOf(
-		shownJoinedSpacesOf(state),
+		state.joinedSpaces,
 		state.openId,
 		selectedSpaceId,
 	)
@@ -223,11 +191,7 @@ export const rosterSpacesOf = (
 
 const initialJoinedSpacesState: JoinedSpacesState = {
 	joinedSpaces: [],
-	removed: null,
 	hasFailedToLoad: false,
-	isJoinOpen: false,
-	joinLink: "",
-	joinState: "idle",
 	isLeaveOpen: false,
 	leavingId: null,
 	openId: null,
@@ -240,12 +204,10 @@ export const createJoinedSpacesController = ({
 	reportFailure = raiseFailureNotice,
 	reportRemoval = raiseRemovalNotice,
 	inviters = storedInviters,
-	probeTimeout = PROBE_TIMEOUT,
 }: JoinedSpacesControllerOptions): JoinedSpacesController => {
 	const stateStore = createStore(initialJoinedSpacesState)
 	const current = stateStore.getState
 	let latestRead = 0
-	let isJoining = false
 	let previousLocalId: string | null = null
 	let hasRead = false
 	let pendingRowId: string | null = null
@@ -270,17 +232,9 @@ export const createJoinedSpacesController = ({
 		}
 	}
 
-	const isHeld = (joined: JoinedSpace) =>
-		current().joinedSpaces.some((held) => held.id === joined.id)
-
-	const shownOf = (listed: JoinedSpace[]) =>
-		isJoining ? listed.filter(isHeld) : listed
-
 	const vanishedFrom = (listed: JoinedSpace[]) =>
 		current().joinedSpaces.filter(
-			(held) =>
-				held.id !== current().removed?.joined.id &&
-				!listed.some((joined) => joined.id === held.id),
+			(held) => !listed.some((joined) => joined.id === held.id),
 		)
 
 	const leaveVanished = (gone: JoinedSpace[]) => {
@@ -299,7 +253,7 @@ export const createJoinedSpacesController = ({
 		latestRead += 1
 		const ticket = latestRead
 		try {
-			const joinedSpaces = shownOf(await transport.list())
+			const joinedSpaces = await transport.list()
 			if (ticket === latestRead) {
 				const gone = vanishedFrom(joinedSpaces)
 				set({ joinedSpaces, hasFailedToLoad: false })
@@ -364,49 +318,25 @@ export const createJoinedSpacesController = ({
 	const isOpen = (id: string) =>
 		hosts.getState().active === id || openJoined()?.id === id
 
-	const dropRemoved = (id: string, name: string, hostEmail: string) => {
-		hosts.forget(id)
-		inviters.forget(id)
-		set({ joinedSpaces: heldWithout(id) })
-		reportRemoval(
-			i18n.t("bots:spaces.removed.notice", { email: hostEmail, name }),
-		)
-	}
-
-	const settleRemoval = ({ joined, hostEmail }: RemovedSpace) => {
-		set({ removed: null })
-		dropRemoved(joined.id, joined.name, hostEmail)
-	}
-
-	const removedOpenSpace = (id: string, name: string): JoinedSpace =>
-		current().joinedSpaces.find((joined) => joined.id === id) ?? {
-			id,
-			name,
-			hostUrl: "",
-			remoteSpaceId: spaces.getState().selectedSpaceId,
-		}
+	const removalNoticeOf = (name: string, hostEmail: string) => ({
+		title: i18n.t("bots:spaces.removed.notice", { email: hostEmail, name }),
+		description: i18n.t("bots:spaces.removed.noticeDescription", {
+			host: hostEmail,
+		}),
+	})
 
 	const noteRemoval = ({ id, name }: JoinedSpaceRemoved) => {
 		const hostEmail = inviters.of(id)
-		if (!isOpen(id)) {
-			dropRemoved(id, name, hostEmail)
-			return
-		}
-		set({
-			removed: {
-				joined: removedOpenSpace(id, name),
-				hostEmail,
-				backSpaceId: backSpaceId(),
-			},
-		})
+		const wasOpen = isOpen(id)
+		const back = backSpaceId()
+		hosts.forget(id)
+		inviters.forget(id)
+		set({ joinedSpaces: heldWithout(id) })
+		reportRemoval(removalNoticeOf(name, hostEmail))
+		if (wasOpen && back) selectSpace(back)
 	}
 
 	const selectSpace = (id: string) => {
-		const { removed } = current()
-		if (removed && rowIdOf(removed.joined) === id) {
-			return
-		}
-		if (removed) settleRemoval(removed)
 		notePreviousLocal()
 		pendingRowId = null
 		const joined = joinedOfRow(id)
@@ -429,15 +359,6 @@ export const createJoinedSpacesController = ({
 		reopenPending()
 	}
 
-	const leaveRemoved = () => {
-		const { removed } = current()
-		if (!removed) {
-			return
-		}
-		settleRemoval(removed)
-		if (removed.backSpaceId) selectSpace(removed.backSpaceId)
-	}
-
 	const admit = async (joined: JoinedSpace, hostEmail: string) => {
 		inviters.remember(joined.id, hostEmail)
 		set({ joinedSpaces: [...heldWithout(joined.id), joined] })
@@ -445,70 +366,6 @@ export const createJoinedSpacesController = ({
 		await read()
 		const learned = current().joinedSpaces.find((held) => held.id === joined.id)
 		selectSpace(rowIdOf(learned ?? joined))
-	}
-
-	const probe = (id: string) =>
-		new Promise<boolean>((resolve) => {
-			const settle = (isUp: boolean) => {
-				clearTimeout(timer)
-				unsubscribe()
-				resolve(isUp)
-			}
-			const check = () => {
-				const connection = hosts.getState().connections[id]
-				if (connection?.status === "up") settle(true)
-				if (isUnreachable(connection)) settle(false)
-			}
-			const unsubscribe = hosts.subscribe(check)
-			const timer = setTimeout(() => settle(false), probeTimeout)
-			void hosts.connect(id).then(check)
-		})
-
-	const welcome = (joined: JoinedSpace) => {
-		set({
-			joinedSpaces: [...heldWithout(joined.id), joined],
-			isJoinOpen: false,
-			joinLink: "",
-			joinState: "idle",
-		})
-		selectSpace(rowIdOf(joined))
-	}
-
-	const withdraw = async (joined: JoinedSpace) => {
-		hosts.forget(joined.id)
-		set({
-			joinedSpaces: heldWithout(joined.id),
-			joinState: "hostUnreachable",
-		})
-		reportFailure({ title: i18n.t("common:spaces.join.hostUnreachable") })
-		await transport.remove(joined.id).catch(reportRefusal)
-	}
-
-	const settleJoined = async (joined: JoinedSpace) =>
-		(await probe(joined.id)) ? welcome(joined) : withdraw(joined)
-
-	const refuseJoin = (reason: unknown) => {
-		if (isRefusedLink(reason)) {
-			set({ joinState: "invalidLink" })
-			return
-		}
-		set({ joinState: "idle" })
-		reportRefusal(reason)
-	}
-
-	const join = async () => {
-		if (isJoining) {
-			return
-		}
-		isJoining = true
-		set({ joinState: "joining" })
-		try {
-			await transport
-				.add(current().joinLink.trim())
-				.then(settleJoined, refuseJoin)
-		} finally {
-			isJoining = false
-		}
 	}
 
 	const leave = async (id: string) => {
@@ -537,10 +394,6 @@ export const createJoinedSpacesController = ({
 		watch,
 		selectSpace,
 		restore,
-		openJoin: () => set({ isJoinOpen: true, joinLink: "", joinState: "idle" }),
-		setJoinOpen: (isJoinOpen: boolean) => set({ isJoinOpen }),
-		changeJoinLink: (joinLink: string) => set({ joinLink, joinState: "idle" }),
-		join,
 		askToLeave: () =>
 			set({
 				isLeaveOpen: true,
@@ -549,7 +402,6 @@ export const createJoinedSpacesController = ({
 		setLeaveOpen: (isLeaveOpen: boolean) => set({ isLeaveOpen }),
 		leave,
 		admit,
-		leaveRemoved,
 		hostEmailOf: inviters.of,
 	}
 }

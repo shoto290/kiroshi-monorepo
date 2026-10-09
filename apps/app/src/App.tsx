@@ -1,11 +1,11 @@
 import { AppSidebar } from "@workspace/ui/components/app-sidebar"
 import { CompanionMenuProvider } from "@workspace/ui/components/companion-menu"
 import { CompanionSelectProvider } from "@workspace/ui/components/companion-select"
-import { SpaceRemovedScreen } from "@workspace/ui/components/space-removed-screen"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 import { probeRender } from "@workspace/ui/lib/render-probe"
 
 import { AppDialogs } from "@/components/app-dialogs"
+import { useSpaceAccess } from "@/components/space-access"
 import { StartupScreen } from "@/components/startup-screen"
 import { titleBarWindowControls } from "@/components/window-caption-controls"
 import { WorkspaceBody } from "@/components/workspace-body"
@@ -16,7 +16,11 @@ import { ConversationSeatingContext } from "@/lib/conversations/use-conversation
 import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
 import { useCompanionSelectGuard } from "@/lib/sidebar/companion-select"
-import { useSwitcherSpaces } from "@/lib/spaces/use-joined-spaces"
+import { OpenJoinedHostContext } from "@/lib/spaces/open-joined-host"
+import {
+	useOpenJoinedHost,
+	useSwitcherSpaces,
+} from "@/lib/spaces/use-joined-spaces"
 import { useApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import { useRosterLines } from "@/lib/workspace/use-roster-lines"
 import { useRosterLists } from "@/lib/workspace/use-roster-lists"
@@ -83,6 +87,15 @@ export function App() {
 		core.invitations,
 	)
 	const authorship = useThreadAuthorship(core)
+	const joinedHost = useOpenJoinedHost(
+		core.spaces.state.selectedSpaceId,
+		core.joinedSpaces,
+	)
+	const spaceAccess = useSpaceAccess({
+		joinedHost,
+		isOwnSpace: scopes.selectedSpace !== undefined,
+		onShare: panels.openSpaceMembers,
+	})
 
 	const { preferences, roster, spaces } = core
 
@@ -136,13 +149,12 @@ export function App() {
 						onDeclineInvitation={switcher.onDeclineInvitation}
 						onRetryInvitation={switcher.onRetryInvitation}
 						onSpaceSwitcherOpenChange={switcher.onSpaceSwitcherOpenChange}
+						spaceAccess={spaceAccess}
 						user={overlay.userSettings}
 					/>
 				}
 			>
-				{switcher.removedScreen ? (
-					<SpaceRemovedScreen {...switcher.removedScreen} />
-				) : (
+				<OpenJoinedHostContext.Provider value={joinedHost}>
 					<ConversationSeatingContext.Provider
 						value={rosterLines.conversationSeating}
 					>
@@ -192,7 +204,7 @@ export function App() {
 							</CompanionSelectProvider>
 						</CompanionMenuProvider>
 					</ConversationSeatingContext.Provider>
-				)}
+				</OpenJoinedHostContext.Provider>
 			</WorkspaceShell>
 			<AppDialogs
 				core={core}
