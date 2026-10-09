@@ -130,8 +130,8 @@ async fn listed_name<R: Runtime>(app: &AppHandle<R>, member: &RelayedMember) -> 
 		Ok(listed) => name_among(&listed, &member.user_id),
 		Err(failure) => {
 			eprintln!(
-				"the name of member {} of hosted space {} was not read: {failure:?}",
-				member.user_id, member.space_id
+				"a member name of hosted space {} was not read: {failure:?}",
+				member.space_id
 			);
 			None
 		}
