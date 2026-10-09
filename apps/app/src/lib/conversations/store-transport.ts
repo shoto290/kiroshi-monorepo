@@ -43,8 +43,16 @@ import {
 	type TranscriptWindow,
 } from "./transcript-contract"
 
-import { invoke, listen } from "../host"
+import { activeJoinedSpaceId, invoke, listen } from "../host"
 import type { AgentCommand } from "@/lib/agent/contract"
+
+const spaceOrJoined = (spaceId?: string | null): string | null =>
+	spaceId ?? activeJoinedSpaceId()
+
+const joinedSpaceArgument = () => {
+	const spaceId = activeJoinedSpaceId()
+	return spaceId ? { spaceId } : {}
+}
 
 export const arrivalsTransport = {
 	onCompanionArrived: (listener: (arrival: CompanionArrival) => void) =>
@@ -109,7 +117,11 @@ export const conversationStore: TranscriptStore = {
 	deleteSection: (id: string) => invoke<void>("section_delete", { id }),
 
 	moveBotToSection: (botId: string, sectionId: string | null) =>
-		invoke<void>("bot_move_to_section", { botId, sectionId }),
+		invoke<void>("bot_move_to_section", {
+			botId,
+			sectionId,
+			...joinedSpaceArgument(),
+		}),
 
 	moveBotToSpace: (botId: string, spaceId: string) =>
 		invoke<void>("bot_move_to_space", { botId, spaceId }),
@@ -125,7 +137,7 @@ export const conversationStore: TranscriptStore = {
 		invoke<void>("bot_remove_from_space", { botId, spaceId }),
 
 	bots: (spaceId?: string | null) =>
-		invoke<Bot[]>("conversation_bots", { spaceId: spaceId ?? null }),
+		invoke<Bot[]>("conversation_bots", { spaceId: spaceOrJoined(spaceId) }),
 
 	botsByPresence: (spaceId: string, excludedConversationId?: string | null) =>
 		invoke<Bot[]>("conversation_bots_by_presence", {
@@ -136,7 +148,7 @@ export const conversationStore: TranscriptStore = {
 	createBot: (identity: BotIdentity, spaceId?: string | null) =>
 		invoke<Bot>("conversation_create_bot", {
 			identity,
-			spaceId: spaceId ?? null,
+			spaceId: spaceOrJoined(spaceId),
 		}),
 
 	createBotFromDraft: (draft: BotDraft, spaceId: string) =>
@@ -147,7 +159,7 @@ export const conversationStore: TranscriptStore = {
 	duplicateBot: (botId: string, spaceId?: string | null) =>
 		invoke<Bot>("conversation_duplicate_bot", {
 			botId,
-			spaceId: spaceId ?? null,
+			spaceId: spaceOrJoined(spaceId),
 		}),
 
 	updateBot: (id: string, identity: BotIdentity) =>
@@ -266,7 +278,10 @@ export const conversationStore: TranscriptStore = {
 		invoke<AgentCommand[]>("conversation_bot_commands", { botId }),
 
 	mainChat: (botId: string, spaceId?: string | null) =>
-		invoke<Chat>("conversation_main_chat", { botId, spaceId: spaceId ?? null }),
+		invoke<Chat>("conversation_main_chat", {
+			botId,
+			spaceId: spaceOrJoined(spaceId),
+		}),
 
 	conversations: (spaceId: string) =>
 		invoke<Conversation[]>("conversation_list", { spaceId }),

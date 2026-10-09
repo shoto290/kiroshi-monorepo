@@ -69,7 +69,13 @@ export type MissionRunDriverOptions = {
 	chat: Pick<ChatController, "reportRun">
 	missions: MissionRunPort
 	reportFailure: (notice: NoticeMessage) => void
+	joinedSpaceId: () => string | null
 	now?: () => number
+}
+
+type HeardChange = {
+	changed: MissionChanged
+	spaceId: string | null
 }
 
 type LiveMissionRun = {
@@ -113,10 +119,11 @@ export const startMissionRunDriver = ({
 	chat,
 	missions,
 	reportFailure,
+	joinedSpaceId,
 	now = () => Date.now(),
 }: MissionRunDriverOptions): (() => void) => {
 	const live = new Map<string, LiveMissionRun>()
-	const kept = new Map<string, MissionChanged>()
+	const kept = new Map<string, HeardChange>()
 	const missionIdOfThread = new Map<string, string>()
 	const holding = new Set<string>()
 	const seqs = createMissionSeqs()
@@ -142,11 +149,11 @@ export const startMissionRunDriver = ({
 			return
 		}
 
-		const changed = kept.get(missionId)
+		const heard = kept.get(missionId)
 		kept.delete(missionId)
 
-		if (changed && !isStopped) {
-			void consider(changed)
+		if (heard && !isStopped) {
+			void consider(heard)
 		}
 	}
 
@@ -244,9 +251,14 @@ export const startMissionRunDriver = ({
 		}
 	}
 
-	const readBot = async (botId: string) => {
+	const isStillIn = (spaceId: string | null) => joinedSpaceId() === spaceId
+
+	const readBot = async (botId: string, spaceId: string | null) => {
+		if (!isStillIn(spaceId)) {
+			return null
+		}
 		try {
-			const seated = (await store.bots()).find(({ id }) => id === botId)
+			const seated = (await store.bots(spaceId)).find(({ id }) => id === botId)
 
 			if (!seated) {
 				throw new Error(`no bot answers ${botId}`)
@@ -266,16 +278,22 @@ export const startMissionRunDriver = ({
 		thread: ConversationController,
 	) => state === "waiting_bot" || carriesNoMessage(thread)
 
-	const summon = async (mission: Mission, state: SummonedMissionState) => {
-		const bot = await readBot(mission.botId)
+	const summon = async (
+		mission: Mission,
+		state: SummonedMissionState,
+		spaceId: string | null,
+	) => {
+		const bot = await readBot(mission.botId, spaceId)
+		if (!bot) {
+			return false
+		}
 		const thread = runtimes.runtimeFor(mission.threadConversationId)
 		await thread.open(toMissionConversation({ mission, bot }))
 
-		if (!isSummonsDue(state, thread)) {
-			return
+		if (isSummonsDue(state, thread)) {
+			await thread.send(missionSummonsFor(state))
 		}
-
-		await thread.send(missionSummonsFor(state))
+		return true
 	}
 
 	const answerWhenAsked = async (mission: Mission) => {
@@ -294,12 +312,14 @@ export const startMissionRunDriver = ({
 		missionIdOfThread.set(mission.threadConversationId, mission.id)
 	}
 
-	const take = async ({
-		mission,
-		events,
-	}: MissionDetail): Promise<MissionState | null> => {
+	const take = async (
+		{ mission, events }: MissionDetail,
+		spaceId: string | null,
+	): Promise<MissionState | null> => {
 		if (isSummonedMissionState(mission.state)) {
-			await summon(mission, mission.state)
+			if (!(await summon(mission, mission.state, spaceId))) {
+				return null
+			}
 			await answerWhenAsked(mission)
 			return mission.state
 		}
@@ -315,9 +335,10 @@ export const startMissionRunDriver = ({
 		return mission.state
 	}
 
-	const consider = async (changed: MissionChanged) => {
+	const consider = async (heard: HeardChange) => {
+		const { changed, spaceId } = heard
 		if (isBusy(changed.missionId)) {
-			kept.set(changed.missionId, changed)
+			kept.set(changed.missionId, heard)
 			return
 		}
 
@@ -335,7 +356,7 @@ export const startMissionRunDriver = ({
 			const detail = await readMission(changed.missionId)
 			rememberThread(detail.mission)
 
-			if (await take(detail)) {
+			if (await take(detail, spaceId)) {
 				seqs.remember(changed.missionId, detail.mission.stateSeq)
 			}
 		} catch (thrown) {
@@ -346,27 +367,35 @@ export const startMissionRunDriver = ({
 		}
 	}
 
-	const mainChatIdOf = (botId: string) =>
+	const mainChatIdOf = (botId: string, spaceId: string | null) =>
 		store
-			.mainChat(botId)
+			.mainChat(botId, spaceId)
 			.then(({ id }) => id)
 			.catch((reason) => {
 				reporting("conversation_main_chat")(reason)
 				return null
 			})
 
-	const reporterOf = async (conversationId: string, botId: string) => {
-		const mainChatId = await mainChatIdOf(botId)
+	const reporterOf = async (
+		conversationId: string,
+		botId: string,
+		spaceId: string | null,
+	) => {
+		const mainChatId = await mainChatIdOf(botId, spaceId)
 
 		return mainChatId === conversationId
 			? chat
 			: runtimes.runtimeFor(conversationId)
 	}
 
-	const writeReport = async ({ call, scope }: LiveMissionRun, text: string) => {
+	const writeReport = async (
+		{ call, scope }: LiveMissionRun,
+		text: string,
+		spaceId: string | null,
+	) => {
 		const { mission } = call
 		const conversationId = mission.originConversationId
-		const reporter = await reporterOf(conversationId, mission.botId)
+		const reporter = await reporterOf(conversationId, mission.botId, spaceId)
 
 		return reporter.reportRun({
 			conversationId,
@@ -446,7 +475,11 @@ export const startMissionRunDriver = ({
 		return settled
 	}
 
-	const settle = async (held: LiveMissionRun, ended: TurnEnded) => {
+	const settle = async (
+		held: LiveMissionRun,
+		ended: TurnEnded,
+		spaceId: string | null,
+	) => {
 		const settled = await endOn(held)
 
 		if (ended.outcome !== "completed") {
@@ -464,8 +497,12 @@ export const startMissionRunDriver = ({
 			return settleNothingReported(held, settled)
 		}
 
+		if (!isStillIn(spaceId)) {
+			return
+		}
+
 		try {
-			const reportedTurnId = await writeReport(held, report.text)
+			const reportedTurnId = await writeReport(held, report.text, spaceId)
 			await recordWhenOwed(settled, reportedTurnId)
 		} catch (thrown) {
 			raiseFailure(`the report could not be written: ${detailOf(thrown)}`)
@@ -520,7 +557,7 @@ export const startMissionRunDriver = ({
 
 		switch (event.type) {
 			case "turnEnded":
-				return void settle(held, event.ended)
+				return void settle(held, event.ended, joinedSpaceId())
 			case "failed":
 				return fail(held, event.error)
 			case "questionRequested":
@@ -537,13 +574,17 @@ export const startMissionRunDriver = ({
 			return
 		}
 
+		const spaceId = joinedSpaceId()
 		for (const { mission } of caughtUp) {
 			void consider({
-				missionId: mission.id,
-				state: mission.state,
-				stateSeq: mission.stateSeq,
-				isAgentRunning: mission.isAgentRunning,
-				lastActivityAt: mission.lastActivityAt,
+				changed: {
+					missionId: mission.id,
+					state: mission.state,
+					stateSeq: mission.stateSeq,
+					isAgentRunning: mission.isAgentRunning,
+					lastActivityAt: mission.lastActivityAt,
+				},
+				spaceId,
 			})
 		}
 	}
@@ -563,7 +604,9 @@ export const startMissionRunDriver = ({
 	}
 
 	const changes = listening(
-		missions.onChanged((changed) => void consider(changed)),
+		missions.onChanged(
+			(changed) => void consider({ changed, spaceId: joinedSpaceId() }),
+		),
 		"mission run driver: mission changes could not be listened to",
 	)
 	const events = listening(

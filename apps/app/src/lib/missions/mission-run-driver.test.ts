@@ -47,6 +47,7 @@ type Started = {
 
 type Harness = {
 	driver: ScriptedDriver
+	store: TranscriptStore
 	missions: FakeMissions
 	starts: Started[]
 	originStarts: () => Started[]
@@ -83,6 +84,7 @@ type HarnessSeed = {
 	reports?: [missionId: string, turnId: string | null][]
 	soloOrigin?: boolean
 	firstStartFails?: boolean
+	joinedSpaceId?: () => string | null
 }
 
 const CLOSING_INSTANT = 9
@@ -104,6 +106,7 @@ const createHarness = async ({
 	reports = [],
 	soloOrigin = false,
 	firstStartFails = false,
+	joinedSpaceId = () => null,
 }: HarnessSeed = {}): Promise<Harness> => {
 	const scripted = createScriptedDriver()
 	const starts: Started[] = []
@@ -204,6 +207,7 @@ const createHarness = async ({
 		chat,
 		missions,
 		reportFailure,
+		joinedSpaceId,
 		now: () => 7,
 	})
 	await settled()
@@ -278,6 +282,7 @@ const createHarness = async ({
 
 	return {
 		driver,
+		store,
 		missions,
 		starts,
 		originStarts,
@@ -1342,5 +1347,72 @@ describe("startMissionRunDriver", () => {
 
 		expect(spoken(harness.tail())).toEqual([])
 		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
+	})
+})
+
+describe("startMissionRunDriver on a guest of a shared space", () => {
+	let harness: Harness
+	let activeSpaceId: string | null
+
+	const leaveTheSpaceOnRead = () => {
+		const { detail } = harness.missions
+		vi.spyOn(harness.missions, "detail").mockImplementation((missionId) => {
+			activeSpaceId = null
+			return detail(missionId)
+		})
+	}
+
+	beforeEach(async () => {
+		activeSpaceId = SPACE
+		harness = await createHarness({
+			soloOrigin: true,
+			joinedSpaceId: () => activeSpaceId,
+		})
+	})
+
+	afterEach(() => {
+		harness.stop()
+		vi.restoreAllMocks()
+	})
+
+	it("reads the mission companion in the host space", async () => {
+		const bots = vi.spyOn(harness.store, "bots")
+
+		await harness.enter("working")
+
+		expect(bots).toHaveBeenCalledWith(SPACE)
+	})
+
+	it("asks the main chat of the host space for the report", async () => {
+		const mainChat = vi.spyOn(harness.store, "mainChat")
+
+		await harness.enter("done", closedBy("poller"))
+		await harness.endTurn(reported("The walls stand, handing over."))
+
+		expect(mainChat).toHaveBeenCalledWith(harness.mission.botId, SPACE)
+	})
+
+	it("skips reading the companion when the space was left since the change", async () => {
+		const bots = vi.spyOn(harness.store, "bots")
+		leaveTheSpaceOnRead()
+
+		await harness.enter("working")
+
+		expect(bots).not.toHaveBeenCalled()
+		expect(spoken(harness.tail())).toEqual([])
+		expect(harness.reportFailure).not.toHaveBeenCalled()
+	})
+
+	it("skips the report when the space was left since the run ended", async () => {
+		await harness.openSolo()
+		await harness.enter("done", closedBy("poller"))
+		const mainChat = vi.spyOn(harness.store, "mainChat")
+		leaveTheSpaceOnRead()
+
+		await harness.endTurn(reported("The walls stand, handing over."))
+
+		expect(mainChat).not.toHaveBeenCalled()
+		expect(harness.soloTail().messages).toEqual([])
+		expect(harness.reportFailure).not.toHaveBeenCalled()
 	})
 })
