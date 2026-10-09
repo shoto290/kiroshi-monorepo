@@ -158,7 +158,13 @@ pub(super) async fn bridged<R: Runtime>(
 	shared_space_id: String,
 	call: MemberCall,
 ) -> String {
-	if !reach::stays_in_the_shared_space(&app, &shared_space_id, &call.command, &call.args).await {
+	if let Err(refusal) =
+		reach::stays_in_the_shared_space(&app, &shared_space_id, &call.command, &call.args).await
+	{
+		eprintln!(
+			"{}",
+			reach::refusal_line(&call.command, call.sender.as_deref(), &shared_space_id, &refusal)
+		);
 		return answer(call.id, StatusCode::FORBIDDEN, json!(OTHER_SPACE_REFUSAL));
 	}
 	if call.sender.is_none() {

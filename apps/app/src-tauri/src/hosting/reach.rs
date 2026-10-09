@@ -32,6 +32,16 @@ enum Check {
 	Absent,
 }
 
+impl Check {
+	fn kind(self) -> String {
+		match self {
+			Check::Child(kind) => format!("{kind:?}"),
+			Check::PluginScope(_) => "PluginScope".to_owned(),
+			check => format!("{check:?}"),
+		}
+	}
+}
+
 const fn space(argument: &'static str) -> Held {
 	Held { argument, check: Check::Space, is_optional: false }
 }
@@ -344,24 +354,66 @@ fn audience_of(event: &str) -> Option<Audience> {
 	AUDIENCES.iter().find(|(name, _)| *name == event).map(|(_, audience)| *audience)
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub(super) enum Refusal {
+	NoReach,
+	HostOnly,
+	Unheld { held: Held, offending: Offending },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(super) enum Offending {
+	Absent,
+	Value(Value),
+}
+
+const LOGGED_VALUE_LIMIT: usize = 200;
+
+pub(super) fn refusal_line(
+	command: &str,
+	sender: Option<&str>,
+	shared_space_id: &str,
+	refusal: &Refusal,
+) -> String {
+	let sender = sender.map_or_else(|| "none".to_owned(), |sender| Value::from(sender).to_string());
+	let reason = match refusal {
+		Refusal::NoReach => "it has no reach".to_owned(),
+		Refusal::HostOnly => "its reach is HostOnly".to_owned(),
+		Refusal::Unheld { held, offending } => {
+			let value = match offending {
+				Offending::Absent => "absent".to_owned(),
+				Offending::Value(value) => {
+					value.to_string().chars().take(LOGGED_VALUE_LIMIT).collect()
+				}
+			};
+			format!("{} failed the {} check with {value}", held.argument, held.check.kind())
+		}
+	};
+	format!(
+		"the relayed {command} from sender {sender} was refused outside shared space {shared_space_id}: {reason}"
+	)
+}
+
 pub(super) async fn stays_in_the_shared_space<R: Runtime>(
 	app: &AppHandle<R>,
 	shared_space_id: &str,
 	command: &str,
 	args: &Value,
-) -> bool {
+) -> Result<(), Refusal> {
 	let helds = match reach_of(command) {
 		Some(Reach::Scoped(helds)) => helds,
-		Some(Reach::Free) => return true,
-		Some(Reach::HostOnly) | None => return false,
+		Some(Reach::Free) => return Ok(()),
+		Some(Reach::HostOnly) => return Err(Refusal::HostOnly),
+		None => return Err(Refusal::NoReach),
 	};
 	let lookup = Lookup { app, shared_space_id, relayed: command };
 	for held in helds {
-		if !lookup.holds(held, args.pointer(held.argument)).await {
-			return false;
-		}
+		lookup
+			.checked(held, args.pointer(held.argument))
+			.await
+			.map_err(|offending| Refusal::Unheld { held: *held, offending })?;
 	}
-	true
+	Ok(())
 }
 
 #[derive(Deserialize)]
@@ -438,24 +490,22 @@ struct Lookup<'a, R: Runtime> {
 
 impl<R: Runtime> Lookup<'_, R> {
 	async fn holds(&self, held: &Held, value: Option<&Value>) -> bool {
-		match (held.check, value) {
-			(_, None | Some(Value::Null)) => held.is_optional,
-			(Check::Absent, Some(_)) => false,
-			(Check::NotAllSpaces, Some(all_spaces)) => all_spaces == &Value::Bool(false),
-			(Check::Space, Some(Value::String(space_id))) => space_id == self.shared_space_id,
-			(Check::Child(kind), Some(Value::String(child_id))) => {
-				self.holds_child(kind, child_id).await
+		self.checked(held, value).await.is_ok()
+	}
+
+	async fn checked(&self, held: &Held, value: Option<&Value>) -> Result<(), Offending> {
+		let Some(value) = value.filter(|value| !value.is_null()) else {
+			return if held.is_optional { Ok(()) } else { Err(Offending::Absent) };
+		};
+		let is_held = match (held.check, value) {
+			(Check::Absent, _) => false,
+			(Check::NotAllSpaces, all_spaces) => all_spaces == &Value::Bool(false),
+			(Check::Space, Value::String(space_id)) => space_id == self.shared_space_id,
+			(Check::Child(kind), Value::String(child_id)) => self.holds_child(kind, child_id).await,
+			(Check::Child(kind), Value::Array(child_ids)) => {
+				return self.holds_children(kind, child_ids).await;
 			}
-			(Check::Child(kind), Some(Value::Array(child_ids))) => {
-				for child_id in child_ids {
-					let Some(child_id) = child_id.as_str() else { return false };
-					if !self.holds_child(kind, child_id).await {
-						return false;
-					}
-				}
-				true
-			}
-			(Check::PluginScope(bot_kind), Some(scope)) => {
+			(Check::PluginScope(bot_kind), scope) => {
 				match (scope["kind"].as_str(), scope["id"].as_str()) {
 					(Some("space"), Some(space_id)) => space_id == self.shared_space_id,
 					(Some("bot"), Some(bot_id)) => self.holds_child(bot_kind, bot_id).await,
@@ -463,7 +513,25 @@ impl<R: Runtime> Lookup<'_, R> {
 				}
 			}
 			_ => false,
+		};
+		if is_held {
+			Ok(())
+		} else {
+			Err(Offending::Value(value.clone()))
 		}
+	}
+
+	async fn holds_children(&self, kind: SpaceChild, child_ids: &[Value]) -> Result<(), Offending> {
+		for child_id in child_ids {
+			let is_held = match child_id.as_str() {
+				Some(child_id) => self.holds_child(kind, child_id).await,
+				None => false,
+			};
+			if !is_held {
+				return Err(Offending::Value(child_id.clone()));
+			}
+		}
+		Ok(())
 	}
 
 	async fn holds_child(&self, kind: SpaceChild, child_id: &str) -> bool {

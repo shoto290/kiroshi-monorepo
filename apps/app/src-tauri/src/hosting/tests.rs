@@ -1730,6 +1730,140 @@ fn space_named(space_id: &str) -> Value {
 	json!({ "spaceId": space_id })
 }
 
+fn held_of(command: &str, index: usize) -> reach::Held {
+	match reach::reach_of(command) {
+		Some(reach::Reach::Scoped(helds)) => helds[index],
+		reach => panic!("{command} is not scoped: {reach:?}"),
+	}
+}
+
+async fn shared_space_refusal(guest: &Guest, command: &str, args: Value) -> reach::Refusal {
+	reach::stays_in_the_shared_space(guest.harness.app.handle(), PERSONAL, command, &args)
+		.await
+		.expect_err("the call is refused")
+}
+
+#[test]
+fn the_shared_space_check_names_a_conversation_of_another_space() {
+	run(async {
+		let guest = Guest::of_two_spaces("refusal-other-space").await;
+
+		let refusal = shared_space_refusal(
+			&guest,
+			"conversation_message_page",
+			json!({ "conversationId": "c-theirs", "beforeSeq": null, "limit": 10 }),
+		)
+		.await;
+
+		assert_eq!(
+			refusal,
+			reach::Refusal::Unheld {
+				held: held_of("conversation_message_page", 0),
+				offending: reach::Offending::Value(json!("c-theirs")),
+			}
+		);
+	});
+}
+
+#[test]
+fn the_shared_space_check_names_a_missing_required_id_as_absent() {
+	run(async {
+		let guest = Guest::of_two_spaces("refusal-absent").await;
+
+		let missing = shared_space_refusal(&guest, "conversation_message_page", json!({})).await;
+		let null = shared_space_refusal(
+			&guest,
+			"conversation_message_page",
+			json!({ "conversationId": null }),
+		)
+		.await;
+
+		let absent = reach::Refusal::Unheld {
+			held: held_of("conversation_message_page", 0),
+			offending: reach::Offending::Absent,
+		};
+		assert_eq!(missing, absent);
+		assert_eq!(null, absent);
+	});
+}
+
+#[test]
+fn the_shared_space_check_names_the_first_unheld_id_of_an_array() {
+	run(async {
+		let guest = Guest::of_two_spaces("refusal-array").await;
+
+		let refusal = shared_space_refusal(
+			&guest,
+			"conversation_create",
+			json!({ "spaceId": PERSONAL, "botIds": ["b-mine", "b-theirs", "b-other"] }),
+		)
+		.await;
+
+		assert_eq!(
+			refusal,
+			reach::Refusal::Unheld {
+				held: held_of("conversation_create", 2),
+				offending: reach::Offending::Value(json!("b-theirs")),
+			}
+		);
+	});
+}
+
+#[test]
+fn the_refusal_line_names_the_command_sender_space_argument_check_and_value() {
+	let refusal = reach::Refusal::Unheld {
+		held: held_of("conversation_message_page", 0),
+		offending: reach::Offending::Value(json!("c-theirs")),
+	};
+
+	assert_eq!(
+		reach::refusal_line("conversation_message_page", Some("acc-1"), PERSONAL, &refusal),
+		"the relayed conversation_message_page from sender \"acc-1\" was refused outside shared \
+		 space personal: /conversationId failed the Conversation check with \"c-theirs\""
+	);
+}
+
+#[test]
+fn the_refusal_line_logs_a_missing_value_as_absent_and_no_sender_as_none() {
+	let refusal = reach::Refusal::Unheld {
+		held: held_of("conversation_list", 0),
+		offending: reach::Offending::Absent,
+	};
+
+	assert_eq!(
+		reach::refusal_line("conversation_list", None, PERSONAL, &refusal),
+		"the relayed conversation_list from sender none was refused outside shared space \
+		 personal: /spaceId failed the Space check with absent"
+	);
+}
+
+#[test]
+fn the_refusal_line_names_the_reach_when_there_is_no_argument() {
+	assert_eq!(
+		reach::refusal_line("account_get", None, PERSONAL, &reach::Refusal::HostOnly),
+		"the relayed account_get from sender none was refused outside shared space personal: \
+		 its reach is HostOnly"
+	);
+	assert_eq!(
+		reach::refusal_line("unknown", None, PERSONAL, &reach::Refusal::NoReach),
+		"the relayed unknown from sender none was refused outside shared space personal: \
+		 it has no reach"
+	);
+}
+
+#[test]
+fn the_refusal_line_caps_the_value_at_200_characters() {
+	let refusal = reach::Refusal::Unheld {
+		held: held_of("conversation_message_page", 0),
+		offending: reach::Offending::Value(json!("x".repeat(500))),
+	};
+
+	let line = reach::refusal_line("conversation_message_page", None, PERSONAL, &refusal);
+
+	let value = line.rsplit(" with ").next().expect("a value is logged");
+	assert_eq!(value, format!("\"{}", "x".repeat(199)));
+}
+
 #[test]
 fn a_relay_guest_reads_the_bots_of_the_shared_space_only() {
 	run(kept_in_the_space_named("conversation_bots", space_named));
