@@ -1672,6 +1672,8 @@ const TWO_SPACES: &str = "
 			('m-theirs', 'c-theirs', 't-theirs', 1, 'user', 'theirs', 'complete', 1);
 ";
 
+const PROBE_PATIENCE: Duration = Duration::from_millis(100);
+
 struct Guest {
 	harness: Harness,
 	effects: HostEffects,
@@ -1688,7 +1690,21 @@ impl Guest {
 		harness.started().await;
 		let member = harness.member().await;
 		harness.reached(HostingState::Online).await;
-		Self { harness, effects, member }
+		let mut guest = Self { harness, effects, member };
+		guest.relay_listens().await;
+		guest
+	}
+
+	async fn relay_listens(&mut self) {
+		for probe in 0.. {
+			let probed = ("hosting://changed", json!({ "spaceId": PERSONAL, "probe": probe }));
+			events::emit(self.harness.app.handle(), probed.0, probed.1.clone()).expect("emitted");
+			let expected = as_forwarded(probed);
+			let heard = next_text(&mut self.member, |frame| *frame == expected);
+			if tokio::time::timeout(PROBE_PATIENCE, heard).await.is_ok() {
+				return;
+			}
+		}
 	}
 
 	async fn called(&mut self, command: &str, args: Value) -> Value {
