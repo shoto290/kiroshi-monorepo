@@ -20,6 +20,7 @@ import type {
 	EarlierTodayRow,
 	RoutinesPanelMissions,
 } from "@workspace/ui/components/routines-panel"
+import { i18n } from "@workspace/ui/lib/i18n"
 import { formatDateTime } from "@workspace/ui/lib/time-format"
 
 import type {
@@ -178,6 +179,15 @@ export const startOfLocalDay = (now: number): number => {
 
 type MissionFaces = (botId: string) => ThreadFace | undefined
 
+export const missionFaceOf = (
+	faceOf: MissionFaces,
+	botId: string,
+): ThreadFace =>
+	faceOf(botId) ?? {
+		id: botId,
+		name: i18n.t("chat:transcript.mention.unknown"),
+	}
+
 type AgentActivity = {
 	lastActivityAt?: number
 	commitsAhead?: number
@@ -236,20 +246,15 @@ const rowsOf = (
 	liveMissionIds: LiveMissionIds,
 	now: number,
 ): MissionCardModel[] =>
-	missions.flatMap((mission) => {
-		const identity = faceOf(mission.botId)
-		return identity
-			? [
-					toMissionCard({
-						mission,
-						identity,
-						state: shownStateOf(mission, waitingMissionIds),
-						isWorking: liveMissionIds.has(mission.id),
-						now,
-					}),
-				]
-			: []
-	})
+	missions.map((mission) =>
+		toMissionCard({
+			mission,
+			identity: missionFaceOf(faceOf, mission.botId),
+			state: shownStateOf(mission, waitingMissionIds),
+			isWorking: liveMissionIds.has(mission.id),
+			now,
+		}),
+	)
 
 const withoutAgentActivity = ({
 	commitsAhead,
@@ -269,8 +274,7 @@ const closedTodayEntries = (
 	now: number,
 ): EarlierTodayEntry[] =>
 	closed.flatMap((mission) => {
-		const face = faceOf(mission.botId)
-		if (!face || mission.closedAt === null || mission.closedAt < midnight) {
+		if (mission.closedAt === null || mission.closedAt < midnight) {
 			return []
 		}
 
@@ -282,7 +286,7 @@ const closedTodayEntries = (
 					...withoutAgentActivity(
 						toMissionCard({
 							mission,
-							identity: face,
+							identity: missionFaceOf(faceOf, mission.botId),
 							state: mission.state,
 							isWorking: false,
 							now,
@@ -625,23 +629,16 @@ const missionsPanelRowsOf = (
 	entries: MissionInSpace[],
 	{ faceOf, liveMissionIds, now }: MissionsPanelRowsRead,
 ): MissionsPanelMission[] =>
-	entries.flatMap(({ mission, conversationId }) => {
-		const identity = faceOf(mission.botId)
-		return identity
-			? [
-					{
-						...toMissionCard({
-							mission,
-							identity,
-							state: mission.state,
-							isWorking: liveMissionIds.has(mission.id),
-							now,
-						}),
-						conversationId,
-					},
-				]
-			: []
-	})
+	entries.map(({ mission, conversationId }) => ({
+		...toMissionCard({
+			mission,
+			identity: missionFaceOf(faceOf, mission.botId),
+			state: mission.state,
+			isWorking: liveMissionIds.has(mission.id),
+			now,
+		}),
+		conversationId,
+	}))
 
 export const toMissionsPanel = ({
 	groups,
