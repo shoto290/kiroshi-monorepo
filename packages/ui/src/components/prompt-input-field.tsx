@@ -70,7 +70,7 @@ const PromptField = ({
 			className="relative min-w-0 grow-[999] overflow-hidden"
 		>
 			{notice ? (
-				<p className={NOTICE} data-slot="prompt-input-notice">
+				<p className={NOTICE} data-slot="prompt-input-notice" role="status">
 					{notice}
 				</p>
 			) : (

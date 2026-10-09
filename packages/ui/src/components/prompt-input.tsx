@@ -107,6 +107,7 @@ export function PromptInput({
 			ref={refs.form}
 			onSubmit={submit}
 			data-slot="prompt-input"
+			aria-label={offline ? (ariaLabel ?? t("composer.label")) : undefined}
 			data-expanded={isExpanded}
 			data-drop-target={isDropTarget}
 			onDragOver={handleDragOver}

@@ -1,5 +1,5 @@
 import { type ComponentProps, useState } from "react"
-import { expect, fn, waitFor } from "storybook/test"
+import { expect, fn, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -221,6 +221,9 @@ export const Default = meta.story({
 	play: async ({ args, canvas, userEvent }) => {
 		const textarea = canvas.getByRole("textbox", { name: "Message" })
 		const send = canvas.getByRole("button", { name: "Send" })
+
+		await expect(formOf(textarea)).not.toHaveAttribute("aria-label")
+		await expect(canvas.queryByRole("status")).toBeNull()
 
 		await userEvent.click(textarea)
 		await expect(textarea).toHaveFocus()
@@ -693,6 +696,8 @@ export const ThemesDisabled = meta.story({
 		for (const composer of composersIn(canvasElement)) {
 			await expectArtboardComposer(composer)
 			await expect(getComputedStyle(composer).opacity).toBe("0.5")
+			await expect(composer).not.toHaveAttribute("aria-label")
+			await expect(within(composer).queryByRole("status")).toBeNull()
 		}
 	},
 })
@@ -709,7 +714,7 @@ export const Offline = meta.story({
 		docs: {
 			description: {
 				story:
-					"Measured against the Paper page `Iteration 5` of `Kiroshi, Invitations`, artboard 5.7, dark only. The open space is joined and its host's Mac is offline, so there is nowhere to send to. Check the field gives its place to the offline wording in the muted 14px line on 24px, that nothing can be typed, attached or sent, that only the attach and send controls drop to 40% while the box keeps full opacity, unlike `ThemesDisabled`, which dims the whole pill.",
+					"Measured against the Paper page `Iteration 5` of `Kiroshi, Invitations`, artboard 5.7, dark only. The open space is joined and its host's Mac is offline, so there is nowhere to send to. Check the field gives its place to the offline wording in the muted 14px line on 24px, that nothing can be typed, attached or sent, that only the attach and send controls drop to 40% while the box keeps full opacity, unlike `ThemesDisabled`, which dims the whole pill, and that the wording is a polite status inside the form named `Message`, so a screen reader hears the change and still finds the composer.",
 			},
 		},
 	},
@@ -722,6 +727,9 @@ export const Offline = meta.story({
 		await expect(style.color).toBe("rgb(163, 163, 163)")
 
 		const form = formOf(wording)
+		await expect(wording).toHaveAttribute("role", "status")
+		await expect(canvas.getByRole("status")).toBe(wording)
+		await expect(canvas.getByRole("form", { name: "Message" })).toBe(form)
 		await expect(getComputedStyle(form).opacity).toBe("1")
 		const attach = canvas.getByRole("button", {
 			hidden: true,
