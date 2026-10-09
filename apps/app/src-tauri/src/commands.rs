@@ -75,7 +75,7 @@ fn commands<R: Runtime>() -> Commands<R> {
 		conversations::commands::conversation_create::<tauri::Wry>,
 		conversations::commands::conversation_list::<tauri::Wry>,
 		conversations::commands::conversation_update::<tauri::Wry>,
-		conversations::commands::conversation_delete,
+		conversations::commands::conversation_delete::<tauri::Wry>,
 		conversations::commands::conversation_add_participant::<tauri::Wry>,
 		conversations::commands::conversation_remove_participant::<tauri::Wry>,
 		conversations::commands::conversation_set_lead::<tauri::Wry>,

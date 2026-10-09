@@ -18,6 +18,7 @@ use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
+use super::authorship::Caller;
 use super::bridge::{belongs_to_the_host, LocalApi};
 use super::contract::{
 	HostingState, Member, MemberStatus, MembersError, CHANGED_EVENT, MEMBERS_CHANGED_EVENT,
@@ -30,6 +31,21 @@ use crate::account::contract::AccountState;
 use crate::account::session::restore;
 use crate::account::session::AccountSession;
 use crate::agent::protocol::OauthCredentials;
+use crate::bundles::{BotPermissions, DEFAULT_OUTPUT_STYLE};
+use crate::companions::contract::{
+	CREATED_EVENT as COMPANION_CREATED_EVENT, DELETED_EVENT as COMPANION_DELETED_EVENT,
+	UPDATED_EVENT as COMPANION_UPDATED_EVENT,
+};
+use crate::conversations::commands::{
+	conversation_append_user_message, conversation_create, conversation_create_bot_from_draft,
+	conversation_delete, conversation_delete_bot, conversation_send_user_message,
+	conversation_update, conversation_update_bot,
+};
+use crate::conversations::contract::{
+	Bot, BotDraft, BotIdentity, Conversation, NewUserMessage,
+	CREATED_EVENT as CONVERSATION_CREATED_EVENT, DELETED_EVENT as CONVERSATION_DELETED_EVENT,
+	MESSAGE_STORED_EVENT, UPDATED_EVENT as CONVERSATION_UPDATED_EVENT,
+};
 use crate::db::connection::temp_dir;
 use crate::db::repositories::joined_spaces::{JoinedReach, JoinedSpace};
 use crate::db::repositories::messages::{MessagePageQuery, MessageRole, NewTurn};
@@ -3098,5 +3114,243 @@ fn a_relayed_frame_ignores_a_forged_from_and_stores_the_account_of_its_sender() 
 				(json!("from-and-sender"), json!(GUEST), json!(GUEST_EMAIL)),
 			]
 		);
+	});
+}
+
+impl Guest {
+	async fn first_event(&mut self) -> Value {
+		next_text(&mut self.member, |frame| frame.get("event").is_some()).await
+	}
+
+	async fn conversation_created_in(&self, space_id: &str) -> Conversation {
+		let app = self.harness.app.handle().clone();
+		conversation_create(
+			app,
+			self.harness.app.state(),
+			space_id.to_owned(),
+			None,
+			"New".to_owned(),
+			vec![],
+		)
+		.await
+		.expect("the conversation is created")
+	}
+
+	async fn conversation_updated(&self, conversation_id: &str) -> Conversation {
+		let app = self.harness.app.handle().clone();
+		let state = self.harness.app.state();
+		conversation_update(
+			app,
+			state,
+			conversation_id.to_owned(),
+			"Renamed".to_owned(),
+			String::new(),
+			None,
+		)
+		.await
+		.expect("the conversation is updated")
+	}
+
+	async fn conversation_deleted(&self, conversation_id: &str) {
+		let app = self.harness.app.handle().clone();
+		conversation_delete(app, self.harness.app.state(), conversation_id.to_owned())
+			.await
+			.expect("the conversation is deleted");
+	}
+
+	async fn user_message_appended(&self, conversation_id: &str, turn_id: &str) -> i64 {
+		let app = self.harness.app.handle().clone();
+		let message = a_user_message(conversation_id, turn_id);
+		conversation_append_user_message(app, self.harness.app.state(), Caller::Host, message)
+			.await
+			.expect("the message is appended")
+	}
+
+	async fn user_message_sent(&self, conversation_id: &str) -> i64 {
+		let app = self.harness.app.handle().clone();
+		let message = a_user_message(conversation_id, &format!("t-new-{conversation_id}"));
+		conversation_send_user_message(app, self.harness.app.state(), Caller::Host, message, vec![])
+			.await
+			.expect("the message is sent")
+	}
+
+	async fn bot_created_in(&self, space_id: &str) -> Bot {
+		let app = self.harness.app.handle().clone();
+		let draft =
+			BotDraft { name: "Fresh".to_owned(), job: String::new(), description: String::new() };
+		conversation_create_bot_from_draft(
+			app,
+			self.harness.app.state(),
+			draft,
+			space_id.to_owned(),
+		)
+		.await
+		.expect("the bot is created")
+	}
+
+	async fn bot_updated(&self, bot_id: &str) -> Bot {
+		let app = self.harness.app.handle().clone();
+		conversation_update_bot(app, self.harness.app.state(), bot_id.to_owned(), a_bot_identity())
+			.await
+			.expect("the bot is updated")
+	}
+
+	async fn bot_deleted(&self, bot_id: &str) {
+		let app = self.harness.app.handle().clone();
+		conversation_delete_bot(app, self.harness.app.state(), bot_id.to_owned())
+			.await
+			.expect("the bot is deleted");
+	}
+}
+
+fn a_user_message(conversation_id: &str, turn_id: &str) -> NewUserMessage {
+	NewUserMessage {
+		id: format!("m-new-{conversation_id}"),
+		conversation_id: conversation_id.to_owned(),
+		turn_id: turn_id.to_owned(),
+		author_bot_id: None,
+		replied_to_message_id: None,
+		content: "hello".to_owned(),
+		created_at: 2,
+	}
+}
+
+fn a_bot_identity() -> BotIdentity {
+	BotIdentity {
+		name: "Renamed".to_owned(),
+		title: String::new(),
+		model: "sonnet".to_owned(),
+		avatar_blot: None,
+		avatar_image_path: None,
+		instructions: String::new(),
+		denied_tools: Vec::new(),
+		permissions: BotPermissions::default(),
+		output_style: DEFAULT_OUTPUT_STYLE.to_owned(),
+		effort: None,
+	}
+}
+
+fn as_json(payload: impl serde::Serialize) -> Value {
+	serde_json::to_value(payload).expect("the payload serializes")
+}
+
+fn the_stored_message(heard: &Value) -> (&Value, &Value, &Value, &Value) {
+	let payload = &heard["event"]["payload"];
+	(&heard["event"]["event"], &payload["conversationId"], &payload["seq"], &payload["content"])
+}
+
+#[test]
+fn a_relay_guest_hears_a_message_appended_in_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("message-appended").await;
+
+		guest.user_message_appended("c-theirs", "t-theirs").await;
+		let seq = guest.user_message_appended("c-mine", "t-mine").await;
+		let heard = guest.first_event().await;
+
+		assert_eq!(
+			the_stored_message(&heard),
+			(&json!(MESSAGE_STORED_EVENT), &json!("c-mine"), &json!(seq), &json!("hello"))
+		);
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_message_sent_in_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("message-sent").await;
+
+		guest.user_message_sent("c-theirs").await;
+		let seq = guest.user_message_sent("c-mine").await;
+		let heard = guest.first_event().await;
+
+		assert_eq!(
+			the_stored_message(&heard),
+			(&json!(MESSAGE_STORED_EVENT), &json!("c-mine"), &json!(seq), &json!("hello"))
+		);
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_conversation_created_in_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("conversation-created").await;
+
+		guest.conversation_created_in(ELSEWHERE).await;
+		let created = guest.conversation_created_in(PERSONAL).await;
+		let heard = guest.first_event().await;
+
+		let payload = json!({ "spaceId": PERSONAL, "conversation": as_json(created) });
+		assert_eq!(heard, as_forwarded((CONVERSATION_CREATED_EVENT, payload)));
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_conversation_updated_in_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("conversation-updated").await;
+
+		guest.conversation_updated("c-theirs").await;
+		let updated = guest.conversation_updated("c-mine").await;
+		let heard = guest.first_event().await;
+
+		let payload = json!({ "spaceId": PERSONAL, "conversation": as_json(updated) });
+		assert_eq!(heard, as_forwarded((CONVERSATION_UPDATED_EVENT, payload)));
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_conversation_deleted_in_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("conversation-deleted").await;
+
+		guest.conversation_deleted("c-theirs").await;
+		guest.conversation_deleted("c-mine").await;
+		let heard = guest.first_event().await;
+
+		let payload = json!({ "spaceId": PERSONAL, "conversationId": "c-mine" });
+		assert_eq!(heard, as_forwarded((CONVERSATION_DELETED_EVENT, payload)));
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_companion_created_in_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("companion-created").await;
+
+		guest.bot_created_in(ELSEWHERE).await;
+		let created = guest.bot_created_in(PERSONAL).await;
+		let heard = guest.first_event().await;
+
+		let payload = json!({ "id": created.id, "name": created.name });
+		assert_eq!(heard, as_forwarded((COMPANION_CREATED_EVENT, payload)));
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_companion_updated_in_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("companion-updated").await;
+
+		guest.bot_updated("b-theirs").await;
+		let updated = guest.bot_updated("b-mine").await;
+		let heard = guest.first_event().await;
+
+		let payload = json!({ "id": "b-mine", "bot": as_json(updated) });
+		assert_eq!(heard, as_forwarded((COMPANION_UPDATED_EVENT, payload)));
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_companion_deleted_from_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("companion-deleted").await;
+
+		guest.bot_deleted("b-theirs").await;
+		guest.bot_deleted("b-shared").await;
+		let heard = guest.first_event().await;
+
+		let payload = json!({ "id": "b-shared", "spaceId": PERSONAL });
+		assert_eq!(heard, as_forwarded((COMPANION_DELETED_EVENT, payload)));
 	});
 }

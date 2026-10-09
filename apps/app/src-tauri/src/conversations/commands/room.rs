@@ -2,8 +2,9 @@ use tauri::{AppHandle, Runtime, State};
 
 use super::super::context;
 use super::super::contract::{
-	Chat, CompanionArrival, ContextCheckpoint, Conversation, RuntimeSession, TranscriptStoreError,
-	COMPANION_ARRIVED_EVENT,
+	Chat, CompanionArrival, ContextCheckpoint, Conversation, ConversationDeleted,
+	ConversationStored, RuntimeSession, TranscriptStoreError, COMPANION_ARRIVED_EVENT,
+	CREATED_EVENT, DELETED_EVENT, UPDATED_EVENT,
 };
 use super::bot::ready;
 use crate::avatars;
@@ -36,8 +37,9 @@ pub async fn conversation_create<R: Runtime>(
 	bot_ids: Vec<String>,
 ) -> Result<Conversation, TranscriptStoreError> {
 	let draft = ConversationDraft { space_id, section_id, title, bot_ids };
-	let created = ready(&state)?.conversations().create_conversation(draft).await?;
-	Ok(drawn(&app, created))
+	let created = drawn(&app, ready(&state)?.conversations().create_conversation(draft).await?);
+	announce_stored(&app, CREATED_EVENT, &created);
+	Ok(created)
 }
 
 #[tauri::command]
@@ -64,16 +66,23 @@ pub async fn conversation_update<R: Runtime>(
 ) -> Result<Conversation, TranscriptStoreError> {
 	let edit = ConversationEdit { title, instructions, section_id };
 	let updated = ready(&state)?.conversations().update_conversation(conversation_id, edit).await?;
-	Ok(drawn(&app, updated))
+	let updated = drawn(&app, updated);
+	announce_stored(&app, UPDATED_EVENT, &updated);
+	Ok(updated)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn conversation_delete(
+pub async fn conversation_delete<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
 ) -> Result<(), TranscriptStoreError> {
-	Ok(ready(&state)?.conversations().delete_conversation(conversation_id).await?)
+	let conversations = ready(&state)?.conversations();
+	let space_id = conversations.space(conversation_id.clone()).await?;
+	conversations.delete_conversation(conversation_id.clone()).await?;
+	launch::announce(&app, DELETED_EVENT, ConversationDeleted { space_id, conversation_id });
+	Ok(())
 }
 
 #[tauri::command]
@@ -127,6 +136,14 @@ pub async fn conversation_set_lead<R: Runtime>(
 ) -> Result<Conversation, TranscriptStoreError> {
 	let led = ready(&state)?.conversations().set_lead(conversation_id, bot_id).await?;
 	Ok(drawn(&app, led))
+}
+
+fn announce_stored<R: Runtime>(app: &AppHandle<R>, event: &str, conversation: &Conversation) {
+	let stored = ConversationStored {
+		space_id: conversation.space_id.clone(),
+		conversation: conversation.clone(),
+	};
+	launch::announce(app, event, stored);
 }
 
 fn drawn<R: Runtime>(app: &AppHandle<R>, room: StoredConversation) -> Conversation {

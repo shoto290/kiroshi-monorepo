@@ -20,6 +20,26 @@ impl From<conversations::Chat> for Chat {
 	}
 }
 
+pub const CREATED_EVENT: &str = "conversation://created";
+
+pub const UPDATED_EVENT: &str = "conversation://updated";
+
+pub const DELETED_EVENT: &str = "conversation://deleted";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationStored {
+	pub space_id: Option<String>,
+	pub conversation: Conversation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationDeleted {
+	pub space_id: Option<String>,
+	pub conversation_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Conversation {
