@@ -129,12 +129,6 @@ export const createForeignTurns = (
 			question: speaker.question?.id === id ? null : speaker.question,
 		}))
 
-	const releaseQuestion = (turn: ForeignTurn) => {
-		if (turn.speaker?.question) {
-			reviseSpeaker(turn, (speaker) => ({ ...speaker, question: null }))
-		}
-	}
-
 	const noteActivity = (turn: ForeignTurn, activity: ActivityEvent) => {
 		openSpeaker(turn)
 		reviseSpeaker(turn, (speaker) => ({
@@ -230,7 +224,6 @@ export const createForeignTurns = (
 	}
 
 	const apply = (turn: ForeignTurn, event: AgentEvent) => {
-		releaseQuestion(turn)
 		switch (event.type) {
 			case "messageStarted":
 				return start(turn, event.message)

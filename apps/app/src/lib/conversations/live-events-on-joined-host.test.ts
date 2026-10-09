@@ -738,6 +738,18 @@ const PERMISSION_RESOLVED: AgentEvent = {
 	decision: "allowOnce",
 }
 
+const QUESTION_RESOLVED: AgentEvent = {
+	type: "permissionResolved",
+	id: QUESTION.id,
+	decision: "allowOnce",
+}
+
+const MOVING_ON: AgentEvent[] = [
+	TURN_RUNNING,
+	SEARCHING,
+	...streamed("foreign-2", "Still thinking"),
+]
+
 describe("a prompt raised by a turn the other Mac started", () => {
 	it.each(sides)(
 		"shows the approval in a room on %s, answers it with the foreign scope, and closes it once resolved",
@@ -806,15 +818,49 @@ describe("a prompt raised by a turn the other Mac started", () => {
 		detach()
 	})
 
-	it("closes the question in a room once the turn moves on after an answer given elsewhere", async () => {
+	it("keeps the question open in a room while the turn moves on, and closes it once resolved", async () => {
 		const { controller, detach, botId, conversationId } = await openRoom()
 		const scope = { ...foreignScope(conversationId), botId }
 		const turn = storedTurn(conversationId)
-
 		await emitLocally("agent://event", { scope, turn, event: ASKED_QUESTION })
-		await emitLocally("agent://event", { scope, turn, event: SEARCHING })
+
+		for (const event of MOVING_ON) {
+			await emitLocally("agent://event", { scope, turn, event })
+		}
+
+		expect(controller.getState().pendingPrompt).toMatchObject({
+			request: QUESTION,
+		})
+
+		await emitLocally("agent://event", {
+			scope,
+			turn,
+			event: QUESTION_RESOLVED,
+		})
 
 		expect(controller.getState().pendingPrompt).toBeNull()
+		detach()
+	})
+
+	it("keeps the question open in a solo chat while the turn moves on, and closes it once resolved", async () => {
+		const { controller, detach, botId, conversationId } = await openSoloChat()
+		const scope = foreignScope(conversationId)
+		const turn = storedTurn(conversationId)
+		await emitLocally("agent://event", { scope, turn, event: ASKED_QUESTION })
+
+		for (const event of MOVING_ON) {
+			await emitLocally("agent://event", { scope, turn, event })
+		}
+
+		expect(controller.stateFor(botId).foreignTurn?.question).toEqual(QUESTION)
+
+		await emitLocally("agent://event", {
+			scope,
+			turn,
+			event: QUESTION_RESOLVED,
+		})
+
+		expect(controller.stateFor(botId).foreignTurn?.question).toBeNull()
 		detach()
 	})
 
