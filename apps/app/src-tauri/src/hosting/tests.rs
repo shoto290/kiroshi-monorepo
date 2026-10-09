@@ -3623,3 +3623,33 @@ fn a_relay_guest_hears_nothing_of_a_refused_companion_removal() {
 		assert_eq!(heard, as_forwarded(a_shared_space_marker()));
 	});
 }
+
+const GUEST_LOCAL_CONVERSATION: &str = "c-guest-local";
+
+#[test]
+fn a_guest_reads_the_installs_of_a_shared_conversation_and_not_of_its_own() {
+	run(kept_in_the_shared_space(
+		"application_installs",
+		json!({ "conversationId": GUEST_LOCAL_CONVERSATION }),
+		json!({ "conversationId": "c-mine" }),
+	));
+}
+
+#[test]
+fn the_installs_refusal_names_the_conversation_the_host_does_not_hold() {
+	run(async {
+		let guest = Guest::of_two_spaces("installs-refusal").await;
+		let args = json!({ "conversationId": GUEST_LOCAL_CONVERSATION });
+
+		let refusal = shared_space_refusal(&guest, "application_installs", args).await;
+
+		assert_eq!(
+			reach::refusal_line("application_installs", Some(GUEST), PERSONAL, &refusal),
+			format!(
+				"the relayed application_installs from sender \"{GUEST}\" was refused outside \
+				 shared space {PERSONAL}: /conversationId failed the Conversation check with \
+				 \"{GUEST_LOCAL_CONVERSATION}\""
+			)
+		);
+	});
+}
