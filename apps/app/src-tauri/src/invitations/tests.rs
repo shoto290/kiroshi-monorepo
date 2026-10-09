@@ -1,6 +1,6 @@
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -19,7 +19,7 @@ use tokio::sync::mpsc;
 
 use super::contract::{InvitationError, CHANGED_EVENT};
 use super::{accept, decline, read, resumed, Invitations};
-use crate::account::session::{sign_out, AccountSession};
+use crate::account::session::{restore, sign_out, AccountSession};
 use crate::db::connection::temp_dir;
 use crate::db::repositories::joined_spaces::{JoinedReach, JoinedSpace};
 use crate::db::{self, DatabaseError, DatabaseState};
@@ -29,17 +29,20 @@ use crate::joined_spaces::commands::{
 	joined_space_add, joined_space_connect, CHANGED_EVENT as JOINED_CHANGED, REMOVED_EVENT,
 };
 use crate::joined_spaces::contract::{JoinedSpaceConnection, JoinedSpaceError};
-use crate::joined_spaces::relay::RelayGuests;
+use crate::joined_spaces::relay::{reconciled, RelayGuests};
 
 const BEARER: &str = "bearer-that-never-leaves";
 const INSTANCE: &str = "instance-1";
 const SHARED_SPACE: &str = "shared-space-of-the-host";
 const PATIENCE: Duration = Duration::from_secs(5);
+const POLL_EVERY: Duration = Duration::from_millis(100);
 
 #[derive(Clone)]
 struct Cloud {
 	invitations: Arc<Mutex<Value>>,
 	invitations_status: Arc<Mutex<StatusCode>>,
+	instances: Arc<Mutex<(StatusCode, Value)>>,
+	instances_read: Arc<AtomicUsize>,
 	call_answer: Arc<Mutex<(StatusCode, Value)>>,
 	called: Arc<Mutex<Vec<String>>>,
 	unknown_instances: Arc<Mutex<Vec<String>>>,
@@ -56,6 +59,10 @@ fn an_invitation(instance_id: &str, name: &str) -> Value {
 		"inviterEmail": "owner@example.com",
 		"invitedAt": "2026-10-01T00:00:00.000Z"
 	})
+}
+
+fn an_instance(id: &str, name: &str) -> Value {
+	json!({ "id": id, "name": name, "role": "member", "createdAt": "2026-10-01T00:00:00.000Z", "online": true })
 }
 
 fn answered_json(status: StatusCode, body: &Value) -> Response {
@@ -78,6 +85,23 @@ async fn invitations_listed(Served(cloud): Served<Cloud>, headers: HeaderMap) ->
 	let status = *cloud.invitations_status.lock().expect("the cloud");
 	let invitations = cloud.invitations.lock().expect("the cloud").clone();
 	answered_json(status, &invitations)
+}
+
+async fn instances_listed(Served(cloud): Served<Cloud>, headers: HeaderMap) -> Response {
+	if !is_bearer(&headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	}
+	cloud.instances_read.fetch_add(1, Ordering::SeqCst);
+	let (status, instances) = cloud.instances.lock().expect("the cloud").clone();
+	answered_json(status, &instances)
+}
+
+async fn me(headers: HeaderMap) -> Response {
+	if !is_bearer(&headers) {
+		return StatusCode::UNAUTHORIZED.into_response();
+	}
+	let account = json!({ "id": "u1", "email": "member@example.com", "createdAt": "2026-10-01T00:00:00.000Z" });
+	answered_json(StatusCode::OK, &account)
 }
 
 async fn invitation_called(
@@ -155,10 +179,21 @@ impl Harness {
 		api_url: Option<String>,
 		database: Result<(), DatabaseError>,
 	) -> Self {
+		Self::polling(bearer, api_url, database, POLL_EVERY).await
+	}
+
+	async fn polling(
+		bearer: Option<&str>,
+		api_url: Option<String>,
+		database: Result<(), DatabaseError>,
+		every: Duration,
+	) -> Self {
 		let (members_in, members) = mpsc::unbounded_channel();
 		let cloud = Cloud {
 			invitations: Arc::new(Mutex::new(json!([an_invitation(INSTANCE, "Studio")]))),
 			invitations_status: Arc::new(Mutex::new(StatusCode::OK)),
+			instances: Arc::new(Mutex::new((StatusCode::SERVICE_UNAVAILABLE, json!([])))),
+			instances_read: Arc::default(),
 			call_answer: Arc::new(Mutex::new((
 				StatusCode::OK,
 				json!({ "id": INSTANCE, "name": "Studio", "role": "member", "createdAt": "2026-10-01T00:00:00.000Z" }),
@@ -174,6 +209,8 @@ impl Harness {
 			Router::new()
 				.route("/invitations", get(invitations_listed))
 				.route("/invitations/{id}/{verb}", post(invitation_called))
+				.route("/instances", get(instances_listed))
+				.route("/me", get(me))
 				.route("/instances/{id}/relay/member", get(member_relay))
 				.route("/api/auth/sign-out", post(signed_out_of_the_cloud))
 				.with_state(cloud.clone()),
@@ -190,7 +227,7 @@ impl Harness {
 		let database = database.map(|()| db::open(&temp_dir()));
 		app.manage::<DatabaseState>(database);
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root.clone()), &api_url));
-		app.manage(Invitations::new(&api_url).polling_every(Duration::from_millis(100)));
+		app.manage(Invitations::new(&api_url).polling_every(every));
 		app.manage(RelayGuests::new(&api_url));
 		let heard = Arc::new(Mutex::new(Vec::new()));
 		for event in [CHANGED_EVENT, JOINED_CHANGED, REMOVED_EVENT] {
@@ -233,6 +270,14 @@ impl Harness {
 
 	fn answering(&self, status: StatusCode, body: Value) {
 		*self.cloud.call_answer.lock().expect("the cloud") = (status, body);
+	}
+
+	fn listing(&self, instances: Value) {
+		*self.cloud.instances.lock().expect("the cloud") = (StatusCode::OK, instances);
+	}
+
+	fn instances_read(&self) -> usize {
+		self.cloud.instances_read.load(Ordering::SeqCst)
 	}
 
 	async fn stored(&self) -> Vec<JoinedSpace> {
@@ -861,5 +906,266 @@ fn a_guest_refused_401_ends_and_a_connect_after_a_new_sign_in_starts_a_new_one()
 		assert_ne!(second.host_url, first.host_url);
 		assert_ne!(second.token, first.token);
 		assert_eq!(second.remote_space_id.as_deref(), Some(SHARED_SPACE));
+	});
+}
+
+fn a_relay_entry(id: &str, instance_id: &str, name: &str) -> JoinedSpace {
+	JoinedSpace {
+		id: id.to_owned(),
+		reach: JoinedReach::Relay { instance_id: instance_id.to_owned() },
+		remote_space_id: None,
+		name: name.to_owned(),
+	}
+}
+
+#[test]
+fn a_restored_bearer_follows_the_cloud_memberships_before_the_first_poll_tick() {
+	run(async {
+		let harness = Harness::polling(Some(BEARER), None, Ok(()), Duration::from_secs(3600)).await;
+		harness.listing(json!([an_instance("i-remote", "Remote")]));
+
+		restore(harness.app.handle().clone()).await;
+		let stored = harness.stored_until(|stored| !stored.is_empty()).await;
+
+		assert_eq!(stored, vec![a_relay_entry(&stored[0].id, "i-remote", "Remote")]);
+		assert_eq!(harness.instances_read(), 1);
+		assert_eq!(harness.heard(JOINED_CHANGED), vec![json!({ "id": stored[0].id })]);
+	});
+}
+
+#[test]
+fn every_poll_tick_reads_the_memberships_and_follows_them() {
+	run(async {
+		let harness = Harness::new(Some(BEARER)).await;
+		harness.listing(json!([an_instance("i-remote", "Remote")]));
+
+		resumed(harness.app.handle());
+		let first = harness.stored_until(|stored| !stored.is_empty()).await;
+		harness.listing(json!([an_instance("i-remote", "Renamed")]));
+		let renamed = harness.stored_until(|stored| stored[0].name == "Renamed").await;
+		sign_out(harness.app.handle()).await.expect("the sign out");
+
+		assert_eq!(renamed, vec![a_relay_entry(&first[0].id, "i-remote", "Renamed")]);
+		assert!(harness.instances_read() >= 2);
+	});
+}
+
+#[test]
+fn a_listed_instance_without_an_entry_is_added_under_its_listed_name_and_announced() {
+	run(async {
+		let harness = Harness::new(Some(BEARER)).await;
+		harness.listing(json!([an_instance("i-a", "Alpha"), an_instance("i-b", "Beta")]));
+
+		reconciled(harness.app.handle()).await;
+		let stored = harness.stored().await;
+
+		assert_eq!(
+			stored,
+			vec![
+				a_relay_entry(&stored[0].id, "i-a", "Alpha"),
+				a_relay_entry(&stored[1].id, "i-b", "Beta"),
+			]
+		);
+		assert_eq!(
+			harness.heard(JOINED_CHANGED),
+			vec![json!({ "id": stored[0].id }), json!({ "id": stored[1].id })]
+		);
+		assert!(harness.heard(REMOVED_EVENT).is_empty());
+	});
+}
+
+#[test]
+fn a_held_entry_listed_under_another_name_is_renamed_in_place_and_announced() {
+	run(async {
+		let harness = Harness::new(Some(BEARER)).await;
+		let id = harness.accepted().await;
+		harness.listing(json!([an_instance(INSTANCE, "Atelier")]));
+
+		reconciled(harness.app.handle()).await;
+
+		assert_eq!(harness.stored().await, vec![a_relay_entry(&id, INSTANCE, "Atelier")]);
+		assert_eq!(harness.heard(JOINED_CHANGED), vec![json!({ "id": id }), json!({ "id": id })]);
+		assert!(harness.heard(REMOVED_EVENT).is_empty());
+	});
+}
+
+#[test]
+fn a_held_entry_the_listing_omits_stops_its_guest_and_is_removed_with_both_events() {
+	run(async {
+		let mut harness = Harness::new(Some(BEARER)).await;
+		let id = harness.accepted().await;
+		let (connection, _member) = connected(&mut harness, &id).await;
+		harness.listing(json!([]));
+
+		reconciled(harness.app.handle()).await;
+
+		assert!(!is_guest_running(&harness, &id));
+		assert!(proxy_closed(&connection).await, "the proxy still answers");
+		assert!(harness.stored().await.is_empty());
+		assert_eq!(harness.heard(JOINED_CHANGED), vec![json!({ "id": id }), json!({ "id": id })]);
+		assert_eq!(harness.heard(REMOVED_EVENT), vec![json!({ "id": id, "name": "Studio" })]);
+	});
+}
+
+#[test]
+fn a_link_entry_is_never_added_renamed_or_removed_by_the_memberships() {
+	run(async {
+		let harness = Harness::new(Some(BEARER)).await;
+		let link = JoinedSpace {
+			id: "link-1".to_owned(),
+			reach: JoinedReach::Link {
+				host_url: "http://127.0.0.1:9".to_owned(),
+				token: "link-token".to_owned(),
+			},
+			remote_space_id: Some("remote-1".to_owned()),
+			name: "Linked".to_owned(),
+		};
+		let state = harness.app.state::<DatabaseState>();
+		let joined_spaces = state.as_ref().expect("the database").joined_spaces();
+		joined_spaces.join(link.clone()).await.expect("the link entry");
+
+		harness.listing(json!([]));
+		reconciled(harness.app.handle()).await;
+		let after_empty = harness.stored().await;
+		harness.listing(json!([an_instance("link-1", "Renamed")]));
+		reconciled(harness.app.handle()).await;
+		let stored = harness.stored().await;
+
+		assert_eq!(after_empty, vec![link.clone()]);
+		assert_eq!(stored[0], link);
+		assert_eq!(stored.len(), 2);
+		assert_eq!(stored[1], a_relay_entry(&stored[1].id, "link-1", "Renamed"));
+		assert!(harness.heard(REMOVED_EVENT).is_empty());
+	});
+}
+
+#[test]
+fn an_instance_this_machine_hosts_is_never_added() {
+	run(async {
+		let harness = Harness::new(Some(BEARER)).await;
+		let state = harness.app.state::<DatabaseState>();
+		let database = state.as_ref().expect("the database");
+		database
+			.space_hosting()
+			.registered("personal".to_owned(), "i-hosted".to_owned())
+			.await
+			.expect("the hosting is registered");
+		harness.listing(json!([an_instance("i-hosted", "Personal")]));
+
+		reconciled(harness.app.handle()).await;
+
+		assert_eq!(harness.instances_read(), 1);
+		assert!(harness.stored().await.is_empty());
+		assert!(harness.heard(JOINED_CHANGED).is_empty());
+	});
+}
+
+#[test]
+fn a_failed_listing_leaves_the_entries_unchanged_and_its_failure_carries_no_bearer() {
+	run(async {
+		let harness = Harness::new(Some(BEARER)).await;
+		let id = harness.accepted().await;
+		let held = harness.stored().await;
+
+		for answer in [
+			(StatusCode::SERVICE_UNAVAILABLE, json!([])),
+			(StatusCode::OK, json!({ "not": "a list" })),
+		] {
+			*harness.cloud.instances.lock().expect("the cloud") = answer;
+			reconciled(harness.app.handle()).await;
+			let failure = harness
+				.app
+				.state::<RelayGuests>()
+				.cloud()
+				.instances(BEARER)
+				.await
+				.err()
+				.expect("the listing fails");
+			assert!(!failure.contains(BEARER), "{failure}");
+		}
+		let offline = Harness::over(Some(BEARER), Some(a_closed_port().await), Ok(())).await;
+		let failure = offline
+			.app
+			.state::<RelayGuests>()
+			.cloud()
+			.instances(BEARER)
+			.await
+			.err()
+			.expect("the listing fails");
+		reconciled(offline.app.handle()).await;
+
+		assert!(!failure.contains(BEARER), "{failure}");
+		assert_eq!(harness.stored().await, held);
+		assert_eq!(harness.heard(JOINED_CHANGED), vec![json!({ "id": id })]);
+		assert!(harness.heard(REMOVED_EVENT).is_empty());
+	});
+}
+
+#[test]
+fn a_reconciliation_holds_the_relay_turn_and_a_concurrent_accept_yields_one_entry() {
+	run(async {
+		let harness = Harness::new(Some(BEARER)).await;
+		harness.listing(json!([an_instance(INSTANCE, "Studio")]));
+		let guests = harness.app.state::<RelayGuests>();
+		let held = guests.turn().lock().await;
+
+		let reconciling = reconciled(harness.app.handle());
+		let releasing = async {
+			tokio::time::sleep(Duration::from_millis(200)).await;
+			let read_while_held = harness.instances_read();
+			drop(held);
+			read_while_held
+		};
+		let ((), read_while_held) = tokio::join!(reconciling, releasing);
+		assert_eq!(read_while_held, 0);
+
+		harness.listing(json!([an_instance(INSTANCE, "Studio"), an_instance("i-b", "Beta")]));
+		*harness.cloud.call_delay.lock().expect("the cloud") = Duration::from_millis(100);
+		let (accepted, ()) = tokio::join!(harness.accepted(), reconciled(harness.app.handle()));
+		let stored = harness.stored().await;
+
+		let studio: Vec<_> = stored
+			.iter()
+			.filter(|joined| {
+				joined.reach == JoinedReach::Relay { instance_id: INSTANCE.to_owned() }
+			})
+			.collect();
+		assert_eq!(studio, vec![&a_relay_entry(&accepted, INSTANCE, "Studio")]);
+		assert_eq!(stored.len(), 2);
+	});
+}
+
+#[test]
+fn a_sign_out_drops_every_relay_entry_and_stops_the_reconciliation() {
+	run(async {
+		let harness = Harness::new(Some(BEARER)).await;
+		harness.listing(json!([an_instance("i-remote", "Remote")]));
+		resumed(harness.app.handle());
+		harness.stored_until(|stored| !stored.is_empty()).await;
+
+		sign_out(harness.app.handle()).await.expect("the sign out");
+		let read_at_sign_out = harness.instances_read();
+		tokio::time::sleep(Duration::from_millis(350)).await;
+		reconciled(harness.app.handle()).await;
+
+		assert!(harness.stored().await.is_empty());
+		assert_eq!(harness.instances_read(), read_at_sign_out);
+	});
+}
+
+#[test]
+fn an_accepted_invitation_is_kept_in_place_by_the_next_reconciliation() {
+	run(async {
+		let harness = Harness::new(Some(BEARER)).await;
+		let id = harness.accepted().await;
+		let accepted = harness.stored().await;
+		harness.listing(json!([an_instance(INSTANCE, "Studio")]));
+
+		reconciled(harness.app.handle()).await;
+
+		assert_eq!(accepted, vec![a_relay_entry(&id, INSTANCE, "Studio")]);
+		assert_eq!(harness.stored().await, accepted);
+		assert_eq!(harness.heard(JOINED_CHANGED), vec![json!({ "id": id })]);
+		assert!(harness.heard(REMOVED_EVENT).is_empty());
 	});
 }

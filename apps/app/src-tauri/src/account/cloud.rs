@@ -126,6 +126,12 @@ pub enum MembershipState {
 }
 
 #[derive(Deserialize)]
+pub struct CloudInstance {
+	pub id: String,
+	pub name: String,
+}
+
+#[derive(Deserialize)]
 struct Registered {
 	id: String,
 }
@@ -290,6 +296,14 @@ impl Cloud {
 			return Err(MemberCallError::UnknownMember);
 		}
 		member_call_answered(answered).await.map(drop)
+	}
+
+	pub async fn instances(&self, bearer: &str) -> Result<Vec<CloudInstance>, String> {
+		let answered =
+			self.sent(|client| client.get(self.at(INSTANCES_PATH)).bearer_auth(bearer)).await?;
+		answered.json::<Vec<CloudInstance>>().await.map_err(|error| {
+			format!("the instance list answered by the cloud did not parse: {error}")
+		})
 	}
 
 	pub async fn invitations(&self, bearer: &str) -> Result<Vec<Invitation>, InvitationCallError> {
