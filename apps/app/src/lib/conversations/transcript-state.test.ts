@@ -80,6 +80,8 @@ const streamingDraft = (id: string) => ({
 	completion: "streaming" as const,
 	createdAt: 0,
 	authorBotId: null,
+	authorAccountId: null,
+	authorName: null,
 	repliedToMessageId: null,
 	runtimeSessionId: null,
 })
@@ -165,6 +167,8 @@ describe("transcriptReducer", () => {
 				completion: "pending",
 				createdAt: 0,
 				authorBotId: null,
+				authorAccountId: null,
+				authorName: null,
 				repliedToMessageId: null,
 				runtimeSessionId: null,
 			},
@@ -208,6 +212,8 @@ describe("transcriptReducer", () => {
 			completion: "pending" as const,
 			createdAt: 0,
 			authorBotId: null,
+			authorAccountId: null,
+			authorName: null,
 			repliedToMessageId: null,
 			runtimeSessionId: null,
 		}

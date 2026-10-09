@@ -11,13 +11,15 @@ use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Manager, Runtime};
 use tokio::sync::{Mutex, OwnedMutexGuard};
 
+use super::authorship::RelayedMember;
 use super::reach::{self, Reach};
+use super::Hosting;
 
 use crate::avatars::Avatars;
 use crate::db::{Database, DatabaseState};
 use crate::file_store::FileStore;
 use crate::host_api::files::AVATAR_PATH;
-use crate::host_api::invoke::names_an_app_command;
+use crate::host_api::invoke::{names_an_app_command, RELAYED_MEMBER_HEADER};
 use crate::missions::github::installed_tls_provider;
 
 const INVOKE_BOUND: Duration = Duration::from_secs(300);
@@ -61,6 +63,7 @@ pub(super) struct MemberCall {
 	id: Value,
 	command: String,
 	args: Value,
+	from: Option<String>,
 }
 
 pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
@@ -79,7 +82,8 @@ pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
 			Err(answer(id, StatusCode::FORBIDDEN, json!({ "error": HOST_ONLY_REFUSAL })))
 		}
 		(Some(id), Some(command), Some(args)) => {
-			Ok(MemberCall { id, command: command.to_owned(), args })
+			let from = frame.get("from").and_then(Value::as_str).map(str::to_owned);
+			Ok(MemberCall { id, command: command.to_owned(), args, from })
 		}
 		(id, _, _) => Err(refused(id)),
 	}
@@ -156,23 +160,32 @@ pub(super) async fn bridged<R: Runtime>(
 	if !reach::stays_in_the_shared_space(&app, &shared_space_id, &call.command, &call.args).await {
 		return answer(call.id, StatusCode::FORBIDDEN, json!({ "error": OTHER_SPACE_REFUSAL }));
 	}
-	match invoked(&local, &call).await {
+	let hosting = app.state::<Hosting>();
+	let vouched = call.from.clone().map(|user_id| {
+		hosting.relayed.vouch(RelayedMember { space_id: shared_space_id.clone(), user_id })
+	});
+	match invoked(&local, &call, vouched.as_ref().map(|vouched| vouched.nonce.as_str())).await {
 		Ok((status, body)) => answer(call.id, status, body),
 		Err(reason) => answer(call.id, StatusCode::BAD_GATEWAY, json!({ "error": reason })),
 	}
 }
 
-async fn invoked(local: &LocalApi, call: &MemberCall) -> Result<(StatusCode, Value), String> {
-	let answered = local
+async fn invoked(
+	local: &LocalApi,
+	call: &MemberCall,
+	relayed_member: Option<&str>,
+) -> Result<(StatusCode, Value), String> {
+	let mut request = local
 		.client
 		.post(format!("{}/api/invoke/{}", local.origin, call.command))
 		.bearer_auth(&local.token)
-		.json(&call.args)
-		.send()
-		.await
-		.map_err(|error| {
-			format!("the local host api could not be reached: {}", error.without_url())
-		})?;
+		.json(&call.args);
+	if let Some(nonce) = relayed_member {
+		request = request.header(RELAYED_MEMBER_HEADER, nonce);
+	}
+	let answered = request.send().await.map_err(|error| {
+		format!("the local host api could not be reached: {}", error.without_url())
+	})?;
 	let status = answered.status();
 	let body = answered
 		.bytes()
@@ -292,7 +305,12 @@ mod tests {
 	fn a_call_without_args_invokes_with_none() {
 		assert_eq!(
 			member_call(r#"{"id": 3, "command": "agent_models"}"#),
-			Ok(MemberCall { id: json!(3), command: "agent_models".to_owned(), args: json!({}) })
+			Ok(MemberCall {
+				id: json!(3),
+				command: "agent_models".to_owned(),
+				args: json!({}),
+				from: None,
+			})
 		);
 	}
 

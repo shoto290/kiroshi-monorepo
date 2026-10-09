@@ -20,6 +20,8 @@ const answered = (completion: TranscriptCompletion): ConversationAnswer => ({
 			completion,
 			createdAt: 1,
 			authorBotId: "bot-one",
+			authorAccountId: null,
+			authorName: null,
 			repliedToMessageId: null,
 			runtimeSessionId: null,
 		},

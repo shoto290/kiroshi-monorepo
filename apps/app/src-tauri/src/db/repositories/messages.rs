@@ -60,11 +60,18 @@ pub struct NewAssistantMessage {
 	pub created_at: i64,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AccountAuthor {
+	pub account_id: Option<String>,
+	pub name: Option<String>,
+}
+
 pub struct NewUserMessage {
 	pub id: String,
 	pub conversation_id: String,
 	pub turn_id: String,
 	pub author_bot_id: Option<String>,
+	pub author: AccountAuthor,
 	pub replied_to_message_id: Option<String>,
 	pub content: String,
 	pub created_at: i64,
@@ -82,6 +89,7 @@ pub struct StoredMessage {
 	pub state: MessageState,
 	pub created_at: i64,
 	pub runtime_session_id: Option<String>,
+	pub author: AccountAuthor,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -168,13 +176,14 @@ const MESSAGE_KEY: &str = "SELECT seq, conversation_id, turn_id, author_bot_id,
 const MESSAGE_STATE: &str = "SELECT completion_state FROM messages WHERE id = ?1";
 const INSERT_MESSAGE: &str = "INSERT INTO messages
 	(id, conversation_id, turn_id, author_bot_id, replied_to_message_id, seq, role, content,
-		completion_state, created_at, runtime_session_id)
+		completion_state, created_at, runtime_session_id, author_account_id, author_name)
 	VALUES (?1, ?2, ?3, ?4, ?5,
 		(SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?2),
 		?6, ?7, ?8, ?9,
 		(SELECT id FROM runtime_sessions
 			WHERE conversation_id = ?2 AND status = 'active'
-			ORDER BY seq DESC LIMIT 1))
+			ORDER BY seq DESC LIMIT 1),
+		?10, ?11)
 	RETURNING seq";
 const APPEND_TEXT: &str =
 	"UPDATE messages SET content = content || ?2, completion_state = 'streaming'
@@ -186,32 +195,39 @@ const REPLACE_CONTENT: &str = "UPDATE messages SET content = ?2 WHERE id = ?1";
 const REPLACE_INDEXED_CONTENT: &str =
 	"UPDATE message_search SET content = ?2 WHERE message_id = ?1";
 const MESSAGE_PAGE: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq, role,
-		content, completion_state, created_at, runtime_session_id
+		content, completion_state, created_at, runtime_session_id, author_account_id,
+		author_name
 	FROM messages WHERE conversation_id = ?1 AND seq < ?2 ORDER BY seq DESC LIMIT ?3";
 const MESSAGE_AT_SEQ: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq, role,
-		content, completion_state, created_at, runtime_session_id
+		content, completion_state, created_at, runtime_session_id, author_account_id,
+		author_name
 	FROM messages WHERE conversation_id = ?1 AND seq = ?2";
 const MESSAGES_AFTER_SEQ: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq,
-		role, content, completion_state, created_at, runtime_session_id
+		role, content, completion_state, created_at, runtime_session_id, author_account_id,
+		author_name
 	FROM messages WHERE conversation_id = ?1 AND seq > ?2 ORDER BY seq ASC LIMIT ?3";
 const MESSAGE_OLDER_THAN_SEQ: &str =
 	"SELECT EXISTS(SELECT 1 FROM messages WHERE conversation_id = ?1 AND seq < ?2)";
 const MESSAGE_NEWER_THAN_SEQ: &str =
 	"SELECT EXISTS(SELECT 1 FROM messages WHERE conversation_id = ?1 AND seq > ?2)";
 const MESSAGE_BY_ID: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq, role,
-		content, completion_state, created_at, runtime_session_id
+		content, completion_state, created_at, runtime_session_id, author_account_id,
+		author_name
 	FROM messages WHERE conversation_id = ?1 AND id = ?2";
 const MESSAGE_WINDOW: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq, role,
-		content, completion_state, created_at, runtime_session_id
+		content, completion_state, created_at, runtime_session_id, author_account_id,
+		author_name
 	FROM messages WHERE conversation_id = ?1 AND seq > ?2 AND seq < ?3
 	ORDER BY seq DESC LIMIT ?4";
 const LATEST_MESSAGE_ASIDE_BOT: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id,
-		seq, role, content, completion_state, created_at, runtime_session_id
+		seq, role, content, completion_state, created_at, runtime_session_id, author_account_id,
+		author_name
 	FROM messages WHERE conversation_id = ?1 AND COALESCE(author_bot_id, '') <> ?2
 		AND created_at <= ?3
 		AND trim(content, char(32, 9, 10, 13)) <> '' ORDER BY seq DESC LIMIT 1";
 const LATEST_MESSAGE_OF_BOT: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq,
-		role, content, completion_state, created_at, runtime_session_id
+		role, content, completion_state, created_at, runtime_session_id, author_account_id,
+		author_name
 	FROM messages WHERE conversation_id = ?1 AND author_bot_id = ?2 AND created_at <= ?3
 		AND trim(content, char(32, 9, 10, 13)) <> '' ORDER BY seq DESC LIMIT 1";
 const MESSAGE_OF_CONVERSATION: &str =
@@ -224,7 +240,7 @@ const CLEAR_MESSAGE_PIN: &str = "DELETE FROM message_pins
 const PINNED_MESSAGES: &str = "SELECT messages.id, messages.turn_id, messages.author_bot_id,
 		messages.replied_to_message_id, messages.seq, messages.role, messages.content,
 		messages.completion_state, messages.created_at, messages.runtime_session_id,
-		message_pins.block_index, message_pins.pinned_at
+		messages.author_account_id, messages.author_name, message_pins.block_index, message_pins.pinned_at
 	FROM message_pins
 	JOIN messages ON messages.id = message_pins.message_id
 		AND messages.conversation_id = message_pins.conversation_id
@@ -604,6 +620,7 @@ struct AppendedMessage {
 	role: MessageRole,
 	content: Option<String>,
 	created_at: i64,
+	author: AccountAuthor,
 }
 
 impl From<NewAssistantMessage> for AppendedMessage {
@@ -617,6 +634,7 @@ impl From<NewAssistantMessage> for AppendedMessage {
 			role: MessageRole::Assistant,
 			content: None,
 			created_at: message.created_at,
+			author: AccountAuthor::default(),
 		}
 	}
 }
@@ -632,6 +650,7 @@ impl From<NewUserMessage> for AppendedMessage {
 			role: MessageRole::User,
 			content: Some(message.content),
 			created_at: message.created_at,
+			author: message.author,
 		}
 	}
 }
@@ -775,6 +794,8 @@ fn insert_message_once(
 			content,
 			state,
 			message.created_at,
+			message.author.account_id,
+			message.author.name,
 		],
 		|row| row.get(0),
 	)?)
@@ -1008,14 +1029,15 @@ fn read_message(row: &Row<'_>) -> rusqlite::Result<StoredMessage> {
 		state: row.get(7)?,
 		created_at: row.get(8)?,
 		runtime_session_id: row.get(9)?,
+		author: AccountAuthor { account_id: row.get(10)?, name: row.get(11)? },
 	})
 }
 
 fn read_pin(row: &Row<'_>) -> rusqlite::Result<StoredPin> {
 	Ok(StoredPin {
 		message: read_message(row)?,
-		block_index: row.get(10)?,
-		pinned_at: row.get(11)?,
+		block_index: row.get(12)?,
+		pinned_at: row.get(13)?,
 	})
 }
 
@@ -1089,6 +1111,7 @@ mod tests {
 			conversation_id: "c1".into(),
 			turn_id: "t1".into(),
 			author_bot_id: None,
+			author: Default::default(),
 			replied_to_message_id: None,
 			content: content.into(),
 			created_at,

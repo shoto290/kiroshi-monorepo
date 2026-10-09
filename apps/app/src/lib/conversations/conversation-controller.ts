@@ -427,6 +427,8 @@ export const createConversationController = (
 			completion: "streaming",
 			createdAt: message.timestamp,
 			authorBotId: held.botId,
+			authorAccountId: null,
+			authorName: null,
 			repliedToMessageId: held.turn.promptId,
 			runtimeSessionId,
 		})
@@ -686,6 +688,8 @@ export const createConversationController = (
 			completion: "complete",
 			createdAt: now(),
 			authorBotId: held.botId,
+			authorAccountId: null,
+			authorName: null,
 			repliedToMessageId: held.turn.promptId,
 			runtimeSessionId: held.scope.runtimeSessionId,
 		}
@@ -917,6 +921,8 @@ export const createConversationController = (
 		completion: "complete",
 		createdAt: now(),
 		authorBotId: null,
+		authorAccountId: null,
+		authorName: null,
 		repliedToMessageId: answered?.id ?? null,
 		runtimeSessionId: null,
 	})
@@ -1107,6 +1113,8 @@ export const createConversationController = (
 		completion: "complete",
 		createdAt: message.timestamp,
 		authorBotId: scope.botId,
+		authorAccountId: null,
+		authorName: null,
 		repliedToMessageId: null,
 		runtimeSessionId: scope.runtimeSessionId,
 	})
@@ -1182,6 +1190,8 @@ export const createConversationController = (
 					completion: "complete",
 					createdAt,
 					authorBotId: null,
+					authorAccountId: null,
+					authorName: null,
 					repliedToMessageId,
 					runtimeSessionId: null,
 				}),

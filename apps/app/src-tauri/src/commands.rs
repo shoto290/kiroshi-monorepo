@@ -94,7 +94,7 @@ fn commands<R: Runtime>() -> Commands<R> {
 		conversations::commands::conversation_pinned_messages,
 		conversations::commands::conversation_start_turn::<tauri::Wry>,
 		conversations::commands::conversation_complete_turn::<tauri::Wry>,
-		conversations::commands::conversation_append_user_message,
+		conversations::commands::conversation_append_user_message::<tauri::Wry>,
 		conversations::commands::conversation_send_user_message::<tauri::Wry>,
 		conversations::commands::conversation_open_assistant_message::<tauri::Wry>,
 		conversations::commands::conversation_append_text::<tauri::Wry>,

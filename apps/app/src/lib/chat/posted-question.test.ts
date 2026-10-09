@@ -77,6 +77,8 @@ const storedOf = (seq: number, content: string): TranscriptMessage => ({
 	completion: "complete",
 	createdAt: seq,
 	authorBotId: null,
+	authorAccountId: null,
+	authorName: null,
 	repliedToMessageId: null,
 	runtimeSessionId: null,
 })

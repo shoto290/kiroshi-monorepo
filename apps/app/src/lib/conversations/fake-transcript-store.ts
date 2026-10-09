@@ -805,6 +805,8 @@ export const createFakeTranscriptStore = (
 			...message,
 			role: "user",
 			completion: "complete",
+			authorAccountId: null,
+			authorName: null,
 			runtimeSessionId: liveSessionOf(
 				message.conversationId,
 				message.authorBotId,
@@ -1704,6 +1706,8 @@ export const createFakeTranscriptStore = (
 				role: "assistant",
 				content: "",
 				completion: "pending",
+				authorAccountId: null,
+				authorName: null,
 				runtimeSessionId: liveSessionOf(
 					message.conversationId,
 					message.authorBotId,

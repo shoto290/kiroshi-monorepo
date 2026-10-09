@@ -43,6 +43,8 @@ export const writeReportTurn = async ({
 		completion: "complete",
 		createdAt: now(),
 		authorBotId: draft.botId,
+		authorAccountId: null,
+		authorName: null,
 		repliedToMessageId: null,
 		runtimeSessionId: draft.runtimeSessionId,
 	}

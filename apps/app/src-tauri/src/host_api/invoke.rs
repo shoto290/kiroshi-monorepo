@@ -1,7 +1,7 @@
 use axum::body::Bytes;
 use axum::extract::rejection::BytesRejection;
 use axum::extract::{DefaultBodyLimit, Path, Request, State};
-use axum::http::{header, HeaderMap, StatusCode};
+use axum::http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
@@ -23,6 +23,9 @@ pub const MAX_BODY_BYTES: usize = 128 * 1024 * 1024;
 const MAIN_WEBVIEW: &str = "main";
 
 pub(crate) const DISPATCHER_WEBVIEW: &str = "dispatcher";
+
+pub(crate) const RELAYED_MEMBER_HEADER: HeaderName =
+	HeaderName::from_static("kiroshi-relayed-member");
 
 const BLANK_PAGE: &str = "about:blank";
 
@@ -104,6 +107,7 @@ pub(crate) fn bearer_admitted(token: &HostToken, headers: &HeaderMap) -> bool {
 async fn invoked<R: Runtime>(
 	State(calls): State<Calls<R>>,
 	Path(command): Path<String>,
+	headers: HeaderMap,
 	body: Result<Bytes, BytesRejection>,
 ) -> Response {
 	if !names_an_app_command(&command) {
@@ -116,7 +120,11 @@ async fn invoked<R: Runtime>(
 	let Some(arguments) = arguments else {
 		return UNREADABLE.into_response();
 	};
-	match dispatched(calls.app.clone(), command.clone(), arguments).await {
+	let relayed_member = headers
+		.get(&RELAYED_MEMBER_HEADER)
+		.cloned()
+		.unwrap_or_else(|| HeaderValue::from_static(""));
+	match dispatched(calls.app.clone(), command.clone(), arguments, relayed_member).await {
 		Some(response) => answered(&command, response),
 		None => UNANSWERED.into_response(),
 	}
@@ -147,6 +155,7 @@ async fn dispatched<R: Runtime>(
 	app: AppHandle<R>,
 	command: String,
 	arguments: Value,
+	relayed_member: HeaderValue,
 ) -> Option<InvokeResponse> {
 	let url = match LOCAL_ORIGIN.parse::<Url>() {
 		Ok(url) => url,
@@ -161,7 +170,7 @@ async fn dispatched<R: Runtime>(
 		error: CallbackFn(1),
 		url,
 		body: InvokeBody::Json(arguments),
-		headers: HeaderMap::new(),
+		headers: HeaderMap::from_iter([(RELAYED_MEMBER_HEADER, relayed_member)]),
 		invoke_key: app.invoke_key().to_owned(),
 	};
 	let (answer, answering) = oneshot::channel();

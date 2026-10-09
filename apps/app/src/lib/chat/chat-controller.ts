@@ -352,6 +352,8 @@ export function createChatController(
 			completion: "streaming",
 			createdAt: message.timestamp,
 			authorBotId: bot.id,
+			authorAccountId: null,
+			authorName: null,
 			repliedToMessageId: turn.promptId,
 			runtimeSessionId: null,
 		})
@@ -456,6 +458,8 @@ export function createChatController(
 			completion: "complete",
 			createdAt: now(),
 			authorBotId: bot.id,
+			authorAccountId: null,
+			authorName: null,
 			repliedToMessageId: turn.promptId,
 			runtimeSessionId: null,
 		}
@@ -1152,6 +1156,8 @@ export function createChatController(
 			completion: "complete",
 			createdAt: said.createdAt,
 			authorBotId: null,
+			authorAccountId: null,
+			authorName: null,
 			repliedToMessageId: said.repliedToMessageId,
 			runtimeSessionId: null,
 		})
@@ -1373,6 +1379,8 @@ export function createChatController(
 			...answered,
 			role: "user",
 			completion: "complete",
+			authorAccountId: null,
+			authorName: null,
 			runtimeSessionId: null,
 		})
 	}

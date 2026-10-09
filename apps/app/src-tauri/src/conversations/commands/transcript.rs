@@ -10,6 +10,7 @@ use crate::agent::reply_writer::HostWrites;
 use crate::agent::AgentState;
 use crate::db;
 use crate::db::repositories::messages::{MessagePageQuery, MessagesAroundQuery};
+use crate::hosting::authorship::Caller;
 
 #[tauri::command]
 #[specta::specta]
@@ -122,11 +123,15 @@ pub async fn conversation_complete_turn<R: Runtime>(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn conversation_append_user_message(
+pub async fn conversation_append_user_message<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
+	caller: Caller,
 	message: NewUserMessage,
 ) -> Result<i64, TranscriptStoreError> {
-	Ok(ready(&state)?.messages().append_user_message(message.into()).await?)
+	let database = ready(&state)?;
+	let author = caller.author(&app, database).await?;
+	Ok(database.messages().append_user_message(message.written_by(author)).await?)
 }
 
 #[tauri::command]
@@ -134,12 +139,16 @@ pub async fn conversation_append_user_message(
 pub async fn conversation_send_user_message<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
+	caller: Caller,
 	message: NewUserMessage,
 	summoned: Vec<String>,
 ) -> Result<i64, TranscriptStoreError> {
 	let turn_id = message.turn_id.clone();
 	let completed_at = summoned.is_empty().then_some(message.created_at);
-	let seq = ready(&state)?.messages().send_user_message(message.into(), completed_at).await?;
+	let database = ready(&state)?;
+	let author = caller.author(&app, database).await?;
+	let seq =
+		database.messages().send_user_message(message.written_by(author), completed_at).await?;
 	if let Some(agent) = app.try_state::<AgentState>() {
 		agent.host_writes().claim_turn(&turn_id);
 	}

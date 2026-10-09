@@ -53,6 +53,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 44, statements: BOTS_WITHOUT_ANIMAL },
 	Migration { version: 45, statements: BOT_EFFORT },
 	Migration { version: 46, statements: SPACE_HOSTING },
+	Migration { version: 47, statements: MESSAGE_ACCOUNT_AUTHOR },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -1059,6 +1060,11 @@ CREATE TABLE space_hosting (
 );
 ";
 
+const MESSAGE_ACCOUNT_AUTHOR: &str = "
+ALTER TABLE messages ADD COLUMN author_account_id TEXT;
+ALTER TABLE messages ADD COLUMN author_name TEXT;
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -1158,6 +1164,8 @@ mod tests {
 	const MISSION_DISMISSED_STEP: u32 = 43;
 	const BOTS_WITHOUT_ANIMAL_STEP: u32 = 44;
 	const BOT_EFFORT_STEP: u32 = 45;
+	const SPACE_HOSTING_STEP: u32 = 46;
+	const MESSAGE_ACCOUNT_AUTHOR_STEP: u32 = 47;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -1858,6 +1866,39 @@ mod tests {
 			"a level outside the five reached the file"
 		);
 		assert_eq!(write(&connection, "UPDATE bots SET effort = 'xhigh' WHERE id = 'b1'"), Ok(1));
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn a_message_stored_before_the_account_author_step_reads_back_with_no_author() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(MESSAGE_ACCOUNT_AUTHOR_STEP))
+			.expect("the shipped schema");
+		assert_eq!(version(&connection).expect("version"), SPACE_HOSTING_STEP);
+		connection
+			.execute_batch(&format!("{BOTS_HOLDING_A_MEMBERSHIP}{FIXTURE}"))
+			.expect("the messages this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(version(&connection).expect("version"), latest_version());
+		let authors = connection
+			.prepare("SELECT id, author_account_id, author_name FROM messages ORDER BY id")
+			.expect("the messages carry the author columns")
+			.query_map([], |row| {
+				Ok((
+					row.get::<_, String>(0)?,
+					row.get::<_, Option<String>>(1)?,
+					row.get::<_, Option<String>>(2)?,
+				))
+			})
+			.expect("query")
+			.collect::<Result<Vec<_>, _>>()
+			.expect("the authors read back");
+		assert_eq!(authors, vec![("m1".to_owned(), None, None), ("m2".to_owned(), None, None)]);
 
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");
