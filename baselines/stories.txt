@@ -828,6 +828,7 @@ navigation-appsidebar--space-switching-off
 navigation-appsidebar--space-switching-off-in-missions
 navigation-appsidebar--space-tinted
 navigation-appsidebar--spaces-without-rosters
+navigation-appsidebar--title-bar-guest-narrow-window
 navigation-appsidebar--title-bar-guest-offline
 navigation-appsidebar--title-bar-guest-online
 navigation-appsidebar--title-bar-host-share

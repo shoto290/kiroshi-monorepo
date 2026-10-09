@@ -3953,6 +3953,63 @@ export const TitleBarGuestOffline = meta.story({
 	},
 })
 
+const LONG_SPACE: Space = {
+	id: "long-studio",
+	name: "Studio of the quarterly planning offsite in Lisbon",
+	colour: "orange",
+}
+
+const NARROW_WINDOW = 320
+
+export const TitleBarGuestNarrowWindow = meta.story({
+	globals: { theme: "dark" },
+	args: {
+		...STUDIO_ARGS,
+		spaces: [LONG_SPACE],
+		selectedSpaceId: LONG_SPACE.id,
+		botsBySpaceId: { [LONG_SPACE.id]: ROSTER },
+		spaceAccess: <HostPill isOnline={false} />,
+		windowControls: (
+			<WindowControls
+				maximized={false}
+				onClose={fn()}
+				onMinimize={fn()}
+				onToggleMaximize={fn()}
+			/>
+		),
+	},
+	render: (args) => (
+		<div style={{ width: NARROW_WINDOW }}>{renderShell(args)}</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story: `A guest in a 320px window with caption buttons, on a space whose name its owner chose and the reader cannot shorten. Check the space name clips to one line with an ellipsis, that \`Not connected\` stays whole, and that the caption buttons keep their full width flush with the trailing edge rather than being pushed out. Pick \`TitleBarGuestOffline\` for a window that fits.`,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const titleBar = titleBarIn(canvasElement)
+		const bar = titleBar.getBoundingClientRect()
+		await expect(bar.width).toBe(NARROW_WINDOW)
+		const name = slotIn(titleBar, "space-switcher-name")
+		await expect(getComputedStyle(name).textOverflow).toBe("ellipsis")
+		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
+		const pill = canvas.getByRole("button", { name: "Not connected" })
+		const label = pill.lastElementChild as HTMLElement
+		await expect(label).toHaveTextContent(/^Not connected$/)
+		await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth)
+		const controls = slotIn(
+			titleBar,
+			"app-title-bar-window-controls",
+		).getBoundingClientRect()
+		await expect(controls.right).toBe(bar.right)
+		await expect(pill.getBoundingClientRect().right).toBeLessThanOrEqual(
+			controls.left,
+		)
+	},
+})
+
 const SECTIONS: AppSidebarSection[] = [
 	{ id: "research", name: "Research", position: 0 },
 	{ id: "shipping", name: "Shipping", position: 3 },
