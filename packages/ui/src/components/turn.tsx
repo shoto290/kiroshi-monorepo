@@ -17,6 +17,7 @@ import {
 import { CompanionMenuHost } from "@workspace/ui/components/companion-menu"
 import { useCompanionSelect } from "@workspace/ui/components/companion-select"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
+import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import { useMarkId } from "@workspace/ui/components/mark-context"
 import {
 	Message,
@@ -118,6 +119,20 @@ type AssistantTurnProps = {
 	identity?: RosterBot
 	carriesMark?: boolean
 	footer?: ReactNode
+	className?: string
+}
+
+type PersonTurnProps = {
+	children: ReactNode
+	name: string
+	image?: string
+	run?: TurnRun
+	copyText?: string
+	messageId?: string
+	repliedTo?: QuotedMessage
+	onReply?: () => void
+	onPin?: () => void
+	pinned?: boolean
 	className?: string
 }
 
@@ -524,8 +539,80 @@ function AssistantTurn(props: AssistantTurnProps) {
 	)
 }
 
+const PersonTurn = ({
+	children,
+	name,
+	image,
+	run = "single",
+	copyText,
+	messageId,
+	repliedTo,
+	onReply,
+	onPin,
+	pinned = false,
+	className,
+}: PersonTurnProps) => {
+	const { t } = useTranslation("chat")
+	const anchor = useMessageAnchor(messageId)
+	const actions = useTurnActions({ copyText, onReply, onPin, pinned })
+
+	return (
+		<Message
+			from="assistant"
+			aria-label={t("transcript.message.person", { name })}
+			{...anchor}
+			className={cn(messageId && HIGHLIGHT, className)}
+		>
+			<MessageContent
+				className="grid gap-x-2 gap-y-0"
+				style={{ gridTemplateColumns: `${TURN_AVATAR_SIZE}px 1fr` }}
+			>
+				{opensRun(run) ? (
+					<MessageHeader
+						data-slot="message-author"
+						className={cn(
+							"col-start-2 row-start-1 min-w-0 pb-1",
+							MESSAGE_BUBBLE_INLINE_PADDING,
+						)}
+					>
+						<span className="max-w-48 truncate font-medium text-foreground/80">
+							{name}
+						</span>
+					</MessageHeader>
+				) : null}
+				<span
+					data-slot="message-gutter"
+					aria-hidden="true"
+					className="col-start-1 row-start-2 self-end"
+				>
+					{closesRun(run) ? (
+						<InitialsAvatar image={image} name={name} size={TURN_AVATAR_SIZE} />
+					) : null}
+				</span>
+				<MessageBubble
+					variant="soft"
+					className="col-start-2 row-start-2 min-w-0"
+				>
+					<MessageActions
+						actions={<TurnActionButtons actions={actions} />}
+						menu={turnMenuOf(actions)}
+					>
+						<TurnBody
+							repliedTo={repliedTo}
+							className={RUN_RADIUS.assistant[run]}
+						>
+							{children}
+						</TurnBody>
+					</MessageActions>
+				</MessageBubble>
+			</MessageContent>
+		</Message>
+	)
+}
+
 export {
 	AssistantTurn,
+	PersonTurn,
 	TURN_AVATAR_SIZE,
 	type TurnCause,
 	type TurnCauseKind,

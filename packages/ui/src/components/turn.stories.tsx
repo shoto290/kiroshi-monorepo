@@ -26,6 +26,7 @@ import type { RosterMenuSection } from "@workspace/ui/components/roster-menu-ite
 import type { Space } from "@workspace/ui/components/space"
 import {
 	AssistantTurn,
+	PersonTurn,
 	type TurnCause,
 	TurnGroup,
 	type TurnState,
@@ -297,6 +298,27 @@ const STOPPED_FROM_THE_WORKING_ROW =
 const CAUSED_BY_THE_RUN =
 	"`apps/app/src/components/thread-screen.tsx:637` passes the cause of the run, from the reported runs and the mission summons the thread holds."
 
+const PERSON = "Ada Moreau"
+
+const PERSON_RUN = [
+	"I read the diff on my side.",
+	"The token rename looks safe to me.",
+	"Ship it once the stories are green.",
+]
+
+const expectPersonTurn = async (article: HTMLElement) => {
+	const avatar = slotIn(article, "user-avatar")
+	const { width } = avatar.getBoundingClientRect()
+	const radius = Number.parseFloat(getComputedStyle(avatar).borderTopLeftRadius)
+
+	await expect(width).toBe(40)
+	await expect(radius).toBeGreaterThanOrEqual(width / 2)
+	await expect(botIdentityAvatars(article)).toHaveLength(0)
+	for (const bubble of slotsIn(article, "message-bubble")) {
+		await expect(bubble).toHaveAttribute("data-variant", "soft")
+	}
+}
+
 const meta = preview.meta({
 	title: "Conversation/Message/Turn",
 	component: AssistantTurn,
@@ -381,6 +403,98 @@ export const Run = meta.story({
 		const corners = getComputedStyle(closing)
 		await expect(Number.parseFloat(corners.borderEndEndRadius)).toBeGreaterThan(
 			Number.parseFloat(corners.borderStartEndRadius) * 2,
+		)
+	},
+})
+
+export const PersonInThread = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<UserTurn copyText="How is this workspace laid out?">
+				How is this workspace laid out?
+			</UserTurn>
+			<AssistantTurn copyText={ANSWER} identity={BOT}>
+				{ANSWER}
+			</AssistantTurn>
+			<PersonTurn name={PERSON} copyText={QUESTION} onReply={reply}>
+				{QUESTION}
+			</PersonTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for a shared conversation: the reader's own prompt, a companion's answer and a message another person wrote. Check that the other person sits on the companion's side with a round avatar and a soft bubble, named above it with no badge, while only the reader's own words wear the blue bubble.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByLabelText("user message")).toBeVisible()
+		await expect(canvas.getByLabelText("assistant message")).toBeVisible()
+		const person = canvas.getByLabelText(`message from ${PERSON}`)
+		await expect(within(person).getByText(PERSON)).toBeVisible()
+		await expectPersonTurn(person)
+	},
+})
+
+export const PersonPicture = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<PersonTurn name={PERSON} image={UPLOADED_AVATAR_IMAGE}>
+				{QUESTION}
+			</PersonTurn>
+			<PersonTurn name="Noor">{QUESTION}</PersonTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for the two faces a person turn takes: the picture the person uploaded, and their initials when they have none. Check that both are round and the size of a companion's gutter avatar.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const [pictured, initialed] = canvas.getAllByRole("article")
+		await expectPersonTurn(pictured)
+		await expectPersonTurn(initialed)
+		await expect(within(initialed).getByText("N")).toBeInTheDocument()
+	},
+})
+
+export const PersonRun = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<TurnGroup>
+				{PERSON_RUN.map((paragraph) => (
+					<PersonTurn key={paragraph} name={PERSON} copyText={paragraph}>
+						{paragraph}
+					</PersonTurn>
+				))}
+			</TurnGroup>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for a person who wrote several messages in a row. Check that the run reads as one block with the companion run corners, the name above the first bubble only and the avatar beside the last one only.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const turns = canvas.getAllByLabelText(`message from ${PERSON}`)
+		await expect(turns).toHaveLength(3)
+		await expect(canvas.getAllByText(PERSON)).toHaveLength(1)
+		await expect(slotsIn(canvasElement, "user-avatar")).toHaveLength(1)
+		await expect(slotsIn(turns[2], "user-avatar")).toHaveLength(1)
+		await expectPersonTurn(turns[2])
+
+		const middle = slotIn(turns[1], "message-bubble-content")
+		const corners = getComputedStyle(middle)
+		await expect(Number.parseFloat(corners.borderEndEndRadius)).toBeGreaterThan(
+			Number.parseFloat(corners.borderStartStartRadius) * 2,
 		)
 	},
 })

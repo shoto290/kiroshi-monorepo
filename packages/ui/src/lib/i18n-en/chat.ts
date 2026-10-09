@@ -58,6 +58,7 @@ const chat = {
 		message: {
 			user: "user message",
 			assistant: "assistant message",
+			person: "message from {{name}}",
 			mission: "mission opened",
 			actions: "Message actions",
 		},
