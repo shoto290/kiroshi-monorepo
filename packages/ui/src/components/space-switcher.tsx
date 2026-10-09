@@ -183,7 +183,6 @@ type SpaceSwitcherProps = SpaceSelection &
 		remoteBySpaceId?: Record<string, SpaceRemote>
 		invitations?: SpaceInvitation[]
 		onCreateSpace?: () => void
-		onJoinSpace?: () => void
 		onOpenSpaceSettings?: () => void
 		onLeaveSpace?: () => void
 		onOpenChange?: (isOpen: boolean) => void
@@ -198,7 +197,6 @@ const SpaceSwitcher = ({
 	onSelectSpace,
 	onReorderSpaces,
 	onCreateSpace,
-	onJoinSpace,
 	onOpenSpaceSettings,
 	onLeaveSpace,
 	onAcceptInvitation,
@@ -352,10 +350,6 @@ const SpaceSwitcher = ({
 				<ContextMenuItem onClick={onCreateSpace}>
 					<Icons.Add aria-hidden="true" className="size-3.5" />
 					{t("spaces.create")}
-				</ContextMenuItem>
-				<ContextMenuItem onClick={onJoinSpace}>
-					<Icons.Web aria-hidden="true" className="size-3.5" />
-					{t("spaces.join")}
 				</ContextMenuItem>
 				<ContextMenuItem onClick={onOpenSpaceSettings}>
 					<Icons.Settings aria-hidden="true" className="size-3.5" />

@@ -161,6 +161,8 @@ const chat = {
 		label: "Message",
 		placeholder: "Message",
 		send: "Envoyer",
+		offline:
+			"{{space}} est hors ligne. Vous pourrez écrire à nouveau dès que le Mac de {{host}} sera de retour.",
 		commands: "Commandes",
 		mentions: "Compagnons",
 		lead: "Meneur",

@@ -2,6 +2,10 @@
 
 import { useTranslation } from "react-i18next"
 
+import {
+	type BotAvatarBlot,
+	blotTint,
+} from "@workspace/ui/components/companion-colour"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import { Button } from "@workspace/ui/components/ui/button"
 import {
@@ -22,7 +26,11 @@ import { cn } from "@workspace/ui/lib/utils"
 const TRANSIENT_NOTICE_DELAY = 5000
 const NOTICE_LIMIT = 3
 
-const noticeManager = createToastManager()
+type NoticeData = {
+	spaceColour?: BotAvatarBlot
+}
+
+const noticeManager = createToastManager<NoticeData>()
 
 type NoticeType = "error" | "info" | "loading" | "success" | "warning"
 
@@ -37,6 +45,7 @@ type NoticeMessage = {
 	title: string
 	description?: string
 	action?: NoticeAction
+	spaceColour?: BotAvatarBlot
 }
 
 type TransientNotice = NoticeMessage & {
@@ -55,7 +64,7 @@ type RaisedNotice = FailureNotice & {
 
 let raisedNoticeCount = 0
 
-const raiseNotice = ({ action, ...notice }: RaisedNotice) => {
+const raiseNotice = ({ action, spaceColour, ...notice }: RaisedNotice) => {
 	raisedNoticeCount += 1
 	const id = `notice-${raisedNoticeCount}`
 
@@ -68,6 +77,7 @@ const raiseNotice = ({ action, ...notice }: RaisedNotice) => {
 				endNotice(id)
 			},
 		},
+		data: { spaceColour },
 		id,
 	})
 }
@@ -104,11 +114,26 @@ const TOP_ANCHORED_NOTICE = [
 const FADE_ONLY_UNDER_REDUCED_MOTION =
 	"motion-reduce:[transition:opacity_150ms]! motion-reduce:data-starting-style:[transform:none]! motion-reduce:data-starting-style:opacity-0 motion-reduce:data-ending-style:[transform:none]! motion-reduce:data-ending-style:opacity-0"
 
+const SPACE_MARK =
+	"pointer-events-none size-2.5 shrink-0 rounded-[3px] inset-ring-[1.5px] inset-ring-current"
+
 type NoticeMarkProps = {
 	type: string | undefined
+	spaceColour?: BotAvatarBlot
 }
 
-const NoticeMark = ({ type }: NoticeMarkProps) => {
+const NoticeMark = ({ type, spaceColour }: NoticeMarkProps) => {
+	if (spaceColour) {
+		return (
+			<span
+				aria-hidden="true"
+				className={SPACE_MARK}
+				data-slot="notice-space-mark"
+				style={{ color: blotTint(spaceColour) }}
+			/>
+		)
+	}
+
 	const Mark = NOTICE_MARKS[type as NoticeType]
 
 	if (!Mark) {
@@ -128,7 +153,7 @@ const NoticeMark = ({ type }: NoticeMarkProps) => {
 
 const NoticeList = () => {
 	const { t } = useTranslation("common")
-	const { toasts } = useToastManager()
+	const { toasts } = useToastManager<NoticeData>()
 
 	return toasts.map((notice) => (
 		<Toast
@@ -142,7 +167,7 @@ const NoticeList = () => {
 			toast={notice}
 		>
 			<ToastContent>
-				<NoticeMark type={notice.type} />
+				<NoticeMark spaceColour={notice.data?.spaceColour} type={notice.type} />
 				<div className="flex min-w-0 flex-1 flex-col gap-1">
 					<ToastTitle className="break-words font-semibold" />
 					<ToastDescription className="text-pretty break-words" />

@@ -18,6 +18,13 @@ import { usePromptTransfer } from "@workspace/ui/components/prompt-input-transfe
 import { Button } from "@workspace/ui/components/ui/button"
 import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
+const OFFLINE_CONTROLS = "opacity-40"
+
+export type PromptInputOffline = {
+	spaceName: string
+	hostName: string
+}
+
 export interface PromptInputProps
 	extends Omit<
 		TextareaHTMLAttributes<HTMLTextAreaElement>,
@@ -31,6 +38,7 @@ export interface PromptInputProps
 	attachments?: ReactNode
 	onAttach?: (files: File[]) => void
 	dropTarget?: boolean
+	offline?: PromptInputOffline
 	textareaRef?: Ref<HTMLTextAreaElement>
 }
 
@@ -43,6 +51,7 @@ export function PromptInput({
 	attachments,
 	onAttach,
 	dropTarget = false,
+	offline,
 	className,
 	disabled,
 	placeholder,
@@ -55,7 +64,8 @@ export function PromptInput({
 	const { t } = useTranslation("chat")
 	const [internalValue, setInternalValue] = useState(defaultValue)
 	const currentValue = value ?? internalValue
-	const canAttach = Boolean(onAttach) && !disabled
+	const isBlocked = disabled || Boolean(offline)
+	const canAttach = Boolean(onAttach) && !isBlocked
 
 	const { refs, isExpanded, hasAttachments } = usePromptLayout({
 		attachments,
@@ -76,7 +86,7 @@ export function PromptInput({
 
 	const hasPayload = Boolean(currentValue.trim()) || hasAttachments
 	const isDropTarget = canAttach && (dropTarget || isDragOver)
-	const canSubmit = hasPayload && !disabled
+	const canSubmit = hasPayload && !isBlocked
 
 	const setValue = (next: string) => {
 		if (value === undefined) setInternalValue(next)
@@ -112,7 +122,7 @@ export function PromptInput({
 		>
 			<div
 				ref={refs.attachments}
-				inert={disabled}
+				inert={isBlocked}
 				className="w-full empty:hidden"
 			>
 				{attachments}
@@ -121,6 +131,14 @@ export function PromptInput({
 			<PromptField
 				disabled={disabled}
 				label={ariaLabel}
+				notice={
+					offline
+						? t("composer.offline", {
+								host: offline.hostName,
+								space: offline.spaceName,
+							})
+						: undefined
+				}
 				onKeyDown={onKeyDown}
 				onPaste={handlePaste}
 				onSubmit={submit}
@@ -134,10 +152,11 @@ export function PromptInput({
 
 			<div
 				ref={refs.leading}
-				inert={disabled}
+				inert={isBlocked}
 				className={cn(
 					"flex items-center gap-1 empty:hidden",
 					!isExpanded && "order-first",
+					offline && OFFLINE_CONTROLS,
 				)}
 			>
 				{leading}
@@ -145,8 +164,8 @@ export function PromptInput({
 
 			<div
 				ref={refs.controls}
-				inert={disabled}
-				className="ms-auto flex items-center"
+				inert={isBlocked}
+				className={cn("ms-auto flex items-center", offline && OFFLINE_CONTROLS)}
 			>
 				<Button
 					type="submit"

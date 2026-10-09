@@ -192,7 +192,6 @@ const meta = preview.meta({
 		selectedSpaceId: "vocca",
 		onSelectSpace: fn(),
 		onCreateSpace: fn(),
-		onJoinSpace: fn(),
 		onOpenSpaceSettings: fn(),
 		onLeaveSpace: fn(),
 		onReorderSpaces: fn(),
@@ -817,12 +816,12 @@ const expectRemoteMarkers = async (menu: HTMLElement) => {
 	await expect(slotsIn(rowNamed(menu, "Perso"), "space-remote")).toHaveLength(0)
 }
 
-const expectJoinBetweenCreateAndSettings = async (menu: HTMLElement) => {
-	const join = within(menu).getByRole("menuitem", { name: "Join a space" })
-	await expect(join.previousElementSibling).toHaveAccessibleName(
-		"Create a space",
-	)
-	await expect(join.nextElementSibling).toHaveAccessibleName(
+const expectSettingsRightAfterCreate = async (menu: HTMLElement) => {
+	await expect(
+		within(menu).queryByRole("menuitem", { name: "Join a space" }),
+	).toBeNull()
+	const create = within(menu).getByRole("menuitem", { name: "Create a space" })
+	await expect(create.nextElementSibling).toHaveAccessibleName(
 		"Open space settings",
 	)
 }
@@ -849,28 +848,21 @@ export const ThemesLocalSpaceMenu = meta.story({
 		a11y: SIDE_BY_SIDE_MENU_A11Y,
 		docs: {
 			description: {
-				story: `${ARTBOARD} The menu of a local space that sits beside joined ones (J5 and J6, first menu). Check the connected row carries the 14px globe between its name and its shortcut, that the unreachable row drops its tint, mutes its name and says \`Unreachable\` after a destructive alert, that \`Join a space\` sits between \`Create a space\` and \`Open space settings\`, and that no \`Leave space\` is offered, since a local space is not left. Pick \`ThemesUnreachableSpaceMenu\` for the menu of a joined space.`,
+				story: `${ARTBOARD} The menu of a local space that sits beside joined ones (J5 and J6, first menu). Check the connected row carries the 14px globe between its name and its shortcut, that the unreachable row drops its tint, mutes its name and says \`Unreachable\` after a destructive alert, that \`Open space settings\` follows \`Create a space\` with no \`Join a space\` between them, and that no \`Leave space\` is offered, since a local space is not left. Pick \`ThemesUnreachableSpaceMenu\` for the menu of a joined space.`,
 			},
 		},
 	},
-	play: async ({ args, canvasElement, userEvent }) => {
+	play: async ({ canvasElement }) => {
 		const [light, dark] = triggersIn(canvasElement)
 		for (const trigger of [light, dark]) {
 			await expect(trigger).toHaveAccessibleName("Change space, Perso open")
 			await expect(slotsIn(trigger, "space-switcher-remote")).toHaveLength(0)
 		}
 
-		const joining = await openMenuLikeItsTheme(light)
-		await userEvent.click(
-			within(joining).getByRole("menuitem", { name: "Join a space" }),
-		)
-		await expect(args.onJoinSpace).toHaveBeenCalledOnce()
-		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
-
 		for (const trigger of [light, dark]) {
 			const menu = await openMenuLikeItsTheme(trigger)
 			await expectRemoteMarkers(menu)
-			await expectJoinBetweenCreateAndSettings(menu)
+			await expectSettingsRightAfterCreate(menu)
 			await expect(
 				within(menu).queryByRole("menuitem", { name: "Leave space" }),
 			).toBeNull()
@@ -886,7 +878,7 @@ export const ThemesUnreachableSpaceMenu = meta.story({
 		a11y: SIDE_BY_SIDE_MENU_A11Y,
 		docs: {
 			description: {
-				story: `${ARTBOARD} The menu of a joined space whose host does not answer (J5 and J6, second menu). Check the open row keeps its mark and stays choosable while it reads \`Unreachable\`, that the globe still marks the connected row, and that a rule then the destructive \`Leave space\` close the menu. Both items only report: the confirmation and the join dialog belong to the host. Pick \`ThemesLocalSpaceMenu\` for the menu with nothing to leave.`,
+				story: `${ARTBOARD} The menu of a joined space whose host does not answer (J5 and J6, second menu). Check the open row keeps its mark and stays choosable while it reads \`Unreachable\`, that the globe still marks the connected row, and that a rule then the destructive \`Leave space\` close the menu. The item only reports: the confirmation belongs to the host. Pick \`ThemesLocalSpaceMenu\` for the menu with nothing to leave.`,
 			},
 		},
 	},
@@ -900,13 +892,6 @@ export const ThemesUnreachableSpaceMenu = meta.story({
 		await expect(args.onLeaveSpace).toHaveBeenCalledOnce()
 		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
 
-		const joining = await openMenuLikeItsTheme(light)
-		await userEvent.click(
-			within(joining).getByRole("menuitem", { name: "Join a space" }),
-		)
-		await expect(args.onJoinSpace).toHaveBeenCalledOnce()
-		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
-
 		for (const trigger of [light, dark]) {
 			const menu = await openMenuLikeItsTheme(trigger)
 			await expectRemoteMarkers(menu)
@@ -914,7 +899,7 @@ export const ThemesUnreachableSpaceMenu = meta.story({
 				"aria-checked",
 				"true",
 			)
-			await expectJoinBetweenCreateAndSettings(menu)
+			await expectSettingsRightAfterCreate(menu)
 			await expectLeaveLast(menu)
 		}
 	},
@@ -955,13 +940,6 @@ export const ThemesRemoteSpaceTrigger = meta.story({
 			within(menu).getByRole("menuitem", { name: "Leave space" }),
 		)
 		await expect(args.onLeaveSpace).toHaveBeenCalledOnce()
-		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
-
-		const joining = await openMenuLikeItsTheme(dark)
-		await userEvent.click(
-			within(joining).getByRole("menuitem", { name: "Join a space" }),
-		)
-		await expect(args.onJoinSpace).toHaveBeenCalledOnce()
 		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
 	},
 })
@@ -1476,5 +1454,84 @@ export const InvitationOverBotBadge = meta.story({
 		await expect(
 			slotsIn(rowNamed(menu, "Veille"), "space-dot")[0],
 		).toHaveAttribute("data-badge", "attention")
+	},
+})
+
+const ITERATION_FIVE =
+	"Measured against the Paper page `Iteration 5` of `Kiroshi, Invitations`, dark only."
+
+const NOTES: Space[] = [{ id: "notes", name: "Notes", colour: "green" }]
+
+const STUDIO_INVITATION: SpaceInvitation = {
+	id: "studio",
+	name: "Studio",
+	colour: "orange",
+	hostEmail: "steve@example.com",
+	state: "waiting",
+}
+
+export const InvitationWithoutJoinEntry = meta.story({
+	globals: DARK,
+	name: "Invitation without Join a space",
+	args: {
+		spaces: NOTES,
+		selectedSpaceId: "notes",
+		invitations: [STUDIO_INVITATION],
+	},
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story: `${ITERATION_FIVE} 5.5: a reader with one space and one waiting invitation, now that joining goes through the invitation alone. Check the rows read Notes with its \`⌘1\` and its check, a rule, the Invitations label over Studio invited by its host with Accept and Decline, a rule, then \`Create a space\` and \`Open space settings\`, and that no \`Join a space\` is offered anywhere. Pick \`M2InvitationWaiting\` for the same invitation beside several spaces.`,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const trigger = within(canvasElement).getByRole("button", {
+			name: "Change space, Notes open, 1 invitation",
+		})
+		await expectInvitationDot(trigger)
+
+		const menu = await openSwitcher(canvasElement)
+		await expect(
+			within(menu).queryByRole("menuitem", { name: "Join a space" }),
+		).toBeNull()
+
+		const notes = rowNamed(menu, "Notes")
+		await expect(notes).toHaveAttribute("aria-checked", "true")
+		await expect(shortcutOf(notes)).toHaveTextContent("⌘1")
+
+		const spaces = notes.closest<HTMLElement>("[role=group]")
+		const group = slotsIn(menu, "space-invitations")[0]
+		await expect(group.previousElementSibling?.previousElementSibling).toBe(
+			spaces,
+		)
+		await expect(group.previousElementSibling).toHaveAttribute(
+			"role",
+			"separator",
+		)
+		await expect(within(group).getByText("Invitations")).toBeVisible()
+		const row = invitationNamed(menu, "Studio")
+		await expect(hostLineOf(row)).toHaveTextContent(
+			"Invited by steve@example.com",
+		)
+		await expect(
+			within(row).getByRole("menuitem", { name: "Accept" }),
+		).toBeVisible()
+		await expect(
+			within(row).getByRole("menuitem", { name: "Decline" }),
+		).toBeVisible()
+
+		const rule = group.nextElementSibling
+		await expect(rule).toHaveAttribute("role", "separator")
+		await expect(rule?.nextElementSibling).toHaveAccessibleName(
+			"Create a space",
+		)
+		await expect(rule?.nextElementSibling?.nextElementSibling).toBe(
+			menu.lastElementChild,
+		)
+		await expect(menu.lastElementChild).toHaveAccessibleName(
+			"Open space settings",
+		)
 	},
 })

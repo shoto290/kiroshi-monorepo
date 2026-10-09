@@ -95,12 +95,19 @@ const bots = {
 		moveUp: "Move up",
 		moveDown: "Move down",
 		create: "Create a space",
-		join: "Join a space",
 		settings: "Open space settings",
 		leave: "Leave space",
 		remote: "Remote",
 		unreachable: "Unreachable",
 		shortcut: "⌘{{rank}}",
+		share: "Share",
+		host: {
+			online: "Hosted by {{name}}",
+			onlineLabel: "Hosted by {{name}}, online",
+			offline: "{{name}}’s Mac is offline",
+			onlineDetail: "{{space}} runs on their Mac. It’s online.",
+			offlineDetail: "{{space}} runs on their Mac. It’s offline.",
+		},
 		remove: {
 			lastSpace: "A companion needs at least one space.",
 			failed: "Couldn’t remove this companion from the space. Retry.",
@@ -126,6 +133,8 @@ const bots = {
 				"{{email}} removed you from this Space. Its companions and conversations stay on their Kiroshi.",
 			back: "Back to {{name}}",
 			notice: "{{email}} removed you from {{name}}.",
+			noticeDescription:
+				"It’s gone from your spaces. Its conversations stay on {{host}}’s Kiroshi.",
 		},
 		signOut: {
 			title: "Sign out of Kiroshi?",
