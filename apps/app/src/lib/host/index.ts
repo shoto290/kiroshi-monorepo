@@ -46,6 +46,8 @@ export const activeJoinedSpaceId = joinedHosts.activeSpaceId
 
 export const listenToActiveHost = joinedHosts.listenToActiveHost
 
+export const onHostReconnected = joinedHosts.onReconnected
+
 export function isDesktopHost(): boolean {
 	return hasTauriInternals()
 }
