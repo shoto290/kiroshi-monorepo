@@ -21,9 +21,9 @@ const A_CAMEL_CASE_TOKEN = /[a-z][A-Z]/
 const AN_UNCONTRACTED_NEGATION = /\b(could|did|was|is) not\b/
 
 const CONTRACTED_SENTENCES = [
-	["binaryNotFound", "the agent binary wasn't found"],
-	["spawnFailed", "the agent couldn't be started"],
-	["startupTimeout", "the agent didn't start in time"],
+	["binaryNotFound", "the agent binary wasn’t found"],
+	["spawnFailed", "the agent couldn’t be started"],
+	["startupTimeout", "the agent didn’t start in time"],
 ]
 
 describe("the exit detail of a failure", () => {
