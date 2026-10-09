@@ -62,6 +62,8 @@ impl From<TerminalCompletion> for messages::TerminalState {
 	}
 }
 
+pub const MESSAGE_STORED_EVENT: &str = "conversation://message-stored";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriptMessage {

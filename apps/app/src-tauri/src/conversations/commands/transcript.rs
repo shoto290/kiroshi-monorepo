@@ -3,13 +3,15 @@ use tauri::{AppHandle, Manager, Runtime, State};
 use super::super::context;
 use super::super::contract::{
 	MessageReference, NewAssistantMessage, NewTurn, NewUserMessage, PinnedBubble,
-	TerminalCompletion, TranscriptPage, TranscriptStoreError, TranscriptWindow,
+	TerminalCompletion, TranscriptMessage, TranscriptPage, TranscriptStoreError, TranscriptWindow,
+	MESSAGE_STORED_EVENT,
 };
 use super::bot::ready;
 use crate::agent::reply_writer::HostWrites;
 use crate::agent::AgentState;
 use crate::db;
 use crate::db::repositories::messages::{MessagePageQuery, MessagesAroundQuery};
+use crate::events;
 use crate::hosting::authorship::Caller;
 
 #[tauri::command]
@@ -131,7 +133,10 @@ pub async fn conversation_append_user_message<R: Runtime>(
 ) -> Result<i64, TranscriptStoreError> {
 	let database = ready(&state)?;
 	let author = caller.author(&app, database).await?;
-	Ok(database.messages().append_user_message(message.written_by(author)).await?)
+	let (conversation_id, id) = (message.conversation_id.clone(), message.id.clone());
+	let seq = database.messages().append_user_message(message.written_by(author)).await?;
+	announce_stored(&app, database, conversation_id, id).await;
+	Ok(seq)
 }
 
 #[tauri::command]
@@ -147,12 +152,36 @@ pub async fn conversation_send_user_message<R: Runtime>(
 	let completed_at = summoned.is_empty().then_some(message.created_at);
 	let database = ready(&state)?;
 	let author = caller.author(&app, database).await?;
+	let (conversation_id, id) = (message.conversation_id.clone(), message.id.clone());
 	let seq =
 		database.messages().send_user_message(message.written_by(author), completed_at).await?;
 	if let Some(agent) = app.try_state::<AgentState>() {
 		agent.host_writes().claim_turn(&turn_id);
 	}
+	announce_stored(&app, database, conversation_id, id).await;
 	Ok(seq)
+}
+
+async fn announce_stored<R: Runtime>(
+	app: &AppHandle<R>,
+	database: &db::Database,
+	conversation_id: String,
+	id: String,
+) {
+	let failure = match database.messages().message(conversation_id.clone(), id.clone()).await {
+		Ok(Some(stored)) => {
+			let message = TranscriptMessage::of(&conversation_id, stored);
+			match events::emit(app, MESSAGE_STORED_EVENT, message) {
+				Ok(()) => return,
+				Err(failure) => failure.to_string(),
+			}
+		}
+		Ok(None) => "the stored message was not found again".to_owned(),
+		Err(failure) => format!("the stored message did not read back: {failure:?}"),
+	};
+	eprintln!(
+		"{MESSAGE_STORED_EVENT} was not announced for message {id} of conversation {conversation_id}: {failure}"
+	);
 }
 
 #[tauri::command]

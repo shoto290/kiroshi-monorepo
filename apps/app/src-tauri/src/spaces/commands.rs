@@ -5,7 +5,7 @@ use tauri::{AppHandle, Runtime, State};
 use super::archive;
 use super::contract::{Space, SpaceError, SpacePreferences};
 use crate::bundles;
-use crate::conversations::commands::list_bundles;
+use crate::conversations::commands::{announce_joined, announce_left, list_bundles};
 use crate::conversations::contract::AvatarBlot;
 use crate::db;
 use crate::environment;
@@ -140,33 +140,48 @@ async fn forget_bundles(root: Option<&Path>, database: &db::Database, bot_ids: &
 
 #[tauri::command]
 #[specta::specta]
-pub async fn bot_move_to_space(
+pub async fn bot_move_to_space<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
 	space_id: String,
 ) -> Result<(), SpaceError> {
-	Ok(ready(&state)?.spaces().move_bot(bot_id, space_id).await?)
+	let database = ready(&state)?;
+	let held_by = database.conversations().bot_space_ids(bot_id.clone()).await?;
+	database.spaces().move_bot(bot_id.clone(), space_id.clone()).await?;
+	for left in held_by.into_iter().filter(|held| *held != space_id) {
+		announce_left(&app, &bot_id, left);
+	}
+	announce_joined(&app, database, &bot_id).await;
+	Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn bot_add_to_space(
+pub async fn bot_add_to_space<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
 	space_id: String,
 	section_id: Option<String>,
 ) -> Result<(), SpaceError> {
-	Ok(ready(&state)?.spaces().add_bot(bot_id, space_id, section_id).await?)
+	let database = ready(&state)?;
+	database.spaces().add_bot(bot_id.clone(), space_id, section_id).await?;
+	announce_joined(&app, database, &bot_id).await;
+	Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn bot_remove_from_space(
+pub async fn bot_remove_from_space<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
 	space_id: String,
 ) -> Result<(), SpaceError> {
-	Ok(ready(&state)?.spaces().remove_bot(bot_id, space_id).await?)
+	ready(&state)?.spaces().remove_bot(bot_id.clone(), space_id.clone()).await?;
+	announce_left(&app, &bot_id, space_id);
+	Ok(())
 }
 
 #[cfg(test)]

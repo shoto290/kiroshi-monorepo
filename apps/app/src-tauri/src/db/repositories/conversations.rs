@@ -455,6 +455,10 @@ impl ConversationsRepository {
 		self.call(move |connection| Ok(oldest_space_of(connection, &bot_id)?)).await
 	}
 
+	pub async fn bot_space_ids(&self, bot_id: String) -> Result<Vec<String>, DatabaseError> {
+		self.call(move |connection| Ok(bot_spaces::spaces_of(connection, &bot_id)?)).await
+	}
+
 	pub async fn set_lead(
 		&self,
 		conversation_id: String,

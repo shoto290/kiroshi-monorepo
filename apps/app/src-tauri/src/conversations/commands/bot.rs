@@ -11,6 +11,10 @@ use crate::agent::contract::AgentCommand;
 use crate::attachments;
 use crate::avatars;
 use crate::bundles;
+use crate::companions::contract::{
+	CompanionCreated, CompanionDeleted, CompanionUpdated, CREATED_EVENT, DELETED_EVENT,
+	UPDATED_EVENT,
+};
 use crate::companions::launch;
 use crate::db;
 use crate::db::repositories::conversations::{Bot as StoredBot, DEFAULT_BOT_MODEL};
@@ -221,7 +225,9 @@ pub async fn conversation_create_bot<R: Runtime>(
 	identity: BotIdentity,
 	space_id: Option<String>,
 ) -> Result<Bot, TranscriptStoreError> {
-	create_bundled_bot(&app, ready(&state)?, identity, space_id).await
+	let created = create_bundled_bot(&app, ready(&state)?, identity, space_id).await?;
+	announce_created(&app, &created);
+	Ok(created)
 }
 
 #[tauri::command]
@@ -235,7 +241,39 @@ pub async fn conversation_create_bot_from_draft<R: Runtime>(
 	let database = ready(&state)?;
 	let worn = database.conversations().bots(Some(space_id.clone())).await?;
 	let identity = drafted_identity(draft, &worn)?;
-	create_bundled_bot(&app, database, identity, Some(space_id)).await
+	let created = create_bundled_bot(&app, database, identity, Some(space_id)).await?;
+	announce_created(&app, &created);
+	Ok(created)
+}
+
+fn announce_created<R: Runtime>(app: &AppHandle<R>, created: &Bot) {
+	let companion = CompanionCreated { id: created.id.clone(), name: created.name.clone() };
+	launch::announce(app, CREATED_EVENT, companion);
+}
+
+pub(crate) async fn announce_joined<R: Runtime>(
+	app: &AppHandle<R>,
+	database: &db::Database,
+	bot_id: &str,
+) {
+	let failure = match database.conversations().bot(bot_id.to_owned()).await {
+		Ok(Some(joined)) => {
+			let companion = CompanionCreated { id: joined.id, name: joined.name };
+			return launch::announce(app, CREATED_EVENT, companion);
+		}
+		Ok(None) => "the bot was not found again".to_owned(),
+		Err(failure) => format!("the bot did not read back: {failure:?}"),
+	};
+	eprintln!("{CREATED_EVENT} was not announced for bot {bot_id}: {failure}");
+}
+
+pub(crate) fn announce_left<R: Runtime>(app: &AppHandle<R>, bot_id: &str, space_id: String) {
+	launch::announce(app, DELETED_EVENT, CompanionDeleted { id: bot_id.to_owned(), space_id });
+}
+
+fn announce_updated<R: Runtime>(app: &AppHandle<R>, updated: &Bot) {
+	let companion = CompanionUpdated { id: updated.id.clone(), bot: updated.clone() };
+	launch::announce(app, UPDATED_EVENT, companion);
 }
 
 #[tauri::command]
@@ -354,7 +392,9 @@ pub async fn conversation_duplicate_bot<R: Runtime>(
 			return Err(refusal);
 		}
 	};
-	Ok(Bot::of(ruled, dir.as_deref(), bundle_root.as_deref()))
+	let copy = Bot::of(ruled, dir.as_deref(), bundle_root.as_deref());
+	announce_created(&app, &copy);
+	Ok(copy)
 }
 
 struct Carried {
@@ -487,7 +527,9 @@ pub async fn conversation_update_bot<R: Runtime>(
 			return Err(refusal);
 		}
 	};
-	Ok(Bot::of(ruled, dir.as_deref(), bundle_root.as_deref()))
+	let updated = Bot::of(ruled, dir.as_deref(), bundle_root.as_deref());
+	announce_updated(&app, &updated);
+	Ok(updated)
 }
 
 #[tauri::command]
@@ -537,7 +579,9 @@ pub async fn conversation_set_bot_avatar_image<R: Runtime>(
 		return Err(rejection.into());
 	}
 	avatars::Avatars::sweep_referenced(database, Some(&dir)).await;
-	Ok(Bot::of(updated, Some(&dir), bundles::root(&app).as_deref()))
+	let updated = Bot::of(updated, Some(&dir), bundles::root(&app).as_deref());
+	announce_updated(&app, &updated);
+	Ok(updated)
 }
 
 #[tauri::command]
@@ -551,11 +595,15 @@ pub async fn conversation_delete_bot<R: Runtime>(
 	let attachment_dir = attachments::Attachments::dir(&app);
 	let bundle_root = bundles::root(&app);
 	let database = ready(&state)?;
+	let held_by = database.conversations().bot_space_ids(id.clone()).await?;
 	database.conversations().delete_bot(id.clone()).await?;
 	forget_bundle(bundle_root.as_deref(), database, &id).await;
 	environment::store::forget_bot(&app, &id);
 	avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
 	attachments::Attachments::sweep_referenced(database, attachment_dir.as_deref()).await;
+	for space_id in held_by {
+		announce_left(&app, &id, space_id);
+	}
 	Ok(())
 }
 

@@ -311,6 +311,7 @@ pub(super) enum Audience {
 }
 
 const IN_THE_CONVERSATION: Audience = Audience::Scoped(child(Conversation, "/conversationId"));
+const IN_THE_SPACE: Audience = Audience::Scoped(space("/spaceId"));
 
 pub(super) const AUDIENCES: &[(&str, Audience)] = &[
 	("account://changed", Audience::HostOnly),
@@ -318,9 +319,15 @@ pub(super) const AUDIENCES: &[(&str, Audience)] = &[
 	("agent://sign-in-started", Audience::HostOnly),
 	("application://installed", IN_THE_CONVERSATION),
 	("companion://created", Audience::Scoped(child(Bot, "/id"))),
+	("companion://deleted", IN_THE_SPACE),
 	("companion://seed-refused", Audience::HostOnly),
+	("companion://updated", Audience::Scoped(child(Bot, "/id"))),
 	("conversation://companion-arrived", IN_THE_CONVERSATION),
 	("conversation://companion-spoke", IN_THE_CONVERSATION),
+	("conversation://created", IN_THE_SPACE),
+	("conversation://deleted", IN_THE_SPACE),
+	("conversation://message-stored", IN_THE_CONVERSATION),
+	("conversation://updated", IN_THE_SPACE),
 	("hosting://changed", Audience::Scoped(space("/spaceId"))),
 	("hosting://members-changed", Audience::HostOnly),
 	("invitation://changed", Audience::HostOnly),
