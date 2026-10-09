@@ -3925,9 +3925,8 @@ export const TitleBarGuestOnline = meta.story({
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expectRightAfterSwitcher(canvasElement)
-		await expect(
-			canvas.getByRole("button", { name: "Connected" }),
-		).toBeVisible()
+		await expect(canvas.getByText("Connected")).toBeVisible()
+		await expect(canvas.queryByRole("button", { name: "Connected" })).toBeNull()
 		await expect(canvas.queryByRole("button", { name: "Share" })).toBeNull()
 	},
 })
@@ -3947,9 +3946,10 @@ export const TitleBarGuestOffline = meta.story({
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expectRightAfterSwitcher(canvasElement)
+		await expect(canvas.getByText("Not connected")).toBeVisible()
 		await expect(
-			canvas.getByRole("button", { name: "Not connected" }),
-		).toBeVisible()
+			canvas.queryByRole("button", { name: "Not connected" }),
+		).toBeNull()
 	},
 })
 
@@ -3995,7 +3995,10 @@ export const TitleBarGuestNarrowWindow = meta.story({
 		const name = slotIn(titleBar, "space-switcher-name")
 		await expect(getComputedStyle(name).textOverflow).toBe("ellipsis")
 		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
-		const pill = canvas.getByRole("button", { name: "Not connected" })
+		const pill = slotIn(titleBar, "host-pill")
+		await expect(
+			canvas.queryByRole("button", { name: "Not connected" }),
+		).toBeNull()
 		const label = pill.lastElementChild as HTMLElement
 		await expect(label).toHaveTextContent(/^Not connected$/)
 		await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth)
