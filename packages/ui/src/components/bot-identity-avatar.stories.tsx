@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { expect } from "storybook/test"
+import { expect, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -96,6 +96,27 @@ const cellsOf = (glyph: HTMLElement) => {
 	const canvas = glyph.querySelector("canvas")
 	if (!canvas) throw new Error("This avatar draws no cells")
 	return canvas
+}
+
+const BROKEN_AVATAR_IMAGE = "data:image/png;base64,AAAA"
+
+const imageFailed = () =>
+	new Promise<void>((resolve) => {
+		const probe = new Image()
+		probe.onerror = () => resolve()
+		probe.src = BROKEN_AVATAR_IMAGE
+	})
+
+const expectFallbackGlyph = async (avatar: HTMLElement, state: string) => {
+	await waitFor(() => expectGlyph(avatar, state))
+	const glyph = companionGlyphOf(avatar)
+
+	await expect(avatar.querySelector("img")).toBeNull()
+	await expect(companionTintOf(glyph)).toBe("var(--bot-blot-blue)")
+	await expect(glyph.getBoundingClientRect().width).toBe(
+		avatar.getBoundingClientRect().width,
+	)
+	await expectCompanionSilhouette(glyph)
 }
 
 const meta = preview.meta({
@@ -357,6 +378,51 @@ export const WithImage = meta.story({
 				avatar.querySelector('[data-slot="companion-field"]'),
 			).toBeNull()
 			await expectCompanionPictureShape(avatar)
+		}
+	},
+})
+
+export const BrokenImage = meta.story({
+	args: { image: BROKEN_AVATAR_IMAGE },
+	render: (args) => <EveryPlace {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A companion whose picture never arrives: the link is there but the image fails to load. The companion falls back to its own glyph, in the same hexagon, at the same size and in the same hue as a companion that never had a picture, so the slot is never left empty. Check in both themes that each place matches `Rest`.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await imageFailed()
+		for (const avatar of botIdentityAvatars(canvasElement)) {
+			await expectFallbackGlyph(avatar, "idle")
+		}
+	},
+})
+
+export const BrokenImageWorkingBadged = meta.story({
+	tags: ["test-only"],
+	args: {
+		image: BROKEN_AVATAR_IMAGE,
+		working: true,
+		kind: "searching",
+		badge: "attention",
+	},
+	render: (args) => <EveryPlace {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A companion whose picture failed, mid-run and badged. The fallback glyph moves exactly as a companion without a picture would, and the badge stays drawn over it.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await imageFailed()
+		for (const avatar of botIdentityAvatars(canvasElement)) {
+			await expectFallbackGlyph(avatar, "searching")
+			await expect(activityDotOf(avatar).dataset.badge).toBe("attention")
 		}
 	},
 })

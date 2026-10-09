@@ -73,14 +73,13 @@ const AvatarFrame = ({
 				src={image}
 				style={SHAPE_STYLES[shape].mask}
 			/>
-		) : (
-			<AvatarFallback
-				className={cn(SHAPE_STYLES[shape].layer, "bg-transparent text-inherit")}
-				style={SHAPE_STYLES[shape].mask}
-			>
-				{children}
-			</AvatarFallback>
-		)}
+		) : null}
+		<AvatarFallback
+			className={cn(SHAPE_STYLES[shape].layer, "bg-transparent text-inherit")}
+			style={SHAPE_STYLES[shape].mask}
+		>
+			{children}
+		</AvatarFallback>
 		{overlay}
 	</Avatar>
 )
