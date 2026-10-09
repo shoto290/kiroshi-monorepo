@@ -1,4 +1,4 @@
-import { expect, fn } from "storybook/test"
+import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { ShareButton } from "@workspace/ui/components/share-button"
@@ -42,7 +42,7 @@ export const Default = meta.story({
 		await expect(style.fontSize).toBe("13px")
 		await expect(style.lineHeight).toBe("16px")
 		await expect(style.fontWeight).toBe("500")
-		await expect(style.color).toBe("rgb(245, 245, 245)")
+		await waitFor(() => expect(style.color).toBe("rgb(245, 245, 245)"))
 		const icon = button.querySelector("svg")
 		if (!icon) throw new Error("The button draws no icon")
 		await expect(icon.getBoundingClientRect().width).toBe(14)

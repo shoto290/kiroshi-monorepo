@@ -39,25 +39,23 @@ it("shows Share on a space the reader hosts and hands the click to onShare", () 
 	expect(onShare).toHaveBeenCalledOnce()
 })
 
-it("shows the host pill with the inviter email and no Share on a joined space", () => {
+it("shows the host pill as Connected, with no host email and no Share, on a joined space", () => {
 	renderAccess({ joinedHost: STUDIO_HOST, isOwnSpace: false, onShare: vi.fn() })
 
-	expect(
-		screen.getByRole("button", { name: "Hosted by lea@example.com, online" }),
-	).toBeTruthy()
+	expect(screen.getByRole("button", { name: "Connected" })).toBeTruthy()
 	expect(screen.queryByRole("button", { name: "Share" })).toBeNull()
+	expect(document.body.innerHTML).not.toContain("lea@example.com")
 })
 
-it("marks the host pill offline while the host is offline", () => {
+it("marks the host pill Not connected, with no host email, while the host is offline", () => {
 	renderAccess({
 		joinedHost: { ...STUDIO_HOST, isOnline: false },
 		isOwnSpace: false,
 		onShare: vi.fn(),
 	})
 
-	expect(
-		screen.getByRole("button", { name: "lea@example.com’s Mac is offline" }),
-	).toBeTruthy()
+	expect(screen.getByRole("button", { name: "Not connected" })).toBeTruthy()
+	expect(document.body.innerHTML).not.toContain("lea@example.com")
 })
 
 it("shows nothing while no space is open", () => {

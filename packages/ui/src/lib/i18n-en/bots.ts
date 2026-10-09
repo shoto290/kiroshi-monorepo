@@ -102,11 +102,11 @@ const bots = {
 		shortcut: "⌘{{rank}}",
 		share: "Share",
 		host: {
-			online: "Hosted by {{name}}",
-			onlineLabel: "Hosted by {{name}}, online",
-			offline: "{{name}}’s Mac is offline",
-			onlineDetail: "{{space}} runs on their Mac. It’s online.",
-			offlineDetail: "{{space}} runs on their Mac. It’s offline.",
+			online: "Connected",
+			offline: "Not connected",
+			onlineDetail: "This Space runs on another Mac. It’s connected.",
+			offlineDetail:
+				"This Space runs on another Mac. It’s not reachable right now.",
 		},
 		remove: {
 			lastSpace: "A companion needs at least one space.",

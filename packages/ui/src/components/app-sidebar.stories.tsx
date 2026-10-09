@@ -3905,7 +3905,7 @@ export const TitleBarHostShare = meta.story({
 		await userEvent.click(canvas.getByRole("button", { name: "Share" }))
 		await expect(sharedSpace).toHaveBeenCalledOnce()
 		await expect(
-			canvas.queryByRole("button", { name: /^Hosted by/ }),
+			canvas.queryByRole("button", { name: /connected$/i }),
 		).toBeNull()
 	},
 })
@@ -3914,26 +3914,19 @@ export const TitleBarGuestOnline = meta.story({
 	globals: { theme: "dark" },
 	args: {
 		...STUDIO_ARGS,
-		spaceAccess: (
-			<HostPill
-				hostEmail="steve@example.com"
-				hostName="Steve"
-				isOnline
-				spaceName={STUDIO.name}
-			/>
-		),
+		spaceAccess: <HostPill isOnline />,
 	},
 	parameters: {
 		docs: {
 			description: {
-				story: `${TITLE_BAR_ARTBOARD} 5.6: the reader joined the open space and its host is online, so the pill takes the slot \`Share\` holds for a host. Check it sits 8px after the switcher, centred, outside the drag region, and that no \`Share\` is offered. Pick \`TitleBarGuestOffline\` for the host that stopped answering.`,
+				story: `${TITLE_BAR_ARTBOARD} 5.6: the reader joined the open space and its host is connected, so the pill reading \`Connected\` takes the slot \`Share\` holds for a host. Check it sits 8px after the switcher, centred, outside the drag region, and that no \`Share\` is offered. Pick \`TitleBarGuestOffline\` for the host that stopped answering.`,
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expectRightAfterSwitcher(canvasElement)
 		await expect(
-			canvas.getByRole("button", { name: "Hosted by Steve, online" }),
+			canvas.getByRole("button", { name: "Connected" }),
 		).toBeVisible()
 		await expect(canvas.queryByRole("button", { name: "Share" })).toBeNull()
 	},
@@ -3943,31 +3936,22 @@ export const TitleBarGuestOffline = meta.story({
 	globals: { theme: "dark" },
 	args: {
 		...STUDIO_ARGS,
-		spaceAccess: (
-			<HostPill
-				hostEmail="steve@example.com"
-				hostName="Steve"
-				isOnline={false}
-				spaceName={STUDIO.name}
-			/>
-		),
+		spaceAccess: <HostPill isOnline={false} />,
 	},
 	parameters: {
 		docs: {
 			description: {
-				story: `${TITLE_BAR_ARTBOARD} 5.7: the host's Mac is offline, so the pill mutes its dot and says so. Check it keeps the slot and the gap of \`TitleBarGuestOnline\`. Pick \`TitleBarGuestOnline\` for the reachable host.`,
+				story: `${TITLE_BAR_ARTBOARD} 5.7: the host's Mac is not reachable, so the pill mutes its dot and reads \`Not connected\`. Check it keeps the slot and the gap of \`TitleBarGuestOnline\`. Pick \`TitleBarGuestOnline\` for the reachable host.`,
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expectRightAfterSwitcher(canvasElement)
 		await expect(
-			canvas.getByRole("button", { name: "Steve’s Mac is offline" }),
+			canvas.getByRole("button", { name: "Not connected" }),
 		).toBeVisible()
 	},
 })
-
-const LONG_HOST_NAME = "Maximilian Alexander Featherstonehaugh-Montgomery"
 
 const LONG_SPACE: Space = {
 	id: "long-studio",
@@ -3977,21 +3961,14 @@ const LONG_SPACE: Space = {
 
 const NARROW_WINDOW = 320
 
-export const TitleBarLongHostName = meta.story({
+export const TitleBarGuestNarrowWindow = meta.story({
 	globals: { theme: "dark" },
 	args: {
 		...STUDIO_ARGS,
 		spaces: [LONG_SPACE],
 		selectedSpaceId: LONG_SPACE.id,
 		botsBySpaceId: { [LONG_SPACE.id]: ROSTER },
-		spaceAccess: (
-			<HostPill
-				hostEmail="maximilian@example.com"
-				hostName={LONG_HOST_NAME}
-				isOnline
-				spaceName={LONG_SPACE.name}
-			/>
-		),
+		spaceAccess: <HostPill isOnline={false} />,
 		windowControls: (
 			<WindowControls
 				maximized={false}
@@ -4007,7 +3984,7 @@ export const TitleBarLongHostName = meta.story({
 	parameters: {
 		docs: {
 			description: {
-				story: `A host name and a space name chosen by their owners, neither of which the reader can shorten, in a 320px window with caption buttons. Check both clip to one line with an ellipsis and that the caption buttons keep their full width flush with the trailing edge rather than being pushed out. Pick \`TitleBarGuestOnline\` for a name that fits.`,
+				story: `A guest in a 320px window with caption buttons, on a space whose name its owner chose and the reader cannot shorten. Check the space name clips to one line with an ellipsis, that \`Not connected\` stays whole, and that the caption buttons keep their full width flush with the trailing edge rather than being pushed out. Pick \`TitleBarGuestOffline\` for a window that fits.`,
 			},
 		},
 	},
@@ -4015,15 +3992,13 @@ export const TitleBarLongHostName = meta.story({
 		const titleBar = titleBarIn(canvasElement)
 		const bar = titleBar.getBoundingClientRect()
 		await expect(bar.width).toBe(NARROW_WINDOW)
-		const pill = canvas.getByRole("button", {
-			name: `Hosted by ${LONG_HOST_NAME}, online`,
-		})
-		const label = pill.lastElementChild as HTMLElement
 		const name = slotIn(titleBar, "space-switcher-name")
-		for (const line of [label, name]) {
-			await expect(getComputedStyle(line).textOverflow).toBe("ellipsis")
-			await expect(line.scrollWidth).toBeGreaterThan(line.clientWidth)
-		}
+		await expect(getComputedStyle(name).textOverflow).toBe("ellipsis")
+		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
+		const pill = canvas.getByRole("button", { name: "Not connected" })
+		const label = pill.lastElementChild as HTMLElement
+		await expect(label).toHaveTextContent(/^Not connected$/)
+		await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth)
 		const controls = slotIn(
 			titleBar,
 			"app-title-bar-window-controls",

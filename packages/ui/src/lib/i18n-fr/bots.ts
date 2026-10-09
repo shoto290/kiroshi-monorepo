@@ -99,11 +99,11 @@ const bots = {
 		shortcut: "⌘{{rank}}",
 		share: "Partager",
 		host: {
-			online: "Hébergé par {{name}}",
-			onlineLabel: "Hébergé par {{name}}, en ligne",
-			offline: "Le Mac de {{name}} est hors ligne",
-			onlineDetail: "{{space}} tourne sur son Mac. Il est en ligne.",
-			offlineDetail: "{{space}} tourne sur son Mac. Il est hors ligne.",
+			online: "Connecté",
+			offline: "Non connecté",
+			onlineDetail: "Cet espace tourne sur un autre Mac. Il est connecté.",
+			offlineDetail:
+				"Cet espace tourne sur un autre Mac. Il est injoignable pour le moment.",
 		},
 		remove: {
 			lastSpace: "Un compagnon a besoin d’au moins un espace.",
