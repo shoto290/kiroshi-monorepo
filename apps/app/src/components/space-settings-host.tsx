@@ -6,7 +6,6 @@ import { MembersPanel } from "@workspace/ui/components/space-settings-dialog/mem
 import { toEnvironmentRows } from "@/lib/environment/environment-rows"
 import { useHosting } from "@/lib/host/use-hosting"
 import { useMembers } from "@/lib/host/use-members"
-import { useShareLink } from "@/lib/host/use-share-link"
 import { openJoinedSpaceOf } from "@/lib/spaces/joined-spaces-controller"
 import { toSpaceSettingsValue } from "@/lib/spaces/space-settings"
 import type { ApplicationScopes } from "@/lib/workspace/use-application-scopes"
@@ -31,7 +30,6 @@ export const SpaceSettingsHost = ({
 		applicationToOpenOn,
 		closeSettingsTab,
 		openAccountSettings,
-		openSpaceHosting,
 		spaceHistory,
 		spaceSkills,
 	} = panels
@@ -45,9 +43,6 @@ export const SpaceSettingsHost = ({
 		settingsTab,
 		spaceApplications,
 	} = scopes
-	const shareLink = useShareLink(
-		isSpaceEditing ? (selectedSpace?.id ?? null) : null,
-	)
 	const editedSpace =
 		isSpaceEditing && selectedSpace
 			? { id: selectedSpace.id, name: selectedSpace.name }
@@ -93,8 +88,6 @@ export const SpaceSettingsHost = ({
 						<MembersPanel
 							{...members}
 							isHosted={isHosted}
-							onOpenHosting={openSpaceHosting}
-							shareLink={shareLink ?? null}
 							space={selectedSpace.name}
 						/>
 					),

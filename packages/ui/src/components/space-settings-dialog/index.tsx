@@ -23,13 +23,12 @@ import {
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
-import {
-	HostingPanel,
-	type HostingPanelProps,
-	type SpaceHosting,
-} from "@workspace/ui/components/space-settings-dialog/hosting-panel"
 import { JoinedSpaceFields } from "@workspace/ui/components/space-settings-dialog/joined-space-fields"
-import { ShareLink } from "@workspace/ui/components/space-settings-dialog/share-link"
+import {
+	ShareCard,
+	type ShareCardProps,
+	type SpaceHosting,
+} from "@workspace/ui/components/space-settings-dialog/share-card"
 import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/space-fields"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
 import { Button } from "@workspace/ui/components/ui/button"
@@ -40,9 +39,7 @@ const DANGER_TAB = "danger"
 
 const MEMBERS_TAB = "members"
 
-const HOSTING_TAB = "hosting"
-
-type Hosting = Omit<HostingPanelProps, "name">
+type Hosting = Omit<ShareCardProps, "name">
 
 type NoHosting = { [Key in keyof Hosting]?: never }
 
@@ -53,8 +50,6 @@ type LocalSpace = {
 	isDeletable?: boolean
 	onExport?: () => void
 	onImport?: () => void
-	shareLink?: string | null
-	onShareLinkCopy?: () => void
 }
 
 type JoinedSpace = {
@@ -64,8 +59,6 @@ type JoinedSpace = {
 	isDeletable?: never
 	onExport?: never
 	onImport?: never
-	shareLink?: never
-	onShareLinkCopy?: never
 }
 
 type ControlledTab = {
@@ -110,15 +103,12 @@ const SpaceSettingsDialog = ({
 	isDeletable = true,
 	onExport,
 	onImport,
-	shareLink,
-	onShareLinkCopy,
 	host,
 	onLeave,
 	members,
 	hosting,
 	onHost,
 	onStopHosting,
-	onHostingCancel,
 	onSignIn,
 	className,
 	...sessionProps
@@ -157,14 +147,6 @@ const SpaceSettingsDialog = ({
 							iconsOnly={iconsOnly}
 							label={t("rail.members")}
 							value={MEMBERS_TAB}
-						/>
-					)}
-					{hosting === undefined ? null : (
-						<SettingsRailItem
-							icon="Web"
-							iconsOnly={iconsOnly}
-							label={t("rail.hosting")}
-							value={HOSTING_TAB}
 						/>
 					)}
 					<SettingsRailItem
@@ -209,9 +191,6 @@ const SpaceSettingsDialog = ({
 				{host === undefined ? (
 					<>
 						<SpaceFields onValueChange={onValueChange} value={value} />
-						{shareLink === undefined ? null : (
-							<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
-						)}
 						{onExport || onImport ? (
 							<div className="flex flex-wrap gap-2" data-slot="space-transfer">
 								{onExport ? (
@@ -234,20 +213,18 @@ const SpaceSettingsDialog = ({
 
 			{members === undefined ? null : (
 				<SettingsScrollingPanel value={MEMBERS_TAB}>
-					{members}
-				</SettingsScrollingPanel>
-			)}
-
-			{hosting === undefined ? null : (
-				<SettingsScrollingPanel value={HOSTING_TAB}>
-					<HostingPanel
-						hosting={hosting}
-						name={spaceName}
-						onHost={onHost}
-						onHostingCancel={onHostingCancel}
-						onSignIn={onSignIn}
-						onStopHosting={onStopHosting}
-					/>
+					<div className="flex flex-col gap-6">
+						{hosting === undefined ? null : (
+							<ShareCard
+								hosting={hosting}
+								name={spaceName}
+								onHost={onHost}
+								onSignIn={onSignIn}
+								onStopHosting={onStopHosting}
+							/>
+						)}
+						{members}
+					</div>
 				</SettingsScrollingPanel>
 			)}
 

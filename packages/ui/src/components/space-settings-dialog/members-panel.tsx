@@ -12,7 +12,6 @@ import {
 	FIELD_LABEL_CLASS,
 	SETTINGS_TAG_CLASS,
 } from "@workspace/ui/components/settings-styles"
-import { ShareLink } from "@workspace/ui/components/space-settings-dialog/share-link"
 import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -60,9 +59,6 @@ type MembersPanelProps = {
 	refusal?: InviteRefusal
 	failure?: MembersFailure
 	isHosted: boolean
-	onOpenHosting: () => void
-	shareLink: string | null
-	onShareLinkCopy?: () => void
 	removing?: SpaceMember | null
 	onRemove: (member: SpaceMember) => void
 	onWithdraw: (member: SpaceMember) => void
@@ -102,7 +98,7 @@ const useFailureText = (failure: MembersFailure | undefined, space: string) => {
 
 type InviteFieldProps = Pick<
 	MembersPanelProps,
-	"space" | "email" | "onEmailChange" | "onInvite" | "refusal"
+	"space" | "email" | "onEmailChange" | "onInvite" | "refusal" | "isHosted"
 > & {
 	failure?: MembersFailure
 }
@@ -114,6 +110,7 @@ const InviteField = ({
 	onInvite,
 	refusal,
 	failure,
+	isHosted,
 }: InviteFieldProps) => {
 	const { t } = useTranslation("settings")
 	const id = useId()
@@ -124,6 +121,9 @@ const InviteField = ({
 		space,
 	)
 	const isEmpty = email.trim() === ""
+	const hint = isHosted
+		? t("space.members.invite.hint")
+		: t("space.members.invite.notShared", { name: space })
 
 	const submit = (event: FormEvent) => {
 		event.preventDefault()
@@ -135,7 +135,10 @@ const InviteField = ({
 
 	return (
 		<form className="flex flex-col gap-1.5" noValidate onSubmit={submit}>
-			<label className={FIELD_LABEL_CLASS} htmlFor={id}>
+			<label
+				className={cn(FIELD_LABEL_CLASS, !isHosted && "opacity-50")}
+				htmlFor={id}
+			>
 				{t("space.members.invite.label")}
 			</label>
 			<div className="flex gap-1.5">
@@ -145,7 +148,7 @@ const InviteField = ({
 					autoComplete="email"
 					className={cn(
 						FIELD_CONTROL_CLASS,
-						"min-w-0 flex-1",
+						"min-w-0 flex-1 disabled:opacity-50",
 						refusal && [
 							FIELD_CONTROL_INVALID_CLASS,
 							"ring-3 ring-destructive/20",
@@ -157,9 +160,10 @@ const InviteField = ({
 					placeholder={t("space.members.invite.placeholder")}
 					spellCheck={false}
 					type="email"
+					disabled={!isHosted}
 					value={email}
 				/>
-				<Button disabled={isEmpty} type="submit">
+				<Button disabled={!isHosted || isEmpty} type="submit">
 					{t("space.members.invite.action")}
 				</Button>
 			</div>
@@ -172,30 +176,10 @@ const InviteField = ({
 			>
 				{refusal
 					? t(`space.members.invite.refusal.${refusal}`, { email })
-					: !failureText && t("space.members.invite.hint")}
+					: !failureText && hint}
 				<span role="status">{failureText}</span>
 			</p>
 		</form>
-	)
-}
-
-type HostingNeededProps = Pick<MembersPanelProps, "onOpenHosting">
-
-const HostingNeeded = ({ onOpenHosting }: HostingNeededProps) => {
-	const { t } = useTranslation("settings")
-
-	return (
-		<div className="flex flex-col gap-1.5">
-			<p className={FIELD_LABEL_CLASS}>{t("space.members.invite.label")}</p>
-			<div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/40 p-3">
-				<p className="text-muted-foreground text-xs">
-					{t("space.members.invite.notHosted")}
-				</p>
-				<Button onClick={onOpenHosting} variant="outline">
-					{t("space.members.invite.openHosting")}
-				</Button>
-			</div>
-		</div>
 	)
 }
 
@@ -288,9 +272,6 @@ const MembersPanel = ({
 	refusal,
 	failure,
 	isHosted,
-	onOpenHosting,
-	shareLink,
-	onShareLinkCopy,
 	removing,
 	onRemove,
 	onWithdraw,
@@ -323,18 +304,15 @@ const MembersPanel = ({
 
 	return (
 		<div className="flex flex-col gap-6" data-slot="members-panel">
-			{isHosted ? (
-				<InviteField
-					email={email}
-					failure={failure?.action === "invite" ? failure : undefined}
-					onEmailChange={onEmailChange}
-					onInvite={onInvite}
-					refusal={refusal}
-					space={space}
-				/>
-			) : (
-				<HostingNeeded onOpenHosting={onOpenHosting} />
-			)}
+			<InviteField
+				email={email}
+				failure={failure?.action === "invite" ? failure : undefined}
+				isHosted={isHosted}
+				onEmailChange={onEmailChange}
+				onInvite={onInvite}
+				refusal={refusal}
+				space={space}
+			/>
 			<ul className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-x-2.5 divide-y divide-border rounded-xl border border-border">
 				{members.map((member) => (
 					<MemberRow
@@ -348,7 +326,6 @@ const MembersPanel = ({
 					/>
 				))}
 			</ul>
-			<ShareLink link={shareLink} onCopy={onShareLinkCopy} />
 			<ConfirmDialog
 				confirmLabel={t("space.members.remove")}
 				description={t("space.members.confirm.description", { name })}

@@ -7,7 +7,6 @@ const settings = {
 		account: "Account",
 		space: "Space",
 		members: "Members",
-		hosting: "Hosting",
 		secrets: "Secrets",
 		appearance: "Appearance",
 		notifications: "Notifications",
@@ -162,9 +161,7 @@ const settings = {
 					self: "That’s your own account.",
 					malformed: "Enter an email address, like sam@example.com.",
 				},
-				notHosted:
-					"Turn on hosting to invite people who aren’t on your network.",
-				openHosting: "Open Hosting",
+				notShared: "Turn on Share {{name}} to invite someone.",
 			},
 			status: {
 				host: "Host",
@@ -226,26 +223,14 @@ const settings = {
 			},
 		},
 		hosting: {
-			label: "Host through Kiroshi",
+			label: "Share {{name}}",
 			description:
-				"Invite people who aren’t on your network. {{name}} is hosted from this computer only, so they reach it while Kiroshi is open here.",
+				"Invite people who aren’t on your network. {{name}} runs on this Mac, so they reach it while Kiroshi is open here.",
 			signedOut:
 				"Sign in to Kiroshi to invite people who aren’t on your network.",
 			signIn: "Sign in",
 			connecting: "Connecting…",
 			online: "Online",
-			start: {
-				title: "Host {{name}} here?",
-				description:
-					"People you invite reach its companions and conversations, which run on this computer.",
-				confirm: "Host {{name}}",
-			},
-			stop: {
-				title: "Stop hosting {{name}}?",
-				description:
-					"Guests lose access until you host it again. Nothing is deleted on this computer.",
-				confirm: "Stop hosting",
-			},
 			failed: {
 				title: "Couldn’t host {{name}}",
 				description: "Check your connection and turn it on again.",
