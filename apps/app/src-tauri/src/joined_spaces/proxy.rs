@@ -11,22 +11,27 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Router;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
 use super::member_link::{MemberLink, Presence};
+use crate::host_api::files::{AVATAR_PATH, INERT, NO_SNIFF};
 use crate::host_api::invoke::{
 	self, arguments, bearer_admitted, declares_more_than_the_cap, names_an_app_command, unread,
 	JSON, MAX_BODY_BYTES, REFUSED, TOO_LARGE, UNAUTHORIZED, UNREADABLE, UNREGISTERED,
 };
 use crate::host_api::token::HostToken;
 use crate::host_api::{cors, events};
+use crate::hosting::bridge::{RelayedAvatar, AVATAR_COMMAND};
 use crate::hosting::relay::until_stopped;
 use crate::routines::webhook::named_here;
 
 const HOST_OFFLINE: (StatusCode, &str) =
 	(StatusCode::SERVICE_UNAVAILABLE, "the host of this space is offline");
+
+const UNREAD_AVATAR: (StatusCode, &str) =
+	(StatusCode::BAD_GATEWAY, "the host relayed an avatar that could not be read");
 
 #[derive(Clone)]
 struct Proxy {
@@ -58,6 +63,7 @@ fn routed(proxy: Proxy) -> Router {
 		.route_layer(middleware::from_fn_with_state(proxy.clone(), invoke_guarded));
 	let events = Router::new()
 		.route(events::PATH, get(events_opened))
+		.route(AVATAR_PATH, get(avatar))
 		.route_layer(middleware::from_fn_with_state(proxy.clone(), events_guarded));
 	invokes.merge(events).layer(middleware::from_fn(cors::shared)).with_state(proxy)
 }
@@ -123,6 +129,31 @@ fn is_json_answered(status: StatusCode) -> bool {
 	status.is_success() || status == StatusCode::INTERNAL_SERVER_ERROR
 }
 
+async fn avatar(State(proxy): State<Proxy>, Path(file): Path<String>) -> Response {
+	if proxy.link.settled().await != Presence::Online {
+		return HOST_OFFLINE.into_response();
+	}
+	let Some(answer) = proxy.link.called(AVATAR_COMMAND, json!({ "file": file })).await else {
+		return HOST_OFFLINE.into_response();
+	};
+	if answer.status != StatusCode::OK.as_u16() {
+		return answered(answer.status, answer.body);
+	}
+	let relayed = serde_json::from_value::<RelayedAvatar>(answer.body);
+	let Some((relayed, bytes)) =
+		relayed.ok().and_then(|relayed| relayed.bytes().map(|bytes| (relayed, bytes)))
+	else {
+		eprintln!("a joined space proxy got an avatar from the host it could not read");
+		return UNREAD_AVATAR.into_response();
+	};
+	let headers = [
+		(header::CONTENT_TYPE, relayed.content_type.as_str()),
+		(header::X_CONTENT_TYPE_OPTIONS, NO_SNIFF),
+		(header::CONTENT_SECURITY_POLICY, INERT),
+	];
+	(headers, bytes).into_response()
+}
+
 async fn events_opened(State(proxy): State<Proxy>, upgrade: WebSocketUpgrade) -> Response {
 	if proxy.link.settled().await != Presence::Online {
 		return HOST_OFFLINE.into_response();
@@ -139,6 +170,8 @@ async fn events_opened(State(proxy): State<Proxy>, upgrade: WebSocketUpgrade) ->
 
 #[cfg(test)]
 mod tests {
+	use tokio::sync::mpsc;
+
 	use super::*;
 
 	#[test]
@@ -155,5 +188,132 @@ mod tests {
 				Some(JSON.as_bytes())
 			);
 		}
+	}
+
+	const PNG: &[u8] = b"\x89PNG\r\n\x1a\n";
+
+	async fn a_guest_proxy(link: Arc<MemberLink>, token: Arc<HostToken>) -> String {
+		let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("the proxy binds");
+		let origin = format!("http://{}", listener.local_addr().expect("an address"));
+		tokio::spawn(axum::serve(listener, routed(Proxy { link, token })).into_future());
+		origin
+	}
+
+	fn a_host_answering_avatars(link: Arc<MemberLink>, mut sent: mpsc::Receiver<String>) {
+		tokio::spawn(async move {
+			while let Some(frame) = sent.recv().await {
+				let frame: Value = serde_json::from_str(&frame).expect("a json frame");
+				assert_eq!(frame["command"], AVATAR_COMMAND);
+				let (status, body) = match frame["args"]["file"].as_str() {
+					Some("held.png") => {
+						(200, json!({ "contentType": "image/png", "hex": "89504e470d0a1a0a" }))
+					}
+					Some("huge.png") => (413, json!("the avatar is too large to cross the relay")),
+					_ => (404, json!("no avatar of the shared space bears this name")),
+				};
+				let answer = json!({ "id": frame["id"], "status": status, "body": body });
+				link.received(&answer.to_string());
+			}
+		});
+	}
+
+	fn a_client() -> reqwest::Client {
+		crate::missions::github::installed_tls_provider();
+		reqwest::Client::new()
+	}
+
+	fn avatar_url(origin: &str, file: &str) -> String {
+		format!("{origin}{}", AVATAR_PATH.replace("{file}", file))
+	}
+
+	#[tokio::test]
+	async fn a_held_avatar_crosses_as_its_bytes_and_a_foreign_or_huge_one_is_refused() {
+		let link = Arc::new(MemberLink::new());
+		let (calls, sent) = mpsc::channel(4);
+		link.opened(calls);
+		a_host_answering_avatars(link.clone(), sent);
+		let token = Arc::new(HostToken::random());
+		let origin = a_guest_proxy(link, token.clone()).await;
+		let client = a_client();
+
+		let by_query = client
+			.get(format!("{}?token={}", avatar_url(&origin, "held.png"), token.bearer()))
+			.send()
+			.await
+			.expect("an answer");
+		assert_eq!(by_query.status(), StatusCode::OK);
+		assert_eq!(by_query.headers()[header::CONTENT_TYPE], "image/png");
+		assert_eq!(by_query.headers()[header::X_CONTENT_TYPE_OPTIONS], NO_SNIFF);
+		assert_eq!(by_query.bytes().await.expect("the bytes").as_ref(), PNG);
+
+		for (file, status) in [
+			("held.png", StatusCode::OK),
+			("foreign.png", StatusCode::NOT_FOUND),
+			("huge.png", StatusCode::PAYLOAD_TOO_LARGE),
+		] {
+			let by_bearer = client
+				.get(avatar_url(&origin, file))
+				.bearer_auth(token.bearer())
+				.send()
+				.await
+				.expect("an answer");
+			assert_eq!(by_bearer.status(), status, "{file}");
+		}
+	}
+
+	#[tokio::test]
+	async fn an_avatar_asked_without_an_admitted_token_is_refused_before_the_relay() {
+		let link = Arc::new(MemberLink::new());
+		let (calls, mut sent) = mpsc::channel(4);
+		link.opened(calls);
+		let origin = a_guest_proxy(link, Arc::new(HostToken::random())).await;
+		let client = a_client();
+
+		for asked in [
+			client.get(avatar_url(&origin, "held.png")),
+			client.get(format!("{}?token=wrong", avatar_url(&origin, "held.png"))),
+			client.get(avatar_url(&origin, "held.png")).bearer_auth("wrong"),
+		] {
+			let answer = asked.send().await.expect("an answer");
+			assert_eq!(answer.status(), StatusCode::UNAUTHORIZED);
+		}
+		assert!(sent.try_recv().is_err());
+	}
+
+	#[tokio::test]
+	async fn an_avatar_asked_of_an_offline_host_answers_the_offline_text() {
+		let link = Arc::new(MemberLink::new());
+		link.closed(Presence::Down);
+		let token = Arc::new(HostToken::random());
+		let origin = a_guest_proxy(link, token.clone()).await;
+
+		let answer = a_client()
+			.get(avatar_url(&origin, "held.png"))
+			.bearer_auth(token.bearer())
+			.send()
+			.await
+			.expect("an answer");
+
+		assert_eq!(answer.status(), HOST_OFFLINE.0);
+		assert_eq!(answer.text().await.expect("the text"), HOST_OFFLINE.1);
+	}
+
+	#[tokio::test]
+	async fn an_attachment_is_still_not_served_by_the_proxy() {
+		let link = Arc::new(MemberLink::new());
+		let (calls, mut sent) = mpsc::channel(4);
+		link.opened(calls);
+		let token = Arc::new(HostToken::random());
+		let origin = a_guest_proxy(link, token.clone()).await;
+
+		let answer = a_client()
+			.get(format!("{origin}/api/files/attachments/c1/a.png"))
+			.bearer_auth(token.bearer())
+			.send()
+			.await
+			.expect("an answer");
+
+		assert_eq!(answer.status(), StatusCode::NOT_FOUND);
+		assert!(sent.try_recv().is_err());
 	}
 }

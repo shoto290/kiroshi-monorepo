@@ -35,9 +35,9 @@ const CONTENT_TYPES: [(&str, &str); 8] = [
 	("txt", "text/plain; charset=utf-8"),
 ];
 
-const INERT: &str = "default-src 'none'; sandbox";
+pub(crate) const INERT: &str = "default-src 'none'; sandbox";
 
-const NO_SNIFF: &str = "nosniff";
+pub(crate) const NO_SNIFF: &str = "nosniff";
 
 const MISSING: (StatusCode, &str) = (StatusCode::NOT_FOUND, "no file answers this path");
 

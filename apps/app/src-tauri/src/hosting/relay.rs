@@ -272,6 +272,10 @@ async fn online<R: Runtime>(
 						invokes.spawn(bridge::bridged(app.clone(), local.clone(), ids.space_id.to_owned(), call));
 						continue;
 					}
+					Received::Avatar(call) => {
+						invokes.spawn(bridge::avatar_bridged(app.clone(), local.clone(), ids.space_id.to_owned(), call));
+						continue;
+					}
 					Received::Answer(answer) => Message::text(answer),
 					Received::Nothing => continue,
 					Received::Ended(ended) => return ended,
@@ -310,6 +314,7 @@ async fn online<R: Runtime>(
 
 enum Received {
 	Call(bridge::MemberCall),
+	Avatar(bridge::AvatarCall),
 	Answer(String),
 	Nothing,
 	Ended(Ended),
@@ -320,6 +325,11 @@ fn received(frame: Option<Result<Message, SocketError>>, ids: Ids<'_>) -> Receiv
 		Some(Ok(Message::Text(text))) => {
 			if let Some(answer) = bridge::shared_space_answer(text.as_str(), ids.space_id) {
 				return Received::Answer(answer);
+			}
+			match bridge::avatar_call(text.as_str()) {
+				Some(Ok(call)) => return Received::Avatar(call),
+				Some(Err(refusal)) => return Received::Answer(refusal),
+				None => {}
 			}
 			match bridge::member_call(text.as_str()) {
 				Ok(call) => Received::Call(call),

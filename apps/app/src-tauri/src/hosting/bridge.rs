@@ -1,11 +1,18 @@
+use std::path::Path;
 use std::time::Duration;
 
+use reqwest::header::CONTENT_TYPE;
 use reqwest::{Client, StatusCode};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 
 use super::reach::{self, Reach};
 
+use crate::avatars::Avatars;
+use crate::db::{Database, DatabaseState};
+use crate::file_store::FileStore;
+use crate::host_api::files::AVATAR_PATH;
 use crate::host_api::invoke::names_an_app_command;
 use crate::missions::github::installed_tls_provider;
 
@@ -16,6 +23,18 @@ const HOST_ONLY_REFUSAL: &str = "this command belongs to the host";
 const OTHER_SPACE_REFUSAL: &str = "this command reaches outside the shared space";
 
 pub(crate) const SHARED_SPACE_COMMAND: &str = "relay_shared_space";
+
+pub(crate) const AVATAR_COMMAND: &str = "relay_avatar";
+
+const MAX_AVATAR_BYTES: u64 = 1536 * 1024;
+
+const NO_AVATAR: &str = "no avatar of the shared space bears this name";
+
+const AVATAR_TOO_LARGE: &str = "the avatar is too large to cross the relay";
+
+const AVATAR_UNREAD: &str = "the avatar was not read";
+
+const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
 
 #[derive(Clone)]
 pub struct LocalApi {
@@ -62,6 +81,55 @@ pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
 		}
 		(id, _, _) => Err(refused(id)),
 	}
+}
+
+#[derive(Debug, PartialEq)]
+pub(super) struct AvatarCall {
+	id: Value,
+	file: String,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RelayedAvatar {
+	pub(crate) content_type: String,
+	hex: String,
+}
+
+impl RelayedAvatar {
+	fn of(content_type: String, bytes: &[u8]) -> Self {
+		let mut hex = String::with_capacity(bytes.len() * 2);
+		for byte in bytes {
+			hex.push(char::from(HEX_DIGITS[usize::from(byte >> 4)]));
+			hex.push(char::from(HEX_DIGITS[usize::from(byte & 0x0f)]));
+		}
+		Self { content_type, hex }
+	}
+
+	pub(crate) fn bytes(&self) -> Option<Vec<u8>> {
+		let digits = self.hex.as_bytes();
+		if !digits.len().is_multiple_of(2) {
+			return None;
+		}
+		digits.chunks(2).map(|pair| Some(nibble(pair[0])? << 4 | nibble(pair[1])?)).collect()
+	}
+}
+
+fn nibble(digit: u8) -> Option<u8> {
+	char::from(digit).to_digit(16).and_then(|value| u8::try_from(value).ok())
+}
+
+pub(super) fn avatar_call(text: &str) -> Option<Result<AvatarCall, String>> {
+	let frame: Value = serde_json::from_str(text).ok()?;
+	if frame.get("command").and_then(Value::as_str) != Some(AVATAR_COMMAND) {
+		return None;
+	}
+	let id = frame.get("id").filter(|id| id.is_string() || id.is_number()).cloned();
+	let file = frame.pointer("/args/file").and_then(Value::as_str);
+	Some(match (id, file) {
+		(Some(id), Some(file)) => Ok(AvatarCall { id, file: file.to_owned() }),
+		(id, _) => Err(refused(id)),
+	})
 }
 
 pub(super) fn shared_space_answer(text: &str, shared_space_id: &str) -> Option<String> {
@@ -122,6 +190,82 @@ async fn invoked(local: &LocalApi, call: &MemberCall) -> Result<(StatusCode, Val
 		.await
 		.map_err(|error| format!("the local host api answer was cut: {}", error.without_url()))?;
 	Ok((status, body_of(&body)))
+}
+
+pub(super) async fn avatar_bridged<R: Runtime>(
+	app: AppHandle<R>,
+	local: LocalApi,
+	shared_space_id: String,
+	call: AvatarCall,
+) -> String {
+	let state = app.state::<DatabaseState>();
+	let (Ok(database), Some(dir)) = (state.as_ref(), Avatars::dir(&app)) else {
+		eprintln!("a relayed avatar was not read: the database or the data directory is missing");
+		return answer(
+			call.id,
+			StatusCode::INTERNAL_SERVER_ERROR,
+			json!({ "error": AVATAR_UNREAD }),
+		);
+	};
+	let (status, body) = relayed_avatar(database, &dir, &local, shared_space_id, &call.file).await;
+	answer(call.id, status, body)
+}
+
+async fn relayed_avatar(
+	database: &Database,
+	dir: &Path,
+	local: &LocalApi,
+	shared_space_id: String,
+	file: &str,
+) -> (StatusCode, Value) {
+	let recorded = dir.join(file).to_string_lossy().into_owned();
+	match database.space_children().holds_avatar(shared_space_id, recorded).await {
+		Ok(true) => {}
+		Ok(false) => return (StatusCode::NOT_FOUND, json!(NO_AVATAR)),
+		Err(failure) => {
+			eprintln!("a relayed avatar was not read: the avatar lookup failed: {failure:?}");
+			return (StatusCode::INTERNAL_SERVER_ERROR, json!({ "error": AVATAR_UNREAD }));
+		}
+	}
+	match fetched_avatar(local, file).await {
+		Ok(answer) => answer,
+		Err(reason) => (StatusCode::BAD_GATEWAY, json!({ "error": reason })),
+	}
+}
+
+async fn fetched_avatar(local: &LocalApi, file: &str) -> Result<(StatusCode, Value), String> {
+	let answered = local
+		.client
+		.get(format!("{}{}", local.origin, AVATAR_PATH.replace("{file}", file)))
+		.bearer_auth(&local.token)
+		.send()
+		.await
+		.map_err(|error| {
+			format!("the local host api could not be reached: {}", error.without_url())
+		})?;
+	let status = answered.status();
+	let is_too_large = answered.content_length().is_some_and(|length| length > MAX_AVATAR_BYTES);
+	if status == StatusCode::OK && is_too_large {
+		return Ok((StatusCode::PAYLOAD_TOO_LARGE, json!(AVATAR_TOO_LARGE)));
+	}
+	let content_type = answered
+		.headers()
+		.get(CONTENT_TYPE)
+		.and_then(|content_type| content_type.to_str().ok())
+		.map(str::to_owned);
+	let body = answered
+		.bytes()
+		.await
+		.map_err(|error| format!("the local host api answer was cut: {}", error.without_url()))?;
+	if status != StatusCode::OK {
+		return Ok((status, body_of(&body)));
+	}
+	if body.len() as u64 > MAX_AVATAR_BYTES {
+		return Ok((StatusCode::PAYLOAD_TOO_LARGE, json!(AVATAR_TOO_LARGE)));
+	}
+	let content_type =
+		content_type.ok_or("the local host api answered an avatar without a content type")?;
+	Ok((StatusCode::OK, json!(RelayedAvatar::of(content_type, &body))))
 }
 
 fn body_of(body: &[u8]) -> Value {
@@ -304,5 +448,131 @@ mod tests {
 		assert_eq!(body_of(b"no command bears this name"), json!("no command bears this name"));
 		assert_eq!(body_of(b""), Value::Null);
 		assert_eq!(body_of(br#"{"a":1}"#), json!({ "a": 1 }));
+	}
+
+	const PNG: &[u8] = b"\x89PNG\r\n\x1a\n";
+
+	#[test]
+	fn an_avatar_frame_is_read_apart_and_a_malformed_one_refused_with_its_id() {
+		assert_eq!(
+			avatar_call(r#"{"id": 5, "command": "relay_avatar", "args": {"file": "a.png"}}"#),
+			Some(Ok(AvatarCall { id: json!(5), file: "a.png".to_owned() }))
+		);
+		let refusal = avatar_call(r#"{"id": 6, "command": "relay_avatar", "args": {}}"#)
+			.expect("an avatar frame")
+			.expect_err("no file");
+		assert_eq!(status_of(&refusal), (json!(6), json!(400)));
+		assert_eq!(avatar_call(r#"{"id": 7, "command": "space_list"}"#), None);
+		assert_eq!(avatar_call("not json"), None);
+	}
+
+	#[test]
+	fn a_relayed_avatar_gives_back_the_bytes_it_carried_and_nothing_from_bad_hex() {
+		let bytes: Vec<u8> = (0..=u8::MAX).collect();
+		let relayed = RelayedAvatar::of("image/png".to_owned(), &bytes);
+
+		assert_eq!(relayed.bytes(), Some(bytes));
+		for hex in ["0", "zz", "+f"] {
+			let broken =
+				RelayedAvatar { content_type: "image/png".to_owned(), hex: hex.to_owned() };
+			assert_eq!(broken.bytes(), None, "{hex}");
+		}
+	}
+
+	struct FakeLocalApi {
+		local: LocalApi,
+		reads: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+	}
+
+	async fn a_local_api() -> FakeLocalApi {
+		use std::future::IntoFuture as _;
+
+		use axum::extract::Path as Segment;
+		use axum::response::IntoResponse;
+		use std::sync::atomic::{AtomicUsize, Ordering};
+		use std::sync::Arc;
+
+		let reads = Arc::new(AtomicUsize::new(0));
+		let counted = reads.clone();
+		let router = axum::Router::new().route(
+			AVATAR_PATH,
+			axum::routing::get(move |Segment(file): Segment<String>| {
+				counted.fetch_add(1, Ordering::SeqCst);
+				async move {
+					let png = [(axum::http::header::CONTENT_TYPE, "image/png")];
+					match file.as_str() {
+						"held.png" => (png, PNG.to_vec()).into_response(),
+						"huge.png" => (png, vec![0; MAX_AVATAR_BYTES as usize + 1]).into_response(),
+						_ => (axum::http::StatusCode::NOT_FOUND, "no file answers this path")
+							.into_response(),
+					}
+				}
+			}),
+		);
+		let listener =
+			tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("the fake api binds");
+		let origin = format!("http://{}", listener.local_addr().expect("an address"));
+		tokio::spawn(axum::serve(listener, router).into_future());
+		let local = LocalApi::new(origin, "local-token".to_owned()).expect("a client");
+		FakeLocalApi { local, reads }
+	}
+
+	async fn a_bot_wearing(database: &Database, space_id: &str, avatar: &Path) {
+		let identity = crate::db::repositories::conversations::BotIdentity {
+			name: "Wearer".to_owned(),
+			title: String::new(),
+			model: "sonnet".to_owned(),
+			avatar_blot: None,
+			avatar_image_path: Some(avatar.to_string_lossy().into_owned()),
+			instructions: "Answer briefly.".to_owned(),
+			denied_tools: Vec::new(),
+			effort: None,
+		};
+		database
+			.conversations()
+			.create_bot(identity, Some(space_id.to_owned()), None)
+			.await
+			.expect("the bot is created");
+	}
+
+	#[tokio::test]
+	async fn an_avatar_crosses_only_when_a_companion_of_the_space_wears_it_and_it_fits() {
+		use std::sync::atomic::Ordering;
+
+		let database = crate::db::open(&crate::db::connection::temp_dir());
+		let shared = database.spaces().create("Shared".to_owned()).await.expect("a space").id;
+		let other = database.spaces().create("Other".to_owned()).await.expect("a space").id;
+		let dir = Path::new("/avatars");
+		for held in ["held.png", "huge.png", "gone.png"] {
+			a_bot_wearing(&database, &shared, &dir.join(held)).await;
+		}
+		a_bot_wearing(&database, &other, &dir.join("foreign.png")).await;
+		let api = a_local_api().await;
+		let relayed =
+			|file: &'static str| relayed_avatar(&database, dir, &api.local, shared.clone(), file);
+
+		let (status, body) = relayed("held.png").await;
+		assert_eq!(status, StatusCode::OK);
+		let avatar: RelayedAvatar = serde_json::from_value(body).expect("a relayed avatar");
+		assert_eq!(
+			(avatar.content_type.as_str(), avatar.bytes()),
+			("image/png", Some(PNG.to_vec()))
+		);
+
+		assert_eq!(
+			relayed("huge.png").await,
+			(StatusCode::PAYLOAD_TOO_LARGE, json!(AVATAR_TOO_LARGE))
+		);
+		assert_eq!(relayed("gone.png").await.0, StatusCode::NOT_FOUND);
+		let reads_before_refusals = api.reads.load(Ordering::SeqCst);
+
+		for refused in ["foreign.png", "unknown.png", "../held.png"] {
+			assert_eq!(
+				relayed(refused).await,
+				(StatusCode::NOT_FOUND, json!(NO_AVATAR)),
+				"{refused}"
+			);
+		}
+		assert_eq!(api.reads.load(Ordering::SeqCst), reads_before_refusals);
 	}
 }

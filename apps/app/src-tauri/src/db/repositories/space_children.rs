@@ -33,6 +33,24 @@ impl SpaceChildrenRepository {
 	) -> Result<bool, DatabaseError> {
 		self.access.call(move |connection| Ok(held(connection, &space_id, child, &child_id)?)).await
 	}
+
+	pub async fn holds_avatar(
+		&self,
+		space_id: String,
+		avatar_path: String,
+	) -> Result<bool, DatabaseError> {
+		self.access
+			.call(move |connection| {
+				Ok(connection
+					.prepare_cached(
+						"SELECT EXISTS (SELECT 1 FROM bot_spaces
+							JOIN bots ON bots.id = bot_spaces.bot_id
+							WHERE bot_spaces.space_id = ?1 AND bots.avatar_image_path = ?2)",
+					)?
+					.query_row(params![space_id, avatar_path], |row| row.get(0))?)
+			})
+			.await
+	}
 }
 
 fn held(
@@ -204,6 +222,32 @@ mod tests {
 		for space in ["personal", "work"] {
 			let held = children.holds(space.to_owned(), SpaceChild::Bot, "shared".to_owned());
 			assert!(held.await.expect("read"), "{space}");
+		}
+	}
+
+	#[tokio::test]
+	async fn an_avatar_is_held_by_every_space_its_companion_belongs_to_and_no_other() {
+		let database = planted().await;
+		database
+			.call_mut(|connection| {
+				Ok(connection.execute_batch(
+					"UPDATE bots SET avatar_image_path = '/a/b1.png' WHERE id = 'b1';
+					UPDATE bots SET avatar_image_path = '/a/shared.png' WHERE id = 'shared';",
+				)?)
+			})
+			.await
+			.expect("the avatars are recorded");
+		let children = database.space_children();
+
+		for (space, path, is_held) in [
+			("personal", "/a/b1.png", true),
+			("work", "/a/b1.png", false),
+			("work", "/a/shared.png", true),
+			("personal", "/a/shared.png", true),
+			("personal", "/a/unknown.png", false),
+		] {
+			let held = children.holds_avatar(space.to_owned(), path.to_owned());
+			assert_eq!(held.await.expect("read"), is_held, "{space} {path}");
 		}
 	}
 }
