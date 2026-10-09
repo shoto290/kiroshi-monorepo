@@ -15,7 +15,10 @@ import type { AgentEvent, EventTurn, RuntimeScope } from "../agent/contract"
 import { agentTransport } from "../agent/transport"
 import { useRosterReloads } from "../bots/use-roster-reloads"
 import { createChatController } from "../chat/chat-controller"
+import { sidebarActivityFor } from "../chat/screen-model"
 import type { HostSocket } from "../host/http"
+import { aMission } from "../missions/mission-fixtures"
+import { useLiveMissions } from "../missions/use-live-missions"
 
 type Handler = (event: { event: string; id: number; payload: unknown }) => void
 
@@ -559,4 +562,126 @@ describe("a foreign event that names no stored turn of the shown conversation", 
 			detach()
 		},
 	)
+})
+
+const TURN_RUNNING: AgentEvent = { type: "turnChanged", state: "running" }
+
+const SEARCHING: AgentEvent = {
+	type: "activity",
+	activity: {
+		id: "tool-1",
+		title: "Grep walls",
+		kind: "tool",
+		status: "running",
+	},
+}
+
+const TURN_FAILED: AgentEvent = {
+	type: "failed",
+	error: { kind: "crashed", code: null, detail: null },
+}
+
+type Emit = (event: string, payload: unknown) => Promise<void>
+
+const sides = [
+	["the host", emitLocally, async () => undefined],
+	["the guest", emitOnHost, joinHost],
+] as const
+
+const speakersOf = ({ speakers }: { speakers: { botId: string }[] }) =>
+	speakers.map(({ botId }) => botId)
+
+const workOf = ({ speakers }: { speakers: { work: { kind: string } }[] }) =>
+	speakers.map(({ work }) => work.kind)
+
+type MissionRoom = Awaited<ReturnType<typeof openRoom>>
+
+const liveMissionsOf = ({ controller, botId, conversationId }: MissionRoom) => {
+	const mission = aMission({ botId, threadConversationId: conversationId })
+	const runtimes = {
+		subscribe: controller.subscribe,
+		heldFor: (id: string) => (id === conversationId ? controller : null),
+	}
+	return renderHook(() => useLiveMissions(runtimes, [mission], 0)).result
+}
+
+describe("a turn the other Mac started", () => {
+	it.each(sides)(
+		"opens a working speaker and a live mission in a room on %s, then closes them",
+		async (_, emit: Emit, join) => {
+			const room = await openRoom()
+			await join()
+			const { controller, detach, botId, conversationId } = room
+			const live = liveMissionsOf(room)
+			const scope = { ...foreignScope(conversationId), botId }
+			const turn = storedTurn(conversationId)
+
+			await emit("agent://event", { scope, turn, event: TURN_RUNNING })
+			await emit("agent://event", { scope, turn, event: SEARCHING })
+
+			expect(speakersOf(controller.getState())).toEqual([botId])
+			expect(workOf(controller.getState())).toEqual(["searching"])
+			expect(live.current.size).toBe(1)
+
+			for (const event of [...streamed("foreign-1", "Found it"), TURN_ENDED]) {
+				await emit("agent://event", { scope, turn, event })
+			}
+
+			expect(speakersOf(controller.getState())).toEqual([])
+			expect(live.current.size).toBe(0)
+			expect(assistantRowsOf(controller.getState())).toMatchObject([
+				{ content: "Found it", completion: "complete" },
+			])
+			detach()
+		},
+	)
+
+	it.each(sides)(
+		"reports the bot working in its solo roster line on %s until the turn ends",
+		async (_, emit: Emit, join) => {
+			const { controller, detach, botId, conversationId } = await openSoloChat()
+			await join()
+			const scope = foreignScope(conversationId)
+			const turn = storedTurn(conversationId)
+
+			await emit("agent://event", { scope, turn, event: SEARCHING })
+
+			expect(sidebarActivityFor(controller.stateFor(botId))).toEqual({
+				isWorking: true,
+				kind: "searching",
+			})
+
+			await emit("agent://event", { scope, turn, event: TURN_ENDED })
+
+			expect(sidebarActivityFor(controller.stateFor(botId))).toEqual({
+				isWorking: false,
+			})
+			detach()
+		},
+	)
+
+	it("closes the speaker when the foreign turn fails", async () => {
+		const { controller, detach, botId, conversationId } = await openRoom()
+		const scope = { ...foreignScope(conversationId), botId }
+		const turn = storedTurn(conversationId)
+
+		await emitLocally("agent://event", { scope, turn, event: TURN_RUNNING })
+		await emitLocally("agent://event", { scope, turn, event: TURN_FAILED })
+
+		expect(speakersOf(controller.getState())).toEqual([])
+		detach()
+	})
+
+	it("keeps one speaker for the bot once this window starts its own turn", async () => {
+		const { controller, detach, botId, conversationId } = await openRoom()
+		const scope = { ...foreignScope(conversationId), botId }
+		const turn = storedTurn(conversationId)
+		await emitLocally("agent://event", { scope, turn, event: TURN_RUNNING })
+
+		await act(() => controller.send("and here?"))
+		await settled()
+
+		expect(speakersOf(controller.getState())).toEqual([botId])
+		detach()
+	})
 })

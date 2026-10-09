@@ -16,6 +16,7 @@ import type {
 	TurnOutcome,
 	TurnState,
 } from "../agent/contract"
+import type { ForeignSpeaker } from "../conversations/foreign-turns"
 import type { TranscriptMessage } from "../conversations/transcript-contract"
 import { isHostOffline } from "../host/host-offline"
 import {
@@ -58,6 +59,7 @@ export type ChatState = {
 	errors: ChatError[]
 	errorCount: number
 	reportedCauses: ReportedRunsByTurnId
+	foreignTurn: ForeignSpeaker | null
 }
 
 export type ChatAction =
@@ -87,6 +89,7 @@ export type ChatAction =
 	| { type: "questionPosted"; request: QuestionRequest }
 	| { type: "questionWithdrawn"; id: string }
 	| { type: "causesChanged"; causes: ReportedRunsByTurnId }
+	| { type: "foreignTurnChanged"; speaker: ForeignSpeaker | null }
 
 export const initialChatState: ChatState = {
 	runtime: null,
@@ -111,6 +114,7 @@ export const initialChatState: ChatState = {
 	errors: [],
 	errorCount: 0,
 	reportedCauses: NO_REPORTED_RUNS,
+	foreignTurn: null,
 }
 
 const TRANSPORT_KINDS: Record<TransportError["kind"], true> = {
@@ -532,9 +536,13 @@ function reducedChat(state: ChatState, action: ChatAction): ChatState {
 		case "conversationOpened":
 			return state.conversationId === action.conversationId
 				? state
-				: { ...state, conversationId: action.conversationId }
+				: { ...state, conversationId: action.conversationId, foreignTurn: null }
 		case "causesChanged":
 			return { ...state, reportedCauses: action.causes }
+		case "foreignTurnChanged":
+			return state.foreignTurn === action.speaker
+				? state
+				: { ...state, foreignTurn: action.speaker }
 		case "transcriptChanged":
 			return applyTranscriptChanged(
 				state,

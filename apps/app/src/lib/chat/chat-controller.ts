@@ -212,7 +212,7 @@ export function createChatController(
 		options.onMessageStored ?? createMessageStoredListener()
 	const onReconnected = options.onReconnected ?? createReconnectionListener()
 	const transcript = createTranscriptController(store)
-	const foreignTurns = createForeignTurns(transcript)
+	const foreignTurns = createForeignTurns(transcript, now)
 
 	const bots = new Map<string, BotChat>()
 	const transitions = new Map<string, BotTransition>()
@@ -592,9 +592,25 @@ export function createChatController(
 			(bot) => bot.state.conversationId === conversationId,
 		)
 
+	const foreignTurnOf = (bot: BotChat) => {
+		const { conversationId } = bot.state
+		if (!conversationId) {
+			return null
+		}
+		return (
+			foreignTurns
+				.speakersIn(conversationId)
+				.find(({ scope }) => scope.botId === bot.id) ?? null
+		)
+	}
+
+	const showForeignTurn = (bot: BotChat) =>
+		dispatch(bot, { type: "foreignTurnChanged", speaker: foreignTurnOf(bot) })
+
 	const renderForeign = ({ scope, turn, event }: ScopedEvent) => {
 		if (scope && turn && isShowing(turn.conversationId)) {
 			foreignTurns.render(scope, event)
+			botsShowing(turn.conversationId).forEach(showForeignTurn)
 		}
 	}
 
@@ -699,6 +715,7 @@ export function createChatController(
 			epoch: opened.seq,
 		}
 		foreignTurns.claim(scope)
+		showForeignTurn(bot)
 		return scope
 	}
 

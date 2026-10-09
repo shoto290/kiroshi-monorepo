@@ -242,9 +242,17 @@ export function bubbleOf(
 	return bubbles[blockIndex] ?? bubbles[0]
 }
 
+const foreignWorkFor = ({ foreignTurn }: ChatState): WorkingState | null =>
+	foreignTurn
+		? {
+				...workingFor(foreignTurn.activities, foreignTurn.hasWritten),
+				startedAt: foreignTurn.startedAt,
+			}
+		: null
+
 export function workingStateFor(state: ChatState): WorkingState | null {
 	if (!isTurnBusy(state.turn)) {
-		return null
+		return foreignWorkFor(state)
 	}
 	if (state.question) {
 		return { kind: "waiting", label: state.question.questions[0]?.question }
