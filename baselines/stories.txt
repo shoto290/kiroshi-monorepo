@@ -260,6 +260,9 @@ conversation-message-turn--menu
 conversation-message-turn--named-by-identity
 conversation-message-turn--opened-by-mention
 conversation-message-turn--pending
+conversation-message-turn--person-in-thread
+conversation-message-turn--person-picture
+conversation-message-turn--person-run
 conversation-message-turn--picture-beside-blot
 conversation-message-turn--pinned
 conversation-message-turn--quoted
