@@ -2,6 +2,7 @@ import {
 	type ReactNode,
 	type RefObject,
 	useCallback,
+	useContext,
 	useImperativeHandle,
 	useRef,
 	useState,
@@ -14,6 +15,10 @@ import { PromptInput } from "@workspace/ui/components/prompt-input"
 import type { StagedAttachment } from "@/lib/chat/attachments"
 import { holdsDismissal } from "@/lib/chat/prompt-commands"
 import { promptWithMentionAdded } from "@/lib/conversations/mentions"
+import {
+	composerOfflineOf,
+	OpenJoinedHostContext,
+} from "@/lib/spaces/open-joined-host"
 
 export type PromptHandle = {
 	mention: (name: string) => void
@@ -61,6 +66,7 @@ export const ThreadComposer = ({
 	queryIn,
 	menu,
 }: ThreadComposerProps) => {
+	const offline = composerOfflineOf(useContext(OpenJoinedHostContext))
 	const [prompt, setPrompt] = useState(readDraft)
 	const [wasDismissed, setWasDismissed] = useState(false)
 	const latestPrompt = useRef(prompt)
@@ -126,6 +132,7 @@ export const ThreadComposer = ({
 				leading={
 					<PromptAttachButton disabled={!canAttach} onAttach={onAttach} />
 				}
+				offline={offline}
 				onAttach={canAttach ? onAttach : undefined}
 				onSubmit={submit}
 				onValueChange={changePrompt}

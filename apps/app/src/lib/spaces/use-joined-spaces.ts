@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from "react"
 
 import type { SpaceInvitationCallbacks } from "@workspace/ui/components/space-invitations"
-import type { SpaceRemovedScreenProps } from "@workspace/ui/components/space-removed-screen"
 
 import {
 	createInvitationsController,
@@ -13,17 +12,16 @@ import {
 	createJoinedSpacesController,
 	type JoinedSpacesController,
 	type JoinedSpacesState,
+	openJoinedSpaceOf,
 	openRowIdOf,
-	type RemovedSpace,
 	remoteMarksOf,
-	shownJoinedSpacesOf,
 	switcherSpacesOf,
 } from "./joined-spaces-controller"
+import { isHostOnline, type OpenJoinedHost } from "./open-joined-host"
 import type { SpacesController, SpacesState } from "./spaces-controller"
 
 import { isDesktopHost, joinedHosts } from "../host"
 import { useController, useControllerState } from "../use-controller"
-import type { Space } from "../conversations/store-contract"
 import type { JoinedHostsState } from "../host/joined-hosts"
 
 export type JoinedSpaces = {
@@ -85,49 +83,48 @@ const sweepOnCloseOf =
 		if (!isOpen) controller.sweepWithdrawn()
 	}
 
-const removedScreenOf = (
-	removed: RemovedSpace | null,
-	spaces: Space[],
-	onBack: () => void,
-): SpaceRemovedScreenProps | null =>
-	removed && {
-		spaceName: removed.joined.name,
-		hostEmail: removed.hostEmail,
-		backSpaceName:
-			spaces.find((space) => space.id === removed.backSpaceId)?.name ?? "",
-		onBack,
-	}
-
 export const useSwitcherSpaces = (
 	{ spaces, selectedSpaceId }: Pick<SpacesState, "spaces" | "selectedSpaceId">,
-	{ state, hosts, controller }: JoinedSpaces,
+	{ state, hosts }: JoinedSpaces,
 	invitations: Invitations,
 ) => {
-	const { joinedSpaces, removed, openId } = state
+	const { joinedSpaces, openId } = state
 	const { connections } = hosts
-	return useMemo(() => {
-		const shownJoined = shownJoinedSpacesOf({ joinedSpaces, removed })
-		return {
-			spaces: switcherSpacesOf(spaces, shownJoined),
-			selectedSpaceId: openRowIdOf(
-				{ joinedSpaces, removed, openId },
-				selectedSpaceId,
-			),
-			remoteBySpaceId: remoteMarksOf(shownJoined, connections),
+	return useMemo(
+		() => ({
+			spaces: switcherSpacesOf(spaces, joinedSpaces),
+			selectedSpaceId: openRowIdOf({ joinedSpaces, openId }, selectedSpaceId),
+			remoteBySpaceId: remoteMarksOf(joinedSpaces, connections),
 			invitations: invitationRowsOf(invitations.state),
 			...invitationCallbacksOf(invitations.controller),
 			onSpaceSwitcherOpenChange: sweepOnCloseOf(invitations.controller),
-			removedScreen: removedScreenOf(removed, spaces, controller.leaveRemoved),
-		}
-	}, [
-		spaces,
-		selectedSpaceId,
-		joinedSpaces,
-		removed,
-		openId,
-		connections,
-		invitations.state,
-		invitations.controller,
-		controller,
-	])
+		}),
+		[
+			spaces,
+			selectedSpaceId,
+			joinedSpaces,
+			openId,
+			connections,
+			invitations.state,
+			invitations.controller,
+		],
+	)
+}
+
+export const useOpenJoinedHost = (
+	selectedSpaceId: string | null,
+	{ state, hosts, controller }: JoinedSpaces,
+): OpenJoinedHost | null => {
+	const { joinedSpaces, openId } = state
+	const { connections } = hosts
+	return useMemo(() => {
+		const open = openJoinedSpaceOf(joinedSpaces, openId, selectedSpaceId)
+		return open
+			? {
+					spaceName: open.name,
+					hostEmail: controller.hostEmailOf(open.id),
+					isOnline: isHostOnline(connections[open.id]),
+				}
+			: null
+	}, [joinedSpaces, openId, selectedSpaceId, connections, controller])
 }

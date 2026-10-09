@@ -1,20 +1,9 @@
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { platform } from "@tauri-apps/plugin-os"
 
-import {
-	endNotice,
-	raiseFailureNotice,
-} from "@workspace/ui/components/notice-surface"
-import { i18n } from "@workspace/ui/lib/i18n"
+import { endNotice } from "@workspace/ui/components/notice-surface"
 
-import { adoptHostConnection } from "./connection"
-import {
-	bridgeGeneratedBindings,
-	createHttpHost,
-	type HttpHost,
-	raiseHostOfflineNotice,
-	raiseRefusalNotice,
-} from "./http"
+import { raiseHostOfflineNotice, raiseRefusalNotice } from "./http"
 import { createJoinedHosts } from "./joined-hosts"
 import {
 	convertFileSrc,
@@ -32,50 +21,13 @@ import {
 const hasTauriInternals = (): boolean =>
 	typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
 
-const raiseHostDownNotice = () =>
-	raiseFailureNotice({ title: i18n.t("chat:screen.notice.unavailable") })
-
-const connectHttpHost = (): HttpHost | null => {
-	const connection = adoptHostConnection(window)
-	if (!connection) {
-		return null
-	}
-	let downNoticeId: string | null = null
-	return createHttpHost({
-		...connection,
-		fetch: (input, init) => fetch(input, init),
-		openSocket: (url) => new WebSocket(url),
-		onDown: () => {
-			downNoticeId = raiseHostDownNotice()
-		},
-		onUp: () => {
-			if (downNoticeId) endNotice(downNoticeId)
-			downNoticeId = null
-		},
-		onRefused: raiseRefusalNotice,
-	})
-}
-
-const httpHost =
-	typeof window === "undefined" || hasTauriInternals()
-		? null
-		: connectHttpHost()
-
-if (httpHost) {
-	bridgeGeneratedBindings(httpHost, window)
-}
-
-const localFileSrc = (path: string): string => {
-	if (isDesktopHost()) {
-		return convertFileSrc(path)
-	}
-	return httpHost ? httpHost.fileSrc(path) : path
-}
+const localFileSrc = (path: string): string =>
+	isDesktopHost() ? convertFileSrc(path) : path
 
 export const joinedHosts = createJoinedHosts({
 	local: {
-		invoke: httpHost?.invoke ?? tauriInvoke,
-		listen: httpHost?.listen ?? tauriListen,
+		invoke: tauriInvoke,
+		listen: tauriListen,
 		fileSrc: localFileSrc,
 	},
 	join: (id) => commands.joinedSpaceConnect(id),
@@ -93,11 +45,11 @@ export const listen = joinedHosts.listen
 export const listenToActiveHost = joinedHosts.listenToActiveHost
 
 export function isDesktopHost(): boolean {
-	return httpHost === null && hasTauriInternals()
+	return hasTauriInternals()
 }
 
 export function drivesRealHost(): boolean {
-	return isDesktopHost() || httpHost !== null
+	return isDesktopHost()
 }
 
 export function hasOverlayWindowControls(): boolean {

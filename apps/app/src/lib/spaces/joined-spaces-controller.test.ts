@@ -7,16 +7,11 @@ import {
 	openRowIdOf,
 	remoteMarksOf,
 	rosterSpacesOf,
-	shownJoinedSpacesOf,
 	switcherSpacesOf,
 } from "./joined-spaces-controller"
 import { createSpacesController } from "./spaces-controller"
 
-import type {
-	JoinedSpace,
-	JoinedSpaceError,
-	JoinedSpaceRemoved,
-} from "../bindings"
+import type { JoinedSpace, JoinedSpaceRemoved } from "../bindings"
 import { createStore } from "../store"
 import { createFakeTranscriptStore } from "../conversations/fake-transcript-store"
 import type { JoinedHostState, JoinedHostsState } from "../host/joined-hosts"
@@ -35,12 +30,6 @@ const ATTIC: JoinedSpace = {
 	hostUrl: "http://192.168.1.21:45367",
 	remoteSpaceId: "attic",
 	name: "Attic",
-}
-
-const REFUSED_LINK: JoinedSpaceError = {
-	kind: "refusedLink",
-	part: "token",
-	message: "not a Kiroshi link",
 }
 
 const hostsFake = () => {
@@ -73,11 +62,6 @@ const transportFake = (listed: JoinedSpace[] = []) => {
 	let announceRemoval: (removed: JoinedSpaceRemoved) => void = () => undefined
 	const transport = {
 		list: vi.fn(async () => held),
-		add: vi.fn(async (_link: string): Promise<JoinedSpace> => {
-			held = [...held, GARAGE]
-			announce()
-			return GARAGE
-		}),
 		remove: vi.fn(async (id: string) => {
 			held = held.filter((joined) => joined.id !== id)
 		}),
@@ -138,7 +122,6 @@ const gearFor = async (listed: JoinedSpace[] = []) => {
 		reportFailure,
 		reportRemoval,
 		inviters,
-		probeTimeout: 50,
 	})
 	return { home, spaces, hosts, wire, reportFailure, reportRemoval, joined }
 }
@@ -280,182 +263,6 @@ describe("selecting a space", () => {
 	})
 })
 
-describe("joining a space", () => {
-	const joinWith = async (gear: Awaited<ReturnType<typeof gearFor>>) => {
-		gear.joined.openJoin()
-		gear.joined.changeJoinLink("  kiroshi://192.168.1.20  ")
-		await gear.joined.join()
-	}
-
-	it("adds the trimmed link", async () => {
-		const gear = await gearFor()
-		gear.hosts.answer(GARAGE.id, { status: "up" })
-
-		await joinWith(gear)
-
-		expect(gear.wire.transport.add).toHaveBeenCalledWith(
-			"kiroshi://192.168.1.20",
-		)
-	})
-
-	it("shows invalidLink when the link is refused", async () => {
-		const gear = await gearFor()
-		gear.wire.transport.add.mockRejectedValueOnce(REFUSED_LINK)
-
-		await joinWith(gear)
-
-		expect(gear.joined.getState()).toMatchObject({
-			isJoinOpen: true,
-			joinState: "invalidLink",
-		})
-		expect(gear.hosts.connect).not.toHaveBeenCalled()
-	})
-
-	it("clears the message once the link is edited", async () => {
-		const gear = await gearFor()
-		gear.wire.transport.add.mockRejectedValueOnce(REFUSED_LINK)
-		await joinWith(gear)
-
-		gear.joined.changeJoinLink("kiroshi://192.168.1.21")
-
-		expect(gear.joined.getState().joinState).toBe("idle")
-	})
-
-	it("raises any other refusal and lets the reader retry", async () => {
-		const gear = await gearFor()
-		gear.wire.transport.add.mockRejectedValueOnce({
-			kind: "undeliverable",
-			detail: "event bus closed",
-		})
-
-		await joinWith(gear)
-
-		expect(gear.joined.getState().joinState).toBe("idle")
-		expect(gear.reportFailure).toHaveBeenCalledWith(
-			expect.objectContaining({ description: "event bus closed" }),
-		)
-	})
-
-	it("closes the dialog and selects the new row once the host answers", async () => {
-		const gear = await gearFor()
-		gear.hosts.answer(GARAGE.id, { status: "up" })
-
-		await joinWith(gear)
-
-		expect(gear.joined.getState()).toMatchObject({
-			isJoinOpen: false,
-			joinLink: "",
-			joinState: "idle",
-			joinedSpaces: [GARAGE],
-		})
-		expect(gear.spaces.getState().selectedSpaceId).toBe("garage")
-		expect(gear.hosts.activate).toHaveBeenLastCalledWith(GARAGE.id)
-	})
-
-	it("waits for a connecting host to answer", async () => {
-		const gear = await gearFor()
-		gear.hosts.answer(GARAGE.id, { status: "connecting" })
-
-		const joining = joinWith(gear)
-		await settle()
-		expect(gear.joined.getState().joinState).toBe("joining")
-		gear.hosts.record(GARAGE.id, { status: "up" })
-		await joining
-
-		expect(gear.joined.getState().isJoinOpen).toBe(false)
-	})
-
-	it("shows hostUnreachable, raises it and removes the space when the host is down", async () => {
-		const gear = await gearFor()
-		gear.hosts.answer(GARAGE.id, { status: "down" })
-
-		await joinWith(gear)
-
-		expect(gear.joined.getState()).toMatchObject({
-			isJoinOpen: true,
-			joinState: "hostUnreachable",
-			joinedSpaces: [],
-		})
-		expect(gear.wire.transport.remove).toHaveBeenCalledWith(GARAGE.id)
-		expect(gear.hosts.forget).toHaveBeenCalledWith(GARAGE.id)
-		expect(gear.reportFailure).toHaveBeenCalledOnce()
-		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
-	})
-
-	it("gives up on a host that never answers", async () => {
-		vi.useFakeTimers()
-		const gear = await gearFor()
-		gear.hosts.answer(GARAGE.id, { status: "connecting" })
-
-		const joining = joinWith(gear)
-		await vi.advanceTimersByTimeAsync(50)
-		await joining
-
-		expect(gear.joined.getState().joinState).toBe("hostUnreachable")
-		expect(gear.wire.transport.remove).toHaveBeenCalledWith(GARAGE.id)
-	})
-})
-
-describe("a changed read during a join", () => {
-	const probingGarage = async () => {
-		const gear = await gearFor()
-		gear.joined.watch()
-		await settle()
-		const shownRows: string[][] = []
-		const shownMarks: string[][] = []
-		gear.joined.subscribe(() => {
-			const { joinedSpaces } = gear.joined.getState()
-			shownRows.push(switcherSpacesOf([], joinedSpaces).map((row) => row.id))
-			shownMarks.push(
-				Object.keys(
-					remoteMarksOf(joinedSpaces, gear.hosts.getState().connections),
-				),
-			)
-		})
-		gear.hosts.answer(GARAGE.id, { status: "connecting" })
-		gear.joined.openJoin()
-		gear.joined.changeJoinLink("kiroshi://192.168.1.20")
-		const joining = gear.joined.join()
-		await settle()
-		gear.wire.announce()
-		await settle()
-		return { ...gear, joining, shownRows, shownMarks }
-	}
-
-	it("lists no row and no mark for the space being probed", async () => {
-		const gear = await probingGarage()
-
-		expect(gear.wire.transport.list).toHaveBeenCalledTimes(3)
-		expect(gear.joined.getState().joinState).toBe("joining")
-		expect(gear.shownRows.flat()).not.toContain("garage")
-		expect(gear.shownMarks.flat()).not.toContain("garage")
-		expect(gear.hosts.connect).toHaveBeenCalledTimes(1)
-	})
-
-	it("shows and selects the row once the probe succeeds", async () => {
-		const gear = await probingGarage()
-
-		gear.hosts.record(GARAGE.id, { status: "up" })
-		await gear.joining
-
-		expect(gear.joined.getState().joinedSpaces).toEqual([GARAGE])
-		expect(gear.spaces.getState().selectedSpaceId).toBe("garage")
-	})
-
-	it("never shows the row when the probe fails", async () => {
-		const gear = await probingGarage()
-
-		gear.hosts.record(GARAGE.id, { status: "down" })
-		gear.wire.announce()
-		await gear.joining
-		await settle()
-
-		expect(gear.joined.getState().joinState).toBe("hostUnreachable")
-		expect(gear.shownRows.flat()).not.toContain("garage")
-		expect(gear.shownMarks.flat()).not.toContain("garage")
-	})
-})
-
 describe("leaving a space", () => {
 	const leavingGarage = async () => {
 		const gear = await gearFor([GARAGE])
@@ -517,7 +324,11 @@ const STUDIO_ROW = "joined:joined-studio"
 
 const HOST_EMAIL = "lea@example.com"
 
-const REMOVED_NOTICE = "lea@example.com removed you from Studio Nord."
+const REMOVED_NOTICE = {
+	title: "lea@example.com removed you from Studio Nord.",
+	description:
+		"It’s gone from your spaces. Its conversations stay on lea@example.com’s Kiroshi.",
+}
 
 const withStudio = async () => {
 	const gear = await gearFor([STUDIO])
@@ -544,31 +355,18 @@ describe("accepting an invited space", () => {
 })
 
 describe("a host removing the reader", () => {
-	it("holds the open space as removed, then Back opens the previous local space, drops the row and raises the notice", async () => {
+	it("drops the open space, raises the notice and opens the previous local space", async () => {
 		const gear = await withStudio()
 		await gear.joined.admit(STUDIO, HOST_EMAIL)
 
 		gear.wire.evict(STUDIO)
 		await settle()
 
-		const shown = shownJoinedSpacesOf(gear.joined.getState())
-		expect(gear.joined.getState().removed).toEqual({
-			joined: STUDIO,
-			hostEmail: HOST_EMAIL,
-			backSpaceId: gear.home.id,
-		})
-		expect(switcherSpacesOf([], shown)).toEqual([
-			{ id: STUDIO_ROW, name: "Studio Nord" },
-		])
-		expect(gear.reportRemoval).not.toHaveBeenCalled()
-
-		gear.joined.leaveRemoved()
-
+		expect(gear.joined.getState().joinedSpaces).toEqual([])
 		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
-		expect(gear.joined.getState().removed).toBe(null)
-		expect(shownJoinedSpacesOf(gear.joined.getState())).toEqual([])
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(null)
 		expect(gear.hosts.forget).toHaveBeenCalledWith(STUDIO.id)
-		expect(gear.reportRemoval).toHaveBeenCalledWith(REMOVED_NOTICE)
+		expect(gear.reportRemoval).toHaveBeenCalledExactlyOnceWith(REMOVED_NOTICE)
 	})
 
 	it("drops a space that is not open and raises the notice", async () => {
@@ -579,7 +377,7 @@ describe("a host removing the reader", () => {
 		gear.wire.evict(STUDIO)
 		await settle()
 
-		expect(gear.joined.getState().removed).toBe(null)
+		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
 		expect(gear.joined.getState().joinedSpaces).toEqual([])
 		expect(gear.hosts.forget).toHaveBeenCalledWith(STUDIO.id)
 		expect(gear.reportRemoval).toHaveBeenCalledWith(REMOVED_NOTICE)
@@ -591,7 +389,8 @@ describe("a host removing the reader", () => {
 
 		gear.hosts.record(STUDIO.id, { status: "down" })
 
-		expect(gear.joined.getState().removed).toBe(null)
+		expect(gear.reportRemoval).not.toHaveBeenCalled()
+		expect(gear.joined.getState().joinedSpaces).toEqual([STUDIO])
 		expect(
 			remoteMarksOf(
 				gear.joined.getState().joinedSpaces,
@@ -631,17 +430,6 @@ describe("a read dropping a joined space", () => {
 		expect(gear.hosts.forget).toHaveBeenCalledWith(STUDIO.id)
 		expect(gear.joined.hostEmailOf(STUDIO.id)).toBe("")
 	})
-
-	it("keeps a space held as removed on screen through the read", async () => {
-		const gear = await withStudio()
-		await gear.joined.admit(STUDIO, HOST_EMAIL)
-		gear.wire.evict(STUDIO)
-		await settle()
-
-		expect(gear.spaces.getState().selectedSpaceId).toBe("studio")
-		expect(gear.joined.getState().removed?.joined).toEqual(STUDIO)
-		expect(gear.hosts.forget).not.toHaveBeenCalled()
-	})
 })
 
 const HOST_PERSONAL: JoinedSpace = {
@@ -662,7 +450,7 @@ describe("a local and a joined space both carrying the id personal", () => {
 	}
 
 	const switcherOf = (gear: Awaited<ReturnType<typeof withBothPersonals>>) => {
-		const shown = shownJoinedSpacesOf(gear.joined.getState())
+		const shown = gear.joined.getState().joinedSpaces
 		return {
 			rowIds: switcherSpacesOf(gear.spaces.getState().spaces, shown).map(
 				(row) => row.id,

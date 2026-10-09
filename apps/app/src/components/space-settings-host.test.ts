@@ -48,10 +48,6 @@ vi.mock("@/lib/bindings", async (importOriginal) => {
 		...bindings,
 		commands: {
 			...bindings.commands,
-			hostShareLink: vi.fn(async () => ({
-				status: "ok",
-				data: { kind: "down" },
-			})),
 			hostingState: vi.fn(),
 			hostingStart: vi.fn(),
 			hostingStop: vi.fn(),
@@ -82,7 +78,6 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 const garageTransport = () =>
 	({
 		list: async () => [GARAGE],
-		add: async () => GARAGE,
 		remove: vi.fn(async (_id: string) => undefined),
 		onChanged: async () => () => undefined,
 		onRemoved: async () => () => undefined,
@@ -140,8 +135,8 @@ const SpaceSettingsHarness = ({
 		applicationToOpenOn: () => undefined,
 		closeSettingsTab: () => setSettingsTab(undefined),
 		openAccountSettings,
-		openSpaceHosting: () => {
-			setSettingsTab("hosting")
+		openSpaceMembers: () => {
+			setSettingsTab("members")
 			spaces.setSettingsOpen(true)
 		},
 		spaceHistory: { days: [], oldestDate: "2026-01-01", onUndo: vi.fn() },
@@ -384,6 +379,70 @@ describe("SpaceSettingsHost hosting on the desktop", () => {
 		).not.toHaveLength(0)
 		expect(screen.queryByText(/relay refused the token/)).toBeNull()
 		expect(hostingSwitchOf(dialog).getAttribute("aria-checked")).toBe("false")
+	})
+
+	it("starts hosting at once when the switch turns on, with no confirmation", async () => {
+		vi.mocked(isDesktopHost).mockReturnValue(true)
+		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "off" })
+		vi.mocked(commands.hostingStart).mockResolvedValue({
+			status: "ok",
+			data: { kind: "online" },
+		})
+		const gear = await gearWithGarage()
+		const { dialog } = await openShareOf(gear, gear.home.id)
+
+		await act(async () => {
+			fireEvent.click(await waitFor(() => hostingSwitchOf(dialog)))
+		})
+
+		expect(commands.hostingStart).toHaveBeenCalledWith(gear.home.id)
+		expect(screen.queryByRole("alertdialog")).toBeNull()
+		expect(hostingSwitchOf(dialog).getAttribute("aria-checked")).toBe("true")
+	})
+
+	it("stops hosting at once when the switch turns off, with no confirmation", async () => {
+		vi.mocked(isDesktopHost).mockReturnValue(true)
+		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "online" })
+		vi.mocked(commands.hostingStop).mockResolvedValue({
+			status: "ok",
+			data: { kind: "off" },
+		})
+		const gear = await gearWithGarage()
+		const { dialog } = await openShareOf(gear, gear.home.id)
+
+		await act(async () => {
+			fireEvent.click(await waitFor(() => hostingSwitchOf(dialog)))
+		})
+
+		expect(commands.hostingStop).toHaveBeenCalledWith(gear.home.id)
+		expect(screen.queryByRole("alertdialog")).toBeNull()
+		expect(hostingSwitchOf(dialog).getAttribute("aria-checked")).toBe("false")
+	})
+
+	it("mounts no Hosting tab", async () => {
+		vi.mocked(isDesktopHost).mockReturnValue(true)
+		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "online" })
+		const gear = await gearWithGarage()
+
+		const { dialog } = await openShareOf(gear, gear.home.id)
+
+		expect(within(dialog).queryByRole("tab", { name: /hosting/i })).toBeNull()
+	})
+
+	it("opens on the Members tab when Share asks for it", async () => {
+		vi.mocked(isDesktopHost).mockReturnValue(true)
+		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "off" })
+		const gear = await gearWithGarage()
+
+		const dialog = openSettingsOf(gear, gear.home.id, "members")
+
+		expect(
+			await within(dialog).findByRole("tab", {
+				name: MEMBERS_TAB_NAME,
+				selected: true,
+			}),
+		).toBeTruthy()
+		expect(await waitFor(() => hostingSwitchOf(dialog))).toBeTruthy()
 	})
 
 	it("passes no hosting to a joined space", async () => {

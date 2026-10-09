@@ -4,13 +4,17 @@ import type { EventCallback, UnlistenFn } from "@tauri-apps/api/event"
 import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
-import type { HostConnection } from "./connection"
 import { hostOfflineOf } from "./host-offline"
 
 export type HostSocket = Pick<
 	WebSocket,
 	"onclose" | "onmessage" | "onopen" | "close"
 >
+
+type HostConnection = {
+	host: string
+	token: string
+}
 
 export type HttpHostOptions = HostConnection & {
 	fetch: typeof fetch
@@ -294,8 +298,4 @@ export const createHttpHost = ({
 	}
 
 	return { invoke, listen, fileSrc, openEvents, close }
-}
-
-export const bridgeGeneratedBindings = (host: HttpHost, target: object) => {
-	Object.assign(target, { __TAURI_INTERNALS__: { invoke: host.invoke } })
 }

@@ -40,7 +40,7 @@ describe("the generated command call sites", () => {
 			expect.arrayContaining([
 				"joined_space_connect",
 				"window_declare_maximize_button",
-				"host_share_link",
+				"hosting_start",
 			]),
 		)
 	})
