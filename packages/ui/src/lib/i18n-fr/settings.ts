@@ -7,7 +7,6 @@ const settings = {
 		account: "Compte",
 		space: "Espace",
 		members: "Membres",
-		hosting: "Hébergement",
 		secrets: "Secrets",
 		appearance: "Apparence",
 		notifications: "Notifications",
@@ -162,9 +161,7 @@ const settings = {
 					self: "C’est votre propre compte.",
 					malformed: "Saisissez une adresse e-mail, comme sam@example.com.",
 				},
-				notHosted:
-					"Activez l’hébergement pour inviter des personnes qui ne sont pas sur votre réseau.",
-				openHosting: "Ouvrir Hébergement",
+				notShared: "Activez Partager {{name}} pour inviter quelqu’un.",
 			},
 			status: {
 				host: "Hôte",
@@ -228,26 +225,14 @@ const settings = {
 			},
 		},
 		hosting: {
-			label: "Héberger via Kiroshi",
+			label: "Partager {{name}}",
 			description:
-				"Invitez des personnes qui ne sont pas sur votre réseau. {{name}} est hébergé depuis cet ordinateur uniquement, elles y accèdent donc tant que Kiroshi est ouvert ici.",
+				"Invitez des personnes qui ne sont pas sur votre réseau. {{name}} tourne sur ce Mac, elles y accèdent donc tant que Kiroshi est ouvert ici.",
 			signedOut:
 				"Connectez-vous à Kiroshi pour inviter des personnes qui ne sont pas sur votre réseau.",
 			signIn: "Se connecter",
 			connecting: "Connexion…",
 			online: "En ligne",
-			start: {
-				title: "Héberger {{name}} ici ?",
-				description:
-					"Les personnes que vous invitez accèdent à ses compagnons et à ses conversations, qui tournent sur cet ordinateur.",
-				confirm: "Héberger {{name}}",
-			},
-			stop: {
-				title: "Arrêter d’héberger {{name}} ?",
-				description:
-					"Les invités perdent l’accès jusqu’à ce que vous l’hébergiez de nouveau. Rien n’est supprimé sur cet ordinateur.",
-				confirm: "Arrêter d’héberger",
-			},
 			failed: {
 				title: "Impossible d’héberger {{name}}",
 				description: "Vérifiez votre connexion et réactivez-le.",

@@ -86,4 +86,9 @@ const SettingsSwitch = ({
 	)
 }
 
-export { SettingsSwitch, type SettingsSwitchProps, type SettingsSwitchStatus }
+export {
+	SettingsSwitch,
+	type SettingsSwitchProps,
+	type SettingsSwitchStatus,
+	StatusLine,
+}

@@ -312,16 +312,16 @@ describe("SpaceSettingsHost on a local space", () => {
 	})
 })
 
-const HOSTING_TAB_NAME = i18n.t("settings:rail.hosting")
+const MEMBERS_TAB_NAME = i18n.t("settings:rail.members")
 
-const openHostingOf = async (gear: Gear, rowId: string) => {
+const openShareOf = async (gear: Gear, rowId: string) => {
 	const openAccountSettings = vi.fn()
 	gear.joined.selectSpace(rowId)
 	gear.spaces.setSettingsOpen(true)
 	render(createElement(SpaceSettingsHarness, { ...gear, openAccountSettings }))
 	const dialog = screen.getByRole("dialog")
 	fireEvent.click(
-		await within(dialog).findByRole("tab", { name: HOSTING_TAB_NAME }),
+		await within(dialog).findByRole("tab", { name: MEMBERS_TAB_NAME }),
 	)
 	return { dialog, openAccountSettings }
 }
@@ -329,15 +329,15 @@ const openHostingOf = async (gear: Gear, rowId: string) => {
 describe("SpaceSettingsHost hosting on the desktop", () => {
 	const hostingSwitchOf = (dialog: HTMLElement) =>
 		within(dialog).getByRole("switch", {
-			name: i18n.t("settings:space.hosting.label"),
+			name: i18n.t("settings:space.hosting.label", { name: "Home" }),
 		})
 
-	it("reads the hosting of the open local space into the Hosting tab", async () => {
+	it("reads the hosting of the open local space into the Share card", async () => {
 		vi.mocked(isDesktopHost).mockReturnValue(true)
 		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "online" })
 		const gear = await gearWithGarage()
 
-		const { dialog } = await openHostingOf(gear, gear.home.id)
+		const { dialog } = await openShareOf(gear, gear.home.id)
 
 		expect(commands.hostingState).toHaveBeenCalledWith(gear.home.id)
 		expect(hostingSwitchOf(dialog).getAttribute("aria-checked")).toBe("true")
@@ -347,7 +347,7 @@ describe("SpaceSettingsHost hosting on the desktop", () => {
 		vi.mocked(isDesktopHost).mockReturnValue(true)
 		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "needsSignIn" })
 		const gear = await gearWithGarage()
-		const { dialog, openAccountSettings } = await openHostingOf(
+		const { dialog, openAccountSettings } = await openShareOf(
 			gear,
 			gear.home.id,
 		)
@@ -371,18 +371,10 @@ describe("SpaceSettingsHost hosting on the desktop", () => {
 			new Error("relay refused the token"),
 		)
 		const gear = await gearWithGarage()
-		const { dialog } = await openHostingOf(gear, gear.home.id)
+		const { dialog } = await openShareOf(gear, gear.home.id)
 
-		fireEvent.click(hostingSwitchOf(dialog))
-		const question = await screen.findByRole("alertdialog")
 		await act(async () => {
-			fireEvent.click(
-				within(question).getByRole("button", {
-					name: i18n.t("settings:space.hosting.start.confirm", {
-						name: "Home",
-					}),
-				}),
-			)
+			fireEvent.click(await waitFor(() => hostingSwitchOf(dialog)))
 		})
 
 		expect(commands.hostingStart).toHaveBeenCalledWith(gear.home.id)
@@ -401,14 +393,10 @@ describe("SpaceSettingsHost hosting on the desktop", () => {
 		const dialog = openSettingsOf(gear, GARAGE_ROW)
 		await act(async () => undefined)
 
-		expect(
-			within(dialog).queryByRole("tab", { name: HOSTING_TAB_NAME }),
-		).toBeNull()
+		expect(within(dialog).queryByRole("switch")).toBeNull()
 		expect(commands.hostingState).not.toHaveBeenCalled()
 	})
 })
-
-const MEMBERS_TAB_NAME = i18n.t("settings:rail.members")
 
 const HOST_ROW: Member = {
 	userId: "steve",
@@ -463,14 +451,19 @@ describe("SpaceSettingsHost members on the desktop", () => {
 		expect(names).toEqual(["Steve Puget", "Sam Carter"])
 	})
 
-	it("shows the share link in Members and not in the Space tab", async () => {
+	it("shows the Share card in Members and no share link in any tab", async () => {
 		hostOnline()
 		const gear = await gearWithGarage()
 		const shareLabel = i18n.t("settings:space.share.label")
 
 		const dialog = await openMembersOf(gear)
 
-		expect(await within(dialog).findByText(shareLabel)).toBeTruthy()
+		expect(
+			await within(dialog).findByText(
+				i18n.t("settings:space.hosting.label", { name: "Home" }),
+			),
+		).toBeTruthy()
+		expect(within(dialog).queryByText(shareLabel)).toBeNull()
 		fireEvent.click(
 			within(dialog).getByRole("tab", { name: i18n.t("settings:rail.space") }),
 		)
@@ -530,7 +523,7 @@ describe("SpaceSettingsHost members on the desktop", () => {
 		expect(commands.hostingRemoveMember).not.toHaveBeenCalled()
 	})
 
-	it("asks for hosting and reads no members while hosting is off", async () => {
+	it("disables the invite field and reads no members while hosting is off", async () => {
 		vi.mocked(isDesktopHost).mockReturnValue(true)
 		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "off" })
 		const gear = await gearWithGarage()
@@ -538,49 +531,18 @@ describe("SpaceSettingsHost members on the desktop", () => {
 		const dialog = await openMembersOf(gear)
 
 		expect(
-			await within(dialog).findByRole("button", {
-				name: i18n.t("settings:space.members.invite.openHosting"),
-			}),
+			await within(dialog).findByText(
+				i18n.t("settings:space.members.invite.notShared", { name: "Home" }),
+			),
 		).toBeTruthy()
+		expect(
+			within(dialog)
+				.getByRole("textbox", {
+					name: i18n.t("settings:space.members.invite.label"),
+				})
+				.hasAttribute("disabled"),
+		).toBe(true)
 		expect(commands.hostingMembers).not.toHaveBeenCalled()
-	})
-
-	it("switches the open dialog to Hosting on Open Hosting, then back to Members on a rail click", async () => {
-		vi.mocked(isDesktopHost).mockReturnValue(true)
-		vi.mocked(commands.hostingState).mockResolvedValue({ kind: "off" })
-		const gear = await gearWithGarage()
-		const dialog = await openMembersOf(gear)
-		const setSettingsOpen = vi.spyOn(gear.spaces, "setSettingsOpen")
-
-		fireEvent.click(
-			await within(dialog).findByRole("button", {
-				name: i18n.t("settings:space.members.invite.openHosting"),
-			}),
-		)
-
-		expect(
-			await within(dialog).findByRole("tab", {
-				name: HOSTING_TAB_NAME,
-				selected: true,
-			}),
-		).toBeTruthy()
-		expect(
-			within(dialog).getByRole("switch", {
-				name: i18n.t("settings:space.hosting.label"),
-			}),
-		).toBeTruthy()
-		expect(screen.getByRole("dialog")).toBe(dialog)
-		expect(setSettingsOpen).not.toHaveBeenCalledWith(false)
-		expect(gear.spaces.getState().selectedSpaceId).toBe(gear.home.id)
-
-		fireEvent.click(within(dialog).getByRole("tab", { name: MEMBERS_TAB_NAME }))
-
-		expect(
-			await within(dialog).findByRole("tab", {
-				name: MEMBERS_TAB_NAME,
-				selected: true,
-			}),
-		).toBeTruthy()
 	})
 
 	it("shows no Members entry on a joined space", async () => {
