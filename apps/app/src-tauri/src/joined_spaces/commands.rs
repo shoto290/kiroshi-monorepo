@@ -1,11 +1,9 @@
 use serde::Serialize;
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Runtime, State};
 
 use super::contract::{JoinedSpace, JoinedSpaceConnection, JoinedSpaceError};
-use super::link;
 use super::relay::{self, RelayGuests};
 use crate::db;
-use crate::db::repositories::joined_spaces::JoinedReach;
 use crate::events;
 
 pub const CHANGED_EVENT: &str = "joined-space://changed";
@@ -58,20 +56,6 @@ pub async fn joined_spaces_list(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn joined_space_add<R: Runtime>(
-	app: AppHandle<R>,
-	state: State<'_, db::DatabaseState>,
-	link: String,
-	name: Option<String>,
-) -> Result<JoinedSpace, JoinedSpaceError> {
-	let candidate = link::joined_space(&link, uuid::Uuid::new_v4().to_string(), name)?;
-	let joined = ready(&state)?.joined_spaces().join(candidate).await?;
-	announce_change(&app, joined.id.clone())?;
-	Ok(JoinedSpace::presented(joined, app.state::<RelayGuests>().cloud()))
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn joined_space_connect<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -79,12 +63,7 @@ pub async fn joined_space_connect<R: Runtime>(
 ) -> Result<JoinedSpaceConnection, JoinedSpaceError> {
 	let found = ready(&state)?.joined_spaces().find(id.clone()).await?;
 	let found = found.ok_or(JoinedSpaceError::UnknownJoinedSpace { id })?;
-	match found.reach.clone() {
-		JoinedReach::Link { host_url, token } => {
-			Ok(JoinedSpaceConnection::over(found, host_url, token))
-		}
-		JoinedReach::Relay { .. } => relay::connected(&app, found.id).await,
-	}
+	relay::connected(&app, found.id).await
 }
 
 #[tauri::command]
@@ -103,7 +82,7 @@ pub async fn joined_space_remove<R: Runtime>(
 
 #[cfg(test)]
 mod tests {
-	use std::path::Path;
+	use std::path::{Path, PathBuf};
 	use std::sync::mpsc::{channel, Receiver};
 
 	use serde_json::{json, Value};
@@ -111,20 +90,19 @@ mod tests {
 	use tauri::{App, Listener, Manager};
 
 	use super::*;
+	use crate::account::session::AccountSession;
 	use crate::db::connection::temp_dir;
-	use crate::joined_spaces::contract::LinkPart;
+	use crate::db::repositories::joined_spaces::{self, JoinedReach};
 
-	const TOKEN: &str = "the-secret-token";
+	const API_URL: &str = "http://127.0.0.1:9";
 
-	fn link(host: &str, space: Option<&str>) -> String {
-		let space = space.map_or(String::new(), |space| format!("&space={space}"));
-		format!("http://127.0.0.1:1420/#host={host}&token={TOKEN}{space}")
-	}
+	const INSTANCE: &str = "instance-1";
 
 	fn app_over(dir: &Path) -> App<MockRuntime> {
 		let app = mock_app();
 		app.manage::<db::DatabaseState>(Ok(db::open(dir)));
-		app.manage(RelayGuests::new("http://127.0.0.1:9"));
+		app.manage(AccountSession::new(Ok::<PathBuf, _>(dir.join("account")), API_URL));
+		app.manage(RelayGuests::new(API_URL));
 		app
 	}
 
@@ -136,8 +114,16 @@ mod tests {
 		hearing
 	}
 
-	async fn add(app: &App<MockRuntime>, link: String) -> Result<JoinedSpace, JoinedSpaceError> {
-		joined_space_add(app.handle().clone(), app.state(), link, None).await
+	async fn held(app: &App<MockRuntime>) -> JoinedSpace {
+		let candidate = joined_spaces::JoinedSpace {
+			id: uuid::Uuid::new_v4().to_string(),
+			reach: JoinedReach::Relay { instance_id: INSTANCE.to_owned() },
+			remote_space_id: Some("remote-1".to_owned()),
+			name: "Studio".to_owned(),
+		};
+		let state = app.state::<db::DatabaseState>();
+		let joined = ready(&state).expect("the database").joined_spaces().join(candidate).await;
+		JoinedSpace::presented(joined.expect("the join"), app.state::<RelayGuests>().cloud())
 	}
 
 	async fn list(app: &App<MockRuntime>) -> Vec<JoinedSpace> {
@@ -145,96 +131,39 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn an_added_joined_space_is_listed_after_the_database_is_reopened() {
+	async fn a_held_joined_space_is_listed_over_its_relay_after_the_database_is_reopened() {
 		let dir = temp_dir();
 		let added = {
 			let app = app_over(&dir);
-			add(&app, link("http://127.0.0.1:45367", Some("remote-1"))).await.expect("the add")
+			held(&app).await
 		};
 
 		let app = app_over(&dir);
 
-		assert_eq!(added.host_url, "http://127.0.0.1:45367");
+		assert_eq!(added.host_url, RelayGuests::new(API_URL).cloud().member_relay_url(INSTANCE));
 		assert_eq!(added.remote_space_id.as_deref(), Some("remote-1"));
-		assert_eq!(added.name, "127.0.0.1:45367");
+		assert_eq!(added.name, "Studio");
 		assert_eq!(list(&app).await, vec![added]);
 	}
 
 	#[tokio::test]
-	async fn a_joined_space_added_twice_replaces_the_first_and_keeps_its_id() {
+	async fn a_held_joined_space_is_connected_through_its_relay() {
 		let dir = temp_dir();
 		let app = app_over(&dir);
-		let first = add(&app, link("http://h.test", None)).await.expect("the first add");
+		let added = held(&app).await;
 
-		let second = joined_space_add(
-			app.handle().clone(),
-			app.state(),
-			"x#host=http://h.test&token=fresh".to_owned(),
-			Some("Renamed".to_owned()),
-		)
-		.await
-		.expect("the second add");
-
-		assert_eq!(second, JoinedSpace { name: "Renamed".to_owned(), ..first.clone() });
-		assert_eq!(list(&app).await, vec![second]);
-		let connection = joined_space_connect(app.handle().clone(), app.state(), first.id)
-			.await
-			.expect("the connection");
-		assert_eq!(connection.token, "fresh");
-	}
-
-	#[tokio::test]
-	async fn a_refused_joined_space_link_names_its_part_and_persists_nothing() {
-		let dir = temp_dir();
-		let app = app_over(&dir);
-		let hearing = heard(&app);
-
-		for (link, part) in [
-			("http://x/", LinkPart::Fragment),
-			("http://x/#host=notaurl", LinkPart::Host),
-			("http://x/#host=http://h.test&token=", LinkPart::Token),
-		] {
-			let refusal = add(&app, link.to_owned()).await.expect_err("the refusal");
-			assert!(
-				matches!(refusal, JoinedSpaceError::RefusedLink { part: refused, .. } if refused == part)
-			);
-		}
-
-		assert!(list(&app).await.is_empty());
-		assert!(hearing.try_recv().is_err());
-	}
-
-	#[tokio::test]
-	async fn joined_space_list_add_and_event_carry_no_token_but_connect_does() {
-		let dir = temp_dir();
-		let app = app_over(&dir);
-		let hearing = heard(&app);
-
-		let added = add(&app, link("http://h.test", None)).await.expect("the add");
-
-		let answered = serde_json::to_string(&added).expect("serialized");
-		let listed = serde_json::to_string(&list(&app).await).expect("serialized");
-		let payload = hearing.recv().expect("the change was heard");
-		for output in [&answered, &listed, &payload] {
-			assert!(!output.contains(TOKEN));
-			assert!(!output.contains("token"));
-		}
-		assert_eq!(
-			serde_json::from_str::<Value>(&payload).expect("json"),
-			json!({ "id": added.id })
-		);
 		let connection = joined_space_connect(app.handle().clone(), app.state(), added.id.clone())
 			.await
-			.expect("the connection");
-		assert_eq!(connection.token, TOKEN);
-		assert_eq!(connection.host_url, added.host_url);
+			.map(|found| found.id);
+
+		assert_eq!(connection, Err(JoinedSpaceError::HostOffline { id: added.id }));
 	}
 
 	#[tokio::test]
 	async fn a_removed_joined_space_is_announced_and_an_unknown_one_is_not_found() {
 		let dir = temp_dir();
 		let app = app_over(&dir);
-		let added = add(&app, link("http://h.test", None)).await.expect("the add");
+		let added = held(&app).await;
 		let hearing = heard(&app);
 
 		joined_space_remove(app.handle().clone(), app.state(), added.id.clone())

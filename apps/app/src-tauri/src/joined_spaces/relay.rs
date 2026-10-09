@@ -192,7 +192,7 @@ async fn memberships_followed<R: Runtime>(
 	for instance in &listed {
 		listed_followed(app, repository, &held, &hosted, instance).await?;
 	}
-	for (id, instance_id) in held.iter().filter_map(relay_instance) {
+	for (id, instance_id) in held.iter().map(relay_instance) {
 		if !listed.iter().any(|instance| instance.id == instance_id) {
 			unlisted_dropped(app, guests, id).await?;
 		}
@@ -200,11 +200,9 @@ async fn memberships_followed<R: Runtime>(
 	Ok(())
 }
 
-fn relay_instance(joined: &joined_spaces::JoinedSpace) -> Option<(&str, &str)> {
-	match &joined.reach {
-		JoinedReach::Relay { instance_id } => Some((&joined.id, instance_id)),
-		JoinedReach::Link { .. } => None,
-	}
+fn relay_instance(joined: &joined_spaces::JoinedSpace) -> (&str, &str) {
+	let JoinedReach::Relay { instance_id } = &joined.reach;
+	(&joined.id, instance_id)
 }
 
 async fn listed_followed<R: Runtime>(
@@ -267,9 +265,7 @@ async fn started<R: Runtime>(
 	let found = ready(&state)?.joined_spaces().find(id.to_owned()).await?;
 	let unknown = || JoinedSpaceError::UnknownJoinedSpace { id: id.to_owned() };
 	let found = found.ok_or_else(unknown)?;
-	let JoinedReach::Relay { instance_id } = found.reach.clone() else {
-		return Err(unknown());
-	};
+	let JoinedReach::Relay { instance_id } = found.reach.clone();
 	let is_signed_in = is_signed_in(app).unwrap_or_else(|reason| {
 		eprintln!("joined space {id} was not connected: {reason}");
 		false
@@ -348,8 +344,7 @@ async fn relay_entries_dropped<R: Runtime>(app: &AppHandle<R>) -> Result<(), Joi
 	let state = app.state::<db::DatabaseState>();
 	let repository = ready(&state)?.joined_spaces();
 	for joined in repository.list().await? {
-		let is_relay = matches!(joined.reach, JoinedReach::Relay { .. });
-		if is_relay && repository.remove(joined.id.clone()).await? {
+		if repository.remove(joined.id.clone()).await? {
 			announce_change(app, joined.id)?;
 		}
 	}

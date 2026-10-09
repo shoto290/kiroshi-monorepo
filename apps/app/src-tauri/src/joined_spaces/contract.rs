@@ -18,10 +18,8 @@ pub struct JoinedSpace {
 
 impl JoinedSpace {
 	pub fn presented(joined: joined_spaces::JoinedSpace, cloud: &Cloud) -> Self {
-		let host_url = match joined.reach {
-			JoinedReach::Link { host_url, .. } => host_url,
-			JoinedReach::Relay { instance_id } => cloud.member_relay_url(&instance_id),
-		};
+		let JoinedReach::Relay { instance_id } = joined.reach;
+		let host_url = cloud.member_relay_url(&instance_id);
 		Self { id: joined.id, host_url, remote_space_id: joined.remote_space_id, name: joined.name }
 	}
 }
@@ -61,14 +59,6 @@ impl fmt::Debug for JoinedSpaceConnection {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub enum LinkPart {
-	Fragment,
-	Host,
-	Token,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum JoinedSpaceError {
@@ -76,8 +66,6 @@ pub enum JoinedSpaceError {
 	Unavailable { failure: StorageFailure },
 	#[serde(rename_all = "camelCase")]
 	Storage { failure: StorageFailure },
-	#[serde(rename_all = "camelCase")]
-	RefusedLink { part: LinkPart, message: String },
 	#[serde(rename_all = "camelCase")]
 	UnknownJoinedSpace { id: String },
 	#[serde(rename_all = "camelCase")]
