@@ -308,6 +308,7 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 pub(super) enum Audience {
 	HostOnly,
 	Scoped(Held),
+	ScopedOrHostWide(Held),
 }
 
 const IN_THE_CONVERSATION: Audience = Audience::Scoped(child(Conversation, "/conversationId"));
@@ -315,7 +316,7 @@ const IN_THE_SPACE: Audience = Audience::Scoped(space("/spaceId"));
 
 pub(super) const AUDIENCES: &[(&str, Audience)] = &[
 	("account://changed", Audience::HostOnly),
-	("agent://event", Audience::Scoped(child(Conversation, "/scope/conversationId"))),
+	("agent://event", Audience::ScopedOrHostWide(child(Conversation, "/scope/conversationId"))),
 	("agent://sign-in-started", Audience::HostOnly),
 	("application://installed", IN_THE_CONVERSATION),
 	("companion://created", Audience::Scoped(child(Bot, "/id"))),
@@ -447,14 +448,10 @@ impl GuestEvents {
 			Err(error) => return self.kept_off("without a readable name", &error.to_string()),
 		};
 		let event = published.event.as_str();
-		let held = match audience_of(event) {
-			Some(Audience::Scoped(held)) => held,
-			Some(Audience::HostOnly) => return false,
-			None => return self.kept_off(event, "no audience classifies it"),
-		};
-		let scope = published.payload.pointer(held.argument).filter(|scope| !scope.is_null());
-		let Some(scope) = scope else {
-			return self.kept_off(event, &format!("its payload carries no {}", held.argument));
+		let (held, scope) = match verdict(event, &published.payload) {
+			Verdict::HostOnly => return false,
+			Verdict::KeptOff(reason) => return self.kept_off(event, &reason),
+			Verdict::Scoped(held, scope) => (held, scope),
 		};
 		let lookup = Lookup { app, shared_space_id: &self.shared_space_id, relayed: event };
 		match (held.check, scope) {
@@ -479,6 +476,28 @@ impl GuestEvents {
 			self.shared_space_id
 		);
 		false
+	}
+}
+
+#[derive(Debug, PartialEq)]
+pub(super) enum Verdict<'a> {
+	HostOnly,
+	KeptOff(String),
+	Scoped(Held, &'a Value),
+}
+
+pub(super) fn verdict<'a>(event: &str, payload: &'a Value) -> Verdict<'a> {
+	let Some(audience) = audience_of(event) else {
+		return Verdict::KeptOff("no audience classifies it".to_owned());
+	};
+	let held = match audience {
+		Audience::Scoped(held) | Audience::ScopedOrHostWide(held) => held,
+		Audience::HostOnly => return Verdict::HostOnly,
+	};
+	match payload.pointer(held.argument).filter(|scope| !scope.is_null()) {
+		Some(scope) => Verdict::Scoped(held, scope),
+		None if matches!(audience, Audience::ScopedOrHostWide(_)) => Verdict::HostOnly,
+		None => Verdict::KeptOff(format!("its payload carries no {}", held.argument)),
 	}
 }
 

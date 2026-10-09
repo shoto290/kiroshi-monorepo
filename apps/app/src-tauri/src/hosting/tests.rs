@@ -32,7 +32,10 @@ use crate::spaces::commands::{
 use crate::account::contract::AccountState;
 use crate::account::session::restore;
 use crate::account::session::AccountSession;
+use crate::agent::commands;
+use crate::agent::contract as agent;
 use crate::agent::protocol::OauthCredentials;
+use crate::agent::reply_writer::TurnSink;
 use crate::bundles::{BotPermissions, DEFAULT_OUTPUT_STYLE};
 use crate::companions::contract::{
 	CREATED_EVENT as COMPANION_CREATED_EVENT, DELETED_EVENT as COMPANION_DELETED_EVENT,
@@ -2598,7 +2601,7 @@ fn a_relay_guest_hears_no_event_left_unclassified() {
 
 #[test]
 fn a_relay_guest_hears_no_event_whose_payload_misses_its_scope() {
-	run(kept_off_the_relay(an_agent_event_of(Value::Null)));
+	run(kept_off_the_relay(("routine://changed", json!({ "conversationId": null }))));
 }
 
 #[test]
@@ -2625,6 +2628,111 @@ fn a_relay_guest_hears_a_known_child_again_without_another_lookup() {
 		let heard = guest.first_event_after(vec![mine.clone()]).await;
 
 		assert_eq!(heard, as_forwarded(mine));
+	});
+}
+
+impl Guest {
+	async fn events_until_the_marker(&mut self) -> Vec<Value> {
+		let marker = a_shared_space_marker();
+		events::emit(self.harness.app.handle(), marker.0, marker.1).expect("emitted");
+		let mut heard = Vec::new();
+		loop {
+			let frame = next_text(&mut self.member, |frame| frame.get("event").is_some()).await;
+			if frame == as_forwarded(a_shared_space_marker()) {
+				return heard;
+			}
+			heard.push(frame);
+		}
+	}
+}
+
+fn a_turn_of_the_shared_conversation() -> Vec<agent::AgentEvent> {
+	let reply = agent::ChatMessage {
+		id: "m-reply".to_owned(),
+		role: agent::MessageRole::Assistant,
+		text: "hello".to_owned(),
+		completion: agent::MessageCompletion::Complete,
+		timestamp: 1,
+	};
+	vec![
+		agent::AgentEvent::TurnChanged { state: agent::TurnState::Running },
+		agent::AgentEvent::MessageStarted {
+			message: agent::ChatMessage {
+				text: String::new(),
+				completion: agent::MessageCompletion::Streaming,
+				..reply.clone()
+			},
+		},
+		agent::AgentEvent::MessageDelta { id: reply.id.clone(), seq: 1, text: reply.text.clone() },
+		agent::AgentEvent::MessageCompleted { message: reply },
+		agent::AgentEvent::TurnChanged { state: agent::TurnState::Idle },
+	]
+}
+
+fn a_live_scope_of(conversation_id: &str) -> agent::RuntimeScope {
+	serde_json::from_value(a_runtime_scope(conversation_id)).expect("a runtime scope")
+}
+
+#[test]
+fn a_relay_guest_hears_every_event_of_a_host_turn_in_the_shared_conversation_in_order() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("live-turn").await;
+		let app = guest.harness.app.handle().clone();
+		let scope = a_live_scope_of("c-mine");
+		let run = commands::a_live_run(&app, scope.clone());
+		let turn =
+			agent::EventTurn { turn_id: "t-mine".to_owned(), conversation_id: "c-mine".to_owned() };
+		let checking =
+			agent::AgentEvent::ConnectionChanged { state: agent::ConnectionState::Checking };
+
+		let elsewhere = commands::a_live_run(&app, a_live_scope_of("c-theirs"));
+		let turn_elsewhere = agent::EventTurn {
+			turn_id: "t-theirs".to_owned(),
+			conversation_id: "c-theirs".to_owned(),
+		};
+
+		commands::a_host_wide_announce(&app, checking.clone());
+		commands::a_host_wide_announce(&app, checking);
+		for event in a_turn_of_the_shared_conversation() {
+			elsewhere.emit(event.clone(), Some(turn_elsewhere.clone()));
+			run.emit(event, Some(turn.clone()));
+		}
+		let heard = guest.events_until_the_marker().await;
+
+		let expected: Vec<Value> = a_turn_of_the_shared_conversation()
+			.into_iter()
+			.map(|event| {
+				let emitted = agent::ScopedEvent {
+					scope: Some(scope.clone()),
+					turn: Some(turn.clone()),
+					event,
+				};
+				as_forwarded(("agent://event", serde_json::to_value(emitted).expect("a payload")))
+			})
+			.collect();
+		assert_eq!(heard, expected);
+	});
+}
+
+#[test]
+fn a_host_wide_connection_check_reaches_no_relay_guest_and_is_not_logged_as_kept_off() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("host-wide-check").await;
+		let app = guest.harness.app.handle().clone();
+		let mut published = events::subscribed(&app);
+
+		commands::a_host_wide_announce(
+			&app,
+			agent::AgentEvent::ConnectionChanged { state: agent::ConnectionState::Checking },
+		);
+		let heard = guest.events_until_the_marker().await;
+
+		assert_eq!(heard, Vec::<Value>::new());
+		let frame: Value =
+			serde_json::from_str(&published.recv().await.expect("the check is published"))
+				.expect("a json frame");
+		assert_eq!(frame["event"], json!("agent://event"));
+		assert_eq!(reach::verdict("agent://event", &frame["payload"]), reach::Verdict::HostOnly);
 	});
 }
 
