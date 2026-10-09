@@ -34,6 +34,9 @@
 	--bot-badge-done: oklch(0.68 0.17 148);
 	--bot-badge-failed: oklch(0.62 0.22 27);
 	--state-connected: oklch(0.696 0.17 162.48);
+	--presence-online: #239f53;
+	--presence-offline: #737373;
+	--title-bar-pill: #ffffff;
 	--color-scheme: light;
 	--card: #ffffff;
 	--popover: #ffffff;
@@ -89,6 +92,9 @@
 	--bot-avatar-ground-strength: 35%;
 	--color-scheme: dark;
 	--bot-badge-attention: #7490c2;
+	--presence-online: #3fb466;
+	--presence-offline: #737373;
+	--title-bar-pill: oklch(1 0 0 / 6%);
 	--card: #121213;
 	--popover: #121213;
 	--popover-foreground: #f5f5f5;
@@ -159,6 +165,9 @@
 	--color-bot-badge-done: var(--bot-badge-done);
 	--color-bot-badge-failed: var(--bot-badge-failed);
 	--color-state-connected: var(--state-connected);
+	--color-presence-online: var(--presence-online);
+	--color-presence-offline: var(--presence-offline);
+	--color-title-bar-pill: var(--title-bar-pill);
 	--color-user-bubble-foreground: var(--user-bubble-foreground);
 	--radius-xs: calc(var(--radius-root) * 0.2);
 	--radius-sm: calc(var(--radius-root) * 0.6);

@@ -378,6 +378,7 @@ conversation-prompt-promptinput--files-only
 conversation-prompt-promptinput--full-width-line
 conversation-prompt-promptinput--long-content
 conversation-prompt-promptinput--marked-from-outside
+conversation-prompt-promptinput--offline
 conversation-prompt-promptinput--overflow
 conversation-prompt-promptinput--playground
 conversation-prompt-promptinput--send-disabled
@@ -827,6 +828,10 @@ navigation-appsidebar--space-switching-off
 navigation-appsidebar--space-switching-off-in-missions
 navigation-appsidebar--space-tinted
 navigation-appsidebar--spaces-without-rosters
+navigation-appsidebar--title-bar-guest-offline
+navigation-appsidebar--title-bar-guest-online
+navigation-appsidebar--title-bar-host-share
+navigation-appsidebar--title-bar-long-host-name
 navigation-appsidebar--unreadable-roster
 navigation-appsidebar--uploaded-pictures
 navigation-appsidebar--window-controls-reserved
@@ -846,6 +851,11 @@ navigation-headeridentitybutton--in-layout
 navigation-headeridentitybutton--long-content
 navigation-headeridentitybutton--variants
 navigation-headeridentitybutton--working
+navigation-hostpill--details-open
+navigation-hostpill--details-open-offline
+navigation-hostpill--offline
+navigation-hostpill--online
+navigation-hostpill--themes-side-by-side
 navigation-missionspanel--default
 navigation-missionspanel--earlier-today-unfolded
 navigation-missionspanel--empty
@@ -879,6 +889,7 @@ navigation-settingsrail--icons-only
 navigation-settingsrail--scrolling-panel
 navigation-settingsrail--selected-beside-idle
 navigation-settingsrail--with-back
+navigation-sharebutton--default
 navigation-sidebar--expanded
 navigation-sidebar--right-side
 navigation-sidebarlistrow--all-slots
@@ -916,6 +927,7 @@ navigation-spaceswitcher--drag-dot-nowhere
 navigation-spaceswitcher--drag-dot-to-place
 navigation-spaceswitcher--invitation-long-content
 navigation-spaceswitcher--invitation-over-bot-badge
+navigation-spaceswitcher--invitation-without-join-entry
 navigation-spaceswitcher--keyboard
 navigation-spaceswitcher--long-content
 navigation-spaceswitcher--m-1-no-invitation
@@ -1011,6 +1023,7 @@ overlays-noticesurface--m-13-signed-out
 overlays-noticesurface--m-8-removed-from-space
 overlays-noticesurface--marks
 overlays-noticesurface--reduced-motion
+overlays-noticesurface--removed-with-space-mark
 overlays-noticesurface--stacked
 overlays-noticesurface--with-action
 overlays-noticesurface--with-dialog

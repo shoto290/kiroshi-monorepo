@@ -110,6 +110,8 @@ const NO_WINDOW_CONTROLS_INSET = "pl-2.5"
 
 const TITLE_BAR_WINDOW_CONTROLS = "ms-auto flex shrink-0 self-stretch"
 
+const TITLE_BAR_SPACE_ACCESS = "flex min-w-0 shrink items-center"
+
 const HEADER = "px-2 py-0"
 
 const HEADER_ROW = "flex h-8 items-center justify-between ps-2 pe-0.5"
@@ -1811,8 +1813,10 @@ interface AppSidebarProps
 	onSelectSpace?: (id: string) => void
 	onReorderSpaces?: (ids: string[]) => void
 	onCreateSpace?: () => void
+	/** @deprecated */
 	onJoinSpace?: () => void
 	onLeaveSpace?: () => void
+	spaceAccess?: ReactNode
 	remoteBySpaceId?: Record<string, SpaceRemote>
 	invitations?: SpaceInvitation[]
 	onAcceptInvitation?: SpaceInvitationCallbacks["onAcceptInvitation"]
@@ -1868,8 +1872,9 @@ const AppSidebarBase = ({
 	onSelectSpace,
 	onReorderSpaces,
 	onCreateSpace,
-	onJoinSpace,
+	onJoinSpace: _onJoinSpace,
 	onLeaveSpace,
+	spaceAccess,
 	remoteBySpaceId,
 	invitations,
 	onAcceptInvitation,
@@ -2087,7 +2092,6 @@ const AppSidebarBase = ({
 					onAcceptInvitation={onAcceptInvitation}
 					onCreateSpace={onCreateSpace}
 					onDeclineInvitation={onDeclineInvitation}
-					onJoinSpace={onJoinSpace}
 					onLeaveSpace={onLeaveSpace}
 					onOpenChange={onSpaceSwitcherOpenChange}
 					onOpenSpaceSettings={onOpenSpaceSettings}
@@ -2098,6 +2102,15 @@ const AppSidebarBase = ({
 					selectedSpaceId={selectedSpaceId}
 					spaces={spaces}
 				/>
+				{spaceAccess ? (
+					<div
+						className={TITLE_BAR_SPACE_ACCESS}
+						data-slot="app-title-bar-space-access"
+						data-tauri-drag-region="false"
+					>
+						{spaceAccess}
+					</div>
+				) : null}
 				{windowControls ? (
 					<div
 						className={TITLE_BAR_WINDOW_CONTROLS}

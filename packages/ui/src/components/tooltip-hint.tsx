@@ -36,4 +36,4 @@ const TooltipHint = ({ content, children, side = "top" }: TooltipHintProps) => (
 	</Tooltip>
 )
 
-export { TooltipHint, type TooltipHintSide }
+export { HOVER_INTENT_DELAY_MS, TooltipHint, type TooltipHintSide }

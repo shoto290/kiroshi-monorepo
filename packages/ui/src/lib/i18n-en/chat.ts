@@ -152,6 +152,8 @@ const chat = {
 		label: "Message",
 		placeholder: "Message",
 		send: "Send",
+		offline:
+			"{{space}} is offline. You can write again once {{host}}’s Mac is back.",
 		commands: "Commands",
 		mentions: "Companions",
 		lead: "Lead",

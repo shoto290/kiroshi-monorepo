@@ -92,12 +92,19 @@ const bots = {
 		moveUp: "Monter",
 		moveDown: "Descendre",
 		create: "Créer un espace",
-		join: "Rejoindre un espace",
 		settings: "Ouvrir les réglages de l’espace",
 		leave: "Quitter l’espace",
 		remote: "Distant",
 		unreachable: "Injoignable",
 		shortcut: "⌘{{rank}}",
+		share: "Partager",
+		host: {
+			online: "Hébergé par {{name}}",
+			onlineLabel: "Hébergé par {{name}}, en ligne",
+			offline: "Le Mac de {{name}} est hors ligne",
+			onlineDetail: "{{space}} tourne sur son Mac. Il est en ligne.",
+			offlineDetail: "{{space}} tourne sur son Mac. Il est hors ligne.",
+		},
 		remove: {
 			lastSpace: "Un compagnon a besoin d’au moins un espace.",
 			failed: "Impossible de retirer ce compagnon de l’espace. Réessayez.",
@@ -124,6 +131,8 @@ const bots = {
 				"{{email}} vous a retiré de cet espace. Ses compagnons et ses conversations restent sur leur Kiroshi.",
 			back: "Revenir à {{name}}",
 			notice: "{{email}} vous a retiré de {{name}}.",
+			noticeDescription:
+				"Il n’apparaît plus dans vos espaces. Ses conversations restent sur le Kiroshi de {{host}}.",
 		},
 		signOut: {
 			title: "Se déconnecter de Kiroshi ?",

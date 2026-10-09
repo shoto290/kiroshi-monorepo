@@ -46,6 +46,7 @@ import {
 	COMPANION_SILHOUETTE_SPACE,
 	silhouetteKey,
 } from "@workspace/ui/components/companion-silhouette"
+import { HostPill } from "@workspace/ui/components/host-pill"
 import { OUTER } from "@workspace/ui/components/kiroshi-hexagon"
 import {
 	SPACE_EARLIER_TODAY_MISSIONS,
@@ -55,6 +56,7 @@ import type {
 	MissionsPanelMission,
 	MissionsPanelProps,
 } from "@workspace/ui/components/missions-panel"
+import { ShareButton } from "@workspace/ui/components/share-button"
 import { WindowControls } from "@workspace/ui/components/window-controls"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
@@ -3852,6 +3854,187 @@ export const CaptionWindowControls = meta.story({
 		}
 	},
 })
+const TITLE_BAR_ARTBOARD =
+	"Measured against the Paper page `Iteration 5` of `Kiroshi, Invitations`, dark only."
+
+const STUDIO: Space = { id: "studio", name: "Studio", colour: "orange" }
+
+const STUDIO_ARGS = {
+	"data-tauri-drag-region": "deep",
+	spaces: [STUDIO],
+	selectedSpaceId: STUDIO.id,
+	botsBySpaceId: { [STUDIO.id]: ROSTER },
+}
+
+const sharedSpace = fn()
+
+const spaceAccessIn = (canvasElement: HTMLElement) =>
+	slotIn(titleBarIn(canvasElement), "app-title-bar-space-access")
+
+const expectRightAfterSwitcher = async (canvasElement: HTMLElement) => {
+	const titleBar = titleBarIn(canvasElement)
+	const access = spaceAccessIn(canvasElement)
+	await expect(access.previousElementSibling).toBe(
+		slotIn(titleBar, "space-switcher"),
+	)
+	const switcher = slotIn(titleBar, "space-switcher").getBoundingClientRect()
+	const control = access.firstElementChild?.getBoundingClientRect()
+	if (!control) throw new Error("The title bar slot holds nothing")
+	await expect(control.left - switcher.right).toBe(TITLE_BAR_GAP)
+	const bar = titleBar.getBoundingClientRect()
+	await expect(control.top - bar.top).toBe(bar.bottom - control.bottom)
+	await expect(access).toHaveAttribute("data-tauri-drag-region", "false")
+	await expect(titleBar).toHaveAttribute("data-tauri-drag-region", "deep")
+}
+
+export const TitleBarHostShare = meta.story({
+	globals: { theme: "dark" },
+	args: {
+		...STUDIO_ARGS,
+		spaceAccess: <ShareButton onShare={sharedSpace} />,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story: `${TITLE_BAR_ARTBOARD} 5.1: the reader hosts the open space, so the title bar offers \`Share\` right after the switcher, 8px from it and centred in the 34px bar, outside the drag region while the bar around it still drags the window. Pick \`TitleBarGuestOnline\` for a joined space, \`WindowControlsReserved\` for a bar with nothing in that slot.`,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		await expectRightAfterSwitcher(canvasElement)
+		await userEvent.click(canvas.getByRole("button", { name: "Share" }))
+		await expect(sharedSpace).toHaveBeenCalledOnce()
+		await expect(
+			canvas.queryByRole("button", { name: /^Hosted by/ }),
+		).toBeNull()
+	},
+})
+
+export const TitleBarGuestOnline = meta.story({
+	globals: { theme: "dark" },
+	args: {
+		...STUDIO_ARGS,
+		spaceAccess: (
+			<HostPill
+				hostEmail="steve@example.com"
+				hostName="Steve"
+				isOnline
+				spaceName={STUDIO.name}
+			/>
+		),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story: `${TITLE_BAR_ARTBOARD} 5.6: the reader joined the open space and its host is online, so the pill takes the slot \`Share\` holds for a host. Check it sits 8px after the switcher, centred, outside the drag region, and that no \`Share\` is offered. Pick \`TitleBarGuestOffline\` for the host that stopped answering.`,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expectRightAfterSwitcher(canvasElement)
+		await expect(
+			canvas.getByRole("button", { name: "Hosted by Steve, online" }),
+		).toBeVisible()
+		await expect(canvas.queryByRole("button", { name: "Share" })).toBeNull()
+	},
+})
+
+export const TitleBarGuestOffline = meta.story({
+	globals: { theme: "dark" },
+	args: {
+		...STUDIO_ARGS,
+		spaceAccess: (
+			<HostPill
+				hostEmail="steve@example.com"
+				hostName="Steve"
+				isOnline={false}
+				spaceName={STUDIO.name}
+			/>
+		),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story: `${TITLE_BAR_ARTBOARD} 5.7: the host's Mac is offline, so the pill mutes its dot and says so. Check it keeps the slot and the gap of \`TitleBarGuestOnline\`. Pick \`TitleBarGuestOnline\` for the reachable host.`,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expectRightAfterSwitcher(canvasElement)
+		await expect(
+			canvas.getByRole("button", { name: "Steve’s Mac is offline" }),
+		).toBeVisible()
+	},
+})
+
+const LONG_HOST_NAME = "Maximilian Alexander Featherstonehaugh-Montgomery"
+
+const LONG_SPACE: Space = {
+	id: "long-studio",
+	name: "Studio of the quarterly planning offsite in Lisbon",
+	colour: "orange",
+}
+
+const NARROW_WINDOW = 320
+
+export const TitleBarLongHostName = meta.story({
+	globals: { theme: "dark" },
+	args: {
+		...STUDIO_ARGS,
+		spaces: [LONG_SPACE],
+		selectedSpaceId: LONG_SPACE.id,
+		botsBySpaceId: { [LONG_SPACE.id]: ROSTER },
+		spaceAccess: (
+			<HostPill
+				hostEmail="maximilian@example.com"
+				hostName={LONG_HOST_NAME}
+				isOnline
+				spaceName={LONG_SPACE.name}
+			/>
+		),
+		windowControls: (
+			<WindowControls
+				maximized={false}
+				onClose={fn()}
+				onMinimize={fn()}
+				onToggleMaximize={fn()}
+			/>
+		),
+	},
+	render: (args) => (
+		<div style={{ width: NARROW_WINDOW }}>{renderShell(args)}</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story: `A host name and a space name chosen by their owners, neither of which the reader can shorten, in a 320px window with caption buttons. Check both clip to one line with an ellipsis and that the caption buttons keep their full width flush with the trailing edge rather than being pushed out. Pick \`TitleBarGuestOnline\` for a name that fits.`,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const titleBar = titleBarIn(canvasElement)
+		const bar = titleBar.getBoundingClientRect()
+		await expect(bar.width).toBe(NARROW_WINDOW)
+		const pill = canvas.getByRole("button", {
+			name: `Hosted by ${LONG_HOST_NAME}, online`,
+		})
+		const label = pill.lastElementChild as HTMLElement
+		const name = slotIn(titleBar, "space-switcher-name")
+		for (const line of [label, name]) {
+			await expect(getComputedStyle(line).textOverflow).toBe("ellipsis")
+			await expect(line.scrollWidth).toBeGreaterThan(line.clientWidth)
+		}
+		const controls = slotIn(
+			titleBar,
+			"app-title-bar-window-controls",
+		).getBoundingClientRect()
+		await expect(controls.right).toBe(bar.right)
+		await expect(pill.getBoundingClientRect().right).toBeLessThanOrEqual(
+			controls.left,
+		)
+	},
+})
+
 const SECTIONS: AppSidebarSection[] = [
 	{ id: "research", name: "Research", position: 0 },
 	{ id: "shipping", name: "Shipping", position: 3 },

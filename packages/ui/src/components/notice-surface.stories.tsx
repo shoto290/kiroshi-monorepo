@@ -15,6 +15,7 @@ import {
 	A11Y_FLOATING_FOCUS_GUARDS,
 	expectHeadingFont,
 	opaque,
+	slotIn,
 } from "@workspace/storybook/story-utils"
 import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import {
@@ -750,5 +751,69 @@ export const M13SignedOut = meta.story({
 			"Signed out. Studio Nord left this Mac.",
 			userEvent,
 		)
+	},
+})
+
+const REMOVAL_TITLE = "steve@example.com removed you from Studio."
+
+const REMOVAL_DESCRIPTION =
+	"It’s gone from your spaces. Its conversations stay on Steve’s Kiroshi."
+
+const RemovalNotice = () => {
+	const { t } = useTranslation("bots")
+	const title = t("spaces.removed.notice", {
+		email: "steve@example.com",
+		name: "Studio",
+	})
+	const description = t("spaces.removed.noticeDescription", { host: "Steve" })
+
+	useEffect(() => {
+		const id = raiseTransientNotice({
+			description,
+			spaceColour: "orange",
+			title,
+			type: "info",
+		})
+		return () => endNotice(id)
+	}, [description, title])
+
+	return <NoticeSurface transientDelay={0} />
+}
+
+export const RemovedWithSpaceMark = meta.story({
+	name: "Removed with the space mark",
+	globals: { theme: "dark" },
+	render: () => <RemovalNotice />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Measured against the Paper page `Iteration 5` of `Kiroshi, Invitations`, artboard 5.8, dark only. A host removed the reader from a joined space, so the notice carries that space's colour as a 10px square outline, 1.5px on a 3px radius, in place of the info glyph, over who removed them and where the conversations stay. Check the mark is decorative and drawn in the space's tint, and that the body sits in the muted foreground. Pick `M8RemovedFromSpace` for the title-only notice with the info glyph.",
+			},
+		},
+	},
+	play: async () => {
+		const title = await within(viewport()).findByText(REMOVAL_TITLE)
+		const notice = title.closest<HTMLElement>("[data-slot=toast]")
+		if (!notice) throw new window.Error("The notice is not on the surface")
+		await opaque(notice)
+		await expect(notice).toHaveAccessibleDescription(REMOVAL_DESCRIPTION)
+
+		const mark = notice.querySelector<HTMLElement>(
+			"[data-slot=notice-space-mark]",
+		)
+		if (!mark) throw new window.Error("The notice carries no space mark")
+		const style = getComputedStyle(mark)
+		await expect(mark).toHaveAttribute("aria-hidden", "true")
+		await expect(slotIn(notice, "toast-content").firstElementChild).toBe(mark)
+		await expect(mark.getBoundingClientRect().width).toBe(10)
+		await expect(mark.getBoundingClientRect().height).toBe(10)
+		await expect(style.borderTopLeftRadius).toBe("3px")
+		await expect(style.boxShadow).toContain("1.5px")
+		await expect(style.boxShadow).toContain(style.color)
+		await expect(mark.style.color).toBe("var(--bot-blot-orange)")
+		await expect(
+			getComputedStyle(within(notice).getByText(REMOVAL_DESCRIPTION)).color,
+		).toBe("rgb(163, 163, 163)")
 	},
 })
