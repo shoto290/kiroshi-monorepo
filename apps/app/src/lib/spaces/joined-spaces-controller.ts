@@ -342,7 +342,9 @@ export const createJoinedSpacesController = ({
 		const joined = joinedOfRow(id)
 		set({ openId: joined?.id ?? null })
 		spaces.select(joined ? hostSpaceIdOf(joined) : id)
-		void hosts.activate(joined?.id ?? null)
+		void (joined
+			? hosts.activate(joined.id, hostSpaceIdOf(joined))
+			: hosts.activate(null))
 	}
 
 	const reopenPending = () => {

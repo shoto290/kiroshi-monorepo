@@ -40,8 +40,12 @@ export function App() {
 	probeRender("App")
 	const core = useWorkspaceCore()
 	const drivers = useWorkspaceDrivers(core)
-	const rosterView = useRosterView({ core, drivers })
 	const scopes = useApplicationScopes(core)
+	const rosterView = useRosterView({
+		core,
+		drivers,
+		openRowId: scopes.openRowId,
+	})
 	const panels = useSettingsPanels({ core, rosterView, scopes })
 	const loadSpaces = useSpaceLoading({ core, scopes })
 	useWorkspaceSubscriptions({ core, drivers, rosterView, scopes })

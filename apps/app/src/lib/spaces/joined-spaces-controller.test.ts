@@ -247,7 +247,10 @@ describe("selecting a space", () => {
 		joined.selectSpace(GARAGE_ROW)
 
 		expect(spaces.getState().selectedSpaceId).toBe("garage")
-		expect(hosts.activate).toHaveBeenLastCalledWith(GARAGE.id)
+		expect(hosts.activate).toHaveBeenLastCalledWith(
+			GARAGE.id,
+			GARAGE.remoteSpaceId,
+		)
 	})
 
 	it("activates the local host for a local row", async () => {
@@ -349,7 +352,10 @@ describe("accepting an invited space", () => {
 		expect(gear.joined.getState().joinedSpaces).toEqual([STUDIO])
 		expect(gear.hosts.connect).toHaveBeenCalledWith(STUDIO.id)
 		expect(gear.spaces.getState().selectedSpaceId).toBe("studio")
-		expect(gear.hosts.activate).toHaveBeenLastCalledWith(STUDIO.id)
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(
+			STUDIO.id,
+			STUDIO.remoteSpaceId,
+		)
 		expect(gear.joined.hostEmailOf(STUDIO.id)).toBe(HOST_EMAIL)
 	})
 })
@@ -496,7 +502,10 @@ describe("a local and a joined space both carrying the id personal", () => {
 			openLocalSpaceOf(gear.spaces.getState().spaces, switcher.checked),
 		).toBeUndefined()
 		expect(gear.spaces.getState().selectedSpaceId).toBe("personal")
-		expect(gear.hosts.activate).toHaveBeenLastCalledWith(HOST_PERSONAL.id)
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(
+			HOST_PERSONAL.id,
+			HOST_PERSONAL.remoteSpaceId,
+		)
 	})
 
 	it("checks the local row only, with no mark, once the local one is open", async () => {
@@ -535,7 +544,10 @@ describe("a local and a joined space both carrying the id personal", () => {
 		await settle()
 
 		expect(switcherOf(gear).checked).toBe(HOST_PERSONAL_ROW)
-		expect(gear.hosts.activate).toHaveBeenLastCalledWith(HOST_PERSONAL.id)
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(
+			HOST_PERSONAL.id,
+			HOST_PERSONAL.remoteSpaceId,
+		)
 	})
 
 	it("keeps the local one open when it was the one remembered", async () => {

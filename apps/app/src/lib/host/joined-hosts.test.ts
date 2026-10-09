@@ -293,6 +293,16 @@ describe("the active host", () => {
 		expect(local.invoke).not.toHaveBeenCalled()
 	})
 
+	it("names the joined Space id from the moment the joined host is selected", async () => {
+		const { hosts } = joinedHostsOf({
+			join: () => new Promise(() => undefined),
+		})
+
+		void hosts.activate("garage", "personal")
+
+		expect(hosts.activeSpaceId()).toBe("personal")
+	})
+
 	it("refuses a call made while the joined host opens when it cannot connect", async () => {
 		const { hosts, local } = joinedHostsOf({
 			join: async () => ({

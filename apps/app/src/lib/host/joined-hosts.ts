@@ -293,12 +293,16 @@ export const createJoinedHosts = ({
 		relocateAll()
 	}
 
-	const activate = async (id: string | null): Promise<void> => {
+	const activate = async (
+		id: string | null,
+		sharedSpaceId?: string,
+	): Promise<void> => {
 		requested = id
 		if (id === null) {
 			setActive(null)
 			return
 		}
+		sharedSpaceIds.set(id, sharedSpaceId ?? id)
 		const previous = store.getState().active
 		const opening = openConnection(id)
 		setActive(id)
