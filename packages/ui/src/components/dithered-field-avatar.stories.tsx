@@ -1,4 +1,4 @@
-import { expect, waitFor } from "storybook/test"
+import { expect, waitFor, within } from "storybook/test"
 
 import {
 	CompanionStatesRoster,
@@ -98,7 +98,17 @@ export const EveryState = meta.story({
 			},
 		},
 	},
-	play: playCompanionStatesRoster,
+	play: async (context) => {
+		const ladders = within(context.canvasElement).getAllByRole("group", {
+			name: "Sizes",
+		})
+		await expect(ladders.length).toBeGreaterThan(0)
+		for (const ladder of ladders)
+			await expect(
+				within(ladder).getAllByRole("img", { name: "Lyra" }),
+			).toHaveLength(3)
+		await playCompanionStatesRoster(context)
+	},
 })
 
 export const OneDrawingAtEverySize = meta.story({
