@@ -224,7 +224,7 @@ export const createJoinedHosts = ({
 
 	const activeSpaceId = (): string | null => {
 		const { active } = store.getState()
-		return (active && sharedSpaceIds.get(active)) ?? null
+		return active ? (sharedSpaceIds.get(active) ?? null) : null
 	}
 
 	const listenerFor = (event: string): Listen => {
