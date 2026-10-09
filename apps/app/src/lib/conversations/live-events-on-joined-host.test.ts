@@ -738,9 +738,6 @@ const PERMISSION_RESOLVED: AgentEvent = {
 	decision: "allowOnce",
 }
 
-const promptOf = ({ pendingPrompt }: { pendingPrompt: unknown }) =>
-	pendingPrompt
-
 describe("a prompt raised by a turn the other Mac started", () => {
 	it.each(sides)(
 		"shows the approval in a room on %s, answers it with the foreign scope, and closes it once resolved",
@@ -754,7 +751,7 @@ describe("a prompt raised by a turn the other Mac started", () => {
 
 			await emit("agent://event", { scope, turn, event: ASKED_PERMISSION })
 
-			expect(promptOf(controller.getState())).toEqual({
+			expect(controller.getState().pendingPrompt).toEqual({
 				kind: "permission",
 				botId,
 				request: PERMISSION,
@@ -766,7 +763,7 @@ describe("a prompt raised by a turn the other Mac started", () => {
 
 			await emit("agent://event", { scope, turn, event: PERMISSION_RESOLVED })
 
-			expect(promptOf(controller.getState())).toBeNull()
+			expect(controller.getState().pendingPrompt).toBeNull()
 			detach()
 		},
 	)
@@ -783,7 +780,7 @@ describe("a prompt raised by a turn the other Mac started", () => {
 			event: PERMISSION_RESOLVED,
 		})
 
-		expect(promptOf(controller.getState())).toBeNull()
+		expect(controller.getState().pendingPrompt).toBeNull()
 		detach()
 	})
 
@@ -796,7 +793,7 @@ describe("a prompt raised by a turn the other Mac started", () => {
 
 		await emitLocally("agent://event", { scope, turn, event: ASKED_QUESTION })
 
-		expect(promptOf(controller.getState())).toEqual({
+		expect(controller.getState().pendingPrompt).toEqual({
 			kind: "question",
 			botId,
 			request: QUESTION,
@@ -805,7 +802,7 @@ describe("a prompt raised by a turn the other Mac started", () => {
 		await act(() => controller.answer(QUESTION.id, ANSWERS))
 
 		expect(answer).toHaveBeenCalledWith(scope, QUESTION.id, ANSWERS)
-		expect(promptOf(controller.getState())).toBeNull()
+		expect(controller.getState().pendingPrompt).toBeNull()
 		detach()
 	})
 
@@ -817,7 +814,7 @@ describe("a prompt raised by a turn the other Mac started", () => {
 		await emitLocally("agent://event", { scope, turn, event: ASKED_QUESTION })
 		await emitLocally("agent://event", { scope, turn, event: SEARCHING })
 
-		expect(promptOf(controller.getState())).toBeNull()
+		expect(controller.getState().pendingPrompt).toBeNull()
 		detach()
 	})
 
@@ -833,7 +830,7 @@ describe("a prompt raised by a turn the other Mac started", () => {
 
 		await act(() => controller.respond(PERMISSION.id, "allowOnce"))
 
-		expect(promptOf(controller.getState())).toMatchObject({
+		expect(controller.getState().pendingPrompt).toMatchObject({
 			request: PERMISSION,
 		})
 		expect(controller.getState().latestError).not.toBeNull()
