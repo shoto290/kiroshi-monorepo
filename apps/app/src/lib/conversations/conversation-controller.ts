@@ -403,13 +403,13 @@ export const createConversationController = (
 			: []
 
 	const speakingBots = (): SpeakingBot[] => {
-		const seen = new Set(speakers.keys())
-		const foreign = foreignSpeakingBots().filter(({ botId }) => {
-			const isFirst = !seen.has(botId)
-			seen.add(botId)
-			return isFirst
-		})
-		return [...localSpeakingBots(), ...foreign]
+		const foreign = new Map(
+			foreignSpeakingBots().map((speaking) => [speaking.botId, speaking]),
+		)
+		for (const botId of speakers.keys()) {
+			foreign.delete(botId)
+		}
+		return [...localSpeakingBots(), ...foreign.values()]
 	}
 
 	const oldestPrompt = (): PendingPrompt | null =>
