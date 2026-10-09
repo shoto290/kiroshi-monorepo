@@ -177,7 +177,7 @@ export const CentredInItsFrame = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this to check the placement the transcript gets for free: dropped into a flex region taller and wider than itself, with no class from its caller, the empty state sits in the middle on both axes. Check that the column does not hug the top or the start edge. `apps/app/src/components/thread-screen.tsx:582` mounts it with no class at all.",
+					"Reach for this to check the placement the transcript gets for free: dropped into a flex region taller and wider than itself, with no class from its caller, the empty state sits in the middle on both axes. Check that the column does not hug the top or the start edge. `apps/app/src/components/thread-screen.tsx` mounts it with no class at all.",
 			},
 		},
 	},
