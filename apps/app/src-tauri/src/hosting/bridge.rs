@@ -606,7 +606,10 @@ mod tests {
 		let statuses = futures_util::future::join_all(files.map(|file| {
 			let answered =
 				relayed_avatar(&database, dir, &api.local, turn.clone(), shared.clone(), file);
-			async { answered.await.0 .0 }
+			async {
+				let ((status, _), _sent) = answered.await;
+				status
+			}
 		}))
 		.await;
 
