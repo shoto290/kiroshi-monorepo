@@ -129,6 +129,7 @@ async fn polled<R: Runtime>(app: AppHandle<R>) {
 		if let Err(failure) = read(&app).await {
 			eprintln!("the invitations were not polled: {failure:?}");
 		}
+		joined_spaces::relay::reconciled(&app).await;
 	}
 }
 

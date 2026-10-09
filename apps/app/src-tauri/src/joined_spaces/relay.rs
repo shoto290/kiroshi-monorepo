@@ -15,7 +15,7 @@ use super::commands::{announce_change, announce_removal, ready};
 use super::contract::{JoinedSpace, JoinedSpaceConnection, JoinedSpaceError};
 use super::member_link::{MemberLink, Presence, LEARN_BOUND};
 use super::proxy;
-use crate::account::cloud::Cloud;
+use crate::account::cloud::{Cloud, CloudInstance};
 use crate::account::session::AccountSession;
 use crate::db;
 use crate::db::repositories::joined_spaces::{self, JoinedReach};
@@ -160,6 +160,90 @@ pub async fn joined<R: Runtime>(
 	let joined = repository.join(candidate).await?;
 	announce_change(app, joined.id.clone())?;
 	Ok(JoinedSpace::presented(joined, guests.cloud()))
+}
+
+pub async fn reconciled<R: Runtime>(app: &AppHandle<R>) {
+	let Some(guests) = app.try_state::<RelayGuests>() else {
+		return;
+	};
+	let _turn = guests.turn.lock().await;
+	if let Err(failure) = memberships_followed(app, &guests).await {
+		eprintln!("the joined spaces did not follow the cloud memberships: {failure}");
+	}
+}
+
+async fn memberships_followed<R: Runtime>(
+	app: &AppHandle<R>,
+	guests: &RelayGuests,
+) -> Result<(), String> {
+	let bearer = app
+		.state::<AccountSession>()
+		.bearer()
+		.map_err(|error| format!("the account session store failed: {error:?}"))?;
+	let Some(bearer) = bearer else {
+		return Ok(());
+	};
+	let listed = guests.cloud.instances(&bearer).await?;
+	let state = app.state::<db::DatabaseState>();
+	let database = ready(&state).map_err(stored)?;
+	let hosted = database.space_hosting().registered_instance_ids().await.map_err(stored)?;
+	let held = database.joined_spaces().list().await.map_err(stored)?;
+	for instance in &listed {
+		listed_followed(app, &held, &hosted, instance).await?;
+	}
+	for (id, instance_id) in held.iter().filter_map(relay_instance) {
+		if !listed.iter().any(|instance| instance.id == instance_id) {
+			unlisted_dropped(app, guests, id).await?;
+		}
+	}
+	Ok(())
+}
+
+fn relay_instance(joined: &joined_spaces::JoinedSpace) -> Option<(&str, &str)> {
+	match &joined.reach {
+		JoinedReach::Relay { instance_id } => Some((&joined.id, instance_id)),
+		JoinedReach::Link { .. } => None,
+	}
+}
+
+async fn listed_followed<R: Runtime>(
+	app: &AppHandle<R>,
+	held: &[joined_spaces::JoinedSpace],
+	hosted: &[String],
+	instance: &CloudInstance,
+) -> Result<(), String> {
+	let reach = JoinedReach::Relay { instance_id: instance.id.clone() };
+	let entry = match held.iter().find(|joined| joined.reach == reach) {
+		Some(entry) if entry.name == instance.name => return Ok(()),
+		Some(entry) => joined_spaces::JoinedSpace { name: instance.name.clone(), ..entry.clone() },
+		None if hosted.contains(&instance.id) => return Ok(()),
+		None => joined_spaces::JoinedSpace {
+			id: uuid::Uuid::new_v4().to_string(),
+			reach,
+			remote_space_id: None,
+			name: instance.name.clone(),
+		},
+	};
+	let state = app.state::<db::DatabaseState>();
+	let joined =
+		ready(&state).map_err(stored)?.joined_spaces().join(entry).await.map_err(stored)?;
+	announce_change(app, joined.id).map_err(stored)
+}
+
+async fn unlisted_dropped<R: Runtime>(
+	app: &AppHandle<R>,
+	guests: &RelayGuests,
+	id: &str,
+) -> Result<(), String> {
+	let guest = guests.guests().remove(id);
+	if let Some(guest) = guest {
+		finished(id, guest).await;
+	}
+	entry_evicted(app, id).await.map_err(stored)
+}
+
+fn stored(failure: impl std::fmt::Debug) -> String {
+	format!("{failure:?}")
 }
 
 pub async fn connected<R: Runtime>(

@@ -18,6 +18,9 @@ const UPSERT_HOSTED: &str = "INSERT INTO space_hosting (space_id, instance_id, i
 const SELECT_HOSTED: &str =
 	"SELECT space_id FROM space_hosting WHERE is_hosted = 1 ORDER BY space_id ASC";
 
+const SELECT_REGISTERED_INSTANCES: &str =
+	"SELECT instance_id FROM space_hosting WHERE instance_id IS NOT NULL ORDER BY instance_id ASC";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Registration {
 	pub name: String,
@@ -63,6 +66,16 @@ impl SpaceHostingRepository {
 		self.access
 			.call(|connection| {
 				let mut statement = connection.prepare_cached(SELECT_HOSTED)?;
+				let ids = statement.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+				Ok(ids)
+			})
+			.await
+	}
+
+	pub async fn registered_instance_ids(&self) -> Result<Vec<String>, DatabaseError> {
+		self.access
+			.call(|connection| {
+				let mut statement = connection.prepare_cached(SELECT_REGISTERED_INSTANCES)?;
 				let ids = statement.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
 				Ok(ids)
 			})
@@ -143,5 +156,18 @@ mod tests {
 			hosting.registration(PERSONAL.to_owned()).await.expect("read").instance_id.as_deref(),
 			Some("i1")
 		);
+	}
+
+	#[tokio::test]
+	async fn only_a_space_with_a_registered_instance_lists_its_instance() {
+		let database = open(&temp_dir());
+		let hosting = database.space_hosting();
+
+		hosting.set_hosted(PERSONAL.to_owned(), true).await.expect("the intent is kept");
+		let intended = hosting.registered_instance_ids().await.expect("listed");
+		hosting.registered(PERSONAL.to_owned(), "i1".to_owned()).await.expect("stored");
+
+		assert!(intended.is_empty());
+		assert_eq!(hosting.registered_instance_ids().await.expect("listed"), vec!["i1".to_owned()]);
 	}
 }
