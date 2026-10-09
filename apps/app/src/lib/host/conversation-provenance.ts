@@ -59,10 +59,10 @@ const ownIdsOf = (answer: unknown): string[] =>
 		)
 		.filter(isText)
 
-const conversationIdsAnswered = (command: string, answer: unknown) =>
-	CONVERSATION_ANSWERS.has(command)
-		? [...ownIdsOf(answer), ...conversationIdsNamedIn(answer)]
-		: conversationIdsNamedIn(answer)
+const conversationIdsAnswered = (command: string, answer: unknown) => [
+	...(CONVERSATION_ANSWERS.has(command) ? ownIdsOf(answer) : []),
+	...conversationIdsNamedIn(answer),
+]
 
 const leaveRefusalToCaller = () => undefined
 
