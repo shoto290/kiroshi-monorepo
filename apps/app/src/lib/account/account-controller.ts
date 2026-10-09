@@ -5,6 +5,8 @@ import {
 } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
+import { storedOwnAccounts } from "./own-accounts"
+
 import { ACCOUNT_CHANGED_EVENT, type AccountState, commands } from "../bindings"
 import { listen } from "../host"
 import { createStore } from "../store"
@@ -70,6 +72,7 @@ export const createAccountController = (): AccountController => {
 	const stateStore = createStore<AccountState>(SIGNED_OUT)
 
 	const show = (next: AccountState) => {
+		if (next.kind === "signedIn") storedOwnAccounts.remember(next.id)
 		const previous = stateStore.getState()
 		stateStore.setState(next)
 		if (transitionOf(previous) === transitionOf(next)) {

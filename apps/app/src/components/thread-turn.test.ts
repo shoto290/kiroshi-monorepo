@@ -122,7 +122,7 @@ const SELF = "account-self"
 
 const SIGNED_IN_HOSTING: ThreadAuthorship = {
 	accountId: SELF,
-	host: { kind: "hosted" },
+	host: { kind: "hosted", ownAccountIds: [SELF] },
 }
 
 const SIGNED_IN_JOINED: ThreadAuthorship = {
@@ -145,6 +145,25 @@ describe("whose user message a bubble shows", () => {
 		})
 
 		expect(shownBubble().getAttribute("aria-label")).toBe("user message")
+	})
+
+	it("draws the host's own stamped message as mine once signed out", () => {
+		const signedOut: ThreadAuthorship = {
+			...SIGNED_IN_HOSTING,
+			accountId: null,
+		}
+		renderTurn("user", "hello", {
+			author: writtenBy(SELF, "Me"),
+			authorship: signedOut,
+		})
+		expect(shownBubble().getAttribute("aria-label")).toBe("user message")
+		cleanup()
+
+		renderTurn("user", "hello", {
+			author: writtenBy("account-tom", "Tom"),
+			authorship: signedOut,
+		})
+		expect(shownBubble().getAttribute("aria-label")).toBe("message from Tom")
 	})
 
 	it("draws an unattributed message in a hosted space as mine", () => {

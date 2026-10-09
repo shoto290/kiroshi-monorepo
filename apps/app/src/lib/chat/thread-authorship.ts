@@ -4,7 +4,9 @@ import { useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
 import type { TranscriptMessage } from "../conversations/transcript-contract"
 
-export type SpaceHost = { kind: "hosted" } | { kind: "joined"; name: string }
+export type SpaceHost =
+	| { kind: "hosted"; ownAccountIds: readonly string[] }
+	| { kind: "joined"; name: string }
 
 export type ThreadAuthorship = {
 	accountId: string | null
@@ -18,7 +20,7 @@ export type MessageAuthorship = Pick<
 
 export const HOSTED_SIGNED_OUT: ThreadAuthorship = {
 	accountId: null,
-	host: { kind: "hosted" },
+	host: { kind: "hosted", ownAccountIds: [] },
 }
 
 export const ThreadAuthorshipContext =
@@ -30,10 +32,15 @@ const hostNameOf = (host: SpaceHost): string | null =>
 const isWrittenBySelf = (
 	{ accountId, host }: ThreadAuthorship,
 	{ authorAccountId }: MessageAuthorship,
-): boolean =>
-	authorAccountId === null
-		? host.kind === "hosted"
-		: authorAccountId === accountId
+): boolean => {
+	if (authorAccountId === null) {
+		return host.kind === "hosted"
+	}
+	return (
+		authorAccountId === accountId ||
+		(host.kind === "hosted" && host.ownAccountIds.includes(authorAccountId))
+	)
+}
 
 const personNameOf = (
 	authorship: ThreadAuthorship,

@@ -9,6 +9,7 @@ import {
 } from "@workspace/ui/components/notice-surface"
 import { en } from "@workspace/ui/lib/i18n-en"
 
+import { storedOwnAccounts } from "./own-accounts"
 import { signOutLeavingOf, useAccount, useWatchedAccount } from "./use-account"
 
 import { ACCOUNT_CHANGED_EVENT, type AccountState, commands } from "../bindings"
@@ -104,6 +105,14 @@ afterEach(async () => {
 })
 
 describe("useAccount", () => {
+	it("remembers the signed-in account on this device", async () => {
+		vi.mocked(commands.accountState).mockResolvedValue(SIGNED_IN)
+
+		await mountAccount()
+
+		expect(storedOwnAccounts.list()).toContain(SIGNED_IN.id)
+	})
+
 	it("renders the panel from the account state read on mount", async () => {
 		vi.mocked(commands.accountState).mockResolvedValue(SIGNED_IN)
 
