@@ -179,6 +179,35 @@ const writtenElsewhere = async (
 	return written
 }
 
+type StoredReply = {
+	conversationId: string
+	botId: string
+	replyId: string
+	text: string
+}
+
+const repliedElsewhere = async (
+	store: TranscriptStore,
+	{ conversationId, botId, replyId, text }: StoredReply,
+): Promise<TranscriptMessage> => {
+	const prompt = await writtenElsewhere(
+		store,
+		conversationId,
+		"Asked elsewhere",
+	)
+	await store.openAssistantMessage({
+		id: replyId,
+		conversationId,
+		turnId: prompt.turnId,
+		authorBotId: botId,
+		repliedToMessageId: prompt.id,
+		createdAt: 6,
+	})
+	await store.appendText(replyId, text)
+	await store.finalizeMessage(replyId, "complete")
+	return prompt
+}
+
 type Shown = {
 	messages: { role: string; content: string; completion: string }[]
 }
@@ -445,4 +474,39 @@ describe("the roster and the conversation list fed by every writer", () => {
 
 		expect(reload).toHaveBeenCalledOnce()
 	})
+})
+
+describe("a foreign reply the conversation then stores", () => {
+	const openers = [
+		[
+			"a solo conversation",
+			async () => ({ botId: BOT, ...(await openSoloChat()) }),
+		],
+		["a room", openRoom],
+	] as const
+
+	it.each(openers)(
+		"shows the reply once in %s after the stored page is reloaded",
+		async (_, open) => {
+			const { store, controller, detach, botId, conversationId } = await open()
+			const scope = { ...foreignScope(conversationId), botId }
+			for (const event of [...streamed("foreign-reply", "Echo"), TURN_ENDED]) {
+				await emitLocally("agent://event", { scope, event })
+			}
+			const prompt = await repliedElsewhere(store, {
+				conversationId,
+				botId,
+				replyId: "foreign-reply",
+				text: "Echo",
+			})
+
+			await emitLocally("conversation://message-stored", prompt)
+			await settled()
+
+			expect(assistantRowsOf(controller.getState())).toMatchObject([
+				{ content: "Echo", completion: "complete" },
+			])
+			detach()
+		},
+	)
 })
