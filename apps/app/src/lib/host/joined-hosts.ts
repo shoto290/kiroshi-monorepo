@@ -1,7 +1,10 @@
 import type { InvokeArgs, InvokeOptions } from "@tauri-apps/api/core"
 import type { EventCallback, UnlistenFn } from "@tauri-apps/api/event"
 
-import { createConversationProvenance } from "./conversation-provenance"
+import {
+	type ConversationSource,
+	createConversationProvenance,
+} from "./conversation-provenance"
 import { createHttpHost, type HostSocket, type HttpHost } from "./http"
 
 import {
@@ -351,23 +354,40 @@ export const createJoinedHosts = ({
 		return host.invoke<T>(command, args)
 	}
 
+	const isOpenHost = (source: ConversationSource): source is string =>
+		source !== null && hosts.has(source) && !isDown(source)
+
+	const ownerOf = (active: string, args?: InvokeArgs): ConversationSource => {
+		const sources = provenance.sourcesNamedIn(args)
+		if (sources.size === 0 || sources.has(active)) {
+			return active
+		}
+		if (sources.has(null)) {
+			return null
+		}
+		return [...sources].find(isOpenHost) ?? null
+	}
+
+	const targetOf = (command: string, args?: InvokeArgs) => {
+		const { active } = store.getState()
+		return isLocalCommand(command) || active === null
+			? null
+			: ownerOf(active, args)
+	}
+
 	const invoke: Invoke = (...call) => {
 		const [command, args] = call
-		const { active } = store.getState()
-		if (
-			isLocalCommand(command) ||
-			active === null ||
-			provenance.namesOnlyElsewhere(active, args)
-		) {
+		const target = targetOf(command, args)
+		if (target === null) {
 			return provenance.record(null, command, local.invoke(...call))
 		}
-		const joined = hosts.get(active)
+		const joined = hosts.get(target)
 		return provenance.record(
-			active,
+			target,
 			command,
 			joined
 				? joined.invoke(command, args)
-				: invokeOnceOpen(active, command, args),
+				: invokeOnceOpen(target, command, args),
 		)
 	}
 

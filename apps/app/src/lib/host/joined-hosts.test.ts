@@ -730,20 +730,72 @@ describe("a conversation the active host does not hold", () => {
 		},
 	)
 
-	it("keeps on the local Mac a conversation another joined host answered with", async () => {
-		const { hosts, local, fetch } = joinedHostsOf({
+	const hostUrlOf = (id: string) => `http://${id}.local:45367`
+
+	const joinedAt = async (id: string) => ({
+		status: "ok" as const,
+		data: {
+			id,
+			hostUrl: hostUrlOf(id),
+			token: "joined",
+			remoteSpaceId: null,
+			name: id,
+		},
+	})
+
+	const atticChatKnownWhileOnGarage = async () => {
+		const seeded = joinedHostsOf({
+			join: joinedAt,
 			answer: () => answerChat("attic-chat"),
 		})
-		await hosts.activate("attic")
-		await hosts.invoke("conversation_main_chat", { botId: "b1", spaceId: "a" })
-		await hosts.activate("garage")
-		fetch.mockClear()
+		await seeded.hosts.activate("attic")
+		await seeded.hosts.invoke("conversation_main_chat", {
+			botId: "b1",
+			spaceId: "a",
+		})
+		await seeded.hosts.activate("garage")
+		seeded.fetch.mockClear()
+		return seeded
+	}
+
+	it("sends a conversation another joined host answered with to that host while it is open", async () => {
+		const { hosts, local, fetch, reportFailure } =
+			await atticChatKnownWhileOnGarage()
+
+		await hosts.invoke("application_installs", { conversationId: "attic-chat" })
+
+		expect(fetch).toHaveBeenCalledWith(
+			new URL(`${hostUrlOf("attic")}/api/invoke/application_installs`),
+			expect.anything(),
+		)
+		expect(fetch).toHaveBeenCalledOnce()
+		expect(local.invoke).not.toHaveBeenCalled()
+		expect(reportFailure).not.toHaveBeenCalled()
+	})
+
+	it("serves a conversation another joined host answered with on the local Mac once that host is closed", async () => {
+		const { hosts, local, fetch, reportFailure } =
+			await atticChatKnownWhileOnGarage()
+		hosts.forget("attic")
 
 		await hosts.invoke("application_installs", { conversationId: "attic-chat" })
 
 		expect(local.invoke).toHaveBeenCalledWith("application_installs", {
 			conversationId: "attic-chat",
 		})
+		expect(fetch).not.toHaveBeenCalled()
+		expect(reportFailure).not.toHaveBeenCalled()
+	})
+
+	it("serves a conversation another joined host answered with on the local Mac while that host is down", async () => {
+		const { hosts, local, fetch, sockets } = await atticChatKnownWhileOnGarage()
+		sockets[0]?.open()
+		sockets[0]?.drop()
+
+		await hosts.invoke("application_installs", { conversationId: "attic-chat" })
+
+		expect(hosts.getState().connections.attic).toEqual({ status: "down" })
+		expect(local.invoke).toHaveBeenCalledOnce()
 		expect(fetch).not.toHaveBeenCalled()
 	})
 

@@ -1,6 +1,6 @@
 import type { InvokeArgs } from "@tauri-apps/api/core"
 
-type ConversationSource = string | null
+export type ConversationSource = string | null
 
 type Fields = { [key: string]: unknown }
 
@@ -77,13 +77,10 @@ export const createConversationProvenance = () => {
 		}
 	}
 
-	const isHeldOnlyElsewhere = (source: ConversationSource, id: string) => {
-		const sources = sourcesById.get(id)
-		return sources !== undefined && !sources.has(source)
-	}
-
-	const namesOnlyElsewhere = (source: ConversationSource, args?: InvokeArgs) =>
-		conversationIdsOf(args).some((id) => isHeldOnlyElsewhere(source, id))
+	const sourcesNamedIn = (args?: InvokeArgs): Set<ConversationSource> =>
+		new Set(
+			conversationIdsOf(args).flatMap((id) => [...(sourcesById.get(id) ?? [])]),
+		)
 
 	const record = <T>(
 		source: ConversationSource,
@@ -97,5 +94,5 @@ export const createConversationProvenance = () => {
 		return answer
 	}
 
-	return { namesOnlyElsewhere, record }
+	return { sourcesNamedIn, record }
 }
