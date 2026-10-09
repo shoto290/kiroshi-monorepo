@@ -25,29 +25,14 @@ const DOT_OFFLINE = "bg-presence-offline"
 const LABEL = "min-w-0 truncate"
 
 const DETAILS =
-	"flex-col items-start gap-0.5 rounded-md bg-muted px-2.5 py-2 text-foreground shadow-popover [&>[aria-hidden=true]]:hidden"
-
-const DETAIL_EMAIL = "break-words font-medium"
-
-const DETAIL_STATE = "break-words text-muted-foreground"
+	"flex-col items-start rounded-md bg-muted px-2.5 py-2 text-foreground shadow-popover [&>[aria-hidden=true]]:hidden"
 
 type HostPillProps = {
-	hostName: string
-	hostEmail: string
-	spaceName: string
 	isOnline: boolean
 }
 
-const HostPill = ({
-	hostName,
-	hostEmail,
-	spaceName,
-	isOnline,
-}: HostPillProps) => {
+const HostPill = ({ isOnline }: HostPillProps) => {
 	const { t } = useTranslation("bots")
-	const label = t(isOnline ? "spaces.host.online" : "spaces.host.offline", {
-		name: hostName,
-	})
 
 	return (
 		<Tooltip>
@@ -55,11 +40,6 @@ const HostPill = ({
 				delay={HOVER_INTENT_DELAY_MS}
 				render={
 					<button
-						aria-label={
-							isOnline
-								? t("spaces.host.onlineLabel", { name: hostName })
-								: label
-						}
 						className={cn(PILL, !isOnline && PILL_OFFLINE)}
 						data-slot="host-pill"
 						type="button"
@@ -69,7 +49,9 @@ const HostPill = ({
 							className={cn(DOT, isOnline ? DOT_ONLINE : DOT_OFFLINE)}
 							data-slot="host-pill-dot"
 						/>
-						<span className={LABEL}>{label}</span>
+						<span className={LABEL}>
+							{t(isOnline ? "spaces.host.online" : "spaces.host.offline")}
+						</span>
 					</button>
 				}
 			/>
@@ -79,13 +61,7 @@ const HostPill = ({
 				role="tooltip"
 				side="bottom"
 			>
-				<span className={DETAIL_EMAIL}>{hostEmail}</span>
-				<span className={DETAIL_STATE}>
-					{t(
-						isOnline ? "spaces.host.onlineDetail" : "spaces.host.offlineDetail",
-						{ space: spaceName },
-					)}
-				</span>
+				{t(isOnline ? "spaces.host.onlineDetail" : "spaces.host.offlineDetail")}
 			</TooltipContent>
 		</Tooltip>
 	)

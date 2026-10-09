@@ -831,7 +831,6 @@ navigation-appsidebar--spaces-without-rosters
 navigation-appsidebar--title-bar-guest-offline
 navigation-appsidebar--title-bar-guest-online
 navigation-appsidebar--title-bar-host-share
-navigation-appsidebar--title-bar-long-host-name
 navigation-appsidebar--unreadable-roster
 navigation-appsidebar--uploaded-pictures
 navigation-appsidebar--window-controls-reserved
