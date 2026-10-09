@@ -586,8 +586,13 @@ export function createChatController(
 			(bot) => bot.state.conversationId === conversationId,
 		)
 
+	const isShowing = (conversationId: string) =>
+		[...bots.values()].some(
+			(bot) => bot.state.conversationId === conversationId,
+		)
+
 	const renderForeign = (scope: RuntimeScope | null, event: AgentEvent) => {
-		if (scope && botsShowing(scope.conversationId).length > 0) {
+		if (scope && isShowing(scope.conversationId)) {
 			foreignTurns.render(scope, event)
 		}
 	}

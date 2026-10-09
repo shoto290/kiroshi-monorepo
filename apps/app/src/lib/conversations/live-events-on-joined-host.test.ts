@@ -9,7 +9,7 @@ import { createFakeTranscriptStore } from "./fake-transcript-store"
 import { createScriptedDriver } from "./scripted-driver"
 import type { TranscriptStore } from "./store-port"
 import type { TranscriptMessage } from "./transcript-contract"
-import { seatBots } from "./transcript-fixtures"
+import { message, seatBots } from "./transcript-fixtures"
 
 import type { AgentEvent, RuntimeScope } from "../agent/contract"
 import { agentTransport } from "../agent/transport"
@@ -167,31 +167,16 @@ const writtenElsewhere = async (
 	conversationId: string,
 	content: string,
 ): Promise<TranscriptMessage> => {
-	const id = `written-${content}`
-	await store.appendUserMessage({
-		id,
+	const written = message({
+		id: `written-${content}`,
 		conversationId,
 		turnId: `turn-${content}`,
-		authorBotId: null,
-		repliedToMessageId: null,
+		role: "user",
 		content,
 		createdAt: 5,
 	})
-	return {
-		id,
-		conversationId,
-		turnId: `turn-${content}`,
-		seq: 0,
-		role: "user",
-		content,
-		completion: "complete",
-		createdAt: 5,
-		authorBotId: null,
-		authorAccountId: null,
-		authorName: null,
-		repliedToMessageId: null,
-		runtimeSessionId: null,
-	}
+	await store.appendUserMessage(written)
+	return written
 }
 
 type Shown = {
