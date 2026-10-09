@@ -32,6 +32,7 @@ use crate::account::session::AccountSession;
 use crate::agent::protocol::OauthCredentials;
 use crate::db::connection::temp_dir;
 use crate::db::repositories::joined_spaces::JoinedReach;
+use crate::db::repositories::messages::{MessagePageQuery, MessageRole, NewTurn};
 use crate::db::{self, DatabaseState};
 use crate::environment::connection;
 use crate::environment::contract::{ConnectionKind, EnvOwner, EnvScope, ACCOUNT_BEARER};
@@ -2501,6 +2502,10 @@ const GUEST: &str = "guest-account";
 const GUEST_EMAIL: &str = "guest@example.com";
 const HOST_NAME: &str = "Ada on the host";
 
+fn guest_sender() -> Value {
+	json!({ "accountId": GUEST, "name": "Guest", "image": null })
+}
+
 struct Authoring {
 	app: App<MockRuntime>,
 	window: WebviewWindow<MockRuntime>,
@@ -2600,6 +2605,35 @@ impl Authoring {
 		json!({ "conversationId": self.conversation_id, "beforeSeq": null, "limit": 50 })
 	}
 
+	fn reopened_store(&self) -> db::Database {
+		let file = db::connection::file(self.app.handle()).expect("the store file is known");
+		db::open(file.parent().expect("the store lives in a directory"))
+	}
+
+	async fn stored_authors(
+		database: &db::Database,
+		conversation_id: &str,
+	) -> Vec<(String, Option<String>, Option<String>)> {
+		database
+			.messages()
+			.page_messages(MessagePageQuery {
+				conversation_id: conversation_id.to_owned(),
+				before_seq: None,
+				limit: 50,
+			})
+			.await
+			.expect("the reopened store reads its page")
+			.messages
+			.into_iter()
+			.filter(|message| message.role == MessageRole::User)
+			.map(|message| (message.id, message.author.account_id, message.author.name))
+			.collect()
+	}
+
+	fn stored_guest(id: &str) -> (String, Option<String>, Option<String>) {
+		(id.to_owned(), Some(GUEST.to_owned()), Some(GUEST_EMAIL.to_owned()))
+	}
+
 	fn authors(page: &Value) -> Vec<(Value, Value, Value)> {
 		page["messages"]
 			.as_array()
@@ -2654,14 +2688,14 @@ fn a_message_typed_on_the_host_and_one_relayed_from_a_guest_carry_two_authors_re
 		host.relayed(json!({
 			"id": 1,
 			"command": "conversation_send_user_message",
-			"from": GUEST,
+			"sender": guest_sender(),
 			"args": host.sent("relayed"),
 		}))
 		.await;
 
 		let read_by_the_guest = host
 			.relayed(
-				json!({ "id": 2, "command": "conversation_message_page", "args": host.page(), "from": GUEST }),
+				json!({ "id": 2, "command": "conversation_message_page", "args": host.page(), "sender": guest_sender() }),
 			)
 			.await;
 		let read_by_the_host = direct(&host.window, "conversation_message_page", host.page());
@@ -2676,13 +2710,13 @@ fn a_message_typed_on_the_host_and_one_relayed_from_a_guest_carry_two_authors_re
 }
 
 #[test]
-fn a_relayed_frame_stores_its_from_over_a_forged_author_and_none_without_a_from() {
+fn a_relayed_frame_stores_its_sender_over_a_forged_author_and_none_without_a_sender() {
 	run(async {
 		let host = Authoring::new(Some(BEARER)).await;
 		host.relayed(json!({
 			"id": 1,
 			"command": "conversation_append_user_message",
-			"from": GUEST,
+			"sender": guest_sender(),
 			"args": { "message": host.sent("vouched")["message"] },
 		}))
 		.await;
@@ -2736,7 +2770,7 @@ fn a_guest_message_sent_on_a_turn_it_opens_lands_on_the_host_with_its_author() {
 			.relayed(json!({
 				"id": 1,
 				"command": "conversation_send_user_message",
-				"from": GUEST,
+				"sender": guest_sender(),
 				"args": host.unstarted("first"),
 			}))
 			.await;
@@ -2762,7 +2796,7 @@ fn a_guest_message_refused_by_the_host_answers_a_text_naming_the_refusal() {
 			.answered(json!({
 				"id": 1,
 				"command": "conversation_send_user_message",
-				"from": GUEST,
+				"sender": guest_sender(),
 				"args": elsewhere,
 			}))
 			.await;
@@ -2790,7 +2824,7 @@ fn a_guest_message_naming_a_turn_of_another_conversation_is_refused_and_not_writ
 			.answered(json!({
 				"id": 1,
 				"command": "conversation_send_user_message",
-				"from": GUEST,
+				"sender": guest_sender(),
 				"args": borrowed,
 			}))
 			.await;
@@ -2800,5 +2834,157 @@ fn a_guest_message_naming_a_turn_of_another_conversation_is_refused_and_not_writ
 
 		assert_ne!(answer["status"], json!(200), "{answer}");
 		assert_eq!(Authoring::authors(&read), vec![]);
+	});
+}
+
+#[test]
+fn a_relayed_guest_message_keeps_its_author_in_a_reopened_store_read_by_either_side() {
+	run(async {
+		let host = Authoring::new(Some(BEARER)).await;
+		host.relayed(json!({
+			"id": 1,
+			"command": "conversation_send_user_message",
+			"sender": guest_sender(),
+			"args": host.unstarted("relayed"),
+		}))
+		.await;
+
+		let reopened = host.reopened_store();
+		reopened.messages().recover_unfinished().await.expect("the restart sweep runs");
+		let read_by_the_restarted_host =
+			Authoring::stored_authors(&reopened, &host.conversation_id).await;
+		let read_by_the_guest = host
+			.relayed(
+				json!({ "id": 2, "command": "conversation_message_page", "args": host.page(), "sender": guest_sender() }),
+			)
+			.await;
+
+		assert_eq!(read_by_the_restarted_host, vec![Authoring::stored_guest("relayed")]);
+		assert_eq!(
+			Authoring::authors(&read_by_the_guest),
+			vec![(json!("relayed"), json!(GUEST), json!(GUEST_EMAIL))]
+		);
+	});
+}
+
+#[test]
+fn every_later_write_on_a_relayed_guest_message_or_its_turn_leaves_its_author_unchanged() {
+	run(async {
+		let host = Authoring::new(Some(BEARER)).await;
+		let conversation_id = host.conversation_id.clone();
+		host.relayed(json!({
+			"id": 1,
+			"command": "conversation_send_user_message",
+			"sender": guest_sender(),
+			"args": host.unstarted("relayed"),
+		}))
+		.await;
+		let reply = json!({ "message": {
+			"id": "reply",
+			"conversationId": conversation_id,
+			"turnId": "relayed",
+			"authorBotId": null,
+			"repliedToMessageId": "relayed",
+			"createdAt": 2,
+		} });
+		direct(&host.window, "conversation_open_assistant_message", reply);
+		for id in ["reply", "relayed"] {
+			direct(&host.window, "conversation_append_text", json!({ "id": id, "delta": "more" }));
+			direct(
+				&host.window,
+				"conversation_finalize_message",
+				json!({ "id": id, "completion": "complete", "settledText": "settled" }),
+			);
+		}
+		direct(
+			&host.window,
+			"conversation_complete_turn",
+			json!({ "id": "relayed", "completedAt": 3 }),
+		);
+		let pin = json!({
+			"conversationId": conversation_id,
+			"messageId": "relayed",
+			"blockIndex": 0,
+			"pinnedAt": 4,
+		});
+		host.relayed(json!({
+			"id": 2,
+			"command": "conversation_pin_message",
+			"sender": guest_sender(),
+			"args": pin,
+		}))
+		.await;
+		host.relayed(json!({ "id": 3, "command": "conversation_pin_message", "args": pin })).await;
+		let state = host.app.state::<DatabaseState>();
+		let messages = state.as_ref().expect("the store is open").messages();
+		messages
+			.replace_content("relayed".to_owned(), "rewritten".to_owned())
+			.await
+			.expect("the content is rewritten");
+		messages
+			.ensure_turn(NewTurn {
+				id: "relayed".to_owned(),
+				conversation_id: conversation_id.clone(),
+				started_at: 5,
+			})
+			.await
+			.expect("the turn is kept");
+		messages.complete_turn("relayed".to_owned(), 6).await.expect("the turn completes");
+		messages.recover_unfinished().await.expect("the restart sweep runs");
+		let duplicate = host
+			.answered(json!({
+				"id": 4,
+				"command": "conversation_append_user_message",
+				"args": { "message": host.unstarted("relayed")["message"] },
+			}))
+			.await;
+
+		let read = Authoring::stored_authors(&host.reopened_store(), &conversation_id).await;
+
+		assert_ne!(duplicate["status"], json!(200), "{duplicate}");
+		assert_eq!(read, vec![Authoring::stored_guest("relayed")]);
+	});
+}
+
+#[test]
+fn a_member_frame_names_the_conversation_its_reach_reads() {
+	let sent = json!({ "message": { "conversationId": "c1" }, "summoned": [] });
+	let paged = json!({ "conversationId": "c2", "beforeSeq": null, "limit": 50 });
+
+	assert_eq!(reach::conversation_of("conversation_send_user_message", &sent), Some("c1"));
+	assert_eq!(reach::conversation_of("conversation_message_page", &paged), Some("c2"));
+	assert_eq!(reach::conversation_of("conversation_message_page", &json!({})), None);
+	assert_eq!(reach::conversation_of("an_unknown_command", &paged), None);
+}
+
+#[test]
+fn a_relayed_frame_ignores_a_forged_from_and_stores_the_account_of_its_sender() {
+	run(async {
+		let host = Authoring::new(Some(BEARER)).await;
+		host.relayed(json!({
+			"id": 1,
+			"command": "conversation_send_user_message",
+			"from": GUEST,
+			"args": host.unstarted("from-only"),
+		}))
+		.await;
+		host.relayed(json!({
+			"id": 2,
+			"command": "conversation_send_user_message",
+			"from": "another-account",
+			"sender": guest_sender(),
+			"args": host.unstarted("from-and-sender"),
+		}))
+		.await;
+
+		let read = direct(&host.window, "conversation_message_page", host.page());
+
+		assert_eq!(
+			Authoring::authors(&read),
+			vec![
+				(json!("from-only"), Value::Null, Value::Null),
+				(json!("from-and-sender"), json!(GUEST), json!(GUEST_EMAIL)),
+			]
+		);
 	});
 }
