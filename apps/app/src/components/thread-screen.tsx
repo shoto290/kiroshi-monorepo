@@ -102,6 +102,7 @@ import {
 	toRuns,
 	toTranscriptRows,
 } from "@/lib/chat/screen-model"
+import { type PersonOf, usePersonOf } from "@/lib/chat/thread-authorship"
 import {
 	type BotThread,
 	type ConversationThread,
@@ -729,22 +730,24 @@ type RunRowsProps = Omit<ThreadRunProps, "run" | "presentation"> & {
 	runs: TranscriptRow[][]
 	presentations: RunPresentation[]
 	isSentInMount: SentInMount["isSentInMount"]
+	personOf: PersonOf
 }
 
-const isSentByReader = (row: TranscriptRow) =>
-	row.role === "user" && !isPostedAnswer(row)
+const isSentByReader = (row: TranscriptRow, personOf: PersonOf) =>
+	row.role === "user" && !isPostedAnswer(row) && personOf(row) === undefined
 
 const toRunRows = ({
 	runs,
 	presentations,
 	isSentInMount,
+	personOf,
 	...shared
 }: RunRowsProps): TranscriptItem[] =>
 	runs.map((run, runIndex) => ({
 		key: bubbleIdOf(run[0].messageId, run[0].blockIndex),
 		messageIds: run.map((row) => bubbleIdOf(row.messageId, row.blockIndex)),
 		isAnchor: run.some(
-			(row) => isSentByReader(row) && isSentInMount(row.messageId),
+			(row) => isSentByReader(row, personOf) && isSentInMount(row.messageId),
 		),
 		render: () => (
 			<ThreadRun {...shared} presentation={presentations[runIndex]} run={run} />
@@ -1278,10 +1281,12 @@ const useThreadAnnotations = (
 		onLand: landOnMessage,
 		onTaken: landings.forget,
 	})
+	const personOf = usePersonOf()
 	const { faceOf, toExcerpt, toQuote } = useThreadNaming({
 		...roster,
 		reader,
 		unnamed: t("working.name"),
+		personOf,
 		isConversation: facts.conversation !== null,
 		onJump: jumpToMessage,
 	})
@@ -1303,6 +1308,7 @@ const useThreadAnnotations = (
 		liveMissionIds,
 		missions,
 		pinnedRows,
+		personOf,
 		pins,
 		quotes,
 		repliedToRefusal,
@@ -1468,6 +1474,7 @@ const threadRowsOf = (
 		installs,
 		liveMissionIds,
 		missions,
+		personOf,
 		pins,
 		quotes,
 		repliedToRefusal,
@@ -1492,6 +1499,7 @@ const threadRowsOf = (
 		isSentInMount,
 		onReply: holdReply,
 		onRetry: botController ? retry : undefined,
+		personOf,
 		pins,
 		presentations,
 		quotes,

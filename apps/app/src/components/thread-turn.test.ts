@@ -6,9 +6,17 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import "@workspace/ui/lib/i18n"
 
+import type { TurnState } from "@workspace/ui/components/turn"
+
 import { ThreadTurn } from "@/components/thread-turn"
 import { attachmentBlock } from "@/lib/chat/message-attachments"
 import type { TranscriptRow } from "@/lib/chat/screen-model"
+import {
+	HOSTED_SIGNED_OUT,
+	type MessageAuthorship,
+	type ThreadAuthorship,
+	ThreadAuthorshipContext,
+} from "@/lib/chat/thread-authorship"
 import type { TranscriptRole } from "@/lib/conversations/transcript-contract"
 
 afterEach(cleanup)
@@ -27,17 +35,36 @@ const rowOf = (role: TranscriptRole, text: string): TranscriptRow => ({
 	blockIndex: 0,
 	quotedMessageId: null,
 	authorBotId: role === "assistant" ? "bot-1" : null,
+	authorAccountId: null,
+	authorName: null,
 	role,
 	text,
 	timestamp: 1,
 	completion: "complete",
 })
 
-const renderTurn = (role: TranscriptRole, text: string) => {
+type TurnSetup = {
+	author?: MessageAuthorship
+	authorship?: ThreadAuthorship
+	state?: TurnState
+	onRetry?: (messageId: string) => void
+}
+
+const renderTurn = (
+	role: TranscriptRole,
+	text: string,
+	{
+		author,
+		authorship = HOSTED_SIGNED_OUT,
+		state = "complete",
+		onRetry,
+	}: TurnSetup = {},
+) => {
 	const props: ComponentProps<typeof ThreadTurn> = {
-		row: rowOf(role, text),
+		row: { ...rowOf(role, text), ...author },
 		anchor: "m-1",
-		state: "complete",
+		state,
+		onRetry,
 		pinned: false,
 		toQuote: () => ({
 			author: "",
@@ -48,7 +75,13 @@ const renderTurn = (role: TranscriptRole, text: string) => {
 		onPin: () => undefined,
 		onReply: () => undefined,
 	}
-	return render(createElement(ThreadTurn, props))
+	return render(
+		createElement(
+			ThreadAuthorshipContext.Provider,
+			{ value: authorship },
+			createElement(ThreadTurn, props),
+		),
+	)
 }
 
 const attachmentButtons = () =>
@@ -82,5 +115,100 @@ describe("a companion bubble carrying attachments", () => {
 		renderTurn("assistant", text)
 
 		expect(previewOf(FIRST_NAME)).toBe(personPreview)
+	})
+})
+
+const SELF = "account-self"
+
+const SIGNED_IN_HOSTING: ThreadAuthorship = {
+	accountId: SELF,
+	host: { kind: "hosted" },
+}
+
+const SIGNED_IN_JOINED: ThreadAuthorship = {
+	accountId: SELF,
+	host: { kind: "joined", name: "lea@example.com" },
+}
+
+const writtenBy = (
+	authorAccountId: string | null,
+	authorName: string | null = null,
+): MessageAuthorship => ({ authorAccountId, authorName })
+
+const shownBubble = () => screen.getByRole("article")
+
+describe("whose user message a bubble shows", () => {
+	it("draws the signed-in account's own message as mine", () => {
+		renderTurn("user", "hello", {
+			author: writtenBy(SELF, "Me"),
+			authorship: SIGNED_IN_JOINED,
+		})
+
+		expect(shownBubble().getAttribute("aria-label")).toBe("user message")
+	})
+
+	it("draws an unattributed message in a hosted space as mine", () => {
+		renderTurn("user", "hello", {
+			author: writtenBy(null),
+			authorship: SIGNED_IN_HOSTING,
+		})
+
+		expect(shownBubble().getAttribute("aria-label")).toBe("user message")
+	})
+
+	it("draws another account's message as that person, by name", () => {
+		renderTurn("user", "hello", {
+			author: writtenBy("account-tom", "Tom"),
+			authorship: SIGNED_IN_HOSTING,
+		})
+
+		expect(shownBubble().getAttribute("aria-label")).toBe("message from Tom")
+		expect(screen.getByText("Tom")).toBeTruthy()
+	})
+
+	it("draws an unattributed message in a joined space as its host", () => {
+		renderTurn("user", "hello", {
+			author: writtenBy(null),
+			authorship: SIGNED_IN_JOINED,
+		})
+
+		expect(shownBubble().getAttribute("aria-label")).toBe(
+			"message from lea@example.com",
+		)
+	})
+
+	it("names a person with no name like an unnamed companion", () => {
+		renderTurn("user", "hello", {
+			author: writtenBy("account-tom"),
+			authorship: SIGNED_IN_HOSTING,
+		})
+
+		expect(shownBubble().getAttribute("aria-label")).toBe(
+			"message from No name",
+		)
+	})
+
+	it("offers retry on the signed-in account's failed message only", () => {
+		const failing = (author: MessageAuthorship): TurnSetup => ({
+			author,
+			authorship: SIGNED_IN_HOSTING,
+			state: "failed",
+			onRetry: () => undefined,
+		})
+		renderTurn("user", "hello", failing(writtenBy(SELF)))
+		expect(screen.queryByRole("button", { name: "Retry" })).toBeTruthy()
+		cleanup()
+
+		renderTurn("user", "hello", failing(writtenBy("account-tom", "Tom")))
+		expect(screen.queryByRole("button", { name: "Retry" })).toBeNull()
+	})
+
+	it("draws a companion message the same in a joined space", () => {
+		renderTurn("assistant", "hello", {
+			author: writtenBy(null),
+			authorship: SIGNED_IN_JOINED,
+		})
+
+		expect(shownBubble().getAttribute("aria-label")).toBe("assistant message")
 	})
 })

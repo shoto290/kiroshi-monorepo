@@ -20,6 +20,8 @@ const rowOf = (
 	blockIndex: 0,
 	quotedMessageId: null,
 	authorBotId,
+	authorAccountId: null,
+	authorName: null,
 	role: authorBotId ? "assistant" : "user",
 	text: "said",
 	timestamp,

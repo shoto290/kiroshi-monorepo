@@ -181,6 +181,8 @@ const rowOf = (overrides: Partial<TranscriptRow>): TranscriptRow => ({
 	blockIndex: 0,
 	quotedMessageId: null,
 	authorBotId: null,
+	authorAccountId: null,
+	authorName: null,
 	role: "user",
 	text: "",
 	timestamp: 0,
