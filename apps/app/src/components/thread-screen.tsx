@@ -235,21 +235,24 @@ const WorkingBot = ({ face, work, ...stop }: WorkingBotProps) => (
 
 const UP_NEXT: WorkingState = { kind: "waiting", waitingOn: "next" }
 
+const writerOf = (row: TranscriptRow, personOf: PersonOf, reader: string) =>
+	(row.role === "user" && personOf(row)) || reader
+
 const toPinnedRow = (
 	{ id, bubble }: PinnedBubble,
 	face: ThreadFace | undefined,
-	reader: string,
+	writer: string,
 	toExcerpt: (text: string) => string,
 ): PinnedMessage => {
 	const isBotAuthor = bubble.role === "assistant" && face !== undefined
 
 	return {
 		id,
-		author: isBotAuthor ? face.name : reader,
+		author: isBotAuthor ? face.name : writer,
 		avatar: isBotAuthor ? (
 			<FaceAvatar face={face} size={PINNED_AVATAR_SIZE} />
 		) : (
-			<InitialsAvatar name={reader} size={PINNED_AVATAR_SIZE} />
+			<InitialsAvatar name={writer} size={PINNED_AVATAR_SIZE} />
 		),
 		timestamp: pinTimestamp(bubble.timestamp),
 		excerpt: toExcerpt(messageWithAttachments(bubble.text).text.trim()),
@@ -1294,9 +1297,14 @@ const useThreadAnnotations = (
 	const pinnedRows = useMemo(
 		() =>
 			pins.bubbles.map((shown) =>
-				toPinnedRow(shown, faceOf(shown.bubble.authorBotId), reader, toExcerpt),
+				toPinnedRow(
+					shown,
+					faceOf(shown.bubble.authorBotId),
+					writerOf(shown.bubble, personOf, reader),
+					toExcerpt,
+				),
 			),
-		[pins.bubbles, faceOf, reader, toExcerpt],
+		[pins.bubbles, faceOf, personOf, reader, toExcerpt],
 	)
 
 	return {

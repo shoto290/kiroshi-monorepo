@@ -1824,6 +1824,35 @@ describe("ThreadScreen", () => {
 		expect(raisedNotices(READ_TITLE)).toHaveLength(0)
 	})
 
+	it("names another person's pinned message after that person", async () => {
+		const pinned = message({
+			id: "m-tom",
+			conversationId: "c-bot-1",
+			role: "user",
+			content: "ship it",
+			authorAccountId: "account-tom",
+			authorName: "Tom",
+		})
+		const thread = threadOf({
+			id: "bot-1",
+			name: "Nyx",
+			said: "the first answer",
+			controller: stubController({
+				pins: async () => [{ message: pinned, blockIndex: 0, pinnedAt: 1 }],
+			}),
+		})
+		render(screenOf(thread))
+		await settle()
+		await press("Pinned messages, 1 pinned")
+
+		expect(
+			screen.getByRole("button", { name: "Jump to the message from Tom" }),
+		).toBeTruthy()
+		expect(
+			screen.queryByRole("button", { name: "Jump to the message from Reader" }),
+		).toBeNull()
+	})
+
 	it("tells the reader when the pinned messages could not be read", async () => {
 		const thread = threadOf({
 			id: "bot-1",
