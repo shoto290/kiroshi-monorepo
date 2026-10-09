@@ -160,6 +160,13 @@ pub(super) async fn bridged<R: Runtime>(
 	if !reach::stays_in_the_shared_space(&app, &shared_space_id, &call.command, &call.args).await {
 		return answer(call.id, StatusCode::FORBIDDEN, json!(OTHER_SPACE_REFUSAL));
 	}
+	if call.from.is_none() {
+		eprintln!(
+			"a member frame reached the host without from: {} in conversation {}",
+			call.command,
+			reach::conversation_of(&call.command, &call.args).unwrap_or("none")
+		);
+	}
 	let hosting = app.state::<Hosting>();
 	let vouched = call.from.clone().map(|user_id| {
 		hosting.relayed.vouch(RelayedMember { space_id: shared_space_id.clone(), user_id })
