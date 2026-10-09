@@ -89,7 +89,7 @@ pub(super) struct AvatarCall {
 	file: String,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RelayedAvatar {
 	pub(crate) content_type: String,

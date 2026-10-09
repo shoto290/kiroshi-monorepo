@@ -139,15 +139,15 @@ async fn avatar(State(proxy): State<Proxy>, Path(file): Path<String>) -> Respons
 	if answer.status != StatusCode::OK.as_u16() {
 		return answered(answer.status, answer.body);
 	}
-	let relayed = serde_json::from_value::<RelayedAvatar>(answer.body);
-	let Some((relayed, bytes)) =
-		relayed.ok().and_then(|relayed| relayed.bytes().map(|bytes| (relayed, bytes)))
+	let relayed = serde_json::from_value::<RelayedAvatar>(answer.body).ok();
+	let Some((bytes, content_type)) =
+		relayed.and_then(|relayed| Some((relayed.bytes()?, relayed.content_type)))
 	else {
 		eprintln!("a joined space proxy got an avatar from the host it could not read");
 		return UNREAD_AVATAR.into_response();
 	};
 	let headers = [
-		(header::CONTENT_TYPE, relayed.content_type.as_str()),
+		(header::CONTENT_TYPE, content_type.as_str()),
 		(header::X_CONTENT_TYPE_OPTIONS, NO_SNIFF),
 		(header::CONTENT_SECURITY_POLICY, INERT),
 	];
