@@ -63,7 +63,7 @@ pub(super) struct MemberCall {
 	id: Value,
 	command: String,
 	args: Value,
-	from: Option<String>,
+	sender: Option<String>,
 }
 
 pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
@@ -82,8 +82,9 @@ pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
 			Err(answer(id, StatusCode::FORBIDDEN, json!(HOST_ONLY_REFUSAL)))
 		}
 		(Some(id), Some(command), Some(args)) => {
-			let from = frame.get("from").and_then(Value::as_str).map(str::to_owned);
-			Ok(MemberCall { id, command: command.to_owned(), args, from })
+			let sender =
+				frame.pointer("/sender/accountId").and_then(Value::as_str).map(str::to_owned);
+			Ok(MemberCall { id, command: command.to_owned(), args, sender })
 		}
 		(id, _, _) => Err(refused(id)),
 	}
@@ -160,15 +161,15 @@ pub(super) async fn bridged<R: Runtime>(
 	if !reach::stays_in_the_shared_space(&app, &shared_space_id, &call.command, &call.args).await {
 		return answer(call.id, StatusCode::FORBIDDEN, json!(OTHER_SPACE_REFUSAL));
 	}
-	if call.from.is_none() {
+	if call.sender.is_none() {
 		eprintln!(
-			"a member frame reached the host without from: {} in conversation {}",
+			"a member frame reached the host without sender: {} in conversation {}",
 			call.command,
 			reach::conversation_of(&call.command, &call.args).unwrap_or("none")
 		);
 	}
 	let hosting = app.state::<Hosting>();
-	let vouched = call.from.clone().map(|user_id| {
+	let vouched = call.sender.clone().map(|user_id| {
 		hosting.relayed.vouch(RelayedMember { space_id: shared_space_id.clone(), user_id })
 	});
 	match invoked(&local, &call, vouched.as_ref().map(|vouched| vouched.nonce.as_str())).await {
@@ -316,8 +317,23 @@ mod tests {
 				id: json!(3),
 				command: "agent_models".to_owned(),
 				args: json!({}),
-				from: None,
+				sender: None,
 			})
+		);
+	}
+
+	#[test]
+	fn a_call_names_the_account_of_its_sender_and_never_of_its_from() {
+		let sent = |frame: Value| member_call(&frame.to_string()).map(|call| call.sender);
+
+		assert_eq!(
+			sent(json!({ "id": 1, "command": "agent_models", "sender": { "accountId": "a1" } })),
+			Ok(Some("a1".to_owned()))
+		);
+		assert_eq!(sent(json!({ "id": 2, "command": "agent_models", "from": "a2" })), Ok(None));
+		assert_eq!(
+			sent(json!({ "id": 3, "command": "agent_models", "sender": { "accountId": 3 } })),
+			Ok(None)
 		);
 	}
 
