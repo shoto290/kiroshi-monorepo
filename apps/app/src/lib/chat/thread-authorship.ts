@@ -54,7 +54,8 @@ export type PersonOf = (author: MessageAuthorship) => string | undefined
 
 export const usePersonOf = (): PersonOf => {
 	const authorship = useContext(ThreadAuthorshipContext)
-	const unnamed = useChatCopy()("working.name")
+	const t = useChatCopy()
+	const unnamed = t("working.name")
 	return useCallback(
 		(author: MessageAuthorship) => personNameOf(authorship, author, unnamed),
 		[authorship, unnamed],
