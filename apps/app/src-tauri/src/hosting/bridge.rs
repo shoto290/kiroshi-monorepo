@@ -1,11 +1,15 @@
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
+
+use base64::prelude::{Engine as _, BASE64_STANDARD};
 
 use reqwest::header::CONTENT_TYPE;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Manager, Runtime};
+use tokio::sync::{Mutex, OwnedMutexGuard};
 
 use super::reach::{self, Reach};
 
@@ -26,15 +30,13 @@ pub(crate) const SHARED_SPACE_COMMAND: &str = "relay_shared_space";
 
 pub(crate) const AVATAR_COMMAND: &str = "relay_avatar";
 
-const MAX_AVATAR_BYTES: u64 = 1536 * 1024;
+const MAX_AVATAR_BYTES: u64 = 1024 * 1024;
 
 const NO_AVATAR: &str = "no avatar of the shared space bears this name";
 
 const AVATAR_TOO_LARGE: &str = "the avatar is too large to cross the relay";
 
 const AVATAR_UNREAD: &str = "the avatar was not read";
-
-const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
 
 #[derive(Clone)]
 pub struct LocalApi {
@@ -93,30 +95,17 @@ pub(super) struct AvatarCall {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RelayedAvatar {
 	pub(crate) content_type: String,
-	hex: String,
+	base64: String,
 }
 
 impl RelayedAvatar {
 	fn of(content_type: String, bytes: &[u8]) -> Self {
-		let mut hex = String::with_capacity(bytes.len() * 2);
-		for byte in bytes {
-			hex.push(char::from(HEX_DIGITS[usize::from(byte >> 4)]));
-			hex.push(char::from(HEX_DIGITS[usize::from(byte & 0x0f)]));
-		}
-		Self { content_type, hex }
+		Self { content_type, base64: BASE64_STANDARD.encode(bytes) }
 	}
 
 	pub(crate) fn bytes(&self) -> Option<Vec<u8>> {
-		let digits = self.hex.as_bytes();
-		if !digits.len().is_multiple_of(2) {
-			return None;
-		}
-		digits.chunks(2).map(|pair| Some(nibble(pair[0])? << 4 | nibble(pair[1])?)).collect()
+		BASE64_STANDARD.decode(&self.base64).ok()
 	}
-}
-
-fn nibble(digit: u8) -> Option<u8> {
-	char::from(digit).to_digit(16).and_then(|value| u8::try_from(value).ok())
 }
 
 pub(super) fn avatar_call(text: &str) -> Option<Result<AvatarCall, String>> {
@@ -192,45 +181,52 @@ async fn invoked(local: &LocalApi, call: &MemberCall) -> Result<(StatusCode, Val
 	Ok((status, body_of(&body)))
 }
 
+pub(super) struct AvatarAnswer {
+	pub(super) frame: String,
+	pub(super) turn: OwnedMutexGuard<()>,
+}
+
 pub(super) async fn avatar_bridged<R: Runtime>(
 	app: AppHandle<R>,
 	local: LocalApi,
 	shared_space_id: String,
+	turn: Arc<Mutex<()>>,
 	call: AvatarCall,
-) -> String {
+) -> AvatarAnswer {
 	let state = app.state::<DatabaseState>();
 	let (Ok(database), Some(dir)) = (state.as_ref(), Avatars::dir(&app)) else {
 		eprintln!("a relayed avatar was not read: the database or the data directory is missing");
-		return answer(
-			call.id,
-			StatusCode::INTERNAL_SERVER_ERROR,
-			json!({ "error": AVATAR_UNREAD }),
-		);
+		let frame =
+			answer(call.id, StatusCode::INTERNAL_SERVER_ERROR, json!({ "error": AVATAR_UNREAD }));
+		return AvatarAnswer { frame, turn: turn.lock_owned().await };
 	};
-	let (status, body) = relayed_avatar(database, &dir, &local, shared_space_id, &call.file).await;
-	answer(call.id, status, body)
+	let ((status, body), turn) =
+		relayed_avatar(database, &dir, &local, turn, shared_space_id, &call.file).await;
+	AvatarAnswer { frame: answer(call.id, status, body), turn }
 }
 
 async fn relayed_avatar(
 	database: &Database,
 	dir: &Path,
 	local: &LocalApi,
+	turn: Arc<Mutex<()>>,
 	shared_space_id: String,
 	file: &str,
-) -> (StatusCode, Value) {
+) -> ((StatusCode, Value), OwnedMutexGuard<()>) {
+	let turn = turn.lock_owned().await;
 	let recorded = dir.join(file).to_string_lossy().into_owned();
-	match database.space_children().holds_avatar(shared_space_id, recorded).await {
-		Ok(true) => {}
-		Ok(false) => return (StatusCode::NOT_FOUND, json!(NO_AVATAR)),
+	let relayed = match database.space_children().holds_avatar(shared_space_id, recorded).await {
+		Ok(true) => match fetched_avatar(local, file).await {
+			Ok(answer) => answer,
+			Err(reason) => (StatusCode::BAD_GATEWAY, json!({ "error": reason })),
+		},
+		Ok(false) => (StatusCode::NOT_FOUND, json!(NO_AVATAR)),
 		Err(failure) => {
 			eprintln!("a relayed avatar was not read: the avatar lookup failed: {failure:?}");
-			return (StatusCode::INTERNAL_SERVER_ERROR, json!({ "error": AVATAR_UNREAD }));
+			(StatusCode::INTERNAL_SERVER_ERROR, json!({ "error": AVATAR_UNREAD }))
 		}
-	}
-	match fetched_avatar(local, file).await {
-		Ok(answer) => answer,
-		Err(reason) => (StatusCode::BAD_GATEWAY, json!({ "error": reason })),
-	}
+	};
+	(relayed, turn)
 }
 
 async fn fetched_avatar(local: &LocalApi, file: &str) -> Result<(StatusCode, Value), String> {
@@ -283,6 +279,7 @@ fn answer(id: Value, status: StatusCode, body: Value) -> String {
 #[cfg(test)]
 mod tests {
 	use std::path::Path;
+	use std::sync::atomic::{AtomicUsize, Ordering};
 
 	use super::*;
 
@@ -467,21 +464,38 @@ mod tests {
 	}
 
 	#[test]
-	fn a_relayed_avatar_gives_back_the_bytes_it_carried_and_nothing_from_bad_hex() {
+	fn a_relayed_avatar_gives_back_the_bytes_it_carried_and_nothing_from_bad_base64() {
 		let bytes: Vec<u8> = (0..=u8::MAX).collect();
 		let relayed = RelayedAvatar::of("image/png".to_owned(), &bytes);
 
 		assert_eq!(relayed.bytes(), Some(bytes));
-		for hex in ["0", "zz", "+f"] {
+		for base64 in ["A", "!!!!", "iVBORw0KGgo"] {
 			let broken =
-				RelayedAvatar { content_type: "image/png".to_owned(), hex: hex.to_owned() };
-			assert_eq!(broken.bytes(), None, "{hex}");
+				RelayedAvatar { content_type: "image/png".to_owned(), base64: base64.to_owned() };
+			assert_eq!(broken.bytes(), None, "{base64}");
+		}
+	}
+
+	#[derive(Default)]
+	struct Reads {
+		started: AtomicUsize,
+		in_flight: AtomicUsize,
+		peak: AtomicUsize,
+	}
+
+	impl Reads {
+		async fn counted(&self) {
+			self.started.fetch_add(1, Ordering::SeqCst);
+			let in_flight = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+			self.peak.fetch_max(in_flight, Ordering::SeqCst);
+			tokio::time::sleep(Duration::from_millis(30)).await;
+			self.in_flight.fetch_sub(1, Ordering::SeqCst);
 		}
 	}
 
 	struct FakeLocalApi {
 		local: LocalApi,
-		reads: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+		reads: Arc<Reads>,
 	}
 
 	async fn a_local_api() -> FakeLocalApi {
@@ -489,23 +503,21 @@ mod tests {
 
 		use axum::extract::Path as Segment;
 		use axum::response::IntoResponse;
-		use std::sync::atomic::{AtomicUsize, Ordering};
-		use std::sync::Arc;
 
-		let reads = Arc::new(AtomicUsize::new(0));
+		let reads = Arc::new(Reads::default());
 		let counted = reads.clone();
 		let router = axum::Router::new().route(
 			AVATAR_PATH,
-			axum::routing::get(move |Segment(file): Segment<String>| {
-				counted.fetch_add(1, Ordering::SeqCst);
-				async move {
-					let png = [(axum::http::header::CONTENT_TYPE, "image/png")];
-					match file.as_str() {
-						"held.png" => (png, PNG.to_vec()).into_response(),
-						"huge.png" => (png, vec![0; MAX_AVATAR_BYTES as usize + 1]).into_response(),
-						_ => (axum::http::StatusCode::NOT_FOUND, "no file answers this path")
-							.into_response(),
-					}
+			axum::routing::get(move |Segment(file): Segment<String>| async move {
+				counted.counted().await;
+				let png = [(axum::http::header::CONTENT_TYPE, "image/png")];
+				let max = MAX_AVATAR_BYTES as usize;
+				match file.as_str() {
+					"held.png" | "also.png" | "third.png" => (png, PNG.to_vec()).into_response(),
+					"max.png" => (png, vec![0; max]).into_response(),
+					"huge.png" => (png, vec![0; max + 1]).into_response(),
+					_ => (axum::http::StatusCode::NOT_FOUND, "no file answers this path")
+						.into_response(),
 				}
 			}),
 		);
@@ -537,19 +549,21 @@ mod tests {
 
 	#[tokio::test]
 	async fn an_avatar_crosses_only_when_a_companion_of_the_space_wears_it_and_it_fits() {
-		use std::sync::atomic::Ordering;
-
 		let database = crate::db::open(&crate::db::connection::temp_dir());
 		let shared = database.spaces().create("Shared".to_owned()).await.expect("a space").id;
 		let other = database.spaces().create("Other".to_owned()).await.expect("a space").id;
 		let dir = Path::new("/avatars");
-		for held in ["held.png", "huge.png", "gone.png"] {
+		for held in ["held.png", "max.png", "huge.png", "gone.png"] {
 			a_bot_wearing(&database, &shared, &dir.join(held)).await;
 		}
 		a_bot_wearing(&database, &other, &dir.join("foreign.png")).await;
 		let api = a_local_api().await;
-		let relayed =
-			|file: &'static str| relayed_avatar(&database, dir, &api.local, shared.clone(), file);
+		let turn = Arc::new(Mutex::new(()));
+		let relayed = |file: &'static str| {
+			let answered =
+				relayed_avatar(&database, dir, &api.local, turn.clone(), shared.clone(), file);
+			async { answered.await.0 }
+		};
 
 		let (status, body) = relayed("held.png").await;
 		assert_eq!(status, StatusCode::OK);
@@ -559,12 +573,13 @@ mod tests {
 			("image/png", Some(PNG.to_vec()))
 		);
 
+		assert_eq!(relayed("max.png").await.0, StatusCode::OK);
 		assert_eq!(
 			relayed("huge.png").await,
 			(StatusCode::PAYLOAD_TOO_LARGE, json!(AVATAR_TOO_LARGE))
 		);
 		assert_eq!(relayed("gone.png").await.0, StatusCode::NOT_FOUND);
-		let reads_before_refusals = api.reads.load(Ordering::SeqCst);
+		let reads_before_refusals = api.reads.started.load(Ordering::SeqCst);
 
 		for refused in ["foreign.png", "unknown.png", "../held.png"] {
 			assert_eq!(
@@ -573,6 +588,30 @@ mod tests {
 				"{refused}"
 			);
 		}
-		assert_eq!(api.reads.load(Ordering::SeqCst), reads_before_refusals);
+		assert_eq!(api.reads.started.load(Ordering::SeqCst), reads_before_refusals);
+	}
+
+	#[tokio::test]
+	async fn avatars_asked_at_once_are_read_one_at_a_time_and_all_answered() {
+		let database = crate::db::open(&crate::db::connection::temp_dir());
+		let shared = database.spaces().create("Shared".to_owned()).await.expect("a space").id;
+		let dir = Path::new("/avatars");
+		let files = ["held.png", "also.png", "third.png"];
+		for file in files {
+			a_bot_wearing(&database, &shared, &dir.join(file)).await;
+		}
+		let api = a_local_api().await;
+		let turn = Arc::new(Mutex::new(()));
+
+		let statuses = futures_util::future::join_all(files.map(|file| {
+			let answered =
+				relayed_avatar(&database, dir, &api.local, turn.clone(), shared.clone(), file);
+			async { answered.await.0 .0 }
+		}))
+		.await;
+
+		assert_eq!(statuses, [StatusCode::OK; 3]);
+		assert_eq!(api.reads.started.load(Ordering::SeqCst), 3);
+		assert_eq!(api.reads.peak.load(Ordering::SeqCst), 1);
 	}
 }

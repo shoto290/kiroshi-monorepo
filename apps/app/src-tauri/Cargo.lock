@@ -2304,6 +2304,7 @@ name = "kiroshi-app"
 version = "0.23.3"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "chrono",
  "croner",
  "futures-util",

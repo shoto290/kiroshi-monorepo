@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::stream::SplitSink;
@@ -8,7 +9,7 @@ use tauri::http::{header, HeaderValue};
 use tauri::{AppHandle, Manager, Runtime};
 use tokio::net::TcpStream;
 use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::watch;
+use tokio::sync::{watch, Mutex};
 use tokio::task::JoinSet;
 use tokio::time::{interval_at, sleep, timeout, Instant};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
@@ -260,9 +261,12 @@ async fn online<R: Runtime>(
 	let mut guest_events = reach::GuestEvents::new(ids.space_id);
 	let mut pings = interval_at(Instant::now() + PING_EVERY, PING_EVERY);
 	let mut invokes = JoinSet::new();
+	let mut avatars = JoinSet::new();
+	let avatar_turn = Arc::new(Mutex::new(()));
 	let silence = sleep(SILENCE_BOUND);
 	tokio::pin!(silence);
 	loop {
+		let mut held_turn = None;
 		let outgoing = tokio::select! {
 			_ = stop.changed() => return closed(&mut sink, ids).await,
 			frame = stream.next() => {
@@ -273,7 +277,7 @@ async fn online<R: Runtime>(
 						continue;
 					}
 					Received::Avatar(call) => {
-						invokes.spawn(bridge::avatar_bridged(app.clone(), local.clone(), ids.space_id.to_owned(), call));
+						avatars.spawn(bridge::avatar_bridged(app.clone(), local.clone(), ids.space_id.to_owned(), avatar_turn.clone(), call));
 						continue;
 					}
 					Received::Answer(answer) => Message::text(answer),
@@ -285,6 +289,16 @@ async fn online<R: Runtime>(
 				Ok(answer) => Message::text(answer),
 				Err(failure) => {
 					eprintln!("a relayed invoke of space {} ended abnormally: {failure}", ids.space_id);
+					continue;
+				}
+			},
+			Some(answer) = avatars.join_next(), if !avatars.is_empty() => match answer {
+				Ok(answer) => {
+					held_turn = Some(answer.turn);
+					Message::text(answer.frame)
+				}
+				Err(failure) => {
+					eprintln!("a relayed avatar of space {} ended abnormally: {failure}", ids.space_id);
 					continue;
 				}
 			},
@@ -309,6 +323,7 @@ async fn online<R: Runtime>(
 		if let Err(reason) = sent(&mut sink, outgoing).await {
 			return Ended::Dropped(reason);
 		}
+		drop(held_turn);
 	}
 }
 

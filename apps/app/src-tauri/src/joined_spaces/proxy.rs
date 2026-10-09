@@ -30,6 +30,8 @@ use crate::routines::webhook::named_here;
 const HOST_OFFLINE: (StatusCode, &str) =
 	(StatusCode::SERVICE_UNAVAILABLE, "the host of this space is offline");
 
+const IMMUTABLE: &str = "private, max-age=31536000, immutable";
+
 const UNREAD_AVATAR: (StatusCode, &str) =
 	(StatusCode::BAD_GATEWAY, "the host relayed an avatar that could not be read");
 
@@ -150,6 +152,7 @@ async fn avatar(State(proxy): State<Proxy>, Path(file): Path<String>) -> Respons
 		(header::CONTENT_TYPE, content_type.as_str()),
 		(header::X_CONTENT_TYPE_OPTIONS, NO_SNIFF),
 		(header::CONTENT_SECURITY_POLICY, INERT),
+		(header::CACHE_CONTROL, IMMUTABLE),
 	];
 	(headers, bytes).into_response()
 }
@@ -206,7 +209,10 @@ mod tests {
 				assert_eq!(frame["command"], AVATAR_COMMAND);
 				let (status, body) = match frame["args"]["file"].as_str() {
 					Some("held.png") => {
-						(200, json!({ "contentType": "image/png", "hex": "89504e470d0a1a0a" }))
+						(200, json!({ "contentType": "image/png", "base64": "iVBORw0KGgo=" }))
+					}
+					Some("broken.png") => {
+						(200, json!({ "contentType": "image/png", "base64": "not base64" }))
 					}
 					Some("huge.png") => (413, json!("the avatar is too large to cross the relay")),
 					_ => (404, json!("no avatar of the shared space bears this name")),
@@ -244,12 +250,14 @@ mod tests {
 		assert_eq!(by_query.status(), StatusCode::OK);
 		assert_eq!(by_query.headers()[header::CONTENT_TYPE], "image/png");
 		assert_eq!(by_query.headers()[header::X_CONTENT_TYPE_OPTIONS], NO_SNIFF);
+		assert_eq!(by_query.headers()[header::CACHE_CONTROL], IMMUTABLE);
 		assert_eq!(by_query.bytes().await.expect("the bytes").as_ref(), PNG);
 
 		for (file, status) in [
 			("held.png", StatusCode::OK),
 			("foreign.png", StatusCode::NOT_FOUND),
 			("huge.png", StatusCode::PAYLOAD_TOO_LARGE),
+			("broken.png", StatusCode::BAD_GATEWAY),
 		] {
 			let by_bearer = client
 				.get(avatar_url(&origin, file))
@@ -258,6 +266,8 @@ mod tests {
 				.await
 				.expect("an answer");
 			assert_eq!(by_bearer.status(), status, "{file}");
+			let cache_control = by_bearer.headers().get(header::CACHE_CONTROL);
+			assert_eq!(cache_control.is_some(), status == StatusCode::OK, "{file}");
 		}
 	}
 
