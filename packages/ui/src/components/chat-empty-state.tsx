@@ -6,6 +6,7 @@ import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
 import { Button } from "@workspace/ui/components/ui/button"
+import { cn } from "@workspace/ui/lib/utils"
 
 type ChatEmptyStateStatus = "ready" | "unavailable" | "notConnected"
 
@@ -31,6 +32,7 @@ function ChatEmptyState({
 	blot,
 	seed,
 	image,
+	className,
 	...props
 }: ChatEmptyStateProps) {
 	const { t } = useTranslation("chat")
@@ -68,6 +70,7 @@ function ChatEmptyState({
 	return (
 		<EmptyStateShell
 			action={actions[status]}
+			className={cn("m-auto", className)}
 			data-slot="chat-empty-state"
 			data-status={status}
 			description={t(`emptyState.${status}.description`)}
