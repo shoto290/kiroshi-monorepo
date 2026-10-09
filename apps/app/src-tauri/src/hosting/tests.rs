@@ -2901,7 +2901,12 @@ fn every_later_write_on_a_relayed_guest_message_or_its_turn_leaves_its_author_un
 			"conversation_complete_turn",
 			json!({ "id": "relayed", "completedAt": 3 }),
 		);
-		let pin = json!({ "conversationId": conversation_id, "messageId": "relayed", "blockIndex": 0, "pinnedAt": 4 });
+		let pin = json!({
+			"conversationId": conversation_id,
+			"messageId": "relayed",
+			"blockIndex": 0,
+			"pinnedAt": 4,
+		});
 		host.relayed(json!({
 			"id": 2,
 			"command": "conversation_pin_message",
