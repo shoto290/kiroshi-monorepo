@@ -993,6 +993,18 @@ pub async fn agent_shutdown<R: Runtime>(
 }
 
 #[cfg(test)]
+pub(crate) fn a_live_run<R: Runtime>(app: &AppHandle<R>, scope: RuntimeScope) -> impl TurnSink {
+	let live = Arc::new(Live::default());
+	live.take_over(scope.clone());
+	RunSink { app: app.clone(), scope, live, records_its_own_lineage: false }
+}
+
+#[cfg(test)]
+pub(crate) fn a_host_wide_announce<R: Runtime>(app: &AppHandle<R>, event: AgentEvent) {
+	announce(app, None, event);
+}
+
+#[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::db::repositories::runtime_context::RuntimeSessionStatus;
