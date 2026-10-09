@@ -1428,11 +1428,33 @@ export function createChatController(
 		}
 	}
 
+	const answerForeign = async (
+		bot: BotChat,
+		scope: RuntimeScope,
+		id: string,
+		send: () => Promise<void>,
+	) => {
+		try {
+			await send()
+			foreignTurns.release(scope, id)
+			botsShowing(scope.conversationId).forEach(showForeignTurn)
+		} catch (reason) {
+			report(bot, reason)
+		}
+	}
+
 	const respond = async (
 		bot: BotChat,
 		id: string,
 		decision: PermissionDecision,
 	) => {
+		const foreign = foreignTurns.scopeAsking(id)
+		if (foreign) {
+			await answerForeign(bot, foreign, id, () =>
+				driver.respondToPermission(foreign, id, decision),
+			)
+			return
+		}
 		const runtime = bot.state.runtime
 		if (!runtime) {
 			return
@@ -1614,6 +1636,13 @@ export function createChatController(
 	}
 
 	const answer = async (bot: BotChat, id: string, answers: QuestionAnswers) => {
+		const foreign = foreignTurns.scopeAsking(id)
+		if (foreign) {
+			await answerForeign(bot, foreign, id, () =>
+				driver.answerQuestion(foreign, id, answers),
+			)
+			return
+		}
 		const posted = pendingPostOf(bot, id)
 		if (posted) {
 			await answerPosted(bot, posted, answers)

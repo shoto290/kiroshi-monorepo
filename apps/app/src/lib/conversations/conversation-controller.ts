@@ -412,10 +412,34 @@ export const createConversationController = (
 		return [...localSpeakingBots(), ...foreign.values()]
 	}
 
-	const oldestPrompt = (): PendingPrompt | null =>
+	const localPrompt = (): PendingPrompt | null =>
 		runningSpeakers()
 			.filter((held) => held.pending !== null)
 			.sort((left, right) => left.askedAt - right.askedAt)[0]?.pending ?? null
+
+	const foreignPromptOf = ({
+		scope,
+		permission,
+		question,
+	}: ForeignSpeaker): PendingPrompt | null => {
+		if (permission) {
+			return { kind: "permission", botId: scope.botId, request: permission }
+		}
+		return question
+			? { kind: "question", botId: scope.botId, request: question }
+			: null
+	}
+
+	const foreignPrompt = (): PendingPrompt | null =>
+		conversation
+			? (foreignTurns
+					.speakersIn(conversation.id)
+					.map(foreignPromptOf)
+					.find((prompt) => prompt !== null) ?? null)
+			: null
+
+	const oldestPrompt = (): PendingPrompt | null =>
+		localPrompt() ?? foreignPrompt()
 
 	const sync = () => {
 		settle({
@@ -1277,7 +1301,28 @@ export const createConversationController = (
 	const speakerAsked = (id: string) =>
 		[...speakers.values()].find((held) => held.pending?.request.id === id)
 
+	const answerForeign = async (
+		scope: RuntimeScope,
+		id: string,
+		send: () => Promise<void>,
+	) => {
+		try {
+			await send()
+			foreignTurns.release(scope, id)
+		} catch (reason) {
+			noteSpeakerFailure(scope.botId, toTransportError(reason))
+		}
+		sync()
+	}
+
 	const answer = async (id: string, answers: QuestionAnswers) => {
+		const foreign = foreignTurns.scopeAsking(id)
+		if (foreign) {
+			await answerForeign(foreign, id, () =>
+				driver.answerQuestion(foreign, id, answers),
+			)
+			return
+		}
 		const held = speakerAsked(id)
 		const pending = held?.pending
 		if (!held?.scope || pending?.kind !== "question") {
@@ -1295,6 +1340,13 @@ export const createConversationController = (
 	}
 
 	const respond = async (id: string, decision: PermissionDecision) => {
+		const foreign = foreignTurns.scopeAsking(id)
+		if (foreign) {
+			await answerForeign(foreign, id, () =>
+				driver.respondToPermission(foreign, id, decision),
+			)
+			return
+		}
 		const held = speakerAsked(id)
 		if (!held?.scope) {
 			return

@@ -5,6 +5,8 @@ import type {
 	ActivityEvent,
 	AgentEvent,
 	ChatMessage,
+	PermissionRequest,
+	QuestionRequest,
 	RuntimeScope,
 	TurnState,
 } from "../agent/contract"
@@ -21,6 +23,8 @@ export type ForeignSpeaker = {
 	activities: ActivityEvent[]
 	startedAt: number
 	hasWritten: boolean
+	permission: PermissionRequest | null
+	question: QuestionRequest | null
 }
 
 type ForeignTurn = {
@@ -40,6 +44,8 @@ export type ForeignTurns = {
 	claim: (scope: RuntimeScope) => void
 	render: (scope: RuntimeScope, event: AgentEvent) => void
 	speakersIn: (conversationId: string) => ForeignSpeaker[]
+	scopeAsking: (id: string) => RuntimeScope | null
+	release: (scope: RuntimeScope, id: string) => void
 }
 
 const keyOf = ({ runtimeSessionId, epoch }: RuntimeScope) =>
@@ -101,8 +107,27 @@ export const createForeignTurns = (
 			activities: [],
 			startedAt: now(),
 			hasWritten: turn.hasWritten,
+			permission: null,
+			question: null,
 		}
 	}
+
+	const askPermission = (turn: ForeignTurn, permission: PermissionRequest) => {
+		openSpeaker(turn)
+		reviseSpeaker(turn, (speaker) => ({ ...speaker, permission }))
+	}
+
+	const askQuestion = (turn: ForeignTurn, question: QuestionRequest) => {
+		openSpeaker(turn)
+		reviseSpeaker(turn, (speaker) => ({ ...speaker, question }))
+	}
+
+	const releasePrompt = (turn: ForeignTurn, id: string) =>
+		reviseSpeaker(turn, (speaker) => ({
+			...speaker,
+			permission: speaker.permission?.id === id ? null : speaker.permission,
+			question: speaker.question?.id === id ? null : speaker.question,
+		}))
 
 	const noteActivity = (turn: ForeignTurn, activity: ActivityEvent) => {
 		openSpeaker(turn)
@@ -210,6 +235,12 @@ export const createForeignTurns = (
 				return noteTurnState(turn, event.state)
 			case "activity":
 				return noteActivity(turn, event.activity)
+			case "permissionRequested":
+				return askPermission(turn, event.request)
+			case "questionRequested":
+				return askQuestion(turn, event.request)
+			case "permissionResolved":
+				return releasePrompt(turn, event.id)
 			case "turnEnded":
 				return end(turn, ENDING_FOR_OUTCOME[event.ended.outcome])
 			case "failed":
@@ -233,5 +264,16 @@ export const createForeignTurns = (
 			[...turns.values()].flatMap(({ scope, speaker }) =>
 				speaker && scope.conversationId === conversationId ? speaker : [],
 			),
+		scopeAsking: (id) =>
+			[...turns.values()].find(
+				({ speaker }) =>
+					speaker?.permission?.id === id || speaker?.question?.id === id,
+			)?.scope ?? null,
+		release: (scope, id) => {
+			const turn = turns.get(keyOf(scope))
+			if (turn) {
+				releasePrompt(turn, id)
+			}
+		},
 	}
 }
