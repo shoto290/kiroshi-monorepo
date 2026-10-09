@@ -382,12 +382,14 @@ describe("toActivityMissions", () => {
 		expect(formatter?.resolvedOptions().locale).toBe("fr")
 	})
 
-	it("leaves out a mission whose companion the conversation does not name", () => {
+	it("still lists a mission whose companion the conversation does not name", () => {
 		const { open } = rowsOf({
 			open: [{ ...missionIn("working"), botId: "b-unknown" }],
 		})
 
-		expect(open).toEqual([])
+		expect(open.map(({ identity }) => identity)).toEqual([
+			{ id: "b-unknown", name: "Unknown companion" },
+		])
 	})
 
 	it("reads a run that reported today as a row of the group", () => {

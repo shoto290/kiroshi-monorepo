@@ -195,6 +195,7 @@ import {
 import {
 	type LiveMissionIds,
 	type MissionCardRead,
+	missionFaceOf,
 	toMissionCard,
 	toMissionHeaderActivity,
 } from "@/lib/missions/missions-model"
@@ -331,11 +332,11 @@ const ThreadHeader = ({
 	onJumpToPin,
 	onUnpin,
 }: ThreadHeaderProps) => {
-	const missionFace = mission
-		? present.find(({ id }) => id === mission.mission.botId)
-		: undefined
-
-	if (mission && missionFace) {
+	if (mission) {
+		const missionFace = missionFaceOf(
+			(botId) => present.find(({ id }) => id === botId),
+			mission.mission.botId,
+		)
 		return (
 			<MissionHeader
 				{...toMissionHeaderActivity(mission.mission)}
@@ -918,24 +919,18 @@ const missionCardRowsAfter = ({
 	onOpen,
 	wrap,
 }: MissionCardRowsProps): RowsAfterRun =>
-	rowsPlacedAfter(placed, ({ mission }) => {
-		const identity = faceOf(mission.botId)
-		if (!identity) {
-			return []
-		}
-		return [
-			toMissionCardRow({
-				mission,
-				identity,
-				author: authors.get(mission.botId),
-				state: mission.state,
-				isWorking: liveMissionIds.has(mission.id),
-				now,
-				onOpen,
-				wrap,
-			}),
-		]
-	})
+	rowsPlacedAfter(placed, ({ mission }) => [
+		toMissionCardRow({
+			mission,
+			identity: missionFaceOf(faceOf, mission.botId),
+			author: authors.get(mission.botId),
+			state: mission.state,
+			isWorking: liveMissionIds.has(mission.id),
+			now,
+			onOpen,
+			wrap,
+		}),
+	])
 
 type MissionEventRowsProps = {
 	placed: PlacedMissionEvent[]

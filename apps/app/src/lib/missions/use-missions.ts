@@ -5,6 +5,8 @@ import type { Mission, MissionChanged } from "./mission-contract"
 import { withMissionChange } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
 
+import { useReachableHost } from "@/lib/host/use-reachable-host"
+
 const NO_MISSIONS: Mission[] = []
 
 const withChangeApplied =
@@ -33,13 +35,14 @@ export const useMissions = (
 	const [closed, setClosed] = useState<Mission[]>(NO_MISSIONS)
 	const [hasFailed, setFailed] = useState(false)
 	const reads = useRef(0)
+	const host = useReachableHost()
 
 	const reload = useCallback(() => {
-		if (!conversationId) {
+		reads.current += 1
+		if (!conversationId || !host) {
 			return
 		}
 
-		reads.current += 1
 		const ticket = reads.current
 
 		missionsTransport.list(conversationId).then(
@@ -58,7 +61,7 @@ export const useMissions = (
 				}
 			},
 		)
-	}, [conversationId])
+	}, [conversationId, host])
 
 	useEffect(reload, [reload])
 

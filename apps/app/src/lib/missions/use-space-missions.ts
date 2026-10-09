@@ -10,6 +10,8 @@ import {
 } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
 
+import { useReachableHost } from "@/lib/host/use-reachable-host"
+
 type HeldSpaceMissions = {
 	spaceId: string
 	closedSince: number
@@ -47,11 +49,12 @@ export const useSpaceMissions = (spaceId: string | null): SpaceMissionsView => {
 	const [held, setHeld] = useState<HeldSpaceMissions | null>(null)
 	const [failedSpaceId, setFailedSpaceId] = useState<string | null>(null)
 	const reads = useRef(0)
+	const host = useReachableHost()
 
 	const reload = useCallback(() => {
 		reads.current += 1
 		setFailedSpaceId(null)
-		if (!spaceId) {
+		if (!spaceId || !host) {
 			return
 		}
 
@@ -73,7 +76,7 @@ export const useSpaceMissions = (spaceId: string | null): SpaceMissionsView => {
 				}
 			},
 		)
-	}, [spaceId])
+	}, [spaceId, host])
 
 	useEffect(reload, [reload])
 
