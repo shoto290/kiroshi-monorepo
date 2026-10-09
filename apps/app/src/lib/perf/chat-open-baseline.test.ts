@@ -400,7 +400,7 @@ describe("PRF5 chat open baseline", () => {
 		expect(await measureOpenings(0)).toMatchInlineSnapshot(`
 			{
 			  "busyOpen": {
-			    "commits": 6,
+			    "commits": 5,
 			    "elapsedMs": 0,
 			    "storeCalls": [
 			      "pinnedMessages",
@@ -411,7 +411,7 @@ describe("PRF5 chat open baseline", () => {
 			    "writesAhead": 0,
 			  },
 			  "coldOpen": {
-			    "commits": 6,
+			    "commits": 5,
 			    "elapsedMs": 0,
 			    "storeCalls": [
 			      "pinnedMessages",
@@ -450,7 +450,7 @@ describe("PRF5 chat open baseline", () => {
 			    "writesAhead": 0,
 			  },
 			  "coldOpen": {
-			    "commits": 7,
+			    "commits": 6,
 			    "elapsedMs": 10,
 			    "storeCalls": [
 			      "pinnedMessages",
@@ -475,8 +475,8 @@ describe("PRF5 chat open baseline", () => {
 
 		expect(await measurePage()).toMatchInlineSnapshot(`
 			{
-			  "commitsToFirstRow": 6,
-			  "commitsToSettled": 13,
+			  "commitsToFirstRow": 5,
+			  "commitsToSettled": 12,
 			  "highlightCalls": 10,
 			  "highlighterBuilds": 0,
 			  "markdownProcessors": 32,
