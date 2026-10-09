@@ -8,8 +8,8 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use super::contract::{
-	AgentEvent, AskedQuestion, ChatMessage, MessageCompletion, MessageRole, QuestionOption,
-	QuestionRequest, RuntimeScope, SubmittedTurn, TurnOutcome, TurnState,
+	AgentEvent, AskedQuestion, ChatMessage, EventTurn, MessageCompletion, MessageRole,
+	QuestionOption, QuestionRequest, RuntimeScope, SubmittedTurn, TurnOutcome, TurnState,
 };
 use super::session::EventSink;
 use super::translate::now_ms;
@@ -113,6 +113,10 @@ enum Entry {
 	Event(AgentEvent),
 }
 
+pub trait TurnSink: Send + Sync + 'static {
+	fn emit(&self, event: AgentEvent, turn: Option<EventTurn>);
+}
+
 pub struct ReplyWriter {
 	entries: mpsc::UnboundedSender<Entry>,
 }
@@ -123,7 +127,7 @@ impl ReplyWriter {
 		scope: &RuntimeScope,
 		owned: Arc<HostWrites>,
 		attachments: Arc<TurnAttachments>,
-		inner: Arc<dyn EventSink>,
+		inner: Arc<dyn TurnSink>,
 	) -> Self {
 		let (entries, queued) = mpsc::unbounded_channel();
 		let store = Store {
@@ -169,8 +173,9 @@ async fn write_then_forward<R: Runtime>(
 			Entry::Submitted(turn) => desk.open_turn(turn).await,
 			Entry::Withdrawn => desk.end(TerminalState::Failed).await,
 			Entry::Event(event) => {
+				let turn = desk.open_turn_named();
 				desk.record(&event).await;
-				desk.inner.emit(event);
+				desk.inner.emit(event, turn);
 			}
 		}
 	}
@@ -217,10 +222,21 @@ struct Desk<R: Runtime> {
 	store: Store<R>,
 	turn: Option<OpenTurn>,
 	attachments: Arc<TurnAttachments>,
-	inner: Arc<dyn EventSink>,
+	inner: Arc<dyn TurnSink>,
 }
 
 impl<R: Runtime> Desk<R> {
+	fn named(&self, turn_id: &str) -> EventTurn {
+		EventTurn {
+			turn_id: turn_id.to_owned(),
+			conversation_id: self.store.conversation_id.clone(),
+		}
+	}
+
+	fn open_turn_named(&self) -> Option<EventTurn> {
+		self.turn.as_ref().map(|turn| self.named(&turn.id))
+	}
+
 	async fn open_turn(&mut self, turn: SubmittedTurn) {
 		self.end(TerminalState::Cancelled).await;
 		match self.store.start_turn(&turn.turn_id).await {
@@ -398,6 +414,7 @@ impl<R: Runtime> Desk<R> {
 			return;
 		}
 		let sent_at = Utc::now();
+		let named = Some(self.named(&turn.id));
 		match &turn.last_reply {
 			Some(id) => {
 				let written = turn.written.get(id).map(String::as_str).unwrap_or_default();
@@ -406,9 +423,12 @@ impl<R: Runtime> Desk<R> {
 					return self.store.report(id, &error);
 				}
 				let ending = turn.endings.get(id).copied().unwrap_or(TerminalState::Complete);
-				self.inner.emit(AgentEvent::MessageCompleted {
-					message: reply_of(id, shown, completion_of(ending)),
-				});
+				self.inner.emit(
+					AgentEvent::MessageCompleted {
+						message: reply_of(id, shown, completion_of(ending)),
+					},
+					named,
+				);
 			}
 			None => {
 				let id = Uuid::new_v4().to_string();
@@ -416,12 +436,18 @@ impl<R: Runtime> Desk<R> {
 				if let Err(error) = self.store.write_settled(turn, &id, &shown).await {
 					return self.store.report(&id, &error);
 				}
-				self.inner.emit(AgentEvent::MessageStarted {
-					message: reply_of(&id, String::new(), MessageCompletion::Streaming),
-				});
-				self.inner.emit(AgentEvent::MessageCompleted {
-					message: reply_of(&id, shown, MessageCompletion::Complete),
-				});
+				self.inner.emit(
+					AgentEvent::MessageStarted {
+						message: reply_of(&id, String::new(), MessageCompletion::Streaming),
+					},
+					named.clone(),
+				);
+				self.inner.emit(
+					AgentEvent::MessageCompleted {
+						message: reply_of(&id, shown, MessageCompletion::Complete),
+					},
+					named,
+				);
 			}
 		}
 	}
@@ -686,6 +712,20 @@ mod tests {
 		MessageRole, MessageState, NewUserMessage, StoredMessage,
 	};
 
+	type Heard = (AgentEvent, Option<EventTurn>);
+
+	impl TurnSink for mpsc::UnboundedSender<Heard> {
+		fn emit(&self, event: AgentEvent, turn: Option<EventTurn>) {
+			self.send((event, turn)).expect("the test is listening");
+		}
+	}
+
+	struct Unheard;
+
+	impl TurnSink for Unheard {
+		fn emit(&self, _event: AgentEvent, _turn: Option<EventTurn>) {}
+	}
+
 	struct Written {
 		app: App<MockRuntime>,
 		conversation_id: String,
@@ -717,10 +757,10 @@ mod tests {
 		}
 
 		fn desk(&self) -> Desk<MockRuntime> {
-			self.desk_telling(Arc::new(mpsc::unbounded_channel().0))
+			self.desk_telling(Arc::new(Unheard))
 		}
 
-		fn desk_telling(&self, inner: Arc<dyn EventSink>) -> Desk<MockRuntime> {
+		fn desk_telling(&self, inner: Arc<dyn TurnSink>) -> Desk<MockRuntime> {
 			let store = Store {
 				app: self.app.handle().clone(),
 				conversation_id: self.conversation_id.clone(),
@@ -731,7 +771,11 @@ mod tests {
 		}
 
 		async fn forwarded(&self, entries: Vec<Entry>) -> Vec<AgentEvent> {
-			let (told, mut heard) = mpsc::unbounded_channel();
+			self.forwarded_with_turns(entries).await.into_iter().map(|(event, _)| event).collect()
+		}
+
+		async fn forwarded_with_turns(&self, entries: Vec<Entry>) -> Vec<Heard> {
+			let (told, mut heard) = mpsc::unbounded_channel::<Heard>();
 			let (queue, queued) = mpsc::unbounded_channel();
 			for entry in entries {
 				queue.send(entry).expect("the entry is queued");
@@ -1224,7 +1268,7 @@ mod tests {
 		let written = Written::new("attach-unstored").await;
 		written.prompt("t1", "p1").await;
 		let spoken = a_spoken_turn();
-		let (told, mut heard) = mpsc::unbounded_channel();
+		let (told, mut heard) = mpsc::unbounded_channel::<Heard>();
 		let mut desk = written.desk_telling(Arc::new(told));
 		desk.open_turn(submitted("t1", "p1")).await;
 		for event in &spoken[..3] {
@@ -1241,6 +1285,59 @@ mod tests {
 		desk.record(&turn_ended()).await;
 
 		assert!(heard.try_recv().is_err(), "a block that was not stored was told");
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn every_event_of_an_open_turn_names_that_turn_and_its_conversation() {
+		let written = Written::new("turn-named").await;
+		written.prompt("t1", "p1").await;
+		let after_the_end = AgentEvent::TurnChanged { state: TurnState::Idle };
+		let mut events = a_spoken_turn();
+		events.push(after_the_end.clone());
+
+		let heard = written.forwarded_with_turns(entries_of(&events)).await;
+
+		let named = Some(EventTurn {
+			turn_id: "t1".to_owned(),
+			conversation_id: written.conversation_id.clone(),
+		});
+		let (spoken, after) = heard.split_at(heard.len() - 1);
+		assert!(spoken.iter().any(|(event, _)| matches!(event, AgentEvent::MessageDelta { .. })));
+		assert!(spoken.iter().any(|(event, _)| *event == turn_ended()));
+		assert!(spoken.iter().all(|(_, turn)| *turn == named), "{spoken:?}");
+		assert_eq!(after, [(after_the_end, None)]);
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn a_run_submitted_without_a_turn_names_no_turn() {
+		let written = Written::new("turn-unnamed").await;
+
+		let heard = written
+			.forwarded_with_turns(a_spoken_turn().into_iter().map(Entry::Event).collect())
+			.await;
+
+		assert_eq!(heard.len(), a_spoken_turn().len());
+		assert!(heard.iter().all(|(_, turn)| turn.is_none()), "{heard:?}");
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn a_withdrawn_turn_names_no_turn_on_the_events_that_follow() {
+		let written = Written::new("turn-withdrawn").await;
+		written.prompt("t1", "p1").await;
+		let late = AgentEvent::TurnChanged { state: TurnState::Idle };
+
+		let heard = written
+			.forwarded_with_turns(vec![
+				Entry::Submitted(submitted("t1", "p1")),
+				Entry::Withdrawn,
+				Entry::Event(late.clone()),
+			])
+			.await;
+
+		assert_eq!(heard, [(late, None)]);
 		written.close();
 	}
 }

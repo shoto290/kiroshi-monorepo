@@ -1,6 +1,7 @@
 import type {
 	AgentCommand_Serialize,
 	ConnectionState,
+	EventTurn,
 	TransportError as HostTransportError,
 	Json,
 	PermissionDecision,
@@ -12,6 +13,7 @@ export type {
 	AgentCommand_Serialize as AgentCommand,
 	CheckReport_Serialize as CheckReport,
 	ConnectionState,
+	EventTurn,
 	LiveSession,
 	PermissionDecision,
 	RuntimeScope,
@@ -105,6 +107,7 @@ export type TurnEnded = {
 
 export type ScopedEvent = {
 	scope: RuntimeScope | null
+	turn?: EventTurn
 	event: AgentEvent
 }
 

@@ -11,7 +11,7 @@ import type { TranscriptStore } from "./store-port"
 import type { TranscriptMessage } from "./transcript-contract"
 import { message, seatBots } from "./transcript-fixtures"
 
-import type { AgentEvent, RuntimeScope } from "../agent/contract"
+import type { AgentEvent, EventTurn, RuntimeScope } from "../agent/contract"
 import { agentTransport } from "../agent/transport"
 import { useRosterReloads } from "../bots/use-roster-reloads"
 import { createChatController } from "../chat/chat-controller"
@@ -141,6 +141,11 @@ const foreignScope = (conversationId: string): RuntimeScope => ({
 	botId: BOT,
 	runtimeSessionId: "run-of-another-window",
 	epoch: 1,
+})
+
+const storedTurn = (conversationId: string): EventTurn => ({
+	turnId: "turn-of-another-window",
+	conversationId,
 })
 
 const streamed = (id: string, text: string): AgentEvent[] => [
@@ -278,16 +283,17 @@ describe("a solo conversation fed by every writer", () => {
 	it("renders live a turn another window started", async () => {
 		const { controller, detach, conversationId } = await openSoloChat()
 		const scope = foreignScope(conversationId)
+		const turn = storedTurn(conversationId)
 
 		for (const event of streamed("elsewhere-1", "Hello from elsewhere")) {
-			await emitLocally("agent://event", { scope, event })
+			await emitLocally("agent://event", { scope, turn, event })
 		}
 
 		expect(assistantRowsOf(controller.getState())).toMatchObject([
 			{ content: "Hello from elsewhere", completion: "streaming" },
 		])
 
-		await emitLocally("agent://event", { scope, event: TURN_ENDED })
+		await emitLocally("agent://event", { scope, turn, event: TURN_ENDED })
 
 		expect(assistantRowsOf(controller.getState())).toMatchObject([
 			{ content: "Hello from elsewhere", completion: "complete" },
@@ -322,8 +328,9 @@ describe("a solo conversation fed by every writer", () => {
 		expect(contentsOf(controller.getState())).toContain("Local echo")
 
 		const scope = foreignScope(conversationId)
+		const turn = storedTurn(conversationId)
 		for (const event of streamed("hosted-1", "Typed on the host")) {
-			await emitOnHost("agent://event", { scope, event })
+			await emitOnHost("agent://event", { scope, turn, event })
 		}
 
 		expect(contentsOf(controller.getState())).toContain("Typed on the host")
@@ -375,9 +382,10 @@ describe("a room fed by every writer", () => {
 	it("renders live a turn another window started", async () => {
 		const { controller, detach, botId, conversationId } = await openRoom()
 		const scope = { ...foreignScope(conversationId), botId }
+		const turn = storedTurn(conversationId)
 
 		for (const event of [...streamed("elsewhere-2", "Room echo"), TURN_ENDED]) {
-			await emitLocally("agent://event", { scope, event })
+			await emitLocally("agent://event", { scope, turn, event })
 		}
 
 		expect(assistantRowsOf(controller.getState())).toMatchObject([
@@ -487,8 +495,9 @@ describe("a foreign reply the conversation then stores", () => {
 		async (_, open) => {
 			const { store, controller, detach, botId, conversationId } = await open()
 			const scope = { ...foreignScope(conversationId), botId }
+			const turn = storedTurn(conversationId)
 			for (const event of [...streamed("foreign-reply", "Echo"), TURN_ENDED]) {
-				await emitLocally("agent://event", { scope, event })
+				await emitLocally("agent://event", { scope, turn, event })
 			}
 			const prompt = await repliedElsewhere(store, {
 				conversationId,
@@ -503,6 +512,50 @@ describe("a foreign reply the conversation then stores", () => {
 			expect(assistantRowsOf(controller.getState())).toMatchObject([
 				{ content: "Echo", completion: "complete" },
 			])
+			detach()
+		},
+	)
+})
+
+describe("a foreign event that names no stored turn of the shown conversation", () => {
+	const openers = [
+		["a solo conversation", openSoloChat],
+		["a room", openRoom],
+	] as const
+
+	it.each(openers)(
+		"renders nothing in %s from a mission run that stores no turn",
+		async (_, open) => {
+			const { controller, detach, botId, conversationId } = await open()
+			const scope = { ...foreignScope(conversationId), botId }
+
+			for (const event of [
+				...streamed("mission-1", "Mission work"),
+				TURN_ENDED,
+			]) {
+				await emitLocally("agent://event", { scope, event })
+			}
+
+			expect(assistantRowsOf(controller.getState())).toEqual([])
+			detach()
+		},
+	)
+
+	it.each(openers)(
+		"renders nothing in %s from a turn stored in another conversation",
+		async (_, open) => {
+			const { controller, detach, botId, conversationId } = await open()
+			const scope = { ...foreignScope(conversationId), botId }
+			const turn = storedTurn("another-conversation")
+
+			for (const event of [
+				...streamed("elsewhere-3", "Not here"),
+				TURN_ENDED,
+			]) {
+				await emitLocally("agent://event", { scope, turn, event })
+			}
+
+			expect(assistantRowsOf(controller.getState())).toEqual([])
 			detach()
 		},
 	)

@@ -308,7 +308,16 @@ pub struct LiveSession {
 #[serde(rename_all = "camelCase")]
 pub struct ScopedEvent {
 	pub scope: Option<RuntimeScope>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub turn: Option<EventTurn>,
 	pub event: AgentEvent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct EventTurn {
+	pub turn_id: String,
+	pub conversation_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]

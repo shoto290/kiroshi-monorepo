@@ -56,6 +56,7 @@ import type {
 	QuestionAnswers,
 	QuestionRequest,
 	RuntimeScope,
+	ScopedEvent,
 	SessionHandle,
 	TransportError,
 } from "../agent/contract"
@@ -591,18 +592,19 @@ export function createChatController(
 			(bot) => bot.state.conversationId === conversationId,
 		)
 
-	const renderForeign = (scope: RuntimeScope | null, event: AgentEvent) => {
-		if (scope && isShowing(scope.conversationId)) {
+	const renderForeign = ({ scope, turn, event }: ScopedEvent) => {
+		if (scope && turn && isShowing(turn.conversationId)) {
 			foreignTurns.render(scope, event)
 		}
 	}
 
-	const route = (scope: RuntimeScope | null, event: AgentEvent) => {
+	const route = (scoped: ScopedEvent) => {
+		const { scope, event } = scoped
 		const owners = [...bots.values()].filter((bot) =>
 			isSameRuntimeScope(scope, bot.state.runtime),
 		)
 		if (owners.length === 0) {
-			renderForeign(scope, event)
+			renderForeign(scoped)
 			return
 		}
 		for (const bot of owners) {
@@ -622,7 +624,7 @@ export function createChatController(
 			botsShowing(conversationId).forEach(reloadPage),
 		)
 		stopReconnections = onReconnected(() => bots.forEach(reloadPage))
-		detach = driver.subscribe(({ scope, event }) => route(scope, event))
+		detach = driver.subscribe((scoped) => route(scoped))
 		return detach
 	}
 

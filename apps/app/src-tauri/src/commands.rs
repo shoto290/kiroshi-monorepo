@@ -23,6 +23,7 @@ pub fn builder() -> Builder<tauri::Wry> {
 		.typ::<hosting::contract::MembersChanged>()
 		.typ::<invitations::contract::InvitationsChanged>()
 		.typ::<joined_spaces::commands::JoinedSpaceRemoved>()
+		.typ::<agent::contract::EventTurn>()
 }
 
 // `tauri::test::mock_builder` only ever yields a `Builder<MockRuntime>`, so the handler the

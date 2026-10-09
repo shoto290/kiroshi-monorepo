@@ -47,6 +47,7 @@ import type {
 	QuestionAnswers,
 	QuestionRequest,
 	RuntimeScope,
+	ScopedEvent,
 	TransportError,
 } from "../agent/contract"
 import type { ChatError } from "../chat/chat-state"
@@ -759,13 +760,13 @@ export const createConversationController = (
 	const isOpenConversation = (conversationId: string) =>
 		conversationId === conversation?.id
 
-	const route = (scope: RuntimeScope | null, event: AgentEvent) => {
+	const route = ({ scope, turn, event }: ScopedEvent) => {
 		const held = speakerAt(scope)
 		if (held) {
 			apply(held, event)
 			return
 		}
-		if (scope && isOpenConversation(scope.conversationId)) {
+		if (scope && turn && isOpenConversation(turn.conversationId)) {
 			foreignTurns.render(scope, event)
 		}
 	}
@@ -820,7 +821,7 @@ export const createConversationController = (
 		stopArrivals = onCompanionArrived(announce)
 		stopStoredMessages = onMessageStored(reloadStoredPage)
 		stopReconnections = onReconnected(() => void reloadOpenPage())
-		detach = driver.subscribe(({ scope, event }) => route(scope, event))
+		detach = driver.subscribe((scoped) => route(scoped))
 		return detach
 	}
 
