@@ -7,13 +7,6 @@ import { signedInAccountIdOf } from "../account/use-account"
 import type { SpaceHost, ThreadAuthorship } from "../chat/thread-authorship"
 import { openJoinedSpaceOf } from "../spaces/joined-spaces-controller"
 
-const ownAccountIdsWith = (accountId: string | null): string[] => {
-	const remembered = storedOwnAccounts.list()
-	return accountId && !remembered.includes(accountId)
-		? [...remembered, accountId]
-		: remembered
-}
-
 export const useThreadAuthorship = ({
 	account,
 	joinedSpaces,
@@ -28,7 +21,7 @@ export const useThreadAuthorship = ({
 		const open = openJoinedSpaceOf(joined, openId, selectedSpaceId)
 		const host: SpaceHost = open
 			? { kind: "joined", name: hostEmailOf(open.id) }
-			: { kind: "hosted", ownAccountIds: ownAccountIdsWith(accountId) }
+			: { kind: "hosted", ownAccountIds: storedOwnAccounts.list() }
 		return { accountId, host }
 	}, [accountId, joined, openId, selectedSpaceId, hostEmailOf])
 }
