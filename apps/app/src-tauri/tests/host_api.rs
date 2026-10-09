@@ -70,10 +70,6 @@ impl Host {
 		self.dir.join("host").join("token")
 	}
 
-	fn web_link_path(&self) -> PathBuf {
-		self.dir.join("host").join("web-link.txt")
-	}
-
 	fn token(&self) -> String {
 		std::fs::read_to_string(self.token_path()).expect("the token is on disk")
 	}
@@ -851,24 +847,6 @@ async fn no_cors_header_is_given_outside_the_api() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn the_web_link_is_private_replaced_and_names_the_bound_port_and_the_token() {
-	let host = Host::new();
-	let path = host.web_link_path();
-	stored(&path, "stale");
-	let server = host.started();
-	let token = host.token();
-
-	let link = std::fs::read_to_string(&path).expect("the link is on disk");
-	let mode = std::fs::metadata(&path).expect("the link file").permissions().mode();
-
-	assert_eq!(
-		link,
-		format!("http://127.0.0.1:1420/#host=http://{}&token={token}\n", server.address())
-	);
-	assert_eq!(mode & 0o777, 0o600);
-}
-
-#[tokio::test(flavor = "multi_thread")]
 async fn only_an_svg_is_served_inert_and_every_file_unsniffed() {
 	let host = Host::new();
 	let server = host.started();
@@ -885,35 +863,4 @@ async fn only_an_svg_is_served_inert_and_every_file_unsniffed() {
 	for answer in [svg, png] {
 		assert_eq!(answer.header("x-content-type-options"), Some("nosniff"));
 	}
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn a_stale_web_link_is_removed_when_no_token_is_held() {
-	let host = Host::new();
-	let link = host.web_link_path();
-	stored(&host.token_path(), " \n");
-	stored(&link, "stale");
-
-	let _server = host.started();
-
-	assert!(!link.exists());
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn the_share_link_command_answers_the_web_link_naming_the_space_then_none_once_stopped() {
-	let host = Host::new();
-	let window = host.window();
-	let server = host.started();
-	let written = std::fs::read_to_string(host.web_link_path()).expect("the link is on disk");
-
-	let up = direct(&window, "host_share_link", json!({ "spaceId": "personal" }));
-	let unknown = direct(&window, "host_share_link", json!({ "spaceId": "nowhere" }));
-	drop(server);
-	let down = direct(&window, "host_share_link", json!({ "spaceId": "personal" }));
-
-	let web_link = written.strip_suffix('\n').expect("the file ends with a newline");
-	let link = format!("{web_link}&space=personal&name=Personal");
-	assert_eq!(up, Ok(json!({ "kind": "up", "link": link })));
-	assert_eq!(unknown, Err(json!({ "kind": "unknownSpace", "id": "nowhere" })));
-	assert_eq!(down, Ok(json!({ "kind": "down" })));
 }

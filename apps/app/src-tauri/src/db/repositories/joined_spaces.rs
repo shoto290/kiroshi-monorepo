@@ -1,9 +1,9 @@
-use std::fmt;
 use std::sync::LazyLock;
 
 use rusqlite::types::Type;
 use rusqlite::{Connection, TransactionBehavior};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::settings::Settings;
 use crate::db::{Access, DatabaseError};
@@ -24,41 +24,18 @@ pub struct JoinedSpace {
 	pub name: String,
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum JoinedReach {
 	#[serde(rename_all = "camelCase")]
 	Relay { instance_id: String },
-	#[serde(rename_all = "camelCase")]
-	Link { host_url: String, token: String },
 }
 
 impl JoinedSpace {
 	fn reaches_the_same_space_as(&self, other: &JoinedSpace) -> bool {
-		match (&self.reach, &other.reach) {
-			(JoinedReach::Relay { instance_id }, JoinedReach::Relay { instance_id: other_id }) => {
-				instance_id == other_id
-			}
-			(JoinedReach::Link { host_url, .. }, JoinedReach::Link { host_url: other_url, .. }) => {
-				host_url == other_url && self.remote_space_id == other.remote_space_id
-			}
-			_ => false,
-		}
-	}
-}
-
-impl fmt::Debug for JoinedReach {
-	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match self {
-			JoinedReach::Relay { instance_id } => {
-				formatter.debug_struct("Relay").field("instance_id", instance_id).finish()
-			}
-			JoinedReach::Link { host_url, .. } => formatter
-				.debug_struct("Link")
-				.field("host_url", host_url)
-				.field("token", &"[redacted]")
-				.finish(),
-		}
+		let (JoinedReach::Relay { instance_id }, JoinedReach::Relay { instance_id: other_id }) =
+			(&self.reach, &other.reach);
+		instance_id == other_id
 	}
 }
 
@@ -155,7 +132,17 @@ fn stored_in(connection: &Connection) -> Result<Vec<JoinedSpace>, DatabaseError>
 	let Some(stored) = SETTINGS.read(connection, None, JOINED_SPACES_KEY)? else {
 		return Ok(Vec::new());
 	};
-	serde_json::from_str(&stored).map_err(|_| unreadable_list())
+	let records: Vec<Value> = serde_json::from_str(&stored).map_err(|_| unreadable_list())?;
+	records
+		.into_iter()
+		.filter(|record| !is_link_reached(record))
+		.map(|record| serde_json::from_value(record).map_err(|_| unreadable_list()))
+		.collect()
+}
+
+fn is_link_reached(record: &Value) -> bool {
+	["hostUrl", "token"].iter().all(|key| record.get(key).is_some())
+		&& record.get("instanceId").is_none()
 }
 
 fn write_in(connection: &Connection, joined: &[JoinedSpace]) -> Result<(), DatabaseError> {
@@ -174,17 +161,7 @@ mod tests {
 	use crate::db::connection::temp_dir;
 	use crate::db::{open, Database};
 
-	fn a_joined_space(id: &str, host_url: &str, remote_space_id: Option<&str>) -> JoinedSpace {
-		JoinedSpace {
-			id: id.to_owned(),
-			reach: JoinedReach::Link {
-				host_url: host_url.to_owned(),
-				token: format!("token-of-{id}"),
-			},
-			remote_space_id: remote_space_id.map(str::to_owned),
-			name: format!("name-of-{id}"),
-		}
-	}
+	const LINK_RECORD: &str = r#"{"id":"link","hostUrl":"http://link.test","token":"token-of-link","remoteSpaceId":null,"name":"name-of-link"}"#;
 
 	fn a_relay_space(id: &str, instance_id: &str) -> JoinedSpace {
 		JoinedSpace {
@@ -195,18 +172,27 @@ mod tests {
 		}
 	}
 
-	fn with_token(joined: JoinedSpace, token: &str) -> JoinedSpace {
-		let JoinedReach::Link { host_url, .. } = joined.reach else {
-			panic!("a link entry");
-		};
-		JoinedSpace { reach: JoinedReach::Link { host_url, token: token.to_owned() }, ..joined }
+	fn with_remote(joined: JoinedSpace, remote_space_id: &str) -> JoinedSpace {
+		JoinedSpace { remote_space_id: Some(remote_space_id.to_owned()), ..joined }
 	}
 
-	async fn write_raw(database: &Database, value: &'static str) {
+	async fn write_raw(database: &Database, value: String) {
 		database
-			.call(move |connection| SETTINGS.write(connection, None, JOINED_SPACES_KEY, value))
+			.call(move |connection| SETTINGS.write(connection, None, JOINED_SPACES_KEY, &value))
 			.await
 			.expect("the raw write");
+	}
+
+	async fn read_raw(database: &Database) -> Option<String> {
+		database
+			.call(|connection| SETTINGS.read(connection, None, JOINED_SPACES_KEY))
+			.await
+			.expect("the raw read")
+	}
+
+	async fn holding_a_link_and_a_relay_record(database: &Database) {
+		let relay = serde_json::to_string(&a_relay_space("relay", "instance-1")).expect("json");
+		write_raw(database, format!("[{LINK_RECORD},{relay}]")).await;
 	}
 
 	#[tokio::test]
@@ -223,8 +209,8 @@ mod tests {
 		{
 			let database = open(&dir);
 			for joined in [
-				a_joined_space("b", "http://b.test", None),
-				a_joined_space("a", "http://a.test", Some("space-a")),
+				a_relay_space("b", "instance-b"),
+				with_remote(a_relay_space("a", "instance-a"), "space-a"),
 			] {
 				database.joined_spaces().join(joined).await.expect("the join");
 			}
@@ -235,52 +221,68 @@ mod tests {
 		assert_eq!(
 			database.joined_spaces().list().await.expect("the list"),
 			vec![
-				a_joined_space("b", "http://b.test", None),
-				a_joined_space("a", "http://a.test", Some("space-a")),
+				a_relay_space("b", "instance-b"),
+				with_remote(a_relay_space("a", "instance-a"), "space-a"),
 			]
 		);
 	}
 
 	#[tokio::test]
-	async fn a_joined_space_reaching_a_stored_one_replaces_its_token_and_name_and_keeps_its_id() {
+	async fn a_joined_space_reaching_a_stored_one_replaces_its_name_and_keeps_its_id() {
 		let dir = temp_dir();
 		let database = open(&dir);
 		let repository = database.joined_spaces();
-		repository.join(a_joined_space("first", "http://a.test", Some("s"))).await.expect("first");
-		repository.join(a_joined_space("other", "http://a.test", None)).await.expect("other");
+		let first = with_remote(a_relay_space("first", "instance-a"), "s");
+		repository.join(first.clone()).await.expect("first");
+		repository.join(a_relay_space("other", "instance-b")).await.expect("other");
 
 		let joined = repository
 			.join(JoinedSpace {
 				name: "Fresh".to_owned(),
-				..with_token(a_joined_space("second", "http://a.test", Some("s")), "fresh-token")
+				..with_remote(a_relay_space("second", "instance-a"), "s")
 			})
 			.await
 			.expect("the second join");
 
-		let replaced = JoinedSpace {
-			name: "Fresh".to_owned(),
-			..with_token(a_joined_space("first", "http://a.test", Some("s")), "fresh-token")
-		};
+		let replaced = JoinedSpace { name: "Fresh".to_owned(), ..first };
 		assert_eq!(joined, replaced);
 		assert_eq!(
 			repository.list().await.expect("the list"),
-			vec![replaced, a_joined_space("other", "http://a.test", None)]
+			vec![replaced, a_relay_space("other", "instance-b")]
 		);
 	}
 
 	#[tokio::test]
-	async fn an_entry_written_before_relay_entries_reads_as_a_link_entry() {
+	async fn a_link_record_is_dropped_from_every_read_and_the_relay_record_beside_it_kept() {
 		let dir = temp_dir();
 		let database = open(&dir);
-		write_raw(
-			&database,
-			r#"[{"id":"a","hostUrl":"http://a.test","token":"token-of-a","remoteSpaceId":null,"name":"name-of-a"}]"#,
-		)
-		.await;
+		holding_a_link_and_a_relay_record(&database).await;
+		let repository = database.joined_spaces();
 
 		assert_eq!(
+			repository.list().await.expect("the list"),
+			vec![a_relay_space("relay", "instance-1")]
+		);
+		assert_eq!(repository.find("link".to_owned()).await.expect("the find"), None);
+		assert!(!repository.learned("link".to_owned(), "s".to_owned()).await.expect("learned"));
+		assert!(!repository.remove("link".to_owned()).await.expect("the removal"));
+	}
+
+	#[tokio::test]
+	async fn the_next_join_persists_the_list_without_the_link_record_nor_its_token() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		holding_a_link_and_a_relay_record(&database).await;
+
+		database.joined_spaces().join(a_relay_space("next", "instance-2")).await.expect("the join");
+
+		let stored = read_raw(&database).await.expect("the stored list");
+		for dropped in ["\"link\"", "http://link.test", "token-of-link"] {
+			assert!(!stored.contains(dropped), "{stored}");
+		}
+		assert_eq!(
 			database.joined_spaces().list().await.expect("the list"),
-			vec![a_joined_space("a", "http://a.test", None)]
+			vec![a_relay_space("relay", "instance-1"), a_relay_space("next", "instance-2")]
 		);
 	}
 
@@ -305,8 +307,7 @@ mod tests {
 
 		let expected = JoinedSpace {
 			name: "Renamed".to_owned(),
-			remote_space_id: Some("shared".to_owned()),
-			..a_relay_space("first", "instance-1")
+			..with_remote(a_relay_space("first", "instance-1"), "shared")
 		};
 		assert_eq!(rejoined, expected);
 		assert_eq!(repository.list().await.expect("the list"), vec![expected]);
@@ -318,27 +319,27 @@ mod tests {
 		let dir = temp_dir();
 		let database = open(&dir);
 		let repository = database.joined_spaces();
-		repository.join(a_joined_space("a", "http://a.test", None)).await.expect("a");
-		repository.join(a_joined_space("b", "http://b.test", None)).await.expect("b");
+		repository.join(a_relay_space("a", "instance-a")).await.expect("a");
+		repository.join(a_relay_space("b", "instance-b")).await.expect("b");
 
 		assert!(repository.remove("a".to_owned()).await.expect("the removal"));
 		assert!(!repository.remove("a".to_owned()).await.expect("the second removal"));
 		assert_eq!(
 			repository.list().await.expect("the list"),
-			vec![a_joined_space("b", "http://b.test", None)]
+			vec![a_relay_space("b", "instance-b")]
 		);
 	}
 
 	#[tokio::test]
-	async fn a_joined_space_is_found_by_its_id_with_its_token() {
+	async fn a_joined_space_is_found_by_its_id_with_its_instance() {
 		let dir = temp_dir();
 		let database = open(&dir);
 		let repository = database.joined_spaces();
-		repository.join(a_joined_space("a", "http://a.test", None)).await.expect("a");
+		repository.join(a_relay_space("a", "instance-a")).await.expect("a");
 
 		assert_eq!(
 			repository.find("a".to_owned()).await.expect("the find"),
-			Some(a_joined_space("a", "http://a.test", None))
+			Some(a_relay_space("a", "instance-a"))
 		);
 		assert_eq!(repository.find("z".to_owned()).await.expect("the find"), None);
 	}
@@ -347,23 +348,20 @@ mod tests {
 	async fn an_unreadable_joined_spaces_setting_fails_the_read_without_echoing_it() {
 		let dir = temp_dir();
 		let database = open(&dir);
-		write_raw(&database, r#"[{"token":"leaked-secret"}]"#).await;
+		for unreadable in [
+			r#"[{"token":"leaked-secret"}]"#.to_owned(),
+			format!(r#"{{"leaked":{LINK_RECORD}}}"#),
+			format!(r#"[{LINK_RECORD},{{"token":"leaked-secret"}}]"#),
+		] {
+			write_raw(&database, unreadable).await;
 
-		let failure = database.joined_spaces().list().await.expect_err("the read fails");
+			let failure = database.joined_spaces().list().await.expect_err("the read fails");
 
-		assert!(!format!("{failure:?}").contains("leaked-secret"));
-		assert!(database
-			.joined_spaces()
-			.join(a_joined_space("a", "http://a.test", None))
-			.await
-			.is_err());
-	}
-
-	#[test]
-	fn the_debug_output_of_a_joined_space_carries_no_token() {
-		let printed = format!("{:?}", a_joined_space("a", "http://a.test", None));
-
-		assert!(!printed.contains("token-of-a"));
-		assert!(printed.contains("http://a.test"));
+			let printed = format!("{failure:?}");
+			for secret in ["leaked-secret", "token-of-link", "http://link.test"] {
+				assert!(!printed.contains(secret), "{printed}");
+			}
+			assert!(database.joined_spaces().join(a_relay_space("a", "instance-a")).await.is_err());
+		}
 	}
 }

@@ -26,7 +26,7 @@ use crate::db::{self, DatabaseError, DatabaseState};
 use crate::environment::contract::{EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
 use crate::joined_spaces::commands::{
-	joined_space_add, joined_space_connect, CHANGED_EVENT as JOINED_CHANGED, REMOVED_EVENT,
+	joined_space_connect, CHANGED_EVENT as JOINED_CHANGED, REMOVED_EVENT,
 };
 use crate::joined_spaces::contract::{JoinedSpaceConnection, JoinedSpaceError};
 use crate::joined_spaces::relay::{reconciled, RelayGuests};
@@ -742,26 +742,22 @@ fn an_instance_the_relay_answers_404_on_open_removes_the_entry_with_the_removed_
 }
 
 #[test]
-fn sign_out_drops_the_relay_entries_and_keeps_the_direct_link_ones() {
+fn sign_out_drops_every_relay_entry_and_closes_the_proxy_of_the_connected_one() {
 	run(async {
 		let mut harness = Harness::new(Some(BEARER)).await;
 		let relay_id = harness.accepted().await;
 		let (connection, _member) = connected(&mut harness, &relay_id).await;
-		let link = joined_space_add(
-			harness.app.handle().clone(),
-			harness.app.state(),
-			"x#host=http://h.test&token=direct-token".to_owned(),
-			None,
-		)
-		.await
-		.expect("the direct link");
+		let state = harness.app.state::<DatabaseState>();
+		let joined_spaces = state.as_ref().expect("the database").joined_spaces();
+		let planted = a_relay_entry("planted-1", "i-planted", "Planted");
+		joined_spaces.join(planted).await.expect("the planted entry");
 
 		sign_out(harness.app.handle()).await.expect("the sign out");
 
 		let stored = harness.stored().await;
-		assert_eq!(stored.len(), 1);
-		assert_eq!(stored[0].id, link.id);
-		assert_eq!(harness.heard(JOINED_CHANGED).last(), Some(&json!({ "id": relay_id })));
+		assert!(stored.is_empty(), "{stored:?}");
+		let changed = harness.heard(JOINED_CHANGED);
+		assert!(changed.ends_with(&[json!({ "id": relay_id }), json!({ "id": "planted-1" })]));
 		assert!(harness.heard(REMOVED_EVENT).is_empty());
 		assert!(reqwest::Client::new()
 			.post(format!("{}/api/invoke/conversation_list", connection.host_url))
@@ -770,7 +766,6 @@ fn sign_out_drops_the_relay_entries_and_keeps_the_direct_link_ones() {
 			.await
 			.is_err());
 		assert!(!harness.every_payload().contains(BEARER));
-		assert!(!harness.every_payload().contains("direct-token"));
 	});
 }
 
@@ -1008,34 +1003,29 @@ fn a_held_entry_the_listing_omits_stops_its_guest_and_is_removed_with_both_event
 }
 
 #[test]
-fn a_link_entry_is_never_added_renamed_or_removed_by_the_memberships() {
+fn a_held_entry_keeps_its_id_and_learned_space_when_renamed_until_the_listing_omits_it() {
 	run(async {
 		let harness = Harness::new(Some(BEARER)).await;
-		let link = JoinedSpace {
-			id: "link-1".to_owned(),
-			reach: JoinedReach::Link {
-				host_url: "http://127.0.0.1:9".to_owned(),
-				token: "link-token".to_owned(),
-			},
+		let held = JoinedSpace {
 			remote_space_id: Some("remote-1".to_owned()),
-			name: "Linked".to_owned(),
+			..a_relay_entry("held-1", "i-held", "Held")
 		};
 		let state = harness.app.state::<DatabaseState>();
 		let joined_spaces = state.as_ref().expect("the database").joined_spaces();
-		joined_spaces.join(link.clone()).await.expect("the link entry");
+		joined_spaces.join(held.clone()).await.expect("the held entry");
 
+		harness.listing(json!([an_instance("i-held", "Renamed")]));
+		reconciled(harness.app.handle()).await;
+		let after_rename = harness.stored().await;
 		harness.listing(json!([]));
 		reconciled(harness.app.handle()).await;
-		let after_empty = harness.stored().await;
-		harness.listing(json!([an_instance("link-1", "Renamed")]));
-		reconciled(harness.app.handle()).await;
-		let stored = harness.stored().await;
 
-		assert_eq!(after_empty, vec![link.clone()]);
-		assert_eq!(stored[0], link);
-		assert_eq!(stored.len(), 2);
-		assert_eq!(stored[1], a_relay_entry(&stored[1].id, "link-1", "Renamed"));
-		assert!(harness.heard(REMOVED_EVENT).is_empty());
+		assert_eq!(after_rename, vec![JoinedSpace { name: "Renamed".to_owned(), ..held }]);
+		assert!(harness.stored().await.is_empty());
+		assert_eq!(
+			harness.heard(REMOVED_EVENT),
+			vec![json!({ "id": "held-1", "name": "Renamed" })]
+		);
 	});
 }
 

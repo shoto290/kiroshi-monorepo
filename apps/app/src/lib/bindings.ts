@@ -122,7 +122,6 @@ export const commands = {
 	envDelete: (scope: EnvScope_Deserialize, name: string) => typedError<null, EnvError>(__TAURI_INVOKE("env_delete", { scope, name })),
 	envList: (scope: EnvScope_Deserialize) => typedError<EnvEntry_Serialize[], EnvError>(__TAURI_INVOKE("env_list", { scope })),
 	connectionSet: (kind: ConnectionKind, value: string) => typedError<null, EnvError>(__TAURI_INVOKE("connection_set", { kind, value })),
-	hostShareLink: (spaceId: string) => typedError<ShareLink, SpaceError>(__TAURI_INVOKE("host_share_link", { spaceId })),
 	hostingStart: (spaceId: string) => typedError<HostingState, SpaceError>(__TAURI_INVOKE("hosting_start", { spaceId })),
 	hostingStop: (spaceId: string) => typedError<HostingState, SpaceError>(__TAURI_INVOKE("hosting_stop", { spaceId })),
 	hostingState: (spaceId: string) => __TAURI_INVOKE<HostingState>("hosting_state", { spaceId }),
@@ -134,7 +133,6 @@ export const commands = {
 	invitationAccept: (instanceId: string) => typedError<JoinedSpace, InvitationError>(__TAURI_INVOKE("invitation_accept", { instanceId })),
 	invitationDecline: (instanceId: string) => typedError<null, InvitationError>(__TAURI_INVOKE("invitation_decline", { instanceId })),
 	joinedSpacesList: () => typedError<JoinedSpace[], JoinedSpaceError>(__TAURI_INVOKE("joined_spaces_list")),
-	joinedSpaceAdd: (link: string, name: string | null) => typedError<JoinedSpace, JoinedSpaceError>(__TAURI_INVOKE("joined_space_add", { link, name })),
 	joinedSpaceConnect: (id: string) => typedError<JoinedSpaceConnection, JoinedSpaceError>(__TAURI_INVOKE("joined_space_connect", { id })),
 	joinedSpaceRemove: (id: string) => typedError<null, JoinedSpaceError>(__TAURI_INVOKE("joined_space_remove", { id })),
 	mcpOauthConnect: (owner: EnvOwner, name: string, url: string) => typedError<null, OauthError_Serialize>(__TAURI_INVOKE("mcp_oauth_connect", { owner, name, url })),
@@ -216,8 +214,6 @@ export const ARCHIVE_FILTER_NAME = "Kiroshi space" as const;
 export const HOSTING_CHANGED_EVENT = "hosting://changed" as const;
 
 export const HOSTING_MEMBERS_CHANGED_EVENT = "hosting://members-changed" as const;
-
-export const HOST_PRESENCE_EVENT = "host://presence" as const;
 
 export const INVITATION_CHANGED_EVENT = "invitation://changed" as const;
 
@@ -635,10 +631,6 @@ export type HistoryAuthor = "user" | "bot";
 
 export type HistoryFileChange = "added" | "modified" | "deleted" | "renamed";
 
-export type HostPresence = {
-	isUp: boolean,
-};
-
 export type HostingChanged = {
 	spaceId: string,
 	state: HostingState,
@@ -721,7 +713,7 @@ export type JoinedSpaceConnection = {
 	name: string,
 };
 
-export type JoinedSpaceError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "refusedLink"; part: LinkPart; message: string } | { kind: "unknownJoinedSpace"; id: string } | { kind: "undeliverable"; detail: string } | { kind: "hostOffline"; id: string } | { kind: "proxyUnavailable"; detail: string };
+export type JoinedSpaceError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "unknownJoinedSpace"; id: string } | { kind: "undeliverable"; detail: string } | { kind: "hostOffline"; id: string } | { kind: "proxyUnavailable"; detail: string };
 
 export type JoinedSpaceRemoved = {
 	id: string,
@@ -740,8 +732,6 @@ export type LaunchOutcome = {
 	created: CompanionCreated | null,
 	refused: CompanionSeedRefused | null,
 };
-
-export type LinkPart = "fragment" | "host" | "token";
 
 export type LiveSession = {
 	botId: string,
@@ -1160,8 +1150,6 @@ export type SectionError = { kind: "unavailable"; failure: StorageFailure } | { 
 export type SessionHandle = {
 	resumed: boolean,
 };
-
-export type ShareLink = { kind: "up"; link: string } | { kind: "down" };
 
 export type SidebarTab = "conversations" | "missions" | "companions" | "applications";
 

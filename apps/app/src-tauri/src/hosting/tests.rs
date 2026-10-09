@@ -31,16 +31,14 @@ use crate::account::session::restore;
 use crate::account::session::AccountSession;
 use crate::agent::protocol::OauthCredentials;
 use crate::db::connection::temp_dir;
-use crate::db::repositories::joined_spaces::JoinedReach;
+use crate::db::repositories::joined_spaces::{JoinedReach, JoinedSpace};
 use crate::db::repositories::messages::{MessagePageQuery, MessageRole, NewTurn};
 use crate::db::{self, DatabaseState};
 use crate::environment::connection;
 use crate::environment::contract::{ConnectionKind, EnvOwner, EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
 use crate::events;
-use crate::joined_spaces::commands::joined_space_add;
 use crate::joined_spaces::contract::JoinedSpaceConnection;
-use crate::joined_spaces::link::joined_space;
 use crate::joined_spaces::relay::RelayGuests;
 use crate::mcp_oauth::credentials;
 use crate::routines::webhook::{self, Webhook};
@@ -197,11 +195,12 @@ async fn joined_space_connected(
 	}
 	let id = args["id"].as_str().expect("a joined space id").to_owned();
 	let found = db::open(&database).joined_spaces().find(id).await.expect("the host reads");
-	let connection = found.map(|found| match found.reach.clone() {
-		JoinedReach::Link { host_url, token } => {
-			JoinedSpaceConnection::over(found, host_url, token)
-		}
-		JoinedReach::Relay { .. } => panic!("the host joined by link"),
+	let connection = found.map(|found| {
+		JoinedSpaceConnection::over(
+			found,
+			"http://h.test".to_owned(),
+			JOINED_SPACE_TOKEN.to_owned(),
+		)
 	});
 	answered_json(StatusCode::OK, json!(connection))
 }
@@ -238,11 +237,6 @@ async fn host_effect_applied(
 	let root = &effects.env_root;
 	let text = |key: &str| args[key].as_str().expect("a text argument").to_owned();
 	match command.as_str() {
-		"joined_space_add" => {
-			let candidate = joined_space(&text("link"), uuid::Uuid::new_v4().to_string(), None)
-				.expect("a joining link");
-			database.joined_spaces().join(candidate).await.expect("the host joins");
-		}
 		"joined_space_remove" => {
 			database.joined_spaces().remove(text("id")).await.expect("the host leaves");
 		}
@@ -456,6 +450,18 @@ impl Harness {
 		let hosting = state.as_ref().expect("the database").space_hosting();
 		let registration = hosting.registration(PERSONAL.to_owned()).await.expect("the row");
 		(registration.instance_id, hosting.hosted_space_ids().await.expect("the flags"))
+	}
+
+	async fn joined_a_space(&self) -> JoinedSpace {
+		let state = self.app.state::<DatabaseState>();
+		let candidate = JoinedSpace {
+			id: uuid::Uuid::new_v4().to_string(),
+			reach: JoinedReach::Relay { instance_id: "joined-instance".to_owned() },
+			remote_space_id: None,
+			name: "h.test".to_owned(),
+		};
+		let joined_spaces = state.as_ref().expect("the database").joined_spaces();
+		joined_spaces.join(candidate).await.expect("the host joins a space")
 	}
 
 	async fn plant(&self, instance_id: &str) {
@@ -830,11 +836,7 @@ fn a_relay_guest_cannot_delete_a_space_and_its_instance_registration() {
 fn a_relay_guest_cannot_read_the_stored_token_of_a_joined_space() {
 	run(async {
 		let harness = Harness::connecting_joined_spaces("joined-connect").await;
-		let link = format!("http://127.0.0.1:1420/#host=http://h.test&token={JOINED_SPACE_TOKEN}");
-		let joined =
-			joined_space_add(harness.app.handle().clone(), harness.app.state(), link, None)
-				.await
-				.expect("the host joins a space");
+		let joined = harness.joined_a_space().await;
 
 		let (refused, _) =
 			refused_with(harness, "joined_space_connect", json!({ "id": joined.id })).await;
@@ -843,30 +845,11 @@ fn a_relay_guest_cannot_read_the_stored_token_of_a_joined_space() {
 	});
 }
 
-const GUEST_LINK: &str = "http://127.0.0.1:1420/#host=http://guest.test&token=guest-token";
-
-#[test]
-fn a_relay_guest_cannot_add_a_joined_space_to_the_host() {
-	run(async {
-		let (harness, effects) = Harness::applying_host_effects("joined-add").await;
-
-		refused_with(harness, "joined_space_add", json!({ "link": GUEST_LINK, "name": null }))
-			.await;
-
-		let listed = db::open(&effects.database).joined_spaces().list().await.expect("listed");
-		assert!(listed.is_empty(), "{listed:?}");
-	});
-}
-
 #[test]
 fn a_relay_guest_cannot_remove_a_joined_space_of_the_host() {
 	run(async {
 		let (harness, effects) = Harness::applying_host_effects("joined-remove").await;
-		let link = format!("http://127.0.0.1:1420/#host=http://h.test&token={JOINED_SPACE_TOKEN}");
-		let joined =
-			joined_space_add(harness.app.handle().clone(), harness.app.state(), link, None)
-				.await
-				.expect("the host joins a space");
+		let joined = harness.joined_a_space().await;
 
 		refused_with(harness, "joined_space_remove", json!({ "id": joined.id })).await;
 
@@ -984,11 +967,6 @@ fn a_relay_guest_cannot_shut_the_host_agent_down() {
 
 		assert_eq!(effects.reached(), ["agent_models"]);
 	});
-}
-
-#[test]
-fn a_relay_guest_cannot_read_the_host_share_link() {
-	run(a_relay_guest_is_refused("host_share_link"));
 }
 
 #[test]
