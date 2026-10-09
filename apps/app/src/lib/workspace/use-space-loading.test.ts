@@ -442,9 +442,9 @@ describe("relaunching the app on a joined Space", () => {
 
 		await openHost()
 
-		const relayedIds = JSON.stringify(hostCalls)
-		expect(relayedIds).toContain(HOST_ROOM)
-		expect(relayedIds).not.toContain(LOCAL_ONLY_ROOM)
+		const relayedToHost = JSON.stringify(hostCalls)
+		expect(relayedToHost).toContain(HOST_ROOM)
+		expect(relayedToHost).not.toContain(LOCAL_ONLY_ROOM)
 		expect(localCalls).toEqual([])
 	})
 })
