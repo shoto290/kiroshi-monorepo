@@ -354,7 +354,7 @@ export const createJoinedHosts = ({
 		return host.invoke<T>(command, args)
 	}
 
-	const isOpenHost = (source: ConversationSource): source is string =>
+	const isOpenHost = (source: ConversationSource) =>
 		source !== null && hosts.has(source) && !isDown(source)
 
 	const ownerOf = (active: string, args?: InvokeArgs): ConversationSource => {
