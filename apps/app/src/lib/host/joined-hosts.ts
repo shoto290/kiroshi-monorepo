@@ -131,6 +131,7 @@ export const createJoinedHosts = ({
 	const pendingJoins = new Map<string, Promise<HttpHost | null>>()
 	const subscriptions = new Set<Subscription>()
 	const downNotices = new Map<string, string>()
+	const reconnectionListeners = new Set<() => void>()
 	let requested: string | null = null
 
 	const record = (id: string, state: JoinedHostState) => {
@@ -164,9 +165,26 @@ export const createJoinedHosts = ({
 		}
 	}
 
+	const announceReconnection = () => {
+		for (const listener of [...reconnectionListeners]) {
+			listener()
+		}
+	}
+
 	const markUp = (id: string) => {
+		const isReconnection = isDown(id) && store.getState().active === id
 		record(id, { status: "up" })
 		endDownNotice(id)
+		if (isReconnection) {
+			announceReconnection()
+		}
+	}
+
+	const onReconnected = (listener: () => void) => {
+		reconnectionListeners.add(listener)
+		return () => {
+			reconnectionListeners.delete(listener)
+		}
 	}
 
 	const openHost = (
@@ -340,6 +358,7 @@ export const createJoinedHosts = ({
 		activeSpaceId,
 		listen,
 		listenToActiveHost,
+		onReconnected,
 		fileSrc,
 	}
 }

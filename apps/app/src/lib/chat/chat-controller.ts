@@ -59,6 +59,13 @@ import type {
 	SessionHandle,
 	TransportError,
 } from "../agent/contract"
+import {
+	createMessageStoredListener,
+	createReconnectionListener,
+	type MessageStoredListener,
+	type ReconnectionListener,
+} from "../conversations/create-live-listeners"
+import { createForeignTurns } from "../conversations/foreign-turns"
 import type {
 	MessagePin,
 	MessageReference,
@@ -149,6 +156,8 @@ export type ChatControllerOptions = {
 	promptsPerRun?: number
 	readReportedRuns?: ReportedRunsReader
 	senderAccountId?: () => string | null
+	onMessageStored?: MessageStoredListener
+	onReconnected?: ReconnectionListener
 }
 
 const INTERRUPTED: TerminalCompletion = "interrupted"
@@ -198,12 +207,18 @@ export function createChatController(
 	const senderAccountId = options.senderAccountId ?? (() => null)
 	const readReportedRuns =
 		options.readReportedRuns ?? createReportedRunsReader()
+	const onMessageStored =
+		options.onMessageStored ?? createMessageStoredListener()
+	const onReconnected = options.onReconnected ?? createReconnectionListener()
 	const transcript = createTranscriptController(store)
+	const foreignTurns = createForeignTurns(transcript)
 
 	const bots = new Map<string, BotChat>()
 	const transitions = new Map<string, BotTransition>()
 	let chosenBotId: string | null = null
 	let detach: Promise<() => void> | null = null
+	let stopStoredMessages: Promise<() => void> | null = null
+	let stopReconnections: (() => void) | null = null
 	const listeners = new Set<() => void>()
 
 	const enqueue = createQueue()
@@ -560,13 +575,32 @@ export function createChatController(
 	const disconnect = () => {
 		detach?.then((unlisten) => unlisten())
 		detach = null
+		stopStoredMessages?.then((unlisten) => unlisten())
+		stopStoredMessages = null
+		stopReconnections?.()
+		stopReconnections = null
+	}
+
+	const botsShowing = (conversationId: string) =>
+		[...bots.values()].filter(
+			(bot) => bot.state.conversationId === conversationId,
+		)
+
+	const renderForeign = (scope: RuntimeScope | null, event: AgentEvent) => {
+		if (scope && botsShowing(scope.conversationId).length > 0) {
+			foreignTurns.render(scope, event)
+		}
 	}
 
 	const route = (scope: RuntimeScope | null, event: AgentEvent) => {
-		for (const bot of bots.values()) {
-			if (!isSameRuntimeScope(scope, bot.state.runtime)) {
-				continue
-			}
+		const owners = [...bots.values()].filter((bot) =>
+			isSameRuntimeScope(scope, bot.state.runtime),
+		)
+		if (owners.length === 0) {
+			renderForeign(scope, event)
+			return
+		}
+		for (const bot of owners) {
 			if (!isMutedFailure(bot, event)) {
 				dispatch(bot, { type: "driverEvent", scope, event })
 			}
@@ -579,6 +613,10 @@ export function createChatController(
 
 	const connect = () => {
 		disconnect()
+		stopStoredMessages = onMessageStored(({ conversationId }) =>
+			botsShowing(conversationId).forEach(reloadPage),
+		)
+		stopReconnections = onReconnected(() => bots.forEach(reloadPage))
 		detach = driver.subscribe(({ scope, event }) => route(scope, event))
 		return detach
 	}
@@ -647,12 +685,14 @@ export function createChatController(
 			bot.state.runtime?.runtimeSessionId ?? null,
 			reason,
 		)
-		return {
+		const scope = {
 			conversationId: opened.conversationId,
 			botId: opened.botId,
 			runtimeSessionId: opened.id,
 			epoch: opened.seq,
 		}
+		foreignTurns.claim(scope)
+		return scope
 	}
 
 	const startFor = async (
@@ -883,6 +923,16 @@ export function createChatController(
 		} catch (reason) {
 			reportRead(bot, reason)
 		}
+	}
+
+	const reloadPage = (bot: BotChat) => {
+		const conversationId = bot.state.conversationId
+		if (!conversationId) {
+			return
+		}
+		enqueue(() => transcript.load(conversationId)).catch((reason) =>
+			reportRead(bot, reason),
+		)
 	}
 
 	const enterThread = (botId: string) => {

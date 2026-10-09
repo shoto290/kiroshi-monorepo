@@ -1,6 +1,13 @@
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import { createArrivalsListener } from "./create-arrivals-listener"
+import {
+	createMessageStoredListener,
+	createReconnectionListener,
+	type MessageStoredListener,
+	type ReconnectionListener,
+} from "./create-live-listeners"
+import { createForeignTurns } from "./foreign-turns"
 import { addresseesIn, toMentionTokens } from "./mentions"
 import { readConversation } from "./read-conversation"
 import { isNameless, leadOf, presentParticipants } from "./roster-conversations"
@@ -157,6 +164,8 @@ export type ConversationControllerOptions = {
 	onNamed?: (conversationId: string, title: string) => void
 	readReportedRuns?: ReportedRunsReader
 	onCompanionArrived?: CompanionArrivalListener
+	onMessageStored?: MessageStoredListener
+	onReconnected?: ReconnectionListener
 	senderAccountId?: () => string | null
 }
 
@@ -284,7 +293,11 @@ export const createConversationController = (
 		options.readReportedRuns ?? createReportedRunsReader()
 	const onCompanionArrived =
 		options.onCompanionArrived ?? createArrivalsListener()
+	const onMessageStored =
+		options.onMessageStored ?? createMessageStoredListener()
+	const onReconnected = options.onReconnected ?? createReconnectionListener()
 	const transcript = createTranscriptController(store)
+	const foreignTurns = createForeignTurns(transcript)
 	const enqueue = createQueue()
 
 	const stateStore = createStore(initialState)
@@ -303,6 +316,8 @@ export const createConversationController = (
 	let errorCount = 0
 	let detach: Promise<() => void> | null = null
 	let stopArrivals: Promise<() => void> | null = null
+	let stopStoredMessages: Promise<() => void> | null = null
+	let stopReconnections: (() => void) | null = null
 
 	const settle = (next: ConversationState) => {
 		if (isSameState(current(), next)) {
@@ -741,12 +756,18 @@ export const createConversationController = (
 			(held) => held.scope !== null && isSameRuntimeScope(scope, held.scope),
 		)
 
+	const isOpenConversation = (conversationId: string) =>
+		conversationId === conversation?.id
+
 	const route = (scope: RuntimeScope | null, event: AgentEvent) => {
 		const held = speakerAt(scope)
-		if (!held) {
+		if (held) {
+			apply(held, event)
 			return
 		}
-		apply(held, event)
+		if (scope && isOpenConversation(scope.conversationId)) {
+			foreignTurns.render(scope, event)
+		}
 	}
 
 	const seatArrival = (botId: string) => {
@@ -764,16 +785,41 @@ export const createConversationController = (
 		transcript.announce(arrival)
 	}
 
+	const reloadOpenPage = async () => {
+		if (!conversation) {
+			return
+		}
+		const conversationId = conversation.id
+		try {
+			await enqueue(() => transcript.load(conversationId))
+		} catch (reason) {
+			noteFailure(toReadError(reason))
+			sync()
+		}
+	}
+
+	const reloadStoredPage = ({ conversationId }: TranscriptMessage) => {
+		if (isOpenConversation(conversationId)) {
+			void reloadOpenPage()
+		}
+	}
+
 	const disconnect = () => {
 		detach?.then((unlisten) => unlisten())
 		detach = null
 		stopArrivals?.then((unlisten) => unlisten())
 		stopArrivals = null
+		stopStoredMessages?.then((unlisten) => unlisten())
+		stopStoredMessages = null
+		stopReconnections?.()
+		stopReconnections = null
 	}
 
 	const connect = () => {
 		disconnect()
 		stopArrivals = onCompanionArrived(announce)
+		stopStoredMessages = onMessageStored(reloadStoredPage)
+		stopReconnections = onReconnected(() => void reloadOpenPage())
 		detach = driver.subscribe(({ scope, event }) => route(scope, event))
 		return detach
 	}
@@ -800,6 +846,7 @@ export const createConversationController = (
 			runtimeSessionId: opened.id,
 			epoch: opened.seq,
 		}
+		foreignTurns.claim(scope)
 		runs.set(botId, scope)
 		return scope
 	}

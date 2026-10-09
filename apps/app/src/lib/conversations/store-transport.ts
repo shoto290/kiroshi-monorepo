@@ -35,10 +35,12 @@ import {
 	COMPANION_SPOKE_EVENT,
 	type CompanionArrival,
 	type CompanionSpoke,
+	MESSAGE_STORED_EVENT,
 	type TerminalCompletion,
 	TRANSCRIPT_PAGE_SIZE,
 	TRANSCRIPT_WINDOW_SIZE,
 	type TranscriptCursor,
+	type TranscriptMessage,
 	type TranscriptPage,
 	type TranscriptWindow,
 } from "./transcript-contract"
@@ -62,6 +64,13 @@ export const arrivalsTransport = {
 
 	onCompanionSpoke: (listener: (spoken: CompanionSpoke) => void) =>
 		listen<CompanionSpoke>(COMPANION_SPOKE_EVENT, ({ payload }) =>
+			listener(payload),
+		),
+}
+
+export const transcriptEventsTransport = {
+	onMessageStored: (listener: (stored: TranscriptMessage) => void) =>
+		listen<TranscriptMessage>(MESSAGE_STORED_EVENT, ({ payload }) =>
 			listener(payload),
 		),
 }
