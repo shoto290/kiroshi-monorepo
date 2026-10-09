@@ -27,6 +27,7 @@ import type { Space } from "@workspace/ui/components/space"
 import {
 	AssistantTurn,
 	PersonTurn,
+	TURN_AVATAR_SIZE,
 	type TurnCause,
 	TurnGroup,
 	type TurnState,
@@ -311,7 +312,7 @@ const expectPersonTurn = async (article: HTMLElement) => {
 	const { width } = avatar.getBoundingClientRect()
 	const radius = Number.parseFloat(getComputedStyle(avatar).borderTopLeftRadius)
 
-	await expect(width).toBe(40)
+	await expect(width).toBe(TURN_AVATAR_SIZE)
 	await expect(radius).toBeGreaterThanOrEqual(width / 2)
 	await expect(botIdentityAvatars(article)).toHaveLength(0)
 	for (const bubble of slotsIn(article, "message-bubble")) {
@@ -488,7 +489,6 @@ export const PersonRun = meta.story({
 		await expect(turns).toHaveLength(3)
 		await expect(canvas.getAllByText(PERSON)).toHaveLength(1)
 		await expect(slotsIn(canvasElement, "user-avatar")).toHaveLength(1)
-		await expect(slotsIn(turns[2], "user-avatar")).toHaveLength(1)
 		await expectPersonTurn(turns[2])
 
 		const middle = slotIn(turns[1], "message-bubble-content")
