@@ -35,14 +35,12 @@ export const useRosterView = ({
 		hasLoaded,
 	} = roster.state
 	const isOnOpenSpace = rosteredSpaceId === openRowId
-	const selected = isOnOpenSpace
-		? bots.find((bot) => bot.id === selectedBotId)
-		: undefined
-	const selectedConversation = isOnOpenSpace
-		? conversations.find(
-				(conversation) => conversation.id === selectedConversationId,
-			)
-		: undefined
+	const shownBotId = isOnOpenSpace ? selectedBotId : null
+	const shownConversationId = isOnOpenSpace ? selectedConversationId : null
+	const selected = bots.find((bot) => bot.id === shownBotId)
+	const selectedConversation = conversations.find(
+		(conversation) => conversation.id === shownConversationId,
+	)
 	const settingsBot = bots.find((bot) => bot.id === settingsBotId)
 	const settingsConversation = conversations.find(
 		(conversation) => conversation.id === settingsConversationId,
