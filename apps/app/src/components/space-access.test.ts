@@ -42,7 +42,8 @@ it("shows Share on a space the reader hosts and hands the click to onShare", () 
 it("shows the host pill as Connected, with no host email and no Share, on a joined space", () => {
 	renderAccess({ joinedHost: STUDIO_HOST, isOwnSpace: false, onShare: vi.fn() })
 
-	expect(screen.getByRole("button", { name: "Connected" })).toBeTruthy()
+	expect(screen.getByText("Connected")).toBeTruthy()
+	expect(screen.queryByRole("button", { name: "Connected" })).toBeNull()
 	expect(screen.queryByRole("button", { name: "Share" })).toBeNull()
 	expect(document.body.innerHTML).not.toContain("lea@example.com")
 })
@@ -54,7 +55,8 @@ it("marks the host pill Not connected, with no host email, while the host is off
 		onShare: vi.fn(),
 	})
 
-	expect(screen.getByRole("button", { name: "Not connected" })).toBeTruthy()
+	expect(screen.getByText("Not connected")).toBeTruthy()
+	expect(screen.queryByRole("button", { name: "Not connected" })).toBeNull()
 	expect(document.body.innerHTML).not.toContain("lea@example.com")
 })
 
