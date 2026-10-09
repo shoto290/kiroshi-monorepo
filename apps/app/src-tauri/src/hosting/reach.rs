@@ -328,7 +328,7 @@ pub(super) const AUDIENCES: &[(&str, Audience)] = &[
 	("conversation://deleted", IN_THE_SPACE),
 	("conversation://message-stored", IN_THE_CONVERSATION),
 	("conversation://updated", IN_THE_SPACE),
-	("hosting://changed", IN_THE_SPACE),
+	("hosting://changed", Audience::Scoped(space("/spaceId"))),
 	("hosting://members-changed", Audience::HostOnly),
 	("invitation://changed", Audience::HostOnly),
 	("joined-space://changed", Audience::HostOnly),
