@@ -2601,6 +2601,35 @@ impl Authoring {
 		json!({ "conversationId": self.conversation_id, "beforeSeq": null, "limit": 50 })
 	}
 
+	fn reopened_store(&self) -> db::Database {
+		let file = db::connection::file(self.app.handle()).expect("the store file is known");
+		db::open(file.parent().expect("the store lives in a directory"))
+	}
+
+	async fn stored_authors(
+		database: &db::Database,
+		conversation_id: &str,
+	) -> Vec<(String, Option<String>, Option<String>)> {
+		database
+			.messages()
+			.page_messages(MessagePageQuery {
+				conversation_id: conversation_id.to_owned(),
+				before_seq: None,
+				limit: 50,
+			})
+			.await
+			.expect("the reopened store reads its page")
+			.messages
+			.into_iter()
+			.filter(|message| message.role == MessageRole::User)
+			.map(|message| (message.id, message.author.account_id, message.author.name))
+			.collect()
+	}
+
+	fn stored_guest(id: &str) -> (String, Option<String>, Option<String>) {
+		(id.to_owned(), Some(GUEST.to_owned()), Some(GUEST_EMAIL.to_owned()))
+	}
+
 	fn authors(page: &Value) -> Vec<(Value, Value, Value)> {
 		page["messages"]
 			.as_array()
@@ -2804,33 +2833,6 @@ fn a_guest_message_naming_a_turn_of_another_conversation_is_refused_and_not_writ
 	});
 }
 
-impl Authoring {
-	fn reopened_store(&self) -> db::Database {
-		let file = db::connection::file(self.app.handle()).expect("the store file is known");
-		db::open(file.parent().expect("the store lives in a directory"))
-	}
-
-	async fn stored_authors(
-		database: &db::Database,
-		conversation_id: &str,
-	) -> Vec<(String, Option<String>, Option<String>)> {
-		database
-			.messages()
-			.page_messages(MessagePageQuery {
-				conversation_id: conversation_id.to_owned(),
-				before_seq: None,
-				limit: 50,
-			})
-			.await
-			.expect("the reopened store reads its page")
-			.messages
-			.into_iter()
-			.filter(|message| message.role == MessageRole::User)
-			.map(|message| (message.id, message.author.account_id, message.author.name))
-			.collect()
-	}
-}
-
 #[test]
 fn a_relayed_guest_message_keeps_its_author_in_a_reopened_store_read_by_either_side() {
 	run(async {
@@ -2853,8 +2855,7 @@ fn a_relayed_guest_message_keeps_its_author_in_a_reopened_store_read_by_either_s
 			)
 			.await;
 
-		let guest = ("relayed".to_owned(), Some(GUEST.to_owned()), Some(GUEST_EMAIL.to_owned()));
-		assert_eq!(read_by_the_restarted_host, vec![guest]);
+		assert_eq!(read_by_the_restarted_host, vec![Authoring::stored_guest("relayed")]);
 		assert_eq!(
 			Authoring::authors(&read_by_the_guest),
 			vec![(json!("relayed"), json!(GUEST), json!(GUEST_EMAIL))]
@@ -2932,10 +2933,7 @@ fn every_later_write_on_a_relayed_guest_message_or_its_turn_leaves_its_author_un
 		let read = Authoring::stored_authors(&host.reopened_store(), &conversation_id).await;
 
 		assert_ne!(duplicate["status"], json!(200), "{duplicate}");
-		assert_eq!(
-			read,
-			vec![("relayed".to_owned(), Some(GUEST.to_owned()), Some(GUEST_EMAIL.to_owned()))]
-		);
+		assert_eq!(read, vec![Authoring::stored_guest("relayed")]);
 	});
 }
 
