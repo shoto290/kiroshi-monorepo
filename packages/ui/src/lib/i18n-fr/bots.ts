@@ -123,10 +123,6 @@ const bots = {
 				"{{email}} a retiré cette invitation. Demandez-lui de vous inviter à nouveau.",
 		},
 		removed: {
-			title: "Vous ne faites plus partie de {{name}}",
-			description:
-				"{{email}} vous a retiré de cet espace. Ses compagnons et ses conversations restent sur leur Kiroshi.",
-			back: "Revenir à {{name}}",
 			notice: "{{email}} vous a retiré de {{name}}.",
 			noticeDescription:
 				"Il n’apparaît plus dans vos espaces. Ses conversations restent sur le Kiroshi de {{host}}.",
