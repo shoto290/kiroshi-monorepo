@@ -369,6 +369,25 @@ describe("a host removing the reader", () => {
 		expect(gear.reportRemoval).toHaveBeenCalledExactlyOnceWith(REMOVED_NOTICE)
 	})
 
+	it("lands on the first local space when no previous one was recorded", async () => {
+		const gear = await gearFor([STUDIO])
+		gear.spaces.select("studio")
+		gear.joined.restore(STUDIO_ROW)
+		gear.joined.watch()
+		await settle()
+		expect(gear.spaces.getState().selectedSpaceId).toBe("studio")
+
+		const [firstLocal] = gear.spaces.getState().spaces
+
+		gear.wire.evict(STUDIO)
+		await settle()
+
+		expect(gear.spaces.getState().selectedSpaceId).toBe(firstLocal?.id)
+		expect(firstLocal?.id).not.toBe("studio")
+		expect(gear.joined.getState().joinedSpaces).toEqual([])
+		expect(gear.hosts.activate).toHaveBeenLastCalledWith(null)
+	})
+
 	it("drops a space that is not open and raises the notice", async () => {
 		const gear = await withStudio()
 		await gear.joined.admit(STUDIO, HOST_EMAIL)
