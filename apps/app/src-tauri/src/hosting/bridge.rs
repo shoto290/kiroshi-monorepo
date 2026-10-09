@@ -79,7 +79,7 @@ pub(super) fn member_call(text: &str) -> Result<MemberCall, String> {
 	};
 	match (id, command, args) {
 		(Some(id), Some(command), Some(args)) if belongs_to_the_host(command, &args) => {
-			Err(answer(id, StatusCode::FORBIDDEN, json!({ "error": HOST_ONLY_REFUSAL })))
+			Err(answer(id, StatusCode::FORBIDDEN, json!(HOST_ONLY_REFUSAL)))
 		}
 		(Some(id), Some(command), Some(args)) => {
 			let from = frame.get("from").and_then(Value::as_str).map(str::to_owned);
@@ -143,7 +143,7 @@ pub(super) fn refused(id: Option<Value>) -> String {
 	answer(
 		id.unwrap_or(Value::Null),
 		StatusCode::BAD_REQUEST,
-		json!({ "error": "a member frame is {\"id\", \"command\", \"args\"}" }),
+		json!("a member frame is {\"id\", \"command\", \"args\"}"),
 	)
 }
 
@@ -158,7 +158,7 @@ pub(super) async fn bridged<R: Runtime>(
 	call: MemberCall,
 ) -> String {
 	if !reach::stays_in_the_shared_space(&app, &shared_space_id, &call.command, &call.args).await {
-		return answer(call.id, StatusCode::FORBIDDEN, json!({ "error": OTHER_SPACE_REFUSAL }));
+		return answer(call.id, StatusCode::FORBIDDEN, json!(OTHER_SPACE_REFUSAL));
 	}
 	let hosting = app.state::<Hosting>();
 	let vouched = call.from.clone().map(|user_id| {
@@ -166,7 +166,7 @@ pub(super) async fn bridged<R: Runtime>(
 	});
 	match invoked(&local, &call, vouched.as_ref().map(|vouched| vouched.nonce.as_str())).await {
 		Ok((status, body)) => answer(call.id, status, body),
-		Err(reason) => answer(call.id, StatusCode::BAD_GATEWAY, json!({ "error": reason })),
+		Err(reason) => answer(call.id, StatusCode::BAD_GATEWAY, json!(reason)),
 	}
 }
 
@@ -352,7 +352,7 @@ mod tests {
 			let refusal = member_call(&frame.to_string()).expect_err(command);
 			assert_eq!(
 				serde_json::from_str::<Value>(&refusal).expect("a json answer"),
-				json!({ "id": "m", "status": 403, "body": { "error": HOST_ONLY_REFUSAL } }),
+				json!({ "id": "m", "status": 403, "body": HOST_ONLY_REFUSAL }),
 				"{command}"
 			);
 		}
