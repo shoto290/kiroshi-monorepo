@@ -237,7 +237,7 @@ const openSoloChat = async () => {
 	await act(() => controller.open(BOT, null).then(() => undefined))
 	await settled()
 	const conversationId = controller.getState().conversationId ?? ""
-	return { store, scripted, controller, detach, conversationId }
+	return { store, scripted, controller, detach, botId: BOT, conversationId }
 }
 
 const openRoom = async () => {
@@ -478,10 +478,7 @@ describe("the roster and the conversation list fed by every writer", () => {
 
 describe("a foreign reply the conversation then stores", () => {
 	const openers = [
-		[
-			"a solo conversation",
-			async () => ({ botId: BOT, ...(await openSoloChat()) }),
-		],
+		["a solo conversation", openSoloChat],
 		["a room", openRoom],
 	] as const
 
