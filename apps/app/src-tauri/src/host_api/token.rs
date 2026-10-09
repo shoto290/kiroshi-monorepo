@@ -43,13 +43,9 @@ impl HostToken {
 	}
 }
 
-fn host_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, TokenError> {
-	let data = app.path().app_data_dir().map_err(|_| TokenError::NoDataDir)?;
-	Ok(data.join(HOST_DIR))
-}
-
 fn path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, TokenError> {
-	Ok(host_dir(app)?.join(TOKEN_NAME))
+	let data = app.path().app_data_dir().map_err(|_| TokenError::NoDataDir)?;
+	Ok(data.join(HOST_DIR).join(TOKEN_NAME))
 }
 
 pub fn loaded<R: Runtime>(app: &AppHandle<R>) -> Result<HostToken, TokenError> {
