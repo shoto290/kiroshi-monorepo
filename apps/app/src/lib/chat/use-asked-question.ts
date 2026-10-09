@@ -48,6 +48,8 @@ export function useAskedQuestion({
 					role: "assistant",
 					excerpt: recallExcerptOf(question, run.context),
 					authorBotId: run.card.authorBotId,
+					authorAccountId: null,
+					authorName: null,
 				}),
 	}
 }

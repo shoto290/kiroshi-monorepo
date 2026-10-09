@@ -61,6 +61,10 @@ import {
 	initialChatState,
 } from "@/lib/chat/chat-state"
 import { createDraftsController } from "@/lib/chat/drafts-controller"
+import {
+	type ThreadAuthorship,
+	ThreadAuthorshipContext,
+} from "@/lib/chat/thread-authorship"
 import type {
 	BotThread,
 	ConversationThread,
@@ -885,6 +889,7 @@ const openRoutinesScreen = async () => {
 
 type SoloFixture = {
 	readReportedRuns?: ReportedRunsReader
+	senderAccountId?: () => string | null
 	spoken?: SpokenTurn[]
 }
 
@@ -897,6 +902,7 @@ type Solo = {
 
 const soloOf = async ({
 	readReportedRuns,
+	senderAccountId,
 	spoken = [],
 }: SoloFixture): Promise<Solo> => {
 	const store = createFakeTranscriptStore()
@@ -908,6 +914,7 @@ const soloOf = async ({
 	const driver = createScriptedDriver()
 	const controller = createChatController(driver, store, {
 		readReportedRuns,
+		senderAccountId,
 	})
 	controller.attach()
 	await act(async () => {
@@ -1815,6 +1822,35 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(raisedNotices(READ_TITLE)).toHaveLength(0)
+	})
+
+	it("names another person's pinned message after that person", async () => {
+		const pinned = message({
+			id: "m-tom",
+			conversationId: "c-bot-1",
+			role: "user",
+			content: "ship it",
+			authorAccountId: "account-tom",
+			authorName: "Tom",
+		})
+		const thread = threadOf({
+			id: "bot-1",
+			name: "Nyx",
+			said: "the first answer",
+			controller: stubController({
+				pins: async () => [{ message: pinned, blockIndex: 0, pinnedAt: 1 }],
+			}),
+		})
+		render(screenOf(thread))
+		await settle()
+		await press("Pinned messages, 1 pinned")
+
+		expect(
+			screen.getByRole("button", { name: "Jump to the message from Tom" }),
+		).toBeTruthy()
+		expect(
+			screen.queryByRole("button", { name: "Jump to the message from Reader" }),
+		).toBeNull()
 	})
 
 	it("tells the reader when the pinned messages could not be read", async () => {
@@ -2751,6 +2787,13 @@ const renderOnboarding = (fixture: OnboardingFixture) =>
 
 const TYPED_MESSAGE = "Hello, what can you do?"
 
+const GUEST_ACCOUNT = "account-guest"
+
+const GUEST_IN_JOINED_SPACE: ThreadAuthorship = {
+	accountId: GUEST_ACCOUNT,
+	host: { kind: "joined", name: "lea@example.com" },
+}
+
 const isAnchored = (content: Element) =>
 	content
 		.closest("[data-scroll-anchor]")
@@ -2854,6 +2897,67 @@ describe("the first run in a solo thread", () => {
 		await settle()
 
 		expect(isAnchored(screen.getByText(TYPED_MESSAGE))).toBe(true)
+	})
+
+	it("draws the reader's message in a joined space as theirs, sent and stamped", async () => {
+		const solo = await soloOf({ senderAccountId: () => GUEST_ACCOUNT })
+		const stamped = (thread: BotThread): BotThread => ({
+			...thread,
+			chat: {
+				...thread.chat,
+				state: {
+					...thread.chat.state,
+					messages: thread.chat.state.messages.map((row) =>
+						row.role === "user"
+							? { ...row, authorAccountId: GUEST_ACCOUNT, authorName: "Sam" }
+							: row,
+					),
+				},
+			},
+		})
+		const joinedScreen = (thread: BotThread) =>
+			createElement(
+				ThreadAuthorshipContext.Provider,
+				{ value: GUEST_IN_JOINED_SPACE },
+				createElement(ThreadScreenHarness, {
+					bots: NO_BOT_RECORDS,
+					landings: createMessageLandingController(),
+					onOpenMission: () => undefined,
+					staging: createAttachmentsController({
+						store: async () => [],
+						send: (_owner, text) => {
+							void solo.thread().chat.controller.send(text)
+							return true
+						},
+					}),
+					thread,
+				}),
+			)
+		const sentBubble = () =>
+			screen
+				.getByText(TYPED_MESSAGE)
+				.closest("article")
+				?.getAttribute("aria-label")
+		const shown = render(joinedScreen(solo.thread()))
+		await settle()
+
+		await act(async () => {
+			fireEvent.change(screen.getByRole("textbox"), {
+				target: { value: TYPED_MESSAGE },
+			})
+		})
+		await press("Send")
+		shown.rerender(joinedScreen(solo.thread()))
+		await settle()
+
+		expect(sentBubble()).toBe("user message")
+		expect(isAnchored(screen.getByText(TYPED_MESSAGE))).toBe(true)
+
+		shown.rerender(joinedScreen(stamped(solo.thread())))
+		await settle()
+
+		expect(sentBubble()).toBe("user message")
+		expect(screen.queryByText("lea@example.com")).toBeNull()
 	})
 
 	it("offers the sign-in when nobody is authenticated", async () => {

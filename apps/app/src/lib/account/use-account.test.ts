@@ -9,7 +9,7 @@ import {
 } from "@workspace/ui/components/notice-surface"
 import { en } from "@workspace/ui/lib/i18n-en"
 
-import { signOutLeavingOf, useAccount } from "./use-account"
+import { signOutLeavingOf, useAccount, useWatchedAccount } from "./use-account"
 
 import { ACCOUNT_CHANGED_EVENT, type AccountState, commands } from "../bindings"
 import { listen } from "../host"
@@ -70,9 +70,12 @@ const settling = () =>
 	})
 
 const mountAccount = async (displayName = PROFILE_NAME) => {
-	const mounted = renderHook(({ displayName }) => useAccount(displayName), {
-		initialProps: { displayName },
-	})
+	const mounted = renderHook(
+		({ displayName }) => useAccount(useWatchedAccount(), displayName),
+		{
+			initialProps: { displayName },
+		},
+	)
 	await settling()
 	return mounted
 }
@@ -192,7 +195,9 @@ describe("useAccount", () => {
 			],
 			() => "lea@example.com",
 		)
-		const { result } = renderHook(() => useAccount(PROFILE_NAME, leaving))
+		const { result } = renderHook(() =>
+			useAccount(useWatchedAccount(), PROFILE_NAME, leaving),
+		)
 		await settling()
 
 		act(() => result.current.onSignOut())
@@ -221,6 +226,7 @@ describe("useAccount", () => {
 		vi.mocked(commands.accountState).mockResolvedValue(SIGNED_IN)
 		const { result } = renderHook(() =>
 			useAccount(
+				useWatchedAccount(),
 				PROFILE_NAME,
 				signOutLeavingOf([], () => ""),
 			),

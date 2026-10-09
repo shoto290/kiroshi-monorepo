@@ -5,6 +5,7 @@ import type { RosterBot } from "@workspace/ui/components/roster"
 import { toPlainText } from "@workspace/ui/lib/plain-text"
 
 import type { ReplyTarget } from "./screen-model"
+import type { PersonOf } from "./thread-authorship"
 import {
 	faceOfBot,
 	type ThreadAuthors,
@@ -76,6 +77,7 @@ export type ThreadNaming = {
 type ThreadNamingInput = ThreadRoster & {
 	reader: string
 	unnamed: string
+	personOf: PersonOf
 	isConversation: boolean
 	onJump: (messageId: string) => void
 }
@@ -86,6 +88,7 @@ export function useThreadNaming({
 	botFace,
 	reader,
 	unnamed,
+	personOf,
 	isConversation,
 	onJump,
 }: ThreadNamingInput): ThreadNaming {
@@ -110,12 +113,15 @@ export function useThreadNaming({
 
 	const toQuote = useCallback(
 		(target: ReplyTarget): QuotedMessage => ({
-			author: target.role === "user" ? reader : nameOf(target.authorBotId),
+			author:
+				target.role === "user"
+					? (personOf(target) ?? reader)
+					: nameOf(target.authorBotId),
 			excerpt: toExcerpt(target.excerpt),
 			from: target.role,
 			onJump: () => onJump(target.messageId),
 		}),
-		[reader, nameOf, toExcerpt, onJump],
+		[reader, personOf, nameOf, toExcerpt, onJump],
 	)
 
 	return { faceOf, toExcerpt, toQuote }

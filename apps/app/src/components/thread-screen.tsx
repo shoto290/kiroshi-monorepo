@@ -102,6 +102,7 @@ import {
 	toRuns,
 	toTranscriptRows,
 } from "@/lib/chat/screen-model"
+import { type PersonOf, usePersonOf } from "@/lib/chat/thread-authorship"
 import {
 	type BotThread,
 	type ConversationThread,
@@ -234,21 +235,24 @@ const WorkingBot = ({ face, work, ...stop }: WorkingBotProps) => (
 
 const UP_NEXT: WorkingState = { kind: "waiting", waitingOn: "next" }
 
+const writerOf = (row: TranscriptRow, personOf: PersonOf, reader: string) =>
+	(row.role === "user" && personOf(row)) || reader
+
 const toPinnedRow = (
 	{ id, bubble }: PinnedBubble,
 	face: ThreadFace | undefined,
-	reader: string,
+	writer: string,
 	toExcerpt: (text: string) => string,
 ): PinnedMessage => {
 	const isBotAuthor = bubble.role === "assistant" && face !== undefined
 
 	return {
 		id,
-		author: isBotAuthor ? face.name : reader,
+		author: isBotAuthor ? face.name : writer,
 		avatar: isBotAuthor ? (
 			<FaceAvatar face={face} size={PINNED_AVATAR_SIZE} />
 		) : (
-			<InitialsAvatar name={reader} size={PINNED_AVATAR_SIZE} />
+			<InitialsAvatar name={writer} size={PINNED_AVATAR_SIZE} />
 		),
 		timestamp: pinTimestamp(bubble.timestamp),
 		excerpt: toExcerpt(messageWithAttachments(bubble.text).text.trim()),
@@ -729,22 +733,24 @@ type RunRowsProps = Omit<ThreadRunProps, "run" | "presentation"> & {
 	runs: TranscriptRow[][]
 	presentations: RunPresentation[]
 	isSentInMount: SentInMount["isSentInMount"]
+	personOf: PersonOf
 }
 
-const isSentByReader = (row: TranscriptRow) =>
-	row.role === "user" && !isPostedAnswer(row)
+const isSentByReader = (row: TranscriptRow, personOf: PersonOf) =>
+	row.role === "user" && !isPostedAnswer(row) && personOf(row) === undefined
 
 const toRunRows = ({
 	runs,
 	presentations,
 	isSentInMount,
+	personOf,
 	...shared
 }: RunRowsProps): TranscriptItem[] =>
 	runs.map((run, runIndex) => ({
 		key: bubbleIdOf(run[0].messageId, run[0].blockIndex),
 		messageIds: run.map((row) => bubbleIdOf(row.messageId, row.blockIndex)),
 		isAnchor: run.some(
-			(row) => isSentByReader(row) && isSentInMount(row.messageId),
+			(row) => isSentByReader(row, personOf) && isSentInMount(row.messageId),
 		),
 		render: () => (
 			<ThreadRun {...shared} presentation={presentations[runIndex]} run={run} />
@@ -1278,10 +1284,12 @@ const useThreadAnnotations = (
 		onLand: landOnMessage,
 		onTaken: landings.forget,
 	})
+	const personOf = usePersonOf()
 	const { faceOf, toExcerpt, toQuote } = useThreadNaming({
 		...roster,
 		reader,
 		unnamed: t("working.name"),
+		personOf,
 		isConversation: facts.conversation !== null,
 		onJump: jumpToMessage,
 	})
@@ -1289,9 +1297,14 @@ const useThreadAnnotations = (
 	const pinnedRows = useMemo(
 		() =>
 			pins.bubbles.map((shown) =>
-				toPinnedRow(shown, faceOf(shown.bubble.authorBotId), reader, toExcerpt),
+				toPinnedRow(
+					shown,
+					faceOf(shown.bubble.authorBotId),
+					writerOf(shown.bubble, personOf, reader),
+					toExcerpt,
+				),
 			),
-		[pins.bubbles, faceOf, reader, toExcerpt],
+		[pins.bubbles, faceOf, personOf, reader, toExcerpt],
 	)
 
 	return {
@@ -1303,6 +1316,7 @@ const useThreadAnnotations = (
 		liveMissionIds,
 		missions,
 		pinnedRows,
+		personOf,
 		pins,
 		quotes,
 		repliedToRefusal,
@@ -1468,6 +1482,7 @@ const threadRowsOf = (
 		installs,
 		liveMissionIds,
 		missions,
+		personOf,
 		pins,
 		quotes,
 		repliedToRefusal,
@@ -1492,6 +1507,7 @@ const threadRowsOf = (
 		isSentInMount,
 		onReply: holdReply,
 		onRetry: botController ? retry : undefined,
+		personOf,
 		pins,
 		presentations,
 		quotes,

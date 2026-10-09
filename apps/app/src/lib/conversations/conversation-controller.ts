@@ -157,6 +157,7 @@ export type ConversationControllerOptions = {
 	onNamed?: (conversationId: string, title: string) => void
 	readReportedRuns?: ReportedRunsReader
 	onCompanionArrived?: CompanionArrivalListener
+	senderAccountId?: () => string | null
 }
 
 type Seating = "held" | "unknown" | "unreadable"
@@ -278,6 +279,7 @@ export const createConversationController = (
 ): ConversationController => {
 	const newId = options.newId ?? (() => crypto.randomUUID())
 	const now = options.now ?? (() => Date.now())
+	const senderAccountId = options.senderAccountId ?? (() => null)
 	const readReportedRuns =
 		options.readReportedRuns ?? createReportedRunsReader()
 	const onCompanionArrived =
@@ -921,7 +923,7 @@ export const createConversationController = (
 		completion: "complete",
 		createdAt: now(),
 		authorBotId: null,
-		authorAccountId: null,
+		authorAccountId: senderAccountId(),
 		authorName: null,
 		repliedToMessageId: answered?.id ?? null,
 		runtimeSessionId: null,
@@ -1190,7 +1192,7 @@ export const createConversationController = (
 					completion: "complete",
 					createdAt,
 					authorBotId: null,
-					authorAccountId: null,
+					authorAccountId: senderAccountId(),
 					authorName: null,
 					repliedToMessageId,
 					runtimeSessionId: null,

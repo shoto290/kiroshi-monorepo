@@ -272,6 +272,23 @@ describe("toRuns", () => {
 		expect(runs.map((run) => run.length)).toEqual([2])
 	})
 
+	it("splits prompts wherever the author account changes", () => {
+		const runs = toRuns(
+			toTranscriptRows([
+				prompt({ id: "local-1", authorAccountId: "account-lea" }),
+				prompt({ id: "local-2", authorAccountId: "account-lea" }),
+				prompt({ id: "local-3", authorAccountId: "account-tom" }),
+				prompt({ id: "local-4", authorAccountId: null }),
+			]),
+		)
+
+		expect(runs.map((run) => run.map((row) => row.messageId))).toEqual([
+			["local-1", "local-2"],
+			["local-3"],
+			["local-4"],
+		])
+	})
+
 	it("opens a new block after a long pause", () => {
 		const runs = toRuns(
 			toTranscriptRows([
@@ -561,6 +578,8 @@ describe("quoted messages", () => {
 			role: "assistant",
 			excerpt: "Look at this",
 			authorBotId: null,
+			authorAccountId: null,
+			authorName: null,
 		})
 	})
 
@@ -586,6 +605,8 @@ describe("quoted messages", () => {
 			role: "user",
 			excerpt: "Look at this",
 			authorBotId: null,
+			authorAccountId: null,
+			authorName: null,
 		})
 	})
 })

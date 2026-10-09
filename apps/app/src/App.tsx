@@ -11,6 +11,7 @@ import { titleBarWindowControls } from "@/components/window-caption-controls"
 import { WorkspaceBody } from "@/components/workspace-body"
 import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
 import { SessionApplicationsContext } from "@/lib/applications/use-session-application"
+import { ThreadAuthorshipContext } from "@/lib/chat/thread-authorship"
 import { ConversationSeatingContext } from "@/lib/conversations/use-conversation-seating"
 import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
@@ -25,6 +26,7 @@ import { useSidebarMissions } from "@/lib/workspace/use-sidebar-missions"
 import { useSidebarPanelSwitch } from "@/lib/workspace/use-sidebar-panel-switch"
 import { useSpaceLoading } from "@/lib/workspace/use-space-loading"
 import { useSpaceSections } from "@/lib/workspace/use-space-sections"
+import { useThreadAuthorship } from "@/lib/workspace/use-thread-authorship"
 import { useWorkspaceCore } from "@/lib/workspace/use-workspace-core"
 import { useWorkspaceDrivers } from "@/lib/workspace/use-workspace-drivers"
 import { useWorkspaceOverlay } from "@/lib/workspace/use-workspace-overlay"
@@ -80,6 +82,7 @@ export function App() {
 		core.joinedSpaces,
 		core.invitations,
 	)
+	const authorship = useThreadAuthorship(core)
 
 	const { preferences, roster, spaces } = core
 
@@ -151,37 +154,39 @@ export function App() {
 									<ConversationApplicationsContext.Provider
 										value={panels.conversationApplications}
 									>
-										<WorkspaceBody
-											activityPanel={overlay.activityPanel}
-											attachments={core.attachments}
-											bot={rosterView.selected}
-											bots={rosterView.bots}
-											chat={core.chat}
-											conversation={rosterView.selectedConversation}
-											conversationRuntimes={core.conversationRuntimes}
-											drafts={core.drafts}
-											haveSpacesFailed={spaces.state.hasFailedToLoad}
-											isConversationSettingsOpen={
-												overlay.isThreadConversationSettingsOpen
-											}
-											isMissionsPanelOpen={sidebarTab.openTab === "missions"}
-											isOverlayOpen={overlay.isOverlayOpen}
-											isSettingsOpen={overlay.isThreadSettingsOpen}
-											landings={core.messageLandings}
-											missions={core.openedMission}
-											onboarding={
-												preferences.firstRunDone
-													? undefined
-													: drivers.onboarding
-											}
-											onOpenConversationSettings={
-												roster.controller.editConversation
-											}
-											onRetrySpaces={loadSpaces}
-											onToggleSettings={overlay.toggleSettings}
-											readerName={preferences.displayName}
-											signIn={drivers.signIn}
-										/>
+										<ThreadAuthorshipContext.Provider value={authorship}>
+											<WorkspaceBody
+												activityPanel={overlay.activityPanel}
+												attachments={core.attachments}
+												bot={rosterView.selected}
+												bots={rosterView.bots}
+												chat={core.chat}
+												conversation={rosterView.selectedConversation}
+												conversationRuntimes={core.conversationRuntimes}
+												drafts={core.drafts}
+												haveSpacesFailed={spaces.state.hasFailedToLoad}
+												isConversationSettingsOpen={
+													overlay.isThreadConversationSettingsOpen
+												}
+												isMissionsPanelOpen={sidebarTab.openTab === "missions"}
+												isOverlayOpen={overlay.isOverlayOpen}
+												isSettingsOpen={overlay.isThreadSettingsOpen}
+												landings={core.messageLandings}
+												missions={core.openedMission}
+												onboarding={
+													preferences.firstRunDone
+														? undefined
+														: drivers.onboarding
+												}
+												onOpenConversationSettings={
+													roster.controller.editConversation
+												}
+												onRetrySpaces={loadSpaces}
+												onToggleSettings={overlay.toggleSettings}
+												readerName={preferences.displayName}
+												signIn={drivers.signIn}
+											/>
+										</ThreadAuthorshipContext.Provider>
 									</ConversationApplicationsContext.Provider>
 								</SessionApplicationsContext.Provider>
 							</CompanionSelectProvider>

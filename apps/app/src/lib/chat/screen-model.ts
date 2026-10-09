@@ -6,6 +6,7 @@ import type { ChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 import { type ChatState, isTurnBusy } from "./chat-state"
 import { toPublishedBlocks } from "./markdown-blocks"
 import { messageWithAttachments } from "./message-attachments"
+import type { MessageAuthorship } from "./thread-authorship"
 import { type WorkingState, workingFor } from "./working-kind"
 
 import type { ConnectionState, TransportError } from "../agent/contract"
@@ -21,7 +22,7 @@ import {
 	type ReportedRunsByTurnId,
 } from "../routines/routine-contract"
 
-export type TranscriptRow = {
+export type TranscriptRow = MessageAuthorship & {
 	messageId: string
 	turnId: string
 	blockIndex: number
@@ -81,6 +82,8 @@ function toRow(
 		quotedMessageId:
 			message.role === "user" ? message.repliedToMessageId : null,
 		authorBotId: message.authorBotId,
+		authorAccountId: message.authorAccountId,
+		authorName: message.authorName,
 		role: message.role,
 		timestamp: message.createdAt,
 		...rest,
@@ -153,6 +156,7 @@ export function toRuns(
 			previous &&
 			previous.role === row.role &&
 			previous.authorBotId === row.authorBotId &&
+			previous.authorAccountId === row.authorAccountId &&
 			row.timestamp - previous.timestamp <= RUN_GAP_MS &&
 			!isPartedByCause(previous, row, causes)
 		) {
@@ -164,7 +168,7 @@ export function toRuns(
 	return runs
 }
 
-export type ReplyTarget = {
+export type ReplyTarget = MessageAuthorship & {
 	messageId: string
 	role: TranscriptRole
 	excerpt: string
@@ -183,6 +187,8 @@ function replyTargetOf(message: TranscriptMessage): ReplyTarget {
 		role: message.role,
 		excerpt: messageWithAttachments(message.content).text.trim(),
 		authorBotId: message.authorBotId,
+		authorAccountId: message.authorAccountId,
+		authorName: message.authorName,
 	}
 	targetsByMessage.set(message, target)
 	return target
@@ -196,6 +202,8 @@ export function replyTargetOfReference(
 		role: reference.role,
 		excerpt: reference.excerpt,
 		authorBotId: null,
+		authorAccountId: null,
+		authorName: null,
 	}
 }
 

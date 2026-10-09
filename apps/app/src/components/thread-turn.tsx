@@ -4,6 +4,7 @@ import type { MessageAuthor } from "@workspace/ui/components/message"
 import type { QuotedMessage } from "@workspace/ui/components/message-quote"
 import {
 	AssistantTurn,
+	PersonTurn,
 	type TurnCause,
 	TurnGroup,
 	type TurnRun,
@@ -17,6 +18,7 @@ import type { ChatController } from "@/lib/chat/chat-controller"
 import type { OutboxEntry } from "@/lib/chat/chat-state"
 import { messageWithAttachments } from "@/lib/chat/message-attachments"
 import type { ReplyTarget, TranscriptRow } from "@/lib/chat/screen-model"
+import { usePersonOf } from "@/lib/chat/thread-authorship"
 import type { ThreadFace } from "@/lib/chat/thread-contract"
 import type { RefusedMessage } from "@/lib/conversations/conversation-controller"
 
@@ -60,6 +62,8 @@ export const ThreadTurn = memo(function ThreadTurn({
 	onRetry,
 }: ThreadTurnProps) {
 	probeRender("ThreadTurn", anchor)
+	const personOf = usePersonOf()
+	const person = row.role === "user" ? personOf(row) : undefined
 	const { text, attachments } = messageWithAttachments(row.text)
 	const content = asking ?? <TurnBody attachments={attachments} text={text} />
 	const repliedTo = quoted ? toQuote(quoted) : undefined
@@ -72,7 +76,26 @@ export const ThreadTurn = memo(function ThreadTurn({
 			role: row.role,
 			excerpt: text.trim(),
 			authorBotId: row.authorBotId,
+			authorAccountId: row.authorAccountId,
+			authorName: row.authorName,
 		})
+	}
+
+	if (person !== undefined) {
+		return (
+			<PersonTurn
+				copyText={text}
+				messageId={anchor}
+				name={person}
+				onPin={pin}
+				onReply={reply}
+				pinned={pinned}
+				repliedTo={repliedTo}
+				run={run}
+			>
+				{content}
+			</PersonTurn>
+		)
 	}
 
 	if (row.role === "user") {

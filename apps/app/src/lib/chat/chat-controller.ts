@@ -148,6 +148,7 @@ export type ChatControllerOptions = {
 	now?: () => number
 	promptsPerRun?: number
 	readReportedRuns?: ReportedRunsReader
+	senderAccountId?: () => string | null
 }
 
 const INTERRUPTED: TerminalCompletion = "interrupted"
@@ -194,6 +195,7 @@ export function createChatController(
 	const newId = options.newId ?? (() => crypto.randomUUID())
 	const now = options.now ?? (() => Date.now())
 	const promptsPerRun = options.promptsPerRun ?? PROMPTS_PER_RUN
+	const senderAccountId = options.senderAccountId ?? (() => null)
 	const readReportedRuns =
 		options.readReportedRuns ?? createReportedRunsReader()
 	const transcript = createTranscriptController(store)
@@ -1156,7 +1158,7 @@ export function createChatController(
 			completion: "complete",
 			createdAt: said.createdAt,
 			authorBotId: null,
-			authorAccountId: null,
+			authorAccountId: senderAccountId(),
 			authorName: null,
 			repliedToMessageId: said.repliedToMessageId,
 			runtimeSessionId: null,
@@ -1379,7 +1381,7 @@ export function createChatController(
 			...answered,
 			role: "user",
 			completion: "complete",
-			authorAccountId: null,
+			authorAccountId: senderAccountId(),
 			authorName: null,
 			runtimeSessionId: null,
 		})
