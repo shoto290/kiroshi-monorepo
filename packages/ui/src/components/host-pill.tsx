@@ -12,7 +12,7 @@ import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
 const PILL =
-	"inline-flex h-6 min-w-0 items-center gap-1.5 rounded-full bg-title-bar-pill ps-2 pe-2.5 font-medium text-foreground text-xs leading-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+	"inline-flex h-6 min-w-0 items-center gap-1.5 rounded-full bg-title-bar-pill ps-2 pe-2.5 font-medium text-foreground text-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
 
 const PILL_OFFLINE = "text-muted-foreground"
 
@@ -27,9 +27,9 @@ const LABEL = "min-w-0 truncate"
 const DETAILS =
 	"flex-col items-start gap-0.5 rounded-md bg-muted px-2.5 py-2 text-foreground shadow-popover [&>[aria-hidden=true]]:hidden"
 
-const DETAIL_EMAIL = "break-words font-medium leading-4"
+const DETAIL_EMAIL = "break-words font-medium"
 
-const DETAIL_STATE = "break-words text-muted-foreground leading-4"
+const DETAIL_STATE = "break-words text-muted-foreground"
 
 type HostPillProps = {
 	hostName: string
@@ -61,7 +61,6 @@ const HostPill = ({
 								: label
 						}
 						className={cn(PILL, !isOnline && PILL_OFFLINE)}
-						data-presence={isOnline ? "online" : "offline"}
 						data-slot="host-pill"
 						type="button"
 					>
