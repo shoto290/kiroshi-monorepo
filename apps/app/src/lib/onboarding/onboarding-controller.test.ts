@@ -157,7 +157,7 @@ describe("reading the account", () => {
 
 		expect(controller.getState().connection).toEqual({
 			state: "signInFailed",
-			exitDetail: "the agent binary was not found",
+			exitDetail: "the agent binary wasn't found",
 		})
 	})
 })

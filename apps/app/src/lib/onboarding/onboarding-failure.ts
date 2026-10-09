@@ -10,9 +10,9 @@ const SENTENCE_OF: Record<string, string> = {
 	refusedUrl: "the sign-in link was refused",
 	flowTimedOut: "the sign-in flow timed out",
 	notAuthenticated: "no Claude account is signed in",
-	binaryNotFound: "the agent binary was not found",
-	spawnFailed: "the agent could not be started",
-	startupTimeout: "the agent did not start in time",
+	binaryNotFound: "the agent binary wasn't found",
+	spawnFailed: "the agent couldn't be started",
+	startupTimeout: "the agent didn't start in time",
 	crashed: "the agent stopped",
 	unknownSpace: "the roster is in no space",
 }
