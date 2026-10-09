@@ -106,6 +106,7 @@ fn opened<R: Runtime>(
 	bound: Result<(StandardListener, SocketAddr), std::io::Error>,
 ) -> Webhook {
 	let (stop, halted) = signal::channel(false);
+	legacy_web_link_cleared(&app);
 	let token = host_token(&app);
 	let calls = Calls {
 		app,
@@ -135,6 +136,12 @@ fn host_token<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<HostToken>> {
 			eprintln!("no host api call is answered: the token was not loaded: {failure:?}");
 			None
 		}
+	}
+}
+
+fn legacy_web_link_cleared<R: Runtime>(app: &AppHandle<R>) {
+	if let Err(failure) = token::legacy_web_link_removed(app) {
+		eprintln!("the legacy web link of the host api was left in place: {failure:?}");
 	}
 }
 
@@ -660,29 +667,56 @@ mod tests {
 		names
 	}
 
-	#[tokio::test]
-	async fn the_listener_leaves_the_host_dir_as_it_found_it_bound_stopped_or_unbound() {
-		let app = a_host("host-dir").await;
+	fn seeded_host_dir_of(app: &App<MockRuntime>) -> PathBuf {
 		let host = app.path().app_data_dir().expect("the data dir resolves").join("host");
 		fs::create_dir_all(&host).expect("the host dir is made");
 		fs::write(host.join("token"), "a-held-token").expect("the token is written");
 		fs::write(host.join("left-behind"), "stale").expect("a stale file is written");
-		let held = host_files_of(&host);
+		host
+	}
+
+	fn legacy_link_seeded(host: &Path) {
+		fs::write(host.join("web-link.txt"), "a-link-holding-the-token")
+			.expect("the legacy link is written");
+	}
+
+	#[tokio::test]
+	async fn opening_the_listener_bound_or_unbound_removes_only_the_legacy_web_link() {
+		let app = a_host("host-dir").await;
+		let host = seeded_host_dir_of(&app);
 		let taken = std::io::Error::from(ErrorKind::AddrInUse);
 
+		legacy_link_seeded(&host);
 		let unbound =
 			opened(app.handle().clone(), Arc::new(SystemClock), Arc::new(HeldOpen), Err(taken));
-		unbound.stop();
 		let after_unbound = host_files_of(&host);
+		unbound.stop();
+		legacy_link_seeded(&host);
 		let bound =
 			opened(app.handle().clone(), Arc::new(SystemClock), Arc::new(HeldOpen), listening());
-		let while_bound = host_files_of(&host);
+		let after_bound = host_files_of(&host);
 		bound.stop();
 
-		assert_eq!(held, ["left-behind", "token"]);
-		assert_eq!(after_unbound, held);
-		assert_eq!(while_bound, held);
-		assert_eq!(host_files_of(&host), held);
+		assert_eq!(after_unbound, ["left-behind", "token"]);
+		assert_eq!(after_bound, ["left-behind", "token"]);
+		assert_eq!(fs::read_to_string(host.join("token")).expect("the token"), "a-held-token");
+		assert_eq!(host_files_of(&host), ["left-behind", "token"]);
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_legacy_web_link_that_cannot_be_removed_keeps_the_listener_serving() {
+		let app = a_host("host-dir-blocked").await;
+		let host = seeded_host_dir_of(&app);
+		fs::create_dir_all(host.join("web-link.txt").join("held")).expect("a directory blocks it");
+
+		let webhook =
+			opened(app.handle().clone(), Arc::new(SystemClock), Arc::new(HeldOpen), listening());
+		let answer = answered(webhook.address(), calling(None, "{}")).await;
+		webhook.stop();
+
+		assert!(host.join("web-link.txt").is_dir());
+		assert_eq!(answer, (REFUSED.0.as_u16(), REFUSED.1.to_owned()));
 		cleaned(&app);
 	}
 

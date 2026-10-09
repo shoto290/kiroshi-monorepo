@@ -11,6 +11,8 @@ const HOST_DIR: &str = "host";
 
 const TOKEN_NAME: &str = "token";
 
+const LEGACY_WEB_LINK_NAME: &str = "web-link.txt";
+
 const RANDOM_PARTS: usize = 3;
 
 #[derive(Debug)]
@@ -43,13 +45,20 @@ impl HostToken {
 	}
 }
 
-fn path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, TokenError> {
+fn host_file<R: Runtime>(app: &AppHandle<R>, name: &str) -> Result<PathBuf, TokenError> {
 	let data = app.path().app_data_dir().map_err(|_| TokenError::NoDataDir)?;
-	Ok(data.join(HOST_DIR).join(TOKEN_NAME))
+	Ok(data.join(HOST_DIR).join(name))
+}
+
+pub fn legacy_web_link_removed<R: Runtime>(app: &AppHandle<R>) -> Result<(), TokenError> {
+	match fs::remove_file(host_file(app, LEGACY_WEB_LINK_NAME)?) {
+		Err(missing) if missing.kind() == ErrorKind::NotFound => Ok(()),
+		removed => removed.map_err(TokenError::Unwritable),
+	}
 }
 
 pub fn loaded<R: Runtime>(app: &AppHandle<R>) -> Result<HostToken, TokenError> {
-	let path = path(app)?;
+	let path = host_file(app, TOKEN_NAME)?;
 	match fs::read_to_string(&path) {
 		Ok(held) => held_token(&held),
 		Err(missing) if missing.kind() == ErrorKind::NotFound => written(&path),

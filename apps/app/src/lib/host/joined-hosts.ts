@@ -110,12 +110,8 @@ const unheard: Listen = async () => () => undefined
 const isLocalCommand = (command: string): boolean =>
 	command.startsWith(TAURI_PLUGIN_PREFIX) || LOCAL_COMMANDS.has(command)
 
-export const describeJoinError = (error: JoinedSpaceError): string => {
-	if ("message" in error) {
-		return error.message
-	}
-	return "detail" in error ? error.detail : error.kind
-}
+export const describeJoinError = (error: JoinedSpaceError): string =>
+	"detail" in error ? error.detail : error.kind
 
 const describeRejection = (reason: unknown): string =>
 	reason instanceof Error ? reason.message : String(reason)
