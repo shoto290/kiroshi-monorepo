@@ -80,14 +80,29 @@ const signOutConfirmationOf = (
 	onConfirm: () => controller.signOutLeaving(leaving.spaceNames),
 })
 
+export type WatchedAccount = {
+	state: AccountState
+	controller: AccountController
+}
+
+export const useWatchedAccount = (): WatchedAccount => {
+	const watched = useController(createAccountController)
+	const { controller } = watched
+
+	useEffect(() => controller.watch(), [controller])
+
+	return watched
+}
+
+export const signedInAccountIdOf = (state: AccountState): string | null =>
+	state.kind === "signedIn" ? state.id : null
+
 export const useAccount = (
+	{ state, controller }: WatchedAccount,
 	displayName: string,
 	leaving: SignOutLeaving | null = null,
 ): Account => {
-	const { state, controller } = useController(createAccountController)
 	const [isSignOutAsked, setSignOutAsked] = useState(false)
-
-	useEffect(() => controller.watch(), [controller])
 
 	return {
 		account: toPanelState(state, displayName),

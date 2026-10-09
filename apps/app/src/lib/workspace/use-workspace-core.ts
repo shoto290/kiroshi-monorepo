@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react"
 
+import { useWatchedAccount } from "../account/use-account"
 import { applicationTransport } from "../applications/application-transport"
 import { connectionTransport } from "../applications/connection-transport"
 import { useApplications } from "../applications/use-applications"
@@ -93,6 +94,7 @@ export const useWorkspaceCore = () => {
 	const applications = useApplications(applicationTransport, store)
 	const catalogue = useModelCatalogue()
 	const user = useUser()
+	const account = useWatchedAccount()
 	const userPlugin = usePlugin(store)
 	const spaces = useSpaces(store)
 	const joinedSpaces = useJoinedSpaces(spaces.controller)
@@ -101,6 +103,7 @@ export const useWorkspaceCore = () => {
 	const preferences = user.state.preferences
 
 	return {
+		account,
 		applications,
 		attachments,
 		botConnections,

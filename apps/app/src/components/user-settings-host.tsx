@@ -24,7 +24,13 @@ export const UserSettingsHost = ({
 	panels,
 	scopes,
 }: UserSettingsHostProps) => {
-	const { joinedSpaces, preferences, user, userMcpServers } = core
+	const {
+		account: watchedAccount,
+		joinedSpaces,
+		preferences,
+		user,
+		userMcpServers,
+	} = core
 	const { userSettings } = overlay
 	const { applicationToOpenOn, closeSettingsTab, personSkills, userHistory } =
 		panels
@@ -35,6 +41,7 @@ export const UserSettingsHost = ({
 		userApplications,
 	} = scopes
 	const { signOutConfirmation, ...account } = useAccount(
+		watchedAccount,
 		userSettings.name,
 		signOutLeavingOf(
 			joinedSpaces.state.joinedSpaces.filter(isRelaySpace),
