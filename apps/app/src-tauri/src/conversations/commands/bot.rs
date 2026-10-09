@@ -251,6 +251,26 @@ fn announce_created<R: Runtime>(app: &AppHandle<R>, created: &Bot) {
 	launch::announce(app, CREATED_EVENT, companion);
 }
 
+pub(crate) async fn announce_joined<R: Runtime>(
+	app: &AppHandle<R>,
+	database: &db::Database,
+	bot_id: &str,
+) {
+	let failure = match database.conversations().bot(bot_id.to_owned()).await {
+		Ok(Some(joined)) => {
+			let companion = CompanionCreated { id: joined.id, name: joined.name };
+			return launch::announce(app, CREATED_EVENT, companion);
+		}
+		Ok(None) => "the bot was not found again".to_owned(),
+		Err(failure) => format!("the bot did not read back: {failure:?}"),
+	};
+	eprintln!("{CREATED_EVENT} was not announced for bot {bot_id}: {failure}");
+}
+
+pub(crate) fn announce_left<R: Runtime>(app: &AppHandle<R>, bot_id: &str, space_id: String) {
+	launch::announce(app, DELETED_EVENT, CompanionDeleted { id: bot_id.to_owned(), space_id });
+}
+
 fn announce_updated<R: Runtime>(app: &AppHandle<R>, updated: &Bot) {
 	let companion = CompanionUpdated { id: updated.id.clone(), bot: updated.clone() };
 	launch::announce(app, UPDATED_EVENT, companion);
@@ -372,7 +392,9 @@ pub async fn conversation_duplicate_bot<R: Runtime>(
 			return Err(refusal);
 		}
 	};
-	Ok(Bot::of(ruled, dir.as_deref(), bundle_root.as_deref()))
+	let copy = Bot::of(ruled, dir.as_deref(), bundle_root.as_deref());
+	announce_created(&app, &copy);
+	Ok(copy)
 }
 
 struct Carried {
@@ -580,7 +602,7 @@ pub async fn conversation_delete_bot<R: Runtime>(
 	avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
 	attachments::Attachments::sweep_referenced(database, attachment_dir.as_deref()).await;
 	for space_id in held_by {
-		launch::announce(&app, DELETED_EVENT, CompanionDeleted { id: id.clone(), space_id });
+		announce_left(&app, &id, space_id);
 	}
 	Ok(())
 }

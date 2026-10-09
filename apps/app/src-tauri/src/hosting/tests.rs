@@ -26,7 +26,9 @@ use super::contract::{
 use super::members::{invite, list, remove, withdraw};
 use super::reach;
 use super::{resumed, signed_out, start, stop, Hosting};
-use crate::spaces::commands::space_delete;
+use crate::spaces::commands::{
+	bot_add_to_space, bot_move_to_space, bot_remove_from_space, space_delete,
+};
 use crate::account::contract::AccountState;
 use crate::account::session::restore;
 use crate::account::session::AccountSession;
@@ -38,8 +40,8 @@ use crate::companions::contract::{
 };
 use crate::conversations::commands::{
 	conversation_append_user_message, conversation_create, conversation_create_bot_from_draft,
-	conversation_delete, conversation_delete_bot, conversation_send_user_message,
-	conversation_update, conversation_update_bot,
+	conversation_delete, conversation_delete_bot, conversation_duplicate_bot,
+	conversation_send_user_message, conversation_update, conversation_update_bot,
 };
 use crate::conversations::contract::{
 	Bot, BotDraft, BotIdentity, Conversation, NewUserMessage,
@@ -3352,5 +3354,148 @@ fn a_relay_guest_hears_a_companion_deleted_from_the_shared_space_only() {
 
 		let payload = json!({ "id": "b-shared", "spaceId": PERSONAL });
 		assert_eq!(heard, as_forwarded((COMPANION_DELETED_EVENT, payload)));
+	});
+}
+
+impl Guest {
+	async fn planted(&self, rows: &'static str) {
+		db::open(&self.effects.database)
+			.call_mut(move |connection| Ok(connection.execute_batch(rows)?))
+			.await
+			.expect("the rows are planted");
+	}
+
+	async fn bot_duplicated_into(&self, bot_id: &str, space_id: &str) -> Bot {
+		let app = self.harness.app.handle().clone();
+		let destination = Some(space_id.to_owned());
+		conversation_duplicate_bot(app, self.harness.app.state(), bot_id.to_owned(), destination)
+			.await
+			.expect("the bot is duplicated")
+	}
+
+	async fn bot_added(&self, bot_id: &str, space_id: &str) {
+		let app = self.harness.app.handle().clone();
+		bot_add_to_space(
+			app,
+			self.harness.app.state(),
+			bot_id.to_owned(),
+			space_id.to_owned(),
+			None,
+		)
+		.await
+		.expect("the bot is added");
+	}
+
+	async fn bot_moved(&self, bot_id: &str, space_id: &str) {
+		let app = self.harness.app.handle().clone();
+		bot_move_to_space(app, self.harness.app.state(), bot_id.to_owned(), space_id.to_owned())
+			.await
+			.expect("the bot is moved");
+	}
+
+	async fn bot_removed(&self, bot_id: &str, space_id: &str) {
+		let app = self.harness.app.handle().clone();
+		bot_remove_from_space(
+			app,
+			self.harness.app.state(),
+			bot_id.to_owned(),
+			space_id.to_owned(),
+		)
+		.await
+		.expect("the bot is removed");
+	}
+}
+
+fn a_companion_created(id: &str, name: &str) -> Value {
+	as_forwarded((COMPANION_CREATED_EVENT, json!({ "id": id, "name": name })))
+}
+
+fn a_companion_deleted(id: &str, space_id: &str) -> Value {
+	as_forwarded((COMPANION_DELETED_EVENT, json!({ "id": id, "spaceId": space_id })))
+}
+
+#[test]
+fn a_relay_guest_hears_a_companion_duplicated_into_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("companion-duplicated").await;
+
+		guest.bot_duplicated_into("b-theirs", ELSEWHERE).await;
+		let copy = guest.bot_duplicated_into("b-mine", PERSONAL).await;
+		let heard = guest.first_event().await;
+
+		assert_eq!(heard, a_companion_created(&copy.id, &copy.name));
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_companion_added_to_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("companion-added").await;
+		guest
+			.planted("INSERT INTO spaces (id, name, colour, position, created_at) VALUES ('third', 'Third', 'red', 2, 1);")
+			.await;
+
+		guest.bot_added("b-theirs", "third").await;
+		let before = guest.first_event_after(vec![a_shared_space_marker()]).await;
+		guest.bot_added("b-theirs", PERSONAL).await;
+		let heard = guest.first_event().await;
+
+		assert_eq!(
+			(before, heard),
+			(as_forwarded(a_shared_space_marker()), a_companion_created("b-theirs", "Theirs"))
+		);
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_companion_removed_from_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("companion-removed").await;
+		guest
+			.planted("INSERT INTO bot_spaces (bot_id, space_id, joined_at) VALUES ('b-theirs', 'personal', 3);")
+			.await;
+
+		guest.bot_removed("b-theirs", ELSEWHERE).await;
+		guest.bot_removed("b-shared", PERSONAL).await;
+		let heard = guest.first_event().await;
+
+		assert_eq!(heard, a_companion_deleted("b-shared", PERSONAL));
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_a_companion_moved_into_and_out_of_the_shared_space_only() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("companion-moved").await;
+
+		guest.bot_moved("b-theirs", PERSONAL).await;
+		guest.bot_moved("b-mine", ELSEWHERE).await;
+		let arrived = guest.first_event().await;
+		let left = guest.first_event().await;
+
+		assert_eq!(
+			(arrived, left),
+			(a_companion_created("b-theirs", "Theirs"), a_companion_deleted("b-mine", PERSONAL))
+		);
+	});
+}
+
+#[test]
+fn a_relay_guest_hears_nothing_of_a_refused_companion_removal() {
+	run(async {
+		let mut guest = Guest::of_two_spaces("companion-removal-refused").await;
+		let app = guest.harness.app.handle().clone();
+
+		let refused = bot_remove_from_space(
+			app,
+			guest.harness.app.state(),
+			"b-mine".to_owned(),
+			PERSONAL.to_owned(),
+		)
+		.await;
+		let heard = guest.first_event_after(vec![a_shared_space_marker()]).await;
+
+		assert!(refused.is_err());
+		assert_eq!(heard, as_forwarded(a_shared_space_marker()));
 	});
 }
