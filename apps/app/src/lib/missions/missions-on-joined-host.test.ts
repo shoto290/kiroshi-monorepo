@@ -14,8 +14,8 @@ const HOST = "http://192.168.1.20:45367"
 type Answer = (command: string) => Promise<unknown>
 
 const wire = vi.hoisted(() => ({
-	localAnswer: (async () => null) as (command: string) => Promise<unknown>,
-	hostAnswer: (async () => null) as (command: string) => Promise<unknown>,
+	localAnswer: (async () => null) as Answer,
+	hostAnswer: (async () => null) as Answer,
 	sockets: [] as HostSocket[],
 }))
 
