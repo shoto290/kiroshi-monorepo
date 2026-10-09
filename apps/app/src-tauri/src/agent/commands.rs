@@ -7,12 +7,12 @@ use tauri::{AppHandle, Manager, Runtime, State};
 use tokio::sync::Mutex;
 
 use super::contract::{
-	AgentEvent, CheckReport, ConnectionState, EvolvedBundle, LiveSession, OfferedModel,
+	AgentEvent, CheckReport, ConnectionState, EventTurn, EvolvedBundle, LiveSession, OfferedModel,
 	PermissionDecision, RuntimeScope, ScopedEvent, SessionHandle, SubmittedTurn, TransportError,
 };
 use super::host::hosted;
 use super::protocol::{self, Checked};
-use super::reply_writer::{HostWrites, ReplyWriter, TurnAttachments};
+use super::reply_writer::{HostWrites, ReplyWriter, TurnAttachments, TurnSink};
 use super::session::{Bundle, EventSink, GatedSink, Session, SessionOptions};
 use super::sidecar::{self, Sidecar, SidecarOptions};
 use super::translate::now_ms;
@@ -40,7 +40,16 @@ pub const EVENT_CHANNEL: &str = "agent://event";
 const RUNS_DIR: &str = "runs";
 
 fn announce<R: Runtime>(app: &AppHandle<R>, scope: Option<RuntimeScope>, event: AgentEvent) {
-	if let Err(failure) = events::emit(app, EVENT_CHANNEL, ScopedEvent { scope, event }) {
+	announce_in_turn(app, scope, None, event);
+}
+
+fn announce_in_turn<R: Runtime>(
+	app: &AppHandle<R>,
+	scope: Option<RuntimeScope>,
+	turn: Option<EventTurn>,
+	event: AgentEvent,
+) {
+	if let Err(failure) = events::emit(app, EVENT_CHANNEL, ScopedEvent { scope, turn, event }) {
 		eprintln!("a turn event was not announced: {failure}");
 	}
 }
@@ -176,8 +185,8 @@ struct RunSink<R: Runtime> {
 	records_its_own_lineage: bool,
 }
 
-impl<R: Runtime> EventSink for RunSink<R> {
-	fn emit(&self, event: AgentEvent) {
+impl<R: Runtime> TurnSink for RunSink<R> {
+	fn emit(&self, event: AgentEvent, turn: Option<EventTurn>) {
 		if !self.live.holds(&self.scope) {
 			return;
 		}
@@ -185,7 +194,7 @@ impl<R: Runtime> EventSink for RunSink<R> {
 			self.record_its_own_lineage(session_id.clone());
 		}
 		let ended = matches!(event, AgentEvent::TurnEnded { .. });
-		announce(&self.app, Some(self.scope.clone()), event);
+		announce_in_turn(&self.app, Some(self.scope.clone()), turn, event);
 		if ended {
 			self.record_writes();
 		}
@@ -721,7 +730,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 	let running_in =
 		cwd.map(PathBuf::from).unwrap_or_else(|| its_own_directory(&app, &scope.bot_id));
 
-	let announcing: Arc<dyn EventSink> = Arc::new(RunSink {
+	let announcing: Arc<dyn TurnSink> = Arc::new(RunSink {
 		app: app.clone(),
 		scope: scope.clone(),
 		live: state.live.clone(),

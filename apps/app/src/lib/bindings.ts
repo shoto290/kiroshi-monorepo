@@ -595,6 +595,11 @@ export type EnvScope_Deserialize = ({ kind: "user" }) & { id?: never; name?: nev
 
 export type EnvScope_Serialize = ({ kind: "user" }) & { id?: never; name?: never; owner?: never; spaceId?: never } | ({ kind: "space"; id: string }) & { name?: never; owner?: never; spaceId?: never } | ({ kind: "bot"; id: string; spaceId: string }) & { name?: never; owner?: never } | ({ kind: "server"; name: string; owner: EnvOwner }) & { id?: never; spaceId?: never } | ({ kind: "person" }) & { id?: never; name?: never; owner?: never; spaceId?: never } | ({ kind: "account" }) & { id?: never; name?: never; owner?: never; spaceId?: never };
 
+export type EventTurn = {
+	turnId: string,
+	conversationId: string,
+};
+
 export type FieldType = "string" | "number" | "boolean" | "datetime";
 
 export type Filter = Filter_Serialize | Filter_Deserialize;

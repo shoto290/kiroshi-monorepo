@@ -16,7 +16,7 @@ use crate::agent::commands::{
 	EVENT_CHANNEL,
 };
 use crate::agent::contract::{
-	AgentEvent, ChatMessage, MessageCompletion, MessageRole, RuntimeScope, ScopedEvent,
+	AgentEvent, ChatMessage, EventTurn, MessageCompletion, MessageRole, RuntimeScope, ScopedEvent,
 	TransportError, TurnEnded, TurnOutcome,
 };
 use crate::agent::reply_writer::settled_mentions;
@@ -208,26 +208,35 @@ async fn write_report<R: Runtime>(
 	messages.complete_turn(turn_id.clone(), SystemClock.now_ms()).await?;
 	announce_report(
 		app,
-		scope,
-		ChatMessage {
-			id: message_id,
-			role: MessageRole::Assistant,
-			text,
-			completion: MessageCompletion::Complete,
-			timestamp: created_at,
-		},
+		report_event(
+			scope,
+			&turn_id,
+			ChatMessage {
+				id: message_id,
+				role: MessageRole::Assistant,
+				text,
+				completion: MessageCompletion::Complete,
+				timestamp: created_at,
+			},
+		),
 	);
 	Ok(turn_id)
 }
 
-fn announce_report<R: Runtime>(app: &AppHandle<R>, scope: &RuntimeScope, message: ChatMessage) {
-	let scoped =
-		ScopedEvent { scope: Some(scope.clone()), event: AgentEvent::MessageCompleted { message } };
-	if let Err(error) = events::emit(app, EVENT_CHANNEL, scoped) {
-		eprintln!(
-			"the report turn of conversation {} could not be announced: {error}",
-			scope.conversation_id
-		);
+fn report_event(scope: &RuntimeScope, turn_id: &str, message: ChatMessage) -> ScopedEvent {
+	ScopedEvent {
+		scope: Some(scope.clone()),
+		turn: Some(EventTurn {
+			turn_id: turn_id.to_owned(),
+			conversation_id: scope.conversation_id.clone(),
+		}),
+		event: AgentEvent::MessageCompleted { message },
+	}
+}
+
+fn announce_report<R: Runtime>(app: &AppHandle<R>, report: ScopedEvent) {
+	if let Err(error) = events::emit(app, EVENT_CHANNEL, report) {
+		eprintln!("a routine report turn could not be announced: {error}");
 	}
 }
 
@@ -412,5 +421,37 @@ fn database<R: Runtime>(app: &AppHandle<R>) -> Result<&db::Database, TranscriptS
 		None => Err(TranscriptStoreError::Unavailable {
 			failure: (&db::DatabaseError::AppDataDir).into(),
 		}),
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn the_report_event_names_the_stored_report_turn() {
+		let scope = RuntimeScope {
+			conversation_id: "conversation-1".to_owned(),
+			bot_id: "bot-1".to_owned(),
+			runtime_session_id: "session-1".to_owned(),
+			epoch: 1,
+		};
+		let message = ChatMessage {
+			id: "message-1".to_owned(),
+			role: MessageRole::Assistant,
+			text: "report".to_owned(),
+			completion: MessageCompletion::Complete,
+			timestamp: 1,
+		};
+
+		let report = report_event(&scope, "turn-1", message);
+
+		assert_eq!(
+			report.turn,
+			Some(EventTurn {
+				turn_id: "turn-1".to_owned(),
+				conversation_id: "conversation-1".to_owned(),
+			})
+		);
 	}
 }
