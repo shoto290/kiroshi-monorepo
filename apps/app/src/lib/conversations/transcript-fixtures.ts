@@ -26,6 +26,8 @@ export const message = (
 	completion: "complete",
 	createdAt: 0,
 	authorBotId: null,
+	authorAccountId: null,
+	authorName: null,
 	repliedToMessageId: null,
 	runtimeSessionId: null,
 	...overrides,

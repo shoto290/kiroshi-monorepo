@@ -43,6 +43,8 @@ mod tests {
 			completion: TranscriptCompletion::Complete,
 			created_at: 2,
 			author_bot_id: Some("default".into()),
+			author_account_id: None,
+			author_name: None,
 			replied_to_message_id: Some("m0".into()),
 			runtime_session_id: Some("run-1".into()),
 		}
@@ -59,6 +61,8 @@ mod tests {
 			"completion": "complete",
 			"createdAt": 2,
 			"authorBotId": "default",
+			"authorAccountId": null,
+			"authorName": null,
 			"repliedToMessageId": "m0",
 			"runtimeSessionId": "run-1"
 		})

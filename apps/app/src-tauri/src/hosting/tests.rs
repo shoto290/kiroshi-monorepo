@@ -12,8 +12,9 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::Router;
 use serde_json::{json, Value};
-use tauri::test::{mock_app, MockRuntime};
-use tauri::{App, Listener, Manager};
+use tauri::test::{mock_app, mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::webview::InvokeRequest;
+use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
@@ -41,6 +42,7 @@ use crate::joined_spaces::contract::JoinedSpaceConnection;
 use crate::joined_spaces::link::joined_space;
 use crate::joined_spaces::relay::RelayGuests;
 use crate::mcp_oauth::credentials;
+use crate::routines::webhook::{self, Webhook};
 
 const BEARER: &str = "bearer-that-never-leaves";
 const LOCAL_TOKEN: &str = "host-token-of-the-loopback";
@@ -2492,5 +2494,228 @@ fn a_relay_guest_hears_a_known_child_again_without_another_lookup() {
 		let heard = guest.first_event_after(vec![mine.clone()]).await;
 
 		assert_eq!(heard, as_forwarded(mine));
+	});
+}
+
+const GUEST: &str = "guest-account";
+const GUEST_EMAIL: &str = "guest@example.com";
+const HOST_NAME: &str = "Ada on the host";
+
+struct Authoring {
+	app: App<MockRuntime>,
+	window: WebviewWindow<MockRuntime>,
+	local: LocalApi,
+	conversation_id: String,
+}
+
+impl Authoring {
+	async fn new(bearer: Option<&str>) -> Self {
+		let cloud = served(Router::new().route("/me", get(me))).await;
+		let mut context = mock_context(noop_assets());
+		context.config_mut().identifier =
+			format!("com.kiroshi.hosting-authorship-{}", uuid::Uuid::new_v4());
+		let app = mock_builder()
+			.invoke_handler(crate::commands::invoke_handler())
+			.build(context)
+			.expect("the app builds");
+		app.manage(db::bootstrap(app.handle()));
+		let root = std::env::temp_dir()
+			.join(format!("kiroshi-hosting-authorship-{}", uuid::Uuid::new_v4()));
+		if let Some(bearer) = bearer {
+			store::set(&root, &EnvScope::Account, ACCOUNT_BEARER, bearer)
+				.expect("the bearer is kept");
+		}
+		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
+		restore(app.handle().clone()).await;
+		app.manage(webhook::start(app.handle().clone()));
+		let local = super::local_api(app.handle()).expect("the local host api listens");
+		app.manage(Hosting::new(&cloud, Some(local.clone())));
+		app.state::<Hosting>().hosts().entry(PERSONAL.to_owned()).or_default().members =
+			Some(vec![Member {
+				user_id: GUEST.to_owned(),
+				name: None,
+				email: GUEST_EMAIL.to_owned(),
+				status: MemberStatus::Joined,
+			}]);
+		let window = WebviewWindowBuilder::new(&app, "main", Default::default())
+			.build()
+			.expect("the window builds");
+		let mut preferences = direct(&window, "user_preferences", json!({}));
+		preferences["displayName"] = json!(HOST_NAME);
+		direct(&window, "user_set_preferences", json!({ "preferences": preferences }));
+		let chat = direct(&window, "conversation_main_chat", json!({ "botId": "default" }));
+		let conversation_id = chat["id"].as_str().expect("the chat holds an id").to_owned();
+		Self { app, window, local, conversation_id }
+	}
+
+	fn turn(&self, turn_id: &str) {
+		direct(
+			&self.window,
+			"conversation_start_turn",
+			json!({ "turn": { "id": turn_id, "conversationId": self.conversation_id, "startedAt": 1 } }),
+		);
+	}
+
+	fn sent(&self, id: &str) -> Value {
+		self.turn(id);
+		json!({
+			"message": {
+				"id": id,
+				"conversationId": self.conversation_id,
+				"turnId": id,
+				"authorBotId": null,
+				"repliedToMessageId": null,
+				"content": "hello",
+				"createdAt": 1,
+				"authorAccountId": "forged-account",
+				"authorName": "Forged",
+			},
+			"summoned": [],
+		})
+	}
+
+	async fn relayed(&self, frame: Value) -> Value {
+		let call = super::bridge::member_call(&frame.to_string()).expect("a member call");
+		let answer = super::bridge::bridged(
+			self.app.handle().clone(),
+			self.local.clone(),
+			PERSONAL.to_owned(),
+			call,
+		)
+		.await;
+		let answer: Value = serde_json::from_str(&answer).expect("a json answer");
+		assert_eq!(answer["status"], json!(200), "{answer}");
+		answer["body"].clone()
+	}
+
+	fn page(&self) -> Value {
+		json!({ "conversationId": self.conversation_id, "beforeSeq": null, "limit": 50 })
+	}
+
+	fn authors(page: &Value) -> Vec<(Value, Value, Value)> {
+		page["messages"]
+			.as_array()
+			.expect("a page of messages")
+			.iter()
+			.map(|message| {
+				(
+					message["id"].clone(),
+					message["authorAccountId"].clone(),
+					message["authorName"].clone(),
+				)
+			})
+			.collect()
+	}
+}
+
+impl Drop for Authoring {
+	fn drop(&mut self) {
+		self.app.state::<Webhook>().stop();
+		if let Ok(dir) = self.app.path().app_data_dir() {
+			if let Err(failure) = std::fs::remove_dir_all(&dir) {
+				eprintln!("the test data dir was not removed: {failure}");
+			}
+		}
+	}
+}
+
+fn direct(window: &WebviewWindow<MockRuntime>, command: &str, body: Value) -> Value {
+	tauri::test::get_ipc_response(
+		window,
+		InvokeRequest {
+			cmd: command.into(),
+			callback: tauri::ipc::CallbackFn(0),
+			error: tauri::ipc::CallbackFn(1),
+			url: "tauri://localhost".parse().expect("a url"),
+			body: body.into(),
+			headers: Default::default(),
+			invoke_key: INVOKE_KEY.to_string(),
+		},
+	)
+	.unwrap_or_else(|error| panic!("{command} was refused: {error:?}"))
+	.deserialize::<Value>()
+	.expect("the answer is JSON")
+}
+
+#[test]
+fn a_message_typed_on_the_host_and_one_relayed_from_a_guest_carry_two_authors_read_by_either_side()
+{
+	run(async {
+		let host = Authoring::new(Some(BEARER)).await;
+		direct(&host.window, "conversation_send_user_message", host.sent("typed"));
+		host.relayed(json!({
+			"id": 1,
+			"command": "conversation_send_user_message",
+			"from": GUEST,
+			"args": host.sent("relayed"),
+		}))
+		.await;
+
+		let read_by_the_guest = host
+			.relayed(
+				json!({ "id": 2, "command": "conversation_message_page", "args": host.page(), "from": GUEST }),
+			)
+			.await;
+		let read_by_the_host = direct(&host.window, "conversation_message_page", host.page());
+
+		let expected = vec![
+			(json!("typed"), json!("owner"), json!(HOST_NAME)),
+			(json!("relayed"), json!(GUEST), json!(GUEST_EMAIL)),
+		];
+		assert_eq!(Authoring::authors(&read_by_the_guest), expected);
+		assert_eq!(Authoring::authors(&read_by_the_host), expected);
+	});
+}
+
+#[test]
+fn a_relayed_frame_stores_its_from_over_a_forged_author_and_none_without_a_from() {
+	run(async {
+		let host = Authoring::new(Some(BEARER)).await;
+		host.relayed(json!({
+			"id": 1,
+			"command": "conversation_append_user_message",
+			"from": GUEST,
+			"args": { "message": host.sent("vouched")["message"] },
+		}))
+		.await;
+		host.relayed(json!({
+			"id": 2,
+			"command": "conversation_send_user_message",
+			"args": host.sent("anonymous"),
+		}))
+		.await;
+
+		let read = direct(&host.window, "conversation_message_page", host.page());
+
+		assert_eq!(
+			Authoring::authors(&read),
+			vec![
+				(json!("vouched"), json!(GUEST), json!(GUEST_EMAIL)),
+				(json!("anonymous"), Value::Null, Value::Null),
+			]
+		);
+		assert!(
+			host.app.state::<Hosting>().relayed.is_empty(),
+			"a vouched member outlived its call"
+		);
+	});
+}
+
+#[test]
+fn a_message_written_on_a_signed_out_host_carries_no_account() {
+	run(async {
+		let host = Authoring::new(None).await;
+		direct(
+			&host.window,
+			"conversation_append_user_message",
+			json!({ "message": host.sent("typed")["message"] }),
+		);
+
+		let read = direct(&host.window, "conversation_message_page", host.page());
+
+		assert_eq!(
+			Authoring::authors(&read),
+			vec![(json!("typed"), Value::Null, json!(HOST_NAME))]
+		);
 	});
 }

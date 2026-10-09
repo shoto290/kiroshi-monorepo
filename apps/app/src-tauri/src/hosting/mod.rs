@@ -1,3 +1,4 @@
+pub mod authorship;
 pub mod bridge;
 pub mod commands;
 pub mod contract;
@@ -22,6 +23,7 @@ use crate::host_api::token;
 use crate::routines::webhook::Webhook;
 use crate::spaces::commands::ready;
 use crate::spaces::contract::SpaceError;
+use authorship::RelayedMembers;
 use bridge::LocalApi;
 use contract::{HostingChanged, HostingState, Member, CHANGED_EVENT};
 use relay::Hosted;
@@ -33,6 +35,7 @@ pub struct Hosting {
 	turn: tokio::sync::Mutex<()>,
 	members_turn: tokio::sync::Mutex<()>,
 	members_every: Duration,
+	relayed: RelayedMembers,
 }
 
 #[derive(Default)]
@@ -57,6 +60,7 @@ impl Hosting {
 			turn: tokio::sync::Mutex::new(()),
 			members_turn: tokio::sync::Mutex::new(()),
 			members_every: members::MEMBERS_EVERY,
+			relayed: RelayedMembers::default(),
 		}
 	}
 

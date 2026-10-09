@@ -1266,6 +1266,8 @@ export type TranscriptMessage = {
 	completion: TranscriptCompletion,
 	createdAt: number,
 	authorBotId: string | null,
+	authorAccountId: string | null,
+	authorName: string | null,
 	repliedToMessageId: string | null,
 	runtimeSessionId: string | null,
 };

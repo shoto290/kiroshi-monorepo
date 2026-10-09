@@ -83,6 +83,8 @@ export const askingRow = ({
 	completion: "complete",
 	createdAt,
 	authorBotId,
+	authorAccountId: null,
+	authorName: null,
 	repliedToMessageId: null,
 	runtimeSessionId: null,
 })
@@ -101,6 +103,8 @@ export const answeredRow = ({
 	completion: "complete",
 	createdAt,
 	authorBotId: null,
+	authorAccountId: null,
+	authorName: null,
 	repliedToMessageId: asking.id,
 	runtimeSessionId: null,
 })

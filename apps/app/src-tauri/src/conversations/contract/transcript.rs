@@ -74,6 +74,8 @@ pub struct TranscriptMessage {
 	pub completion: TranscriptCompletion,
 	pub created_at: i64,
 	pub author_bot_id: Option<String>,
+	pub author_account_id: Option<String>,
+	pub author_name: Option<String>,
 	pub replied_to_message_id: Option<String>,
 	pub runtime_session_id: Option<String>,
 }
@@ -87,6 +89,8 @@ impl TranscriptMessage {
 			seq: stored.seq,
 			role: stored.role.into(),
 			author_bot_id: stored.author_bot_id,
+			author_account_id: stored.author.account_id,
+			author_name: stored.author.name,
 			content: stored.content,
 			completion: stored.state.into(),
 			created_at: stored.created_at,
@@ -274,16 +278,21 @@ pub struct NewUserMessage {
 	pub created_at: i64,
 }
 
-impl From<NewUserMessage> for messages::NewUserMessage {
-	fn from(message: NewUserMessage) -> Self {
-		Self {
-			id: message.id,
-			conversation_id: message.conversation_id,
-			turn_id: message.turn_id,
-			author_bot_id: message.author_bot_id,
-			replied_to_message_id: message.replied_to_message_id,
-			content: message.content,
-			created_at: message.created_at,
+impl NewUserMessage {
+	pub fn written_by(self, author: messages::AccountAuthor) -> messages::NewUserMessage {
+		let author = match self.author_bot_id {
+			Some(_) => messages::AccountAuthor::default(),
+			None => author,
+		};
+		messages::NewUserMessage {
+			id: self.id,
+			conversation_id: self.conversation_id,
+			turn_id: self.turn_id,
+			author_bot_id: self.author_bot_id,
+			author,
+			replied_to_message_id: self.replied_to_message_id,
+			content: self.content,
+			created_at: self.created_at,
 		}
 	}
 }
@@ -402,6 +411,24 @@ mod tests {
 			TranscriptStoreError::UnknownMessageSeq { conversation_id: "c1".into(), seq: 7 },
 			json!({ "kind": "unknownMessageSeq", "conversationId": "c1", "seq": 7 }),
 		);
+	}
+
+	#[test]
+	fn a_bot_authored_user_message_carries_no_account_author() {
+		let author =
+			messages::AccountAuthor { account_id: Some("owner".into()), name: Some("Ada".into()) };
+		let message = |author_bot_id: Option<&str>| NewUserMessage {
+			id: "m1".into(),
+			conversation_id: "c1".into(),
+			turn_id: "t1".into(),
+			author_bot_id: author_bot_id.map(Into::into),
+			replied_to_message_id: None,
+			content: "hello".into(),
+			created_at: 1,
+		};
+
+		assert_eq!(message(Some("b1")).written_by(author.clone()).author, Default::default());
+		assert_eq!(message(None).written_by(author.clone()).author, author);
 	}
 
 	#[test]

@@ -758,6 +758,7 @@ mod tests {
 				conversation_id: self.conversation_id.clone(),
 				turn_id: turn_id.to_owned(),
 				author_bot_id: None,
+				author: Default::default(),
 				replied_to_message_id: None,
 				content: "hello".to_owned(),
 				created_at: 1,
