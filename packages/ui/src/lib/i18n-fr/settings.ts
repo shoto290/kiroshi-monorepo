@@ -122,16 +122,6 @@ const settings = {
 			label: "Couleur",
 			none: "Aucune couleur",
 		},
-		share: {
-			label: "Lien de partage",
-			copy: "Copier le lien de partage",
-			copied: "Lien de partage copié",
-			hint: "Collez-le dans Rejoindre un espace sur un autre Kiroshi.",
-			warning:
-				"Toute personne disposant de ce lien obtient cet espace, ses compagnons et ses conversations.",
-			hostDown:
-				"L’hôte ne tourne pas, il n’y a donc pas encore de lien. Redémarrez Kiroshi pour le lancer.",
-		},
 		transfer: {
 			export: "Exporter cet espace",
 			import: "Importer un espace",
