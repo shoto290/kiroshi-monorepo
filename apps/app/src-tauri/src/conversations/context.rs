@@ -528,11 +528,14 @@ fn compose(parts: Parts<'_>) -> String {
 			parts.recent.iter().map(|message| spoken(message, parts.room)).collect();
 		push_section(&mut sections, RECENT_LABEL, &spoken.join("\n"));
 	}
-	let prompt = headed(parts.header, spelled(parts.room, parts.prompt));
 	if sections.is_empty() {
-		return prompt;
+		return headed(parts.header, parts.prompt.to_owned());
 	}
-	push_section(&mut sections, PROMPT_LABEL, &prompt);
+	push_section(
+		&mut sections,
+		PROMPT_LABEL,
+		&headed(parts.header, spelled(parts.room, parts.prompt)),
+	);
 	if let Some(note) = parts.room.and_then(|room| room.note_about(parts.prompt)) {
 		sections.push(note.to_owned());
 	}
