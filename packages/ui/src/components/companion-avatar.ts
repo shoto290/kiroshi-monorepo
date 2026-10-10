@@ -12,6 +12,8 @@ import {
 } from "@workspace/ui/components/companion-silhouette"
 import {
 	type FieldGrid,
+	type FieldPoint,
+	hexagonCorners,
 	honeycombGrid,
 } from "@workspace/ui/components/field-grid"
 import {
@@ -35,9 +37,13 @@ type Srgb = { red: number; green: number; blue: number }
 
 type AvatarOutline = { side: number; path: string }
 
+type ToneOpacity = { tone: number; opacity: number }
+
 type CompanionAvatar = {
 	cells: AvatarCell[]
 	tones: number[]
+	toneOpacities: ToneOpacity[]
+	cellCorners: FieldPoint[]
 	cellColour: Srgb
 	groundColour: Srgb
 	outline: AvatarOutline
@@ -74,10 +80,10 @@ const HUE_JITTER = 12
 const FIELD_CHROMA = 0.16
 const CELL_SHARE = 0.9
 const TONES = [0, 0.5, 1]
-const TONE_OPACITY = new Map([
-	[0.5, 0.45],
-	[1, 1],
-])
+const TONE_OPACITIES: ToneOpacity[] = [
+	{ tone: 0.5, opacity: 0.45 },
+	{ tone: 1, opacity: 1 },
+]
 const RADIANS_PER_DEGREE = Math.PI / 180
 
 const BLOT_COLOURS: Record<BotAvatarBlot, string> = {
@@ -107,6 +113,8 @@ const THEME_COLOURS: Record<AvatarTheme, ThemeColours> = {
 }
 
 const COMPANION_GRID = honeycombGrid(FIELD_CELLS, CELL_SHARE)
+
+const CELL_CORNERS = hexagonCorners({ u: 0, v: 0 }, 1)
 
 const COMPANION_OUTLINE: AvatarOutline = {
 	side: OUTER.halfWidth * 2,
@@ -271,6 +279,8 @@ const companionAvatar = ({
 	return {
 		cells: fieldCells(field.grid),
 		tones: fieldTones(field, state, time),
+		toneOpacities: TONE_OPACITIES,
+		cellCorners: CELL_CORNERS,
 		cellColour: cellColourOf(name, theme, tint),
 		groundColour: groundColourOf(theme, tint),
 		outline: COMPANION_OUTLINE,
@@ -291,5 +301,5 @@ export {
 	fieldTones,
 	hueShift,
 	type Srgb,
-	TONE_OPACITY,
+	TONE_OPACITIES,
 }

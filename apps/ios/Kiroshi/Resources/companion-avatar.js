@@ -234,10 +234,10 @@
   var FIELD_CHROMA = 0.16;
   var CELL_SHARE = 0.9;
   var TONES = [0, 0.5, 1];
-  var TONE_OPACITY = new Map([
-    [0.5, 0.45],
-    [1, 1]
-  ]);
+  var TONE_OPACITIES = [
+    { tone: 0.5, opacity: 0.45 },
+    { tone: 1, opacity: 1 }
+  ];
   var RADIANS_PER_DEGREE = Math.PI / 180;
   var BLOT_COLOURS = {
     red: "#f4a98c",
@@ -264,6 +264,7 @@
     }
   };
   var COMPANION_GRID = honeycombGrid(FIELD_CELLS, CELL_SHARE);
+  var CELL_CORNERS = hexagonCorners({ u: 0, v: 0 }, 1);
   var COMPANION_OUTLINE = {
     side: OUTER.halfWidth * 2,
     path: roundedHexagonPath(OUTER)
@@ -381,6 +382,8 @@
     return {
       cells: fieldCells(field.grid),
       tones: fieldTones(field, state, time),
+      toneOpacities: TONE_OPACITIES,
+      cellCorners: CELL_CORNERS,
       cellColour: cellColourOf(name, theme, tint),
       groundColour: groundColourOf(theme, tint),
       outline: COMPANION_OUTLINE

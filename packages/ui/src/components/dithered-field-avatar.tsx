@@ -10,7 +10,7 @@ import {
 	fieldCells,
 	fieldTones,
 	hueShift,
-	TONE_OPACITY,
+	TONE_OPACITIES,
 } from "@workspace/ui/components/companion-avatar"
 import {
 	type BotAvatarBlot,
@@ -73,7 +73,7 @@ const paintHoneycomb = (
 	tones: number[],
 	side: number,
 ) => {
-	for (const [lit, opacity] of TONE_OPACITY) {
+	for (const { tone: lit, opacity } of TONE_OPACITIES) {
 		context.beginPath()
 		for (const [index, tone] of tones.entries())
 			if (tone === lit) traceHexagon(context, cells[index], side)
@@ -89,7 +89,7 @@ const paintSquares = (
 	side: number,
 ) => {
 	for (const [index, tone] of tones.entries()) {
-		const opacity = TONE_OPACITY.get(tone)
+		const opacity = TONE_OPACITIES.find((entry) => entry.tone === tone)?.opacity
 		if (opacity === undefined) continue
 		const { u, v, radius } = cells[index]
 		context.globalAlpha = opacity

@@ -9,6 +9,7 @@ import {
 	companionAvatar,
 } from "@workspace/ui/components/companion-avatar"
 import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
+import { hexagonCorners } from "@workspace/ui/components/field-grid"
 
 const FIXTURE = "./companion-avatar.fixture.json"
 const SOURCE_ROOT = join(import.meta.dirname, "..")
@@ -84,6 +85,17 @@ describe("companionAvatar", () => {
 		await expect(
 			`${JSON.stringify(fixture, null, "\t")}\n`,
 		).toMatchFileSnapshot(FIXTURE)
+	})
+
+	it("places every cell corner at its centre plus its radius times the shared offsets", () => {
+		const { cells, cellCorners } = companionAvatar(FIXTURE_INPUTS[0])
+		for (const cell of cells)
+			expect(
+				cellCorners.map(({ u, v }) => ({
+					u: cell.u + cell.radius * u,
+					v: cell.v + cell.radius * v,
+				})),
+			).toEqual(hexagonCorners(cell, cell.radius))
 	})
 
 	it("draws the fixture again from the iOS bundle evaluated alone in node", () => {
