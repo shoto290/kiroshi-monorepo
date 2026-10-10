@@ -937,3 +937,104 @@ describe("a cold start on a joined space", () => {
 		).toHaveLength(2)
 	})
 })
+
+describe("a bot or a Space only this Mac holds", () => {
+	const OTHER_SPACE_REFUSAL = "this command reaches outside the shared space"
+
+	const answerJson = (answer: unknown) =>
+		new Response(JSON.stringify(answer), {
+			headers: { "content-type": "application/json" },
+		})
+
+	const relayedCommands = (fetch: ReturnType<typeof vi.fn>) =>
+		fetch.mock.calls.map(([url]) => String(url).split("/").at(-1))
+
+	const localAnswerTo = (command: string) => {
+		if (command === "space_list") {
+			return [{ id: "mine" }, { id: "personal" }]
+		}
+		if (command === "conversation_bots") {
+			return [{ id: "own-bot" }, { id: "shared-bot" }]
+		}
+		return "local"
+	}
+
+	const onGarageAfterLocalReads = async () => {
+		const seeded = joinedHostsOf({
+			join: async (id) => ({
+				status: "ok" as const,
+				data: {
+					id,
+					hostUrl: HOST,
+					token: "joined",
+					remoteSpaceId: "personal",
+					name: id,
+				},
+			}),
+			answer: () => answerJson([{ id: "shared-bot" }]),
+		})
+		seeded.local.invoke.mockImplementation(
+			async (command: string) => localAnswerTo(command) as never,
+		)
+		await seeded.hosts.invoke("space_list")
+		await seeded.hosts.invoke("conversation_bots", { spaceId: "mine" })
+		await seeded.hosts.activate("garage", "personal")
+		await seeded.hosts.invoke("conversation_bots", { spaceId: "personal" })
+		seeded.fetch.mockClear()
+		seeded.local.invoke.mockClear()
+		return seeded
+	}
+
+	it.each([
+		["section_list", { spaceId: "mine" }],
+		["space_preferences", { spaceId: "mine" }],
+		["conversation_bot_commands", { botId: "own-bot" }],
+		["conversation_main_chat", { botId: "own-bot", spaceId: "personal" }],
+		["routine_trigger_sources", { botId: "own-bot" }],
+		["agent_check", { scope: { botId: "own-bot" } }],
+		[
+			"conversation_create",
+			{ spaceId: "personal", botIds: ["shared-bot", "own-bot"] },
+		],
+	])(
+		"serves %s locally when it names what only this Mac answered with",
+		async (command, args) => {
+			const { hosts, local, fetch } = await onGarageAfterLocalReads()
+
+			await hosts.invoke(command, args)
+
+			expect(local.invoke).toHaveBeenLastCalledWith(command, args)
+			expect(relayedCommands(fetch)).toEqual([])
+		},
+	)
+
+	it.each([
+		["section_list", { spaceId: "personal" }],
+		["conversation_bot_commands", { botId: "shared-bot" }],
+		["conversation_main_chat", { botId: "shared-bot", spaceId: "personal" }],
+	])(
+		"relays %s when the active host holds everything it names",
+		async (command, args) => {
+			const { hosts, local, fetch } = await onGarageAfterLocalReads()
+
+			await hosts.invoke(command, args)
+
+			expect(relayedCommands(fetch)).toEqual([command])
+			expect(local.invoke).not.toHaveBeenCalled()
+		},
+	)
+
+	it("raises one notice for a relayed call the host refuses", async () => {
+		const { hosts, fetch, reportFailure } = await onGarageAfterLocalReads()
+		fetch.mockImplementation(
+			async () => new Response(OTHER_SPACE_REFUSAL, { status: 403 }),
+		)
+
+		await expect(
+			hosts.invoke("section_list", { spaceId: "elsewhere" }),
+		).rejects.toBe(OTHER_SPACE_REFUSAL)
+
+		expect(reportFailure).toHaveBeenCalledTimes(1)
+		expect(reportFailure).toHaveBeenCalledWith(OTHER_SPACE_REFUSAL, 403)
+	})
+})
