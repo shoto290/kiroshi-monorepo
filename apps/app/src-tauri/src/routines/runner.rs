@@ -24,7 +24,7 @@ use crate::conversations::commands::{conversation_open_runtime_session, ready};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
 use crate::db::repositories::messages::{NewAssistantMessage, NewTurn, TerminalState};
-use crate::events;
+use crate::events::{self, AGENT_EVENT};
 
 const CANCELLED_REASON: &str = "the run's turn was cancelled";
 
@@ -237,7 +237,7 @@ fn report_event(scope: &RuntimeScope, turn_id: &str, message: ChatMessage) -> Sc
 }
 
 fn announce_report<R: Runtime>(app: &AppHandle<R>, report: ScopedEvent) {
-	if let Err(error) = events::emit(app, EVENT_CHANNEL, report) {
+	if let Err(error) = events::emit(app, AGENT_EVENT, report) {
 		eprintln!("a routine report turn could not be announced: {error}");
 	}
 }

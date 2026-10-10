@@ -12,33 +12,29 @@ use specta_serde::{select_phase_datatype, Phase, PhasesFormat};
 use tauri_specta::{BuilderConfiguration, LanguageExt};
 
 use super::reach::{Audience, Reach, AUDIENCES, REACHES};
-use crate::agent::contract::ScopedEvent;
-use crate::applications::contract::ApplicationInstalled;
-use crate::companions::contract::{CompanionCreated, CompanionDeleted, CompanionUpdated};
-use crate::conversations::contract::{
-	CompanionArrival, CompanionSpoke, ConversationDeleted, ConversationStored, TranscriptMessage,
-};
-use crate::hosting::contract::HostingChanged;
-use crate::missions::commands::MissionChanged;
-use crate::routines::commands::RoutineChanged;
+use crate::events::{self, Event};
 
 type Definition = fn(&mut Types) -> DataType;
 
+const fn payload_of<P: Type>(event: Event<P>) -> (&'static str, Definition) {
+	(event.name(), P::definition)
+}
+
 const PAYLOADS: &[(&str, Definition)] = &[
-	(crate::agent::commands::EVENT_CHANNEL, ScopedEvent::definition),
-	(crate::applications::contract::INSTALLED_EVENT, ApplicationInstalled::definition),
-	(crate::companions::contract::CREATED_EVENT, CompanionCreated::definition),
-	(crate::companions::contract::DELETED_EVENT, CompanionDeleted::definition),
-	(crate::companions::contract::UPDATED_EVENT, CompanionUpdated::definition),
-	(crate::conversations::contract::COMPANION_ARRIVED_EVENT, CompanionArrival::definition),
-	(crate::conversations::contract::COMPANION_SPOKE_EVENT, CompanionSpoke::definition),
-	(crate::conversations::contract::CREATED_EVENT, ConversationStored::definition),
-	(crate::conversations::contract::DELETED_EVENT, ConversationDeleted::definition),
-	(crate::conversations::contract::MESSAGE_STORED_EVENT, TranscriptMessage::definition),
-	(crate::conversations::contract::UPDATED_EVENT, ConversationStored::definition),
-	(crate::hosting::contract::CHANGED_EVENT, HostingChanged::definition),
-	(crate::missions::commands::CHANGED_EVENT, MissionChanged::definition),
-	(crate::routines::commands::CHANGED_EVENT, RoutineChanged::definition),
+	payload_of(events::AGENT_EVENT),
+	payload_of(events::APPLICATION_INSTALLED),
+	payload_of(events::COMPANION_CREATED),
+	payload_of(events::COMPANION_DELETED),
+	payload_of(events::COMPANION_UPDATED),
+	payload_of(events::COMPANION_ARRIVED),
+	payload_of(events::COMPANION_SPOKE),
+	payload_of(events::CONVERSATION_CREATED),
+	payload_of(events::CONVERSATION_DELETED),
+	payload_of(events::MESSAGE_STORED),
+	payload_of(events::CONVERSATION_UPDATED),
+	payload_of(events::HOSTING_CHANGED),
+	payload_of(events::MISSION_CHANGED),
+	payload_of(events::ROUTINE_CHANGED),
 ];
 
 const FRAME_NAMES: [&str; 3] = ["CallFrame", "AnswerFrame", "EventFrame"];

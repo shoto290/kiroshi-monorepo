@@ -58,10 +58,11 @@ use crate::db::{self, DatabaseState};
 use crate::environment::connection;
 use crate::environment::contract::{ConnectionKind, EnvOwner, EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
-use crate::events;
+use crate::events::{self, Event};
 use crate::joined_spaces::contract::JoinedSpaceConnection;
 use crate::joined_spaces::relay::RelayGuests;
 use crate::mcp_oauth::credentials;
+use crate::routines::commands::CHANGED_EVENT as ROUTINE_CHANGED_EVENT;
 use crate::routines::webhook::{self, Webhook};
 use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
@@ -1074,7 +1075,8 @@ fn a_local_event_is_forwarded_to_the_relay() {
 		answer(&mut member).await;
 
 		let payload = json!({ "spaceId": PERSONAL, "n": 1 });
-		events::emit(harness.app.handle(), "hosting://changed", payload).expect("emitted");
+		events::emit(harness.app.handle(), Event::untyped(CHANGED_EVENT), payload)
+			.expect("emitted");
 		let forwarded =
 			next_text(&mut member, |frame| frame["event"]["payload"]["n"] == json!(1)).await;
 
@@ -1098,10 +1100,11 @@ fn the_first_member_announcement_of_an_online_space_sends_nothing_on_the_relay()
 		assert_eq!(harness.heard_member_lists().len(), 1);
 
 		let payload = json!({ "spaceId": PERSONAL, "n": 1 });
-		events::emit(harness.app.handle(), "hosting://changed", payload.clone()).expect("emitted");
+		events::emit(harness.app.handle(), Event::untyped(CHANGED_EVENT), payload.clone())
+			.expect("emitted");
 		let first = next_text(&mut member, |_| true).await;
 
-		assert_eq!(first, json!({ "event": { "event": "hosting://changed", "payload": payload } }));
+		assert_eq!(first, json!({ "event": { "event": CHANGED_EVENT, "payload": payload } }));
 	});
 }
 
@@ -1703,8 +1706,9 @@ impl Guest {
 
 	async fn relay_listens(&mut self) {
 		for probe in 0.. {
-			let probed = ("hosting://changed", json!({ "spaceId": PERSONAL, "probe": probe }));
-			events::emit(self.harness.app.handle(), probed.0, probed.1.clone()).expect("emitted");
+			let probed = (CHANGED_EVENT, json!({ "spaceId": PERSONAL, "probe": probe }));
+			events::emit(self.harness.app.handle(), Event::untyped(probed.0), probed.1.clone())
+				.expect("emitted");
 			let expected = as_forwarded(probed);
 			let heard = next_text(&mut self.member, |frame| *frame == expected);
 			if tokio::time::timeout(PROBE_PATIENCE, heard).await.is_ok() {
@@ -2526,7 +2530,7 @@ fn a_relay_guest_cannot_pick_the_start_folder_of_a_session() {
 }
 
 fn a_shared_space_marker() -> (&'static str, Value) {
-	("hosting://changed", json!({ "spaceId": PERSONAL, "marker": true }))
+	(CHANGED_EVENT, json!({ "spaceId": PERSONAL, "marker": true }))
 }
 
 fn as_forwarded((event, payload): (&str, Value)) -> Value {
@@ -2534,13 +2538,14 @@ fn as_forwarded((event, payload): (&str, Value)) -> Value {
 }
 
 fn an_agent_event_of(scope: Value) -> (&'static str, Value) {
-	("agent://event", json!({ "scope": scope, "event": { "type": "turnStarted" } }))
+	(commands::EVENT_CHANNEL, json!({ "scope": scope, "event": { "type": "turnStarted" } }))
 }
 
 impl Guest {
-	async fn first_event_after(&mut self, published: Vec<(&str, Value)>) -> Value {
+	async fn first_event_after(&mut self, published: Vec<(&'static str, Value)>) -> Value {
 		for (event, payload) in published {
-			events::emit(self.harness.app.handle(), event, payload).expect("emitted");
+			events::emit(self.harness.app.handle(), Event::untyped(event), payload)
+				.expect("emitted");
 		}
 		next_text(&mut self.member, |frame| frame.get("event").is_some()).await
 	}
@@ -2581,14 +2586,14 @@ fn a_relay_guest_hears_an_agent_event_of_the_shared_space_only() {
 #[test]
 fn a_relay_guest_hears_a_routine_change_of_the_shared_space_only() {
 	run(only_the_shared_space_frame_is_heard(|space_id| {
-		("routine://changed", json!({ "conversationId": a_conversation_in(space_id) }))
+		(ROUTINE_CHANGED_EVENT, json!({ "conversationId": a_conversation_in(space_id) }))
 	}));
 }
 
 #[test]
 fn a_relay_guest_hears_a_hosting_change_of_the_shared_space_only() {
 	run(only_the_shared_space_frame_is_heard(|space_id| {
-		("hosting://changed", json!({ "spaceId": space_id, "state": "online" }))
+		(CHANGED_EVENT, json!({ "spaceId": space_id, "state": "online" }))
 	}));
 }
 
@@ -2623,7 +2628,7 @@ fn a_relay_guest_hears_no_event_left_unclassified() {
 
 #[test]
 fn a_relay_guest_hears_no_event_whose_payload_misses_its_scope() {
-	run(kept_off_the_relay(("routine://changed", json!({ "conversationId": null }))));
+	run(kept_off_the_relay((ROUTINE_CHANGED_EVENT, json!({ "conversationId": null }))));
 }
 
 #[test]
@@ -2656,7 +2661,8 @@ fn a_relay_guest_hears_a_known_child_again_without_another_lookup() {
 impl Guest {
 	async fn events_until_the_marker(&mut self) -> Vec<Value> {
 		let marker = a_shared_space_marker();
-		events::emit(self.harness.app.handle(), marker.0, marker.1).expect("emitted");
+		events::emit(self.harness.app.handle(), Event::untyped(marker.0), marker.1)
+			.expect("emitted");
 		let mut heard = Vec::new();
 		loop {
 			let frame = next_text(&mut self.member, |frame| frame.get("event").is_some()).await;
@@ -2729,7 +2735,10 @@ fn a_relay_guest_hears_every_event_of_a_host_turn_in_the_shared_conversation_in_
 					turn: Some(turn.clone()),
 					event,
 				};
-				as_forwarded(("agent://event", serde_json::to_value(emitted).expect("a payload")))
+				as_forwarded((
+					commands::EVENT_CHANNEL,
+					serde_json::to_value(emitted).expect("a payload"),
+				))
 			})
 			.collect();
 		assert_eq!(heard, expected);
@@ -2753,8 +2762,11 @@ fn a_host_wide_connection_check_reaches_no_relay_guest_and_is_not_logged_as_kept
 		let frame: Value =
 			serde_json::from_str(&published.recv().await.expect("the check is published"))
 				.expect("a json frame");
-		assert_eq!(frame["event"], json!("agent://event"));
-		assert_eq!(reach::verdict("agent://event", &frame["payload"]), reach::Verdict::HostOnly);
+		assert_eq!(frame["event"], json!(commands::EVENT_CHANNEL));
+		assert_eq!(
+			reach::verdict(commands::EVENT_CHANNEL, &frame["payload"]),
+			reach::Verdict::HostOnly
+		);
 	});
 }
 

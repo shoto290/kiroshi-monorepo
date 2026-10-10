@@ -9,7 +9,7 @@ use tauri::{AppHandle, Runtime};
 
 use super::contract::{
 	CompanionCreated, CompanionError, CompanionInvited, ConversationAttached, ConversationOpened,
-	ConversationSaid, SeatedCompanion, CREATED_EVENT, FIRST_RUN_DONE_EVENT,
+	ConversationSaid, SeatedCompanion,
 };
 use crate::agent::host::{Host, Refusal};
 use crate::agent::reply_writer::{shown_with_attachments, HeldAttachment, TurnAttachments};
@@ -20,12 +20,10 @@ use crate::attachments::{
 use crate::conversations::commands::{
 	conversation_create_bot_from_draft, conversation_suggested_bots, ready, seat_participant,
 };
-use crate::conversations::contract::{
-	BotDraft, CompanionSpoke, TranscriptStoreError, COMPANION_SPOKE_EVENT,
-};
+use crate::conversations::contract::{BotDraft, CompanionSpoke, TranscriptStoreError};
 use crate::db;
 use crate::db::repositories::conversations::{Bot as StoredBot, ConversationDraft, TOPIC_KIND};
-use crate::events;
+use crate::events::{self, Event, COMPANION_CREATED, COMPANION_SPOKE, FIRST_RUN_DONE};
 use crate::file_store::FileStore;
 
 #[derive(Debug)]
@@ -125,7 +123,7 @@ impl<R: Runtime> CompanionHost<R> {
 			.await
 			.map_err(TranscriptStoreError::from)?;
 		self.announce(
-			COMPANION_SPOKE_EVENT,
+			COMPANION_SPOKE,
 			CompanionSpoke {
 				conversation_id: room.id.clone(),
 				author_bot_id: self.bot_id.clone(),
@@ -156,7 +154,7 @@ impl<R: Runtime> CompanionHost<R> {
 		self.holds_seat(database, &asked.conversation).await?;
 		let title = title_of(database, &asked.conversation).await?;
 		self.announce(
-			COMPANION_SPOKE_EVENT,
+			COMPANION_SPOKE,
 			CompanionSpoke {
 				conversation_id: asked.conversation.clone(),
 				author_bot_id: self.bot_id.clone(),
@@ -231,7 +229,7 @@ impl<R: Runtime> CompanionHost<R> {
 			author_bot_id: self.bot_id.clone(),
 			text: shown_with_attachments("", &[shown], Utc::now()),
 		};
-		if let Err(error) = self.announce(COMPANION_SPOKE_EVENT, spoken) {
+		if let Err(error) = self.announce(COMPANION_SPOKE, spoken) {
 			take_back(&stored);
 			return Err(error);
 		}
@@ -245,10 +243,10 @@ impl<R: Runtime> CompanionHost<R> {
 		space_of(database, &self.conversation_id).await
 	}
 
-	fn announce<T: Serialize + Clone>(
+	fn announce<P: Serialize + Clone>(
 		&self,
-		event: &str,
-		payload: T,
+		event: Event<P>,
+		payload: P,
 	) -> Result<(), CompanionError> {
 		events::emit(&self.app, event, payload)
 			.map_err(|error| CompanionError::Undeliverable { detail: error.to_string() })
@@ -350,13 +348,13 @@ impl<R: Runtime> Host for CompanionHost<R> {
 					conversation_create_bot_from_draft(self.app.clone(), state, asked.into(), space_id)
 						.await?;
 				let companion = CompanionCreated { id: created.id, name: created.name };
-				self.announce(CREATED_EVENT, &companion)?;
+				self.announce(COMPANION_CREATED, companion.clone())?;
 				Self::answered(companion)
 			}
 			Operation::FirstRunDone => {
 				let _: Bare = Self::read(payload)?;
 				database.user().mark_first_run_done().await?;
-				self.announce(FIRST_RUN_DONE_EVENT, ())?;
+				self.announce(FIRST_RUN_DONE, ())?;
 				Ok(Value::Null)
 			}
 			Operation::Invite => {
@@ -830,7 +828,7 @@ mod tests {
 	#[tokio::test]
 	async fn creating_a_companion_announces_the_id_it_created() {
 		let app = a_host("announced").await;
-		let arriving = heard(&app, CREATED_EVENT);
+		let arriving = heard(&app, COMPANION_CREATED.name());
 
 		let created = serving(&app, "c1").answer(a_create(json!({}))).await.expect("it is created");
 
@@ -840,7 +838,7 @@ mod tests {
 	#[tokio::test]
 	async fn the_first_run_is_recorded_under_the_setting_the_app_reads_and_announced() {
 		let app = a_host("first-run").await;
-		let arriving = heard(&app, FIRST_RUN_DONE_EVENT);
+		let arriving = heard(&app, FIRST_RUN_DONE.name());
 		assert!(!is_first_run_done(&app).await);
 
 		serving(&app, "c1").answer(asking("firstRunDone")).await.expect("it is recorded");

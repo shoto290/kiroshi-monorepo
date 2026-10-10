@@ -38,8 +38,8 @@ const ROOM: &str = "room-1";
 const ADA: &str = "b-ada";
 const GRACE: &str = "b-grace";
 const NYX: &str = "b-nyx";
-const AGENT_EVENT: &str = "agent://event";
-const MESSAGE_STORED: &str = "conversation://message-stored";
+const AGENT_EVENT: &str = kiroshi_app::agent::commands::EVENT_CHANNEL;
+const MESSAGE_STORED: &str = kiroshi_app::conversations::contract::MESSAGE_STORED_EVENT;
 const PATIENCE: Duration = Duration::from_secs(15);
 
 const A_ROOM: &str = "

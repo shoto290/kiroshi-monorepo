@@ -1,8 +1,14 @@
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 use tokio::sync::broadcast;
+
+use crate::{
+	account, agent, applications, companions, conversations, hosting, invitations, joined_spaces,
+	missions, notifications, routines, window_controls,
+};
 
 pub const BUFFERED_FRAMES: usize = 1024;
 
@@ -16,13 +22,94 @@ impl Default for Relay {
 	}
 }
 
-pub fn emit<R: Runtime, S: Serialize + Clone>(
+pub struct Event<P> {
+	name: &'static str,
+	payload: PhantomData<fn() -> P>,
+}
+
+impl<P> Event<P> {
+	const fn new(name: &'static str) -> Self {
+		Self { name, payload: PhantomData }
+	}
+
+	pub const fn name(&self) -> &'static str {
+		self.name
+	}
+}
+
+#[cfg(test)]
+impl Event<serde_json::Value> {
+	pub(crate) const fn untyped(name: &'static str) -> Self {
+		Self::new(name)
+	}
+}
+
+impl<P> Clone for Event<P> {
+	fn clone(&self) -> Self {
+		*self
+	}
+}
+
+impl<P> Copy for Event<P> {}
+
+macro_rules! declared {
+	($($handle:ident: $payload:ty = $name:expr,)*) => {
+		$(pub const $handle: Event<$payload> = Event::new($name);)*
+
+		#[cfg(test)]
+		const DECLARED_NAMES: &[&str] = &[$($name),*];
+	};
+}
+
+declared! {
+	ACCOUNT_CHANGED: account::contract::AccountState = account::contract::CHANGED_EVENT,
+	AGENT_EVENT: agent::contract::ScopedEvent = agent::commands::EVENT_CHANNEL,
+	SIGN_IN_STARTED: agent::contract::SignInStarted = agent::sign_in::SIGN_IN_STARTED_CHANNEL,
+	APPLICATION_INSTALLED: applications::contract::ApplicationInstalled =
+		applications::contract::INSTALLED_EVENT,
+	COMPANION_CREATED: companions::contract::CompanionCreated = companions::contract::CREATED_EVENT,
+	COMPANION_UPDATED: companions::contract::CompanionUpdated = companions::contract::UPDATED_EVENT,
+	COMPANION_DELETED: companions::contract::CompanionDeleted = companions::contract::DELETED_EVENT,
+	FIRST_RUN_DONE: () = companions::contract::FIRST_RUN_DONE_EVENT,
+	SEED_REFUSED: companions::contract::CompanionSeedRefused =
+		companions::contract::SEED_REFUSED_EVENT,
+	CONVERSATION_CREATED: conversations::contract::ConversationStored =
+		conversations::contract::CREATED_EVENT,
+	CONVERSATION_UPDATED: conversations::contract::ConversationStored =
+		conversations::contract::UPDATED_EVENT,
+	CONVERSATION_DELETED: conversations::contract::ConversationDeleted =
+		conversations::contract::DELETED_EVENT,
+	MESSAGE_STORED: conversations::contract::TranscriptMessage =
+		conversations::contract::MESSAGE_STORED_EVENT,
+	COMPANION_ARRIVED: conversations::contract::CompanionArrival =
+		conversations::contract::COMPANION_ARRIVED_EVENT,
+	COMPANION_SPOKE: conversations::contract::CompanionSpoke =
+		conversations::contract::COMPANION_SPOKE_EVENT,
+	HOSTING_CHANGED: hosting::contract::HostingChanged = hosting::contract::CHANGED_EVENT,
+	MEMBERS_CHANGED: hosting::contract::MembersChanged = hosting::contract::MEMBERS_CHANGED_EVENT,
+	INVITATION_CHANGED: invitations::contract::InvitationsChanged =
+		invitations::contract::CHANGED_EVENT,
+	JOINED_SPACE_CHANGED: joined_spaces::commands::JoinedSpaceChanged =
+		joined_spaces::commands::CHANGED_EVENT,
+	JOINED_SPACE_REMOVED: joined_spaces::commands::JoinedSpaceRemoved =
+		joined_spaces::commands::REMOVED_EVENT,
+	JOINED_SPACE_RECONNECTED: joined_spaces::commands::JoinedSpaceReconnected =
+		joined_spaces::commands::RECONNECTED_EVENT,
+	MISSION_CHANGED: missions::commands::MissionChanged = missions::commands::CHANGED_EVENT,
+	NOTIFICATION_ACTIVATED: notifications::commands::NotificationTarget =
+		notifications::commands::ACTIVATED_EVENT,
+	ROUTINE_CHANGED: routines::commands::RoutineChanged = routines::commands::CHANGED_EVENT,
+	MAXIMIZE_BUTTON: window_controls::MaximizeButtonPointer =
+		window_controls::MAXIMIZE_BUTTON_EVENT,
+}
+
+pub fn emit<R: Runtime, P: Serialize + Clone>(
 	app: &AppHandle<R>,
-	event: &str,
-	payload: S,
+	event: Event<P>,
+	payload: P,
 ) -> tauri::Result<()> {
-	publish(&relay(app), event, &payload);
-	app.emit(event, payload)
+	publish(&relay(app), event.name(), &payload);
+	app.emit(event.name(), payload)
 }
 
 pub fn subscribed<R: Runtime>(app: &AppHandle<R>) -> broadcast::Receiver<Frame> {
@@ -128,8 +215,19 @@ pub(crate) mod tests {
 	}
 
 	#[test]
+	fn every_event_name_is_declared_by_one_handle() {
+		let mut declared = std::collections::BTreeSet::new();
+		let twice: Vec<&str> =
+			DECLARED_NAMES.iter().copied().filter(|name| !declared.insert(*name)).collect();
+
+		assert!(twice.is_empty(), "the events {twice:?} are declared by more than one handle");
+	}
+
+	#[test]
 	fn a_frame_carries_the_name_and_the_payload() {
-		let frame = framed("mission://changed", &serde_json::json!({ "a": 1 })).expect("a frame");
+		let frame =
+			framed(crate::missions::commands::CHANGED_EVENT, &serde_json::json!({ "a": 1 }))
+				.expect("a frame");
 		assert_eq!(&*frame, r#"{"event":"mission://changed","payload":{"a":1}}"#);
 	}
 
@@ -138,7 +236,9 @@ pub(crate) mod tests {
 		let app = an_app_of_its_own("events", mock_builder());
 		let mut heard = subscribed(app.handle());
 
-		assert!(emit(app.handle(), "user://first-run-done", Unserializable).is_err());
+		let unserializable = Event::new(crate::companions::contract::FIRST_RUN_DONE_EVENT);
+
+		assert!(emit(app.handle(), unserializable, Unserializable).is_err());
 		assert!(heard.try_recv().is_err());
 	}
 
@@ -146,12 +246,12 @@ pub(crate) mod tests {
 	fn without_a_client_the_window_still_hears() {
 		let app = an_app_of_its_own("events", mock_builder());
 		let (told, hearing) = std::sync::mpsc::channel();
-		app.listen_any("user://first-run-done", move |event| {
+		app.listen_any(FIRST_RUN_DONE.name(), move |event| {
 			told.send(event.payload().to_owned()).expect("the test listens");
 		});
 
-		emit(app.handle(), "user://first-run-done", 7).expect("emitted");
+		emit(app.handle(), FIRST_RUN_DONE, ()).expect("emitted");
 
-		assert_eq!(hearing.recv().expect("the window heard"), "7");
+		assert_eq!(hearing.recv().expect("the window heard"), "null");
 	}
 }

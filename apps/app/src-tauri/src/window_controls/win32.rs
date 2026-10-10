@@ -24,11 +24,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use super::pointer::{Pointer, PointerInput};
-use super::{
-	MaximizeButtonBounds, MaximizeButtonPointer, MaximizeButtonState, WindowFrameError,
-	MAXIMIZE_BUTTON_EVENT,
-};
-use crate::events;
+use super::{MaximizeButtonBounds, MaximizeButtonPointer, MaximizeButtonState, WindowFrameError};
+use crate::events::{self, MAXIMIZE_BUTTON};
 
 const OVERLAY_CLASS: PCWSTR = w!("KiroshiMaximizeButton");
 
@@ -226,7 +223,7 @@ fn reporter<R: Runtime>(window: &WebviewWindow<R>) -> Box<dyn Fn(MaximizeButtonS
 	let app = window.app_handle().clone();
 	Box::new(move |state| {
 		let payload = MaximizeButtonPointer { state };
-		if let Err(error) = events::emit(&app, MAXIMIZE_BUTTON_EVENT, payload) {
+		if let Err(error) = events::emit(&app, MAXIMIZE_BUTTON, payload) {
 			eprintln!("the maximize button did not report {state:?}: {error}");
 		}
 	})

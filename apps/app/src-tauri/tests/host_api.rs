@@ -1,5 +1,6 @@
 mod common;
 
+use std::fmt::Display;
 use std::io::ErrorKind;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -11,9 +12,11 @@ use kiroshi_app::agent::contract::TransportError;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
-use kiroshi_app::events::{self, BUFFERED_FRAMES};
+use kiroshi_app::events::{self, BUFFERED_FRAMES, MISSION_CHANGED};
 use kiroshi_app::host_api::events::SEND_PATIENCE;
 use kiroshi_app::host_api::invoke::MAX_BODY_BYTES;
+use kiroshi_app::missions::commands::MissionChanged;
+use kiroshi_app::missions::contract::MissionState;
 use kiroshi_app::routines::webhook::{self, Webhook};
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
@@ -35,7 +38,7 @@ const CLOSE: u8 = 0x8;
 
 const TRY_AGAIN_LATER: u16 = 1013;
 
-const CHANGED: &str = "mission://changed";
+const CHANGED: &str = kiroshi_app::missions::commands::CHANGED_EVENT;
 
 struct Host {
 	app: AppOfItsOwn,
@@ -68,8 +71,9 @@ impl Host {
 		std::fs::read_to_string(self.token_path()).expect("the token is on disk")
 	}
 
-	fn emit(&self, event: &str, payload: Value) {
-		events::emit(self.app.handle(), event, payload).expect("the window took the event");
+	fn emit(&self, marker: impl Display) {
+		events::emit(self.app.handle(), MISSION_CHANGED, changed(marker))
+			.expect("the window took the event");
 	}
 
 	async fn emit_bulk(&self, count: usize) {
@@ -77,7 +81,7 @@ impl Host {
 		let bulk = "x".repeat(8 * 1024);
 		let emitting = tokio::task::spawn_blocking(move || {
 			for order in 0..count {
-				events::emit(&handle, CHANGED, json!({ "order": order, "bulk": bulk }))
+				events::emit(&handle, MISSION_CHANGED, changed(format!("{order}{bulk}")))
 					.expect("the window took the event");
 			}
 		});
@@ -281,6 +285,24 @@ impl Client {
 
 fn relayed(event: &str, window_payload: &str) -> String {
 	format!(r#"{{"event":"{event}","payload":{window_payload}}}"#)
+}
+
+fn changed(marker: impl Display) -> MissionChanged {
+	MissionChanged {
+		mission_id: marker.to_string(),
+		state: MissionState::Working,
+		state_seq: 1,
+		is_agent_running: true,
+		last_activity_at: None,
+	}
+}
+
+fn window_payload_of(marker: impl Display) -> String {
+	serde_json::to_string(&changed(marker)).expect("a payload")
+}
+
+fn relayed_change(marker: impl Display) -> String {
+	relayed(CHANGED, &window_payload_of(marker))
 }
 
 fn direct(window: &WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result<Value, Value> {
@@ -576,9 +598,8 @@ async fn a_client_hears_the_payload_the_window_receives() {
 	let server = host.started();
 	let mut client = server.listening(&host.token()).await;
 	let window = host.heard_by_the_window(CHANGED);
-	let payload = json!({ "missionId": "m1", "state": "running", "note": "é\n\"quoted\"", "at": 1.5, "none": null });
 
-	host.emit(CHANGED, payload);
+	host.emit("é\n\"quoted\"");
 
 	let window_payload = window.recv_timeout(PATIENCE).expect("the window heard");
 	assert_eq!(client.text().await, relayed(CHANGED, &window_payload));
@@ -593,12 +614,12 @@ async fn every_client_hears_every_event_in_emit_order() {
 	let mut second = server.listening(&token).await;
 
 	for order in 0..50 {
-		host.emit(CHANGED, json!(order));
+		host.emit(order);
 	}
 
 	for order in 0..50 {
-		assert_eq!(first.text().await, relayed(CHANGED, &order.to_string()));
-		assert_eq!(second.text().await, relayed(CHANGED, &order.to_string()));
+		assert_eq!(first.text().await, relayed_change(order));
+		assert_eq!(second.text().await, relayed_change(order));
 	}
 }
 
@@ -613,12 +634,12 @@ async fn a_client_that_leaves_is_dropped_and_the_others_keep_hearing() {
 	drop(leaving);
 
 	for order in 0..20 {
-		host.emit(CHANGED, json!(order));
+		host.emit(order);
 	}
 
 	for order in 0..20 {
-		assert_eq!(staying.text().await, relayed(CHANGED, &order.to_string()));
-		assert_eq!(window.recv_timeout(PATIENCE).expect("the window heard"), order.to_string());
+		assert_eq!(staying.text().await, relayed_change(order));
+		assert_eq!(window.recv_timeout(PATIENCE).expect("the window heard"), window_payload_of(order));
 	}
 }
 
@@ -630,12 +651,12 @@ async fn every_frame_a_client_sends_but_close_is_ignored() {
 
 	client.send(TEXT, b"hello").await;
 	client.send(BINARY, b"\x00\x01").await;
-	host.emit(CHANGED, json!("after"));
+	host.emit("after");
 
-	assert_eq!(client.text().await, relayed(CHANGED, r#""after""#));
+	assert_eq!(client.text().await, relayed_change("after"));
 
 	client.send(CLOSE, &[]).await;
-	host.emit(CHANGED, json!("closed"));
+	host.emit("closed");
 	client.ended().await;
 }
 
@@ -663,12 +684,12 @@ async fn a_client_that_stops_reading_is_dropped_while_the_others_keep_hearing() 
 	let token = host.token();
 	let mut stalled = server.slow_listening(&token).await;
 	let reading = server.listening(&token).await;
-	let later = relayed(CHANGED, r#""later""#);
+	let later = relayed_change("later");
 	let hearing = tokio::spawn(reading.heard_until(later));
 
 	host.emit_bulk(BUFFERED_FRAMES - 24).await;
 	tokio::time::sleep(SEND_PATIENCE + Duration::from_secs(1)).await;
-	host.emit(CHANGED, json!("later"));
+	host.emit("later");
 
 	timeout(PATIENCE, hearing).await.expect("the reading client heard in time").expect("heard");
 	stalled.closed_by_the_host().await;

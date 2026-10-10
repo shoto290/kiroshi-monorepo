@@ -2825,7 +2825,7 @@ fn a_companion_seated_over_ipc_is_announced_and_read_back_on_the_page() {
 	let latecomer = a_bot_in(&window, &space, "Iris");
 	let room = id_of(&a_room(&window, &space, "Standup", vec![host]));
 	let (announced, heard) = mpsc::channel();
-	app.listen_any("conversation://companion-arrived", move |event| {
+	app.listen_any(kiroshi_app::conversations::contract::COMPANION_ARRIVED_EVENT, move |event| {
 		announced.send(event.payload().to_owned()).expect("the announcement is kept");
 	});
 

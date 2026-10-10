@@ -11,7 +11,7 @@ use crate::agent::reply_writer::HostWrites;
 use crate::agent::AgentState;
 use crate::db;
 use crate::db::repositories::messages::{MessagePageQuery, MessagesAroundQuery};
-use crate::events;
+use crate::events::{self, MESSAGE_STORED};
 use crate::hosting::authorship::Caller;
 
 #[tauri::command]
@@ -198,7 +198,7 @@ async fn announce_stored<R: Runtime>(
 	let failure = match database.messages().message(conversation_id.clone(), id.clone()).await {
 		Ok(Some(stored)) => {
 			let message = TranscriptMessage::of(&conversation_id, stored);
-			match events::emit(app, MESSAGE_STORED_EVENT, message) {
+			match events::emit(app, MESSAGE_STORED, message) {
 				Ok(()) => return,
 				Err(failure) => failure.to_string(),
 			}

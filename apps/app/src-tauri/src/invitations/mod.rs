@@ -10,11 +10,11 @@ use tokio::time::{interval, MissedTickBehavior};
 
 use crate::account::cloud::{Cloud, InvitationCallError};
 use crate::account::session::AccountSession;
-use crate::events;
+use crate::events::{self, INVITATION_CHANGED};
 use crate::joined_spaces;
 use crate::joined_spaces::contract::JoinedSpace;
 use crate::joined_spaces::relay::RelayJoinError;
-use contract::{Invitation, InvitationError, InvitationsChanged, CHANGED_EVENT};
+use contract::{Invitation, InvitationError, InvitationsChanged};
 
 const INVITATIONS_EVERY: Duration = Duration::from_secs(30);
 
@@ -160,8 +160,8 @@ fn bearer_of<R: Runtime>(app: &AppHandle<R>) -> Result<String, InvitationError> 
 
 fn announced<R: Runtime>(app: &AppHandle<R>, invitations: &Invitations, listed: Vec<Invitation>) {
 	*invitations.last() = Some(listed.clone());
-	if let Err(error) = events::emit(app, CHANGED_EVENT, InvitationsChanged { invitations: listed })
-	{
+	let changed = InvitationsChanged { invitations: listed };
+	if let Err(error) = events::emit(app, INVITATION_CHANGED, changed) {
 		eprintln!("the invitations did not reach the front: {error}");
 	}
 }
