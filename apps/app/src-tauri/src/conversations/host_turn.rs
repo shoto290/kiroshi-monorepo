@@ -7,7 +7,7 @@ use futures_util::future::join_all;
 use tauri::{AppHandle, Listener, Runtime, State};
 use tokio::sync::mpsc;
 
-use super::context::{bounded_context, capture_checkpoint, mentioned_bot_ids};
+use super::context::{bounded_context, mentioned_bot_ids};
 use super::contract::{SentMessage, TranscriptStoreError};
 use crate::agent::commands::{
 	agent_shutdown, agent_start_or_resume_session, agent_submit_prompt, announce,
@@ -19,7 +19,7 @@ use crate::agent::translate::now_ms;
 use crate::agent::AgentState;
 use crate::db;
 use crate::db::repositories::conversations::Seat;
-use crate::db::repositories::runtime_context::ParticipantKey;
+use crate::db::repositories::runtime_context::{Handover, ParticipantKey};
 use crate::routines::runner::{
 	database, detail_of, ends_the_session, listen, managed, NO_AGENT, NO_DATABASE,
 };
@@ -161,11 +161,10 @@ pub(crate) async fn run<R: Runtime>(
 		conversation_id: message.conversation_id,
 		turn_id: message.turn_id,
 		prompt_id: message.id,
-		_held: held,
 	};
 	let speaking = turn.wave(first).await;
 	tauri::async_runtime::spawn(async move {
-		turn.drive(speaking, heard).await;
+		turn.drive(held, speaking, heard).await;
 		turn.app.unlisten(listening);
 	});
 }
@@ -212,12 +211,12 @@ struct HostTurn<R: Runtime> {
 	conversation_id: String,
 	turn_id: String,
 	prompt_id: String,
-	_held: HeldTurn,
 }
 
 impl<R: Runtime> HostTurn<R> {
 	async fn drive(
 		&self,
+		held: HeldTurn,
 		mut speaking: Vec<Speaker>,
 		mut heard: mpsc::UnboundedReceiver<ScopedEvent>,
 	) {
@@ -235,7 +234,12 @@ impl<R: Runtime> HostTurn<R> {
 				continue;
 			}
 			let done = speaking.remove(at);
-			self.close(done, &mut waiting).await;
+			self.note_handovers(&done, &mut waiting).await;
+			if speaking.is_empty() && waiting.is_empty() {
+				drop(held);
+				return self.shut_down(done.scope).await;
+			}
+			self.shut_down(done.scope).await;
 			if speaking.is_empty() {
 				speaking = self.wave(mem::take(&mut waiting)).await;
 			}
@@ -276,8 +280,12 @@ impl<R: Runtime> HostTurn<R> {
 			conversation_id: self.conversation_id.clone(),
 			bot_id: bot_id.to_owned(),
 		};
-		let opened =
-			database(&self.app)?.runtime_context().open(participant, now_ms(), None).await?;
+		let sessions = database(&self.app)?.runtime_context();
+		let handover = sessions
+			.active_session(participant.clone())
+			.await?
+			.map(|active| Handover { session_id: active.id, reason: None });
+		let opened = sessions.open(participant, now_ms(), handover).await?;
 		Ok(RuntimeScope {
 			conversation_id: opened.participant.conversation_id,
 			bot_id: opened.participant.bot_id,
@@ -321,9 +329,13 @@ impl<R: Runtime> HostTurn<R> {
 			conversation_id: scope.conversation_id.clone(),
 			bot_id: scope.bot_id.clone(),
 		};
-		let session_id = scope.runtime_session_id.clone();
-		capture_checkpoint(database, participant.clone(), session_id.clone(), now_ms()).await?;
-		bounded_context(database, participant, session_id, prompt_id.to_owned()).await
+		bounded_context(
+			database,
+			participant,
+			scope.runtime_session_id.clone(),
+			prompt_id.to_owned(),
+		)
+		.await
 	}
 
 	async fn refused(&self, bot_id: &str, refusal: Refusal) {
@@ -353,9 +365,8 @@ impl<R: Runtime> HostTurn<R> {
 		Ok(database(&self.app)?.messages().complete_turn(self.turn_id.clone(), now_ms()).await?)
 	}
 
-	async fn close(&self, done: Speaker, waiting: &mut Vec<Summons>) {
-		self.shut_down(done.scope.clone()).await;
-		match self.handed_by(&done).await {
+	async fn note_handovers(&self, done: &Speaker, waiting: &mut Vec<Summons>) {
+		match self.handed_by(done).await {
 			Ok(handed) => {
 				for summons in handed {
 					hand_over(waiting, &done.scope.bot_id, summons);

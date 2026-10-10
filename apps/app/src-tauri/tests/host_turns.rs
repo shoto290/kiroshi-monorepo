@@ -221,6 +221,24 @@ impl Host {
 		.await;
 	}
 
+	async fn turns_closed_for(&mut self, bot_id: &str, closed: usize) {
+		self.heard_until(|frames| turns_closed_in(frames, bot_id) >= closed).await;
+	}
+
+	async fn active_sessions_of(&self, bot_id: &'static str) -> i64 {
+		database_of(&self.app)
+			.call(move |connection| {
+				Ok(connection.query_row(
+					"SELECT count(*) FROM runtime_sessions
+						WHERE conversation_id = ?1 AND bot_id = ?2 AND status = 'active'",
+					[ROOM, bot_id],
+					|row| row.get(0),
+				)?)
+			})
+			.await
+			.expect("the sessions count")
+	}
+
 	fn agent_events(&self, bot_id: &str) -> Vec<Value> {
 		agent_events_in(&self.frames, bot_id).cloned().collect()
 	}
@@ -287,6 +305,21 @@ fn agent_events_in<'a>(
 	published(frames, AGENT_EVENT)
 		.filter(move |payload| payload["scope"]["botId"] == bot_id)
 		.map(|payload| &payload["event"])
+}
+
+fn turns_closed_in(frames: &[Value], bot_id: &str) -> usize {
+	let mut closed = 0;
+	let mut has_ended = false;
+	for event in agent_events_in(frames, bot_id) {
+		if event["type"] == "turnEnded" {
+			has_ended = true;
+		}
+		if has_ended && event["type"] == "connectionChanged" && event["state"] == "checking" {
+			closed += 1;
+			has_ended = false;
+		}
+	}
+	closed
 }
 
 fn database_of(app: &App<MockRuntime>) -> &db::Database {
@@ -418,6 +451,28 @@ fn a_companion_that_cannot_start_fails_its_turn_and_leaves_the_others_to_reply()
 			"a companion that never started replied"
 		);
 		assert!(host.completed_at("t1").await.is_some(), "the failed turn was left open");
+		host.quit().await;
+	});
+}
+
+#[test]
+fn a_turn_that_ended_for_its_companion_lets_the_next_send_in_and_hands_its_session_over() {
+	let _serial = serial();
+	block_on(async {
+		let mut host = Host::hosting("in-a-row", "room_reply").await;
+
+		let first = host.send_turn(sent("p1", "t1", "first round"), &[ADA]).await;
+		host.turns_closed_for(ADA, 1).await;
+		let second = host.send_turn(sent("p2", "t2", "second round"), &[ADA]).await;
+		host.turns_closed_for(ADA, 2).await;
+
+		assert_eq!(first["status"], json!(200), "{first}");
+		assert_eq!(second["status"], json!(200), "{second}");
+		let transcript = host.transcript().await;
+		let turns: Vec<&str> =
+			replies_of(&transcript, ADA).iter().map(|reply| reply.turn_id.as_str()).collect();
+		assert_eq!(turns, vec!["t1", "t2"], "the room holds {transcript:#?}");
+		assert_eq!(host.active_sessions_of(ADA).await, 1, "a host turn left a session active");
 		host.quit().await;
 	});
 }
