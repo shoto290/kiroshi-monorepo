@@ -17,8 +17,6 @@ pub enum NotificationKind {
 	Mission,
 }
 
-const NOTIFICATION_KINDS: &[&str] = &["bot", "conversation", "mission"];
-
 impl<'de> Deserialize<'de> for NotificationKind {
 	fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
 		let raw = String::deserialize(deserializer)?;
@@ -28,7 +26,7 @@ impl<'de> Deserialize<'de> for NotificationKind {
 			"mission" => Ok(Self::Mission),
 			_ => {
 				eprintln!("the notification target was dropped: its kind {raw:?} is unknown");
-				Err(de::Error::unknown_variant(&raw, NOTIFICATION_KINDS))
+				Err(de::Error::unknown_variant(&raw, &["bot", "conversation", "mission"]))
 			}
 		}
 	}
