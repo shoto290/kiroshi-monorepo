@@ -31,7 +31,7 @@
         }
 
         private static let companions = #"""
-            [{"id":"bot-atlas","name":"Atlas"},{"id":"bot-pico","name":"Pico"},{"id":"bot-juniper","name":"Juniper"},{"id":"bot-mira","name":"Mira"}]
+            [{"id":"bot-atlas","name":"Atlas","avatarBlot":"blue"},{"id":"bot-pico","name":"Pico","avatarBlot":"orange"},{"id":"bot-juniper","name":"Juniper","avatarBlot":"green"},{"id":"bot-mira","name":"Mira","avatarBlot":"purple"}]
             """#
 
         private static var feed: String {
