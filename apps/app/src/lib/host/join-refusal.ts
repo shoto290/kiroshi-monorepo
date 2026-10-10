@@ -21,12 +21,23 @@ export const isJoinedSpaceError = (
 	typeof reason.kind === "string" &&
 	Object.hasOwn(NOTICE_KEYS, reason.kind)
 
+type NoticeKey =
+	| (typeof NOTICE_KEYS)[JoinedSpaceError["kind"]]
+	| "joinRefused.unexpected"
+
+const noticeOf = (key: NoticeKey): NoticeMessage => ({
+	title: i18n.t(`chat:screen.notice.${key}.title`),
+	description: i18n.t(`chat:screen.notice.${key}.description`),
+})
+
 export const joinRefusalNoticeOf = ({
 	kind,
-}: JoinedSpaceError): NoticeMessage => {
-	const key = NOTICE_KEYS[kind]
-	return {
-		title: i18n.t(`chat:screen.notice.${key}.title`),
-		description: i18n.t(`chat:screen.notice.${key}.description`),
-	}
-}
+}: JoinedSpaceError): NoticeMessage => noticeOf(NOTICE_KEYS[kind])
+
+export const unexpectedJoinNotice = (): NoticeMessage =>
+	noticeOf("joinRefused.unexpected")
+
+export const joinRejectionNoticeOf = (reason: unknown): NoticeMessage =>
+	isJoinedSpaceError(reason)
+		? joinRefusalNoticeOf(reason)
+		: unexpectedJoinNotice()

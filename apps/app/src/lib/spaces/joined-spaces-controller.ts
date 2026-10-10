@@ -21,7 +21,7 @@ import { joinedHosts, listen } from "../host"
 import { createStore } from "../store"
 import type { RosterSpace } from "../bots/roster-controller"
 import type { Space } from "../conversations/store-contract"
-import { isJoinedSpaceError, joinRefusalNoticeOf } from "../host/join-refusal"
+import { joinRejectionNoticeOf } from "../host/join-refusal"
 import {
 	JOINED_SPACE_CHANGED_EVENT,
 	type JoinedHostState,
@@ -97,17 +97,6 @@ const joinedSpacesTransport: JoinedSpacesTransport = {
 
 const raiseRemovalNotice = (notice: NoticeMessage) =>
 	raiseTransientNotice({ ...notice, type: "info" })
-
-const describeRejection = (reason: unknown): string =>
-	reason instanceof Error ? reason.message : String(reason)
-
-const refusalNoticeOf = (reason: unknown): NoticeMessage =>
-	isJoinedSpaceError(reason)
-		? joinRefusalNoticeOf(reason)
-		: {
-				title: i18n.t("chat:screen.notice.failed"),
-				description: describeRejection(reason),
-			}
 
 const JOINED_ROW_PREFIX = "joined:"
 
@@ -217,7 +206,7 @@ export const createJoinedSpacesController = ({
 		stateStore.setState({ ...current(), ...fields })
 
 	const reportRefusal = (reason: unknown) =>
-		reportFailure(refusalNoticeOf(reason))
+		reportFailure(joinRejectionNoticeOf(reason))
 
 	const noteFailedLoad = (reason: unknown) => {
 		set({ hasFailedToLoad: true })
