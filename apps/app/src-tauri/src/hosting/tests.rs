@@ -12,7 +12,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::Router;
 use serde_json::{json, Value};
-use tauri::test::{mock_app, mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
 use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 use tokio::net::TcpListener;
@@ -299,6 +299,13 @@ struct Harness {
 	heard_members: Arc<Mutex<Vec<Value>>>,
 }
 
+fn an_app_of_its_own(name: &str) -> App<MockRuntime> {
+	let mut context = mock_context(noop_assets());
+	context.config_mut().identifier =
+		format!("com.kiroshi.hosting-{name}-{}", uuid::Uuid::new_v4());
+	mock_builder().build(context).expect("the app builds")
+}
+
 impl Harness {
 	async fn new(name: &str, refusal: Option<StatusCode>, bearer: Option<&str>) -> Self {
 		Self::polling_members(name, refusal, bearer, super::members::MEMBERS_EVERY).await
@@ -382,7 +389,7 @@ impl Harness {
 			store::set(&root, &EnvScope::Account, ACCOUNT_BEARER, bearer)
 				.expect("the bearer is kept");
 		}
-		let app = mock_app();
+		let app = an_app_of_its_own(name);
 		app.manage::<DatabaseState>(Ok(db::open(&database)));
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
 		app.manage(RelayGuests::new(&cloud));
@@ -1558,7 +1565,7 @@ fn an_unreachable_cloud_is_unreachable_with_its_cause() {
 			std::env::temp_dir().join(format!("kiroshi-hosting-down-{}", uuid::Uuid::new_v4()));
 		store::set(&root, &EnvScope::Account, ACCOUNT_BEARER, BEARER).expect("the bearer is kept");
 		let cloud = format!("http://{address}");
-		let app = mock_app();
+		let app = an_app_of_its_own("down");
 		app.manage::<DatabaseState>(Ok(db::open(&temp_dir())));
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
 		app.manage(Hosting::new(&cloud, None));
