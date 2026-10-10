@@ -1605,6 +1605,14 @@ export const createFakeTranscriptStore = (
 			return Promise.resolve(sections.join("\n\n"))
 		},
 
+		messageHeader: (conversationId: string, messageId: string) => {
+			const stored = rows.get(messageId)
+			if (!stored || stored.conversationId !== conversationId) {
+				return refuse({ kind: "unknownMessage", id: messageId })
+			}
+			return Promise.resolve(`[${stored.role} · ${stored.createdAt}]`)
+		},
+
 		captureCheckpoint: (
 			conversationId: string,
 			botId: string,

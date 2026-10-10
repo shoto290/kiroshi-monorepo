@@ -379,6 +379,12 @@ export const conversationStore: TranscriptStore = {
 			promptMessageId,
 		}),
 
+	messageHeader: (conversationId: string, messageId: string) =>
+		invoke<string>("conversation_message_header", {
+			conversationId,
+			messageId,
+		}),
+
 	captureCheckpoint: (
 		conversationId: string,
 		botId: string,

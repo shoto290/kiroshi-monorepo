@@ -172,6 +172,7 @@ export type TranscriptStore = TranscriptPort & {
 		runtimeSessionId: string,
 		promptMessageId: string,
 	) => Promise<string>
+	messageHeader: (conversationId: string, messageId: string) => Promise<string>
 	captureCheckpoint: (
 		conversationId: string,
 		botId: string,

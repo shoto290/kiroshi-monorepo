@@ -350,6 +350,27 @@ export const expectWholeChat = (context: string, alsoSaid: string[]) => {
 export const told = (submitted: { mock: { calls: unknown[][] } }) =>
 	String(submitted.mock.calls.at(-1)?.[1] ?? "")
 
+export const userPrompt = (controller: ChatController, text: string) => {
+	const prompt = controller
+		.getState()
+		.messages.find(
+			(message) => message.role === "user" && message.content === text,
+		)
+	if (!prompt) {
+		throw new Error(`no prompt reads ${text}`)
+	}
+	return prompt
+}
+
+export const headed = async (
+	{ store, controller }: Pick<Harness, "store" | "controller">,
+	text: string,
+) => {
+	const prompt = userPrompt(controller, text)
+	const header = await store.messageHeader(prompt.conversationId, prompt.id)
+	return `${header}\n${text}`
+}
+
 export const reasons = (
 	opened: { mock: { calls: unknown[][] } },
 	botId: string,
