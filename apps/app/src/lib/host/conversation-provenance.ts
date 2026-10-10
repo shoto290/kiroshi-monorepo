@@ -8,9 +8,17 @@ const SCOPING_ID_KEYS = ["conversationId", "excludedConversationId"]
 
 const SCOPING_ENVELOPES = ["scope", "message", "turn", "draft"]
 
+const HELD_ID_KEYS = [
+	"botId",
+	"authorBotId",
+	"invitedByBotId",
+	"botIds",
+	"spaceId",
+]
+
 export const LOCAL_IDS_COMMAND = "conversation_local_ids"
 
-const CONVERSATION_ANSWERS: ReadonlySet<string> = new Set([
+const ANSWERS_NAMING_THEIR_IDS: ReadonlySet<string> = new Set([
 	"conversation_main_chat",
 	"conversation_create",
 	"conversation_list",
@@ -18,6 +26,14 @@ const CONVERSATION_ANSWERS: ReadonlySet<string> = new Set([
 	"conversation_add_participant",
 	"conversation_remove_participant",
 	"conversation_set_lead",
+	"conversation_bots",
+	"conversation_bots_by_presence",
+	"conversation_create_bot",
+	"conversation_create_bot_from_draft",
+	"conversation_duplicate_bot",
+	"space_list",
+	"space_create",
+	"space_import",
 ])
 
 const isFields = (value: unknown): value is Fields =>
@@ -32,12 +48,21 @@ const scopingIdsAt = (holder: unknown): string[] =>
 		? SCOPING_ID_KEYS.map((key) => holder[key]).filter(isText)
 		: []
 
-const conversationIdsOf = (args?: InvokeArgs): string[] =>
+const scopingHoldersOf = (args?: InvokeArgs): unknown[] =>
 	isFields(args)
-		? [args, ...SCOPING_ENVELOPES.map((envelope) => args[envelope])].flatMap(
-				scopingIdsAt,
-			)
+		? [args, ...SCOPING_ENVELOPES.map((envelope) => args[envelope])]
 		: []
+
+const conversationIdsOf = (args?: InvokeArgs): string[] =>
+	scopingHoldersOf(args).flatMap(scopingIdsAt)
+
+const heldIdsAt = (holder: unknown): string[] =>
+	isFields(holder)
+		? HELD_ID_KEYS.flatMap((key) => [holder[key]].flat()).filter(isText)
+		: []
+
+const heldIdsOf = (args?: InvokeArgs): string[] =>
+	scopingHoldersOf(args).flatMap(heldIdsAt)
 
 const conversationIdsNamedIn = (value: unknown): string[] => {
 	if (Array.isArray(value)) {
@@ -64,8 +89,8 @@ const ownIdsOf = (answer: unknown): string[] =>
 const listedIdsOf = (answer: unknown): string[] =>
 	[answer].flat().filter(isText)
 
-const conversationIdsAnswered = (command: string, answer: unknown) => [
-	...(CONVERSATION_ANSWERS.has(command) ? ownIdsOf(answer) : []),
+const idsAnswered = (command: string, answer: unknown) => [
+	...(ANSWERS_NAMING_THEIR_IDS.has(command) ? ownIdsOf(answer) : []),
 	...(command === LOCAL_IDS_COMMAND ? listedIdsOf(answer) : []),
 	...conversationIdsNamedIn(answer),
 ]
@@ -91,17 +116,29 @@ export const createConversationProvenance = () => {
 			conversationIdsOf(args).flatMap((id) => [...(sourcesById.get(id) ?? [])]),
 		)
 
+	const isAnsweredOnlyHere =
+		(source: ConversationSource) =>
+		(id: string): boolean => {
+			const sources = sourcesById.get(id)
+			return sources?.has(null) === true && !sources.has(source)
+		}
+
+	const heldOnlyHereIn = (
+		args: InvokeArgs | undefined,
+		source: ConversationSource,
+	): string[] => heldIdsOf(args).filter(isAnsweredOnlyHere(source))
+
 	const record = <T>(
 		source: ConversationSource,
 		command: string,
 		answer: Promise<T>,
 	): Promise<T> => {
 		answer.then(
-			(answered) => learn(source, conversationIdsAnswered(command, answered)),
+			(answered) => learn(source, idsAnswered(command, answered)),
 			leaveRefusalToCaller,
 		)
 		return answer
 	}
 
-	return { namesConversation, sourcesNamedIn, record }
+	return { namesConversation, sourcesNamedIn, heldOnlyHereIn, record }
 }

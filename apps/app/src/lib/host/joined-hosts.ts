@@ -375,7 +375,15 @@ export const createJoinedHosts = ({
 		return localIdsRecall
 	}
 
+	const namesWhatOnlyThisMacHolds = (active: string, args?: InvokeArgs) =>
+		provenance
+			.heldOnlyHereIn(args, active)
+			.some((id) => id !== sharedSpaceIds.get(active))
+
 	const ownerOf = (active: string, args?: InvokeArgs): ConversationSource => {
+		if (namesWhatOnlyThisMacHolds(active, args)) {
+			return null
+		}
 		const sources = provenance.sourcesNamedIn(args)
 		if (sources.size === 0) {
 			return provenance.namesConversation(args) && !hasLocalIds ? null : active
