@@ -1,7 +1,6 @@
-export type NotificationTarget = {
-	kind: "bot" | "conversation" | "mission"
-	id: string
-}
+import type { NotificationTarget } from "@/lib/bindings"
+
+export type { NotificationTarget } from "@/lib/bindings"
 
 export type NotificationRequest = {
 	target: NotificationTarget
