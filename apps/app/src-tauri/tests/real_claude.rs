@@ -117,7 +117,7 @@ impl LiveFolder {
 	}
 
 	fn projects(&self) -> Vec<PathBuf> {
-		let own = project_slug(&self.root);
+		let own = format!("{}-", project_slug(&self.root));
 		let listing = match std::fs::read_dir(projects_dir()) {
 			Ok(listing) => listing,
 			Err(failure) if failure.kind() == ErrorKind::NotFound => return Vec::new(),
@@ -135,9 +135,10 @@ impl LiveFolder {
 				}
 			})
 			.filter(|project| {
-				project.file_name().and_then(|name| name.to_str()).is_some_and(|name| {
-					name == own || name.strip_prefix(&own).is_some_and(|rest| rest.starts_with('-'))
-				})
+				project
+					.file_name()
+					.and_then(|name| name.to_str())
+					.is_some_and(|name| name.starts_with(&own))
 			})
 			.collect()
 	}
