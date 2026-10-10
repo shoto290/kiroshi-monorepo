@@ -11,7 +11,7 @@ use tokio::net::TcpListener;
 
 use super::callback::{self, Delivered};
 use super::cloud::{Cloud, MagicLinkError, MeError};
-use super::contract::{AccountError, AccountFailure, AccountState, CHANGED_EVENT};
+use super::contract::{AccountError, AccountFailure, AccountState, ACCOUNT_CHANGED};
 use crate::environment::contract::{EnvError, EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
 use crate::events;
@@ -85,7 +85,7 @@ fn unstored(error: EnvError) -> AccountState {
 fn entered<R: Runtime>(app: &AppHandle<R>, state: AccountState) {
 	let session = app.state::<AccountSession>();
 	*session.current.lock().unwrap_or_else(PoisonError::into_inner) = state.clone();
-	if let Err(error) = events::emit(app, CHANGED_EVENT, state) {
+	if let Err(error) = events::emit(app, ACCOUNT_CHANGED, state) {
 		eprintln!("the account state did not reach the front: {error}");
 	}
 }
@@ -329,7 +329,7 @@ mod tests {
 			let root = root.unwrap_or_default();
 			let heard = Arc::new(Mutex::new(Vec::new()));
 			let hearing = Arc::clone(&heard);
-			app.listen(CHANGED_EVENT, move |event| {
+			app.listen(ACCOUNT_CHANGED.name(), move |event| {
 				hearing.lock().expect("the events").push(event.payload().to_owned());
 			});
 			Self { app, root, heard }

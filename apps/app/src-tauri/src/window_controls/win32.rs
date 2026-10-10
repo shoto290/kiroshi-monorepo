@@ -28,9 +28,11 @@ use super::{
 	MaximizeButtonBounds, MaximizeButtonPointer, MaximizeButtonState, WindowFrameError,
 	MAXIMIZE_BUTTON_EVENT,
 };
-use crate::events;
+use crate::events::{self, Event};
 
 const OVERLAY_CLASS: PCWSTR = w!("KiroshiMaximizeButton");
+
+const MAXIMIZE_BUTTON: Event<MaximizeButtonPointer> = Event::new(MAXIMIZE_BUTTON_EVENT);
 
 #[derive(Default)]
 struct MaximizeButton(Mutex<Option<Overlay>>);
@@ -226,7 +228,7 @@ fn reporter<R: Runtime>(window: &WebviewWindow<R>) -> Box<dyn Fn(MaximizeButtonS
 	let app = window.app_handle().clone();
 	Box::new(move |state| {
 		let payload = MaximizeButtonPointer { state };
-		if let Err(error) = events::emit(&app, MAXIMIZE_BUTTON_EVENT, payload) {
+		if let Err(error) = events::emit(&app, MAXIMIZE_BUTTON, payload) {
 			eprintln!("the maximize button did not report {state:?}: {error}");
 		}
 	})

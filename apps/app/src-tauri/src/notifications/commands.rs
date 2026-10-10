@@ -1,7 +1,11 @@
 use serde::{de, Deserialize, Deserializer, Serialize};
 use tauri::{AppHandle, Runtime};
 
+use crate::events::Event;
+
 pub const ACTIVATED_EVENT: &str = "notification://activated";
+
+pub const NOTIFICATION_ACTIVATED: Event<NotificationTarget> = Event::new(ACTIVATED_EVENT);
 
 #[derive(Clone, Debug, Deserialize, Serialize, specta::Type)]
 pub struct NotificationTarget {

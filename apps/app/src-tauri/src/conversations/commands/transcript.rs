@@ -3,7 +3,7 @@ use tauri::{AppHandle, Manager, Runtime, State};
 use super::super::contract::{
 	MessageReference, NewAssistantMessage, NewTurn, NewUserMessage, PinnedBubble, SentMessage,
 	TerminalCompletion, TranscriptMessage, TranscriptPage, TranscriptStoreError, TranscriptWindow,
-	MESSAGE_STORED_EVENT,
+	MESSAGE_STORED, MESSAGE_STORED_EVENT,
 };
 use super::super::{context, host_turn};
 use super::bot::ready;
@@ -198,7 +198,7 @@ async fn announce_stored<R: Runtime>(
 	let failure = match database.messages().message(conversation_id.clone(), id.clone()).await {
 		Ok(Some(stored)) => {
 			let message = TranscriptMessage::of(&conversation_id, stored);
-			match events::emit(app, MESSAGE_STORED_EVENT, message) {
+			match events::emit(app, MESSAGE_STORED, message) {
 				Ok(()) => return,
 				Err(failure) => failure.to_string(),
 			}

@@ -1,11 +1,16 @@
 use serde::Serialize;
 
 use crate::account::cloud::{CloudMember, MemberCallError, MemberRole, MembershipState};
+use crate::events::Event;
 use crate::spaces::contract::SpaceError;
 
 pub const CHANGED_EVENT: &str = "hosting://changed";
 
 pub const MEMBERS_CHANGED_EVENT: &str = "hosting://members-changed";
+
+pub const HOSTING_CHANGED: Event<HostingChanged> = Event::new(CHANGED_EVENT);
+
+pub const MEMBERS_CHANGED: Event<MembersChanged> = Event::new(MEMBERS_CHANGED_EVENT);
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]

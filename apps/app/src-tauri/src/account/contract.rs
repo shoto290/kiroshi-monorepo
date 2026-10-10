@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use crate::environment::contract::EnvError;
+use crate::events::Event;
 
 pub const CHANGED_EVENT: &str = "account://changed";
+
+pub const ACCOUNT_CHANGED: Event<AccountState> = Event::new(CHANGED_EVENT);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

@@ -6,10 +6,12 @@ use super::commands::AgentState;
 use super::contract::{SignInError, SignInStarted, TransportError};
 use super::protocol::{SignInFailure, SignInFailureKind, SignedIn};
 use super::sidecar::{OauthFlowError, Opening};
-use crate::events;
+use crate::events::{self, Event};
 use crate::mcp_oauth::commands::is_openable;
 
 pub const SIGN_IN_STARTED_CHANNEL: &str = "agent://sign-in-started";
+
+pub const SIGN_IN_STARTED: Event<SignInStarted> = Event::new(SIGN_IN_STARTED_CHANNEL);
 
 const NO_REASON: &str = "the sign-in settled with no reason";
 
@@ -90,7 +92,7 @@ fn announce_started<R: Runtime>(app: &AppHandle<R>, url: String) -> Result<(), S
 	if !is_openable(&url) {
 		return Err(SignInError::RefusedUrl { url });
 	}
-	events::emit(app, SIGN_IN_STARTED_CHANNEL, SignInStarted { url })
+	events::emit(app, SIGN_IN_STARTED, SignInStarted { url })
 		.map_err(|error| SignInError::Failed { detail: error.to_string() })
 }
 

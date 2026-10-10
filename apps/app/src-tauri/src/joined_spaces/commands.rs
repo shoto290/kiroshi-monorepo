@@ -4,13 +4,19 @@ use tauri::{AppHandle, Runtime, State};
 use super::contract::{JoinedSpace, JoinedSpaceConnection, JoinedSpaceError};
 use super::relay::{self, RelayGuests};
 use crate::db;
-use crate::events;
+use crate::events::{self, Event};
 
 pub const CHANGED_EVENT: &str = "joined-space://changed";
 
 pub const REMOVED_EVENT: &str = "joined-space://removed";
 
 pub const RECONNECTED_EVENT: &str = "joined-space://reconnected";
+
+pub const JOINED_SPACE_CHANGED: Event<JoinedSpaceChanged> = Event::new(CHANGED_EVENT);
+
+pub const JOINED_SPACE_REMOVED: Event<JoinedSpaceRemoved> = Event::new(REMOVED_EVENT);
+
+pub const JOINED_SPACE_RECONNECTED: Event<JoinedSpaceReconnected> = Event::new(RECONNECTED_EVENT);
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -39,7 +45,7 @@ pub(super) fn announce_change<R: Runtime>(
 	app: &AppHandle<R>,
 	id: String,
 ) -> Result<(), JoinedSpaceError> {
-	events::emit(app, CHANGED_EVENT, JoinedSpaceChanged { id })
+	events::emit(app, JOINED_SPACE_CHANGED, JoinedSpaceChanged { id })
 		.map_err(|error| JoinedSpaceError::Undeliverable { detail: error.to_string() })
 }
 
@@ -48,7 +54,7 @@ pub(super) fn announce_removal<R: Runtime>(
 	id: String,
 	name: String,
 ) -> Result<(), JoinedSpaceError> {
-	events::emit(app, REMOVED_EVENT, JoinedSpaceRemoved { id, name })
+	events::emit(app, JOINED_SPACE_REMOVED, JoinedSpaceRemoved { id, name })
 		.map_err(|error| JoinedSpaceError::Undeliverable { detail: error.to_string() })
 }
 
@@ -56,7 +62,7 @@ pub(super) fn announce_reconnection<R: Runtime>(
 	app: &AppHandle<R>,
 	id: String,
 ) -> Result<(), JoinedSpaceError> {
-	events::emit(app, RECONNECTED_EVENT, JoinedSpaceReconnected { id })
+	events::emit(app, JOINED_SPACE_RECONNECTED, JoinedSpaceReconnected { id })
 		.map_err(|error| JoinedSpaceError::Undeliverable { detail: error.to_string() })
 }
 

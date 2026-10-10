@@ -4,7 +4,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
 use tokio::time::{interval, MissedTickBehavior};
 
-use super::contract::{Member, MemberStatus, MembersChanged, MembersError, MEMBERS_CHANGED_EVENT};
+use super::contract::{Member, MemberStatus, MembersChanged, MembersError, MEMBERS_CHANGED};
 use super::Hosting;
 use crate::account::contract::AccountState;
 use crate::account::session::AccountSession;
@@ -185,7 +185,7 @@ fn announced<R: Runtime>(app: &AppHandle<R>, space_id: &str, members: Vec<Member
 	app.state::<Hosting>().hosts().entry(space_id.to_owned()).or_default().members =
 		Some(members.clone());
 	let changed = MembersChanged { space_id: space_id.to_owned(), members };
-	if let Err(error) = events::emit(app, MEMBERS_CHANGED_EVENT, changed) {
+	if let Err(error) = events::emit(app, MEMBERS_CHANGED, changed) {
 		eprintln!("the members of space {space_id} did not reach the front: {error}");
 	}
 }

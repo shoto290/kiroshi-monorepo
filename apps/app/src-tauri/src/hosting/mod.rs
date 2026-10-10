@@ -27,7 +27,7 @@ use crate::spaces::commands::ready;
 use crate::spaces::contract::SpaceError;
 use authorship::RelayedMembers;
 use bridge::LocalApi;
-use contract::{HostingChanged, HostingState, Member, CHANGED_EVENT};
+use contract::{HostingChanged, HostingState, Member, HOSTING_CHANGED};
 use relay::Hosted;
 
 pub struct Hosting {
@@ -132,7 +132,7 @@ fn entered<R: Runtime>(
 		instance_id.as_deref().unwrap_or("none")
 	);
 	let changed = HostingChanged { space_id: space_id.to_owned(), state };
-	if let Err(error) = events::emit(app, CHANGED_EVENT, changed) {
+	if let Err(error) = events::emit(app, HOSTING_CHANGED, changed) {
 		eprintln!("the hosting state of space {space_id} did not reach the front: {error}");
 	}
 }

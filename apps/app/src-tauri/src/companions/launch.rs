@@ -5,9 +5,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::contract::{
-	CompanionCreated, CompanionSeedRefused, LaunchOutcome, CREATED_EVENT, SEED_REFUSED_EVENT,
+	CompanionCreated, CompanionSeedRefused, LaunchOutcome, COMPANION_CREATED, SEED_REFUSED,
 };
-use crate::events;
+use crate::events::{self, Event};
 
 const REASON_SEPARATOR: &str = "; ";
 
@@ -45,20 +45,20 @@ pub fn settle<R: Runtime>(
 		None => eprintln!("the launch outcome was not kept for a later read: {outcome:?}"),
 	}
 	if let Some(created) = outcome.created {
-		announce(app, CREATED_EVENT, created);
+		announce(app, COMPANION_CREATED, created);
 	}
 	if let Some(refused) = outcome.refused {
-		announce(app, SEED_REFUSED_EVENT, refused);
+		announce(app, SEED_REFUSED, refused);
 	}
 }
 
-pub(crate) fn announce<R: Runtime, T: Serialize + Clone + Debug>(
+pub(crate) fn announce<R: Runtime, P: Serialize + Clone + Debug>(
 	app: &AppHandle<R>,
-	event: &str,
-	payload: T,
+	event: Event<P>,
+	payload: P,
 ) {
 	if let Err(failure) = events::emit(app, event, payload.clone()) {
-		eprintln!("{event} was not announced for {payload:?}: {failure}");
+		eprintln!("{} was not announced for {payload:?}: {failure}", event.name());
 	}
 }
 

@@ -13,7 +13,7 @@ use super::core::{Clock, RunSink, SystemClock};
 use super::run::{read_run_report, run_output_schema, run_prompt_for, RunReport};
 use crate::agent::commands::{
 	agent_cancel_turn, agent_shutdown, agent_start_or_resume_session, agent_submit_prompt,
-	EVENT_CHANNEL,
+	AGENT_EVENT, EVENT_CHANNEL,
 };
 use crate::agent::contract::{
 	AgentEvent, ChatMessage, EventTurn, MessageCompletion, MessageRole, RuntimeScope, ScopedEvent,
@@ -237,7 +237,7 @@ fn report_event(scope: &RuntimeScope, turn_id: &str, message: ChatMessage) -> Sc
 }
 
 fn announce_report<R: Runtime>(app: &AppHandle<R>, report: ScopedEvent) {
-	if let Err(error) = events::emit(app, EVENT_CHANNEL, report) {
+	if let Err(error) = events::emit(app, AGENT_EVENT, report) {
 		eprintln!("a routine report turn could not be announced: {error}");
 	}
 }

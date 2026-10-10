@@ -18,9 +18,11 @@ use crate::bundles;
 use crate::conversations::commands::{oldest_space, ready, space_of_the_conversation};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
-use crate::events;
+use crate::events::{self, Event};
 
 pub const CHANGED_EVENT: &str = "routine://changed";
+
+pub const ROUTINE_CHANGED: Event<RoutineChanged> = Event::new(CHANGED_EVENT);
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -32,8 +34,12 @@ pub(crate) fn announce_change<R: Runtime>(
 	app: &AppHandle<R>,
 	conversation_id: &str,
 ) -> Result<(), RoutineError> {
-	events::emit(app, CHANGED_EVENT, RoutineChanged { conversation_id: conversation_id.to_owned() })
-		.map_err(|error| RoutineError::Undeliverable { detail: error.to_string() })
+	events::emit(
+		app,
+		ROUTINE_CHANGED,
+		RoutineChanged { conversation_id: conversation_id.to_owned() },
+	)
+	.map_err(|error| RoutineError::Undeliverable { detail: error.to_string() })
 }
 
 #[tauri::command]

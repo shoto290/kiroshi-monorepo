@@ -3,7 +3,7 @@ use std::{env::current_exe, ffi::OsStr, fmt::Display, path::Path};
 use mac_usernotifications::{request_auth, Notification};
 use tauri::{AppHandle, Runtime};
 
-use super::commands::{NotificationTarget, ACTIVATED_EVENT};
+use super::commands::{NotificationTarget, NOTIFICATION_ACTIVATED};
 
 pub fn show<R: Runtime>(
 	app: AppHandle<R>,
@@ -75,7 +75,7 @@ fn through_notification_center<R: Runtime>(
 
 fn activate<R: Runtime>(app: &AppHandle<R>, target: NotificationTarget) {
 	crate::window_controls::raise_main(app);
-	if let Err(failure) = crate::events::emit(app, ACTIVATED_EVENT, target) {
+	if let Err(failure) = crate::events::emit(app, NOTIFICATION_ACTIVATED, target) {
 		eprintln!("the notification activation was not emitted: {failure}");
 	}
 }

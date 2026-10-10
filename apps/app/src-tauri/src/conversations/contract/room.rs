@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::bot::AvatarBlot;
 use crate::avatars;
 use crate::db::repositories::{conversations, runtime_context};
+use crate::events::Event;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +26,12 @@ pub const CREATED_EVENT: &str = "conversation://created";
 pub const UPDATED_EVENT: &str = "conversation://updated";
 
 pub const DELETED_EVENT: &str = "conversation://deleted";
+
+pub const CONVERSATION_CREATED: Event<ConversationStored> = Event::new(CREATED_EVENT);
+
+pub const CONVERSATION_UPDATED: Event<ConversationStored> = Event::new(UPDATED_EVENT);
+
+pub const CONVERSATION_DELETED: Event<ConversationDeleted> = Event::new(DELETED_EVENT);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

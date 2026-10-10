@@ -7,6 +7,7 @@ use serde_json::Value;
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db::DatabaseError;
 use crate::environment::contract::EnvError;
+use crate::events::Event;
 use crate::mcp_oauth::status::ApplicationStatus;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -221,6 +222,8 @@ pub enum ApplicationsError {
 }
 
 pub const INSTALLED_EVENT: &str = "application://installed";
+
+pub const APPLICATION_INSTALLED: Event<ApplicationInstalled> = Event::new(INSTALLED_EVENT);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

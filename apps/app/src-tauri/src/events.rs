@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -16,13 +17,36 @@ impl Default for Relay {
 	}
 }
 
-pub fn emit<R: Runtime, S: Serialize + Clone>(
+pub struct Event<P> {
+	name: &'static str,
+	payload: PhantomData<fn() -> P>,
+}
+
+impl<P> Event<P> {
+	pub const fn new(name: &'static str) -> Self {
+		Self { name, payload: PhantomData }
+	}
+
+	pub const fn name(&self) -> &'static str {
+		self.name
+	}
+}
+
+impl<P> Clone for Event<P> {
+	fn clone(&self) -> Self {
+		*self
+	}
+}
+
+impl<P> Copy for Event<P> {}
+
+pub fn emit<R: Runtime, P: Serialize + Clone>(
 	app: &AppHandle<R>,
-	event: &str,
-	payload: S,
+	event: Event<P>,
+	payload: P,
 ) -> tauri::Result<()> {
-	publish(&relay(app), event, &payload);
-	app.emit(event, payload)
+	publish(&relay(app), event.name(), &payload);
+	app.emit(event.name(), payload)
 }
 
 pub fn subscribed<R: Runtime>(app: &AppHandle<R>) -> broadcast::Receiver<Frame> {
@@ -129,7 +153,9 @@ pub(crate) mod tests {
 
 	#[test]
 	fn a_frame_carries_the_name_and_the_payload() {
-		let frame = framed("mission://changed", &serde_json::json!({ "a": 1 })).expect("a frame");
+		let frame =
+			framed(crate::missions::commands::CHANGED_EVENT, &serde_json::json!({ "a": 1 }))
+				.expect("a frame");
 		assert_eq!(&*frame, r#"{"event":"mission://changed","payload":{"a":1}}"#);
 	}
 
@@ -138,7 +164,9 @@ pub(crate) mod tests {
 		let app = an_app_of_its_own("events", mock_builder());
 		let mut heard = subscribed(app.handle());
 
-		assert!(emit(app.handle(), "user://first-run-done", Unserializable).is_err());
+		let unserializable = Event::new(crate::companions::contract::FIRST_RUN_DONE_EVENT);
+
+		assert!(emit(app.handle(), unserializable, Unserializable).is_err());
 		assert!(heard.try_recv().is_err());
 	}
 
@@ -146,12 +174,12 @@ pub(crate) mod tests {
 	fn without_a_client_the_window_still_hears() {
 		let app = an_app_of_its_own("events", mock_builder());
 		let (told, hearing) = std::sync::mpsc::channel();
-		app.listen_any("user://first-run-done", move |event| {
+		app.listen_any(crate::companions::contract::FIRST_RUN_DONE.name(), move |event| {
 			told.send(event.payload().to_owned()).expect("the test listens");
 		});
 
-		emit(app.handle(), "user://first-run-done", 7).expect("emitted");
+		emit(app.handle(), crate::companions::contract::FIRST_RUN_DONE, ()).expect("emitted");
 
-		assert_eq!(hearing.recv().expect("the window heard"), "7");
+		assert_eq!(hearing.recv().expect("the window heard"), "null");
 	}
 }

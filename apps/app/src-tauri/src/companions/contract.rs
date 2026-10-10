@@ -4,6 +4,7 @@ use crate::attachments::contract::AttachmentStoreError;
 use crate::attachments::Rejection;
 use crate::conversations::contract::{Bot, StorageFailure, TranscriptStoreError};
 use crate::db::DatabaseError;
+use crate::events::Event;
 
 pub const CREATED_EVENT: &str = "companion://created";
 
@@ -14,6 +15,16 @@ pub const DELETED_EVENT: &str = "companion://deleted";
 pub const FIRST_RUN_DONE_EVENT: &str = "user://first-run-done";
 
 pub const SEED_REFUSED_EVENT: &str = "companion://seed-refused";
+
+pub const COMPANION_CREATED: Event<CompanionCreated> = Event::new(CREATED_EVENT);
+
+pub const COMPANION_UPDATED: Event<CompanionUpdated> = Event::new(UPDATED_EVENT);
+
+pub const COMPANION_DELETED: Event<CompanionDeleted> = Event::new(DELETED_EVENT);
+
+pub const FIRST_RUN_DONE: Event<()> = Event::new(FIRST_RUN_DONE_EVENT);
+
+pub const SEED_REFUSED: Event<CompanionSeedRefused> = Event::new(SEED_REFUSED_EVENT);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

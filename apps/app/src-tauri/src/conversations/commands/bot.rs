@@ -12,8 +12,8 @@ use crate::attachments;
 use crate::avatars;
 use crate::bundles;
 use crate::companions::contract::{
-	CompanionCreated, CompanionDeleted, CompanionUpdated, CREATED_EVENT, DELETED_EVENT,
-	UPDATED_EVENT,
+	CompanionCreated, CompanionDeleted, CompanionUpdated, COMPANION_CREATED, COMPANION_DELETED,
+	COMPANION_UPDATED, CREATED_EVENT,
 };
 use crate::companions::launch;
 use crate::db;
@@ -248,7 +248,7 @@ pub async fn conversation_create_bot_from_draft<R: Runtime>(
 
 fn announce_created<R: Runtime>(app: &AppHandle<R>, created: &Bot) {
 	let companion = CompanionCreated { id: created.id.clone(), name: created.name.clone() };
-	launch::announce(app, CREATED_EVENT, companion);
+	launch::announce(app, COMPANION_CREATED, companion);
 }
 
 pub(crate) async fn announce_joined<R: Runtime>(
@@ -259,7 +259,7 @@ pub(crate) async fn announce_joined<R: Runtime>(
 	let failure = match database.conversations().bot(bot_id.to_owned()).await {
 		Ok(Some(joined)) => {
 			let companion = CompanionCreated { id: joined.id, name: joined.name };
-			return launch::announce(app, CREATED_EVENT, companion);
+			return launch::announce(app, COMPANION_CREATED, companion);
 		}
 		Ok(None) => "the bot was not found again".to_owned(),
 		Err(failure) => format!("the bot did not read back: {failure:?}"),
@@ -268,12 +268,12 @@ pub(crate) async fn announce_joined<R: Runtime>(
 }
 
 pub(crate) fn announce_left<R: Runtime>(app: &AppHandle<R>, bot_id: &str, space_id: String) {
-	launch::announce(app, DELETED_EVENT, CompanionDeleted { id: bot_id.to_owned(), space_id });
+	launch::announce(app, COMPANION_DELETED, CompanionDeleted { id: bot_id.to_owned(), space_id });
 }
 
 fn announce_updated<R: Runtime>(app: &AppHandle<R>, updated: &Bot) {
 	let companion = CompanionUpdated { id: updated.id.clone(), bot: updated.clone() };
-	launch::announce(app, UPDATED_EVENT, companion);
+	launch::announce(app, COMPANION_UPDATED, companion);
 }
 
 #[tauri::command]

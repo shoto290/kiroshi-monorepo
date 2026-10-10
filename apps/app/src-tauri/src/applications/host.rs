@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use super::contract::{
 	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, Install,
 	InstallCase, InstallOutcome, ApplicationSearch, ApplicationState, Destination, InstallDraft,
-	ApplicationsError, INSTALLED_EVENT,
+	ApplicationsError, APPLICATION_INSTALLED,
 };
 use super::directory::Directory;
 use super::runnable::{refusal, Runners};
@@ -184,7 +184,7 @@ impl<R: Runtime> ApplicationHost<R> {
 	}
 
 	fn announce(&self, installed: ApplicationInstalled) -> Result<(), ApplicationCallError> {
-		events::emit(&self.app, INSTALLED_EVENT, installed)
+		events::emit(&self.app, APPLICATION_INSTALLED, installed)
 			.map_err(|error| ApplicationCallError::Undeliverable { detail: error.to_string() })
 	}
 }
@@ -527,7 +527,7 @@ mod tests {
 
 	fn heard(app: &App<MockRuntime>) -> mpsc::Receiver<String> {
 		let (announced, arriving) = mpsc::channel();
-		app.listen(INSTALLED_EVENT, move |event| {
+		app.listen(APPLICATION_INSTALLED.name(), move |event| {
 			announced.send(event.payload().to_owned()).expect("the test is listening");
 		});
 		arriving

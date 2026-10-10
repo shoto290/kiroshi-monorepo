@@ -3,13 +3,14 @@ use tauri::{AppHandle, Runtime, State};
 use super::super::context;
 use super::super::contract::{
 	Chat, CompanionArrival, ContextCheckpoint, Conversation, ConversationDeleted,
-	ConversationStored, RuntimeSession, TranscriptStoreError, COMPANION_ARRIVED_EVENT,
-	CREATED_EVENT, DELETED_EVENT, UPDATED_EVENT,
+	ConversationStored, RuntimeSession, TranscriptStoreError, COMPANION_ARRIVED,
+	CONVERSATION_CREATED, CONVERSATION_DELETED, CONVERSATION_UPDATED,
 };
 use super::bot::ready;
 use crate::avatars;
 use crate::companions::launch;
 use crate::db;
+use crate::events::Event;
 use crate::db::repositories::conversations::{
 	Conversation as StoredConversation, ConversationDraft, ConversationEdit, Joined,
 };
@@ -38,7 +39,7 @@ pub async fn conversation_create<R: Runtime>(
 ) -> Result<Conversation, TranscriptStoreError> {
 	let draft = ConversationDraft { space_id, section_id, title, bot_ids };
 	let created = drawn(&app, ready(&state)?.conversations().create_conversation(draft).await?);
-	announce_stored(&app, CREATED_EVENT, &created);
+	announce_stored(&app, CONVERSATION_CREATED, &created);
 	Ok(created)
 }
 
@@ -77,7 +78,7 @@ pub async fn conversation_update<R: Runtime>(
 	let edit = ConversationEdit { title, instructions, section_id };
 	let updated = ready(&state)?.conversations().update_conversation(conversation_id, edit).await?;
 	let updated = drawn(&app, updated);
-	announce_stored(&app, UPDATED_EVENT, &updated);
+	announce_stored(&app, CONVERSATION_UPDATED, &updated);
 	Ok(updated)
 }
 
@@ -91,7 +92,7 @@ pub async fn conversation_delete<R: Runtime>(
 	let conversations = ready(&state)?.conversations();
 	let space_id = conversations.space(conversation_id.clone()).await?;
 	conversations.delete_conversation(conversation_id.clone()).await?;
-	launch::announce(&app, DELETED_EVENT, ConversationDeleted { space_id, conversation_id });
+	launch::announce(&app, CONVERSATION_DELETED, ConversationDeleted { space_id, conversation_id });
 	Ok(())
 }
 
@@ -119,7 +120,7 @@ pub(crate) async fn seat_participant<R: Runtime>(
 	let joined =
 		database.conversations().add_participant(conversation_id, bot_id, invited_by_bot_id).await?;
 	if let Some(arrival) = &joined.arrival {
-		launch::announce(app, COMPANION_ARRIVED_EVENT, CompanionArrival::from(arrival.clone()));
+		launch::announce(app, COMPANION_ARRIVED, CompanionArrival::from(arrival.clone()));
 	}
 	Ok(joined)
 }
@@ -148,7 +149,11 @@ pub async fn conversation_set_lead<R: Runtime>(
 	Ok(drawn(&app, led))
 }
 
-fn announce_stored<R: Runtime>(app: &AppHandle<R>, event: &str, conversation: &Conversation) {
+fn announce_stored<R: Runtime>(
+	app: &AppHandle<R>,
+	event: Event<ConversationStored>,
+	conversation: &Conversation,
+) {
 	let stored = ConversationStored {
 		space_id: conversation.space_id.clone(),
 		conversation: conversation.clone(),
