@@ -32,8 +32,9 @@ struct MissionTranscriptTests {
                 .day(
                     id: "day-prompt",
                     at: Date(timeIntervalSince1970: TimeInterval(day + 30_000) / 1000)),
-                .person(id: "prompt", text: "Split it.", attachments: []),
-                .companion(id: "reply", text: "Done."),
+                .person(
+                    id: "prompt", text: MissionTranscript.markdown("Split it."), attachments: []),
+                .companion(id: "reply", text: MissionTranscript.markdown("Done.")),
             ])
     }
 

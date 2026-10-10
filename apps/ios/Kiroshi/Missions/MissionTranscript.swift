@@ -2,8 +2,8 @@ import Foundation
 
 enum MissionThreadRow: Identifiable, Equatable {
     case day(id: String, at: Date)
-    case person(id: String, text: String, attachments: [String])
-    case companion(id: String, text: String)
+    case person(id: String, text: AttributedString, attachments: [String])
+    case companion(id: String, text: AttributedString)
 
     var id: String {
         switch self {
@@ -45,10 +45,17 @@ enum MissionTranscript {
         let content = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return nil }
         guard message.role == .user, message.authorBotId == nil else {
-            return .companion(id: message.id, text: content)
+            return .companion(id: message.id, text: markdown(content))
         }
         guard !summonses.contains(content) else { return nil }
         let split = MissionAttachmentBlock.split(content)
-        return .person(id: message.id, text: split.text, attachments: split.names)
+        return .person(id: message.id, text: markdown(split.text), attachments: split.names)
+    }
+
+    static func markdown(_ text: String) -> AttributedString {
+        (try? AttributedString(
+            markdown: text,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+            ?? AttributedString(text)
     }
 }

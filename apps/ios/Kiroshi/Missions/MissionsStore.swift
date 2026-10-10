@@ -4,7 +4,10 @@ import Observation
 @MainActor
 @Observable
 final class MissionsStore {
-    private(set) var entries: [MissionInSpace] = []
+    private(set) var entries: [MissionInSpace] = [] {
+        didSet { sections = MissionSection.sections(of: entries) }
+    }
+    private(set) var sections: [MissionSection] = []
     private(set) var companionNames: [String: String] = [:]
     private(set) var hasLoaded = false
     private(set) var hasFailed = false
@@ -16,10 +19,6 @@ final class MissionsStore {
 
     init(now: @escaping () -> Date = Date.init) {
         self.now = now
-    }
-
-    var sections: [MissionSection] {
-        MissionSection.sections(of: entries)
     }
 
     func companionName(of mission: Mission) -> String? {
