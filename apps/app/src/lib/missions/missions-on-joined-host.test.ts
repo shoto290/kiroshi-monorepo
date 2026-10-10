@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { Mission, MissionInSpace } from "./mission-contract"
 import { missionsTransport } from "./missions-transport"
+import { useMissionMarks } from "./use-mission-marks"
 import { useMissions } from "./use-missions"
-import { useSpaceMissionMarks } from "./use-space-mission-marks"
 import { useSpaceMissions } from "./use-space-missions"
 
 import type { HostSocket } from "../host/http"
@@ -235,7 +235,7 @@ describe("missions read on a joined host", () => {
 		}
 		await joinedHosts.activate("garage")
 		await openLastSocket()
-		const { result } = renderHook(() => useSpaceMissionMarks("space-on-host"))
+		const { result } = renderHook(() => useMissionMarks("space-on-host"))
 
 		await waitFor(() =>
 			expect(
@@ -249,7 +249,7 @@ describe("missions read on a joined host", () => {
 	it("drops the marks while the host is down and reads them again once it is back", async () => {
 		await joinedHosts.activate("garage")
 		await openLastSocket()
-		const { result } = renderHook(() => useSpaceMissionMarks("space-on-host"))
+		const { result } = renderHook(() => useMissionMarks("space-on-host"))
 		await waitFor(() => expect(result.current).toHaveLength(1))
 
 		dropLastSocket()
@@ -270,6 +270,33 @@ describe("missions read on a joined host", () => {
 		await waitFor(() =>
 			expect(result.current.map(({ mission }) => mission.objective)).toEqual([
 				reopened.objective,
+			]),
+		)
+	})
+
+	it("reads the local board again and drops the host's marks when leaving for a local Space", async () => {
+		wire.localAnswer = answering({
+			conversation_local_ids: [],
+			mission_board: [{ mission: LOCAL_MISSION }],
+		})
+		await joinedHosts.activate("garage")
+		await openLastSocket()
+		const { result, rerender } = renderHook(
+			({ spaceId }) => useMissionMarks(spaceId),
+			{ initialProps: { spaceId: "space-on-host" } },
+		)
+		await waitFor(() =>
+			expect(result.current.map(({ mission }) => mission.id)).toEqual([
+				HOST_MISSION.id,
+			]),
+		)
+
+		await act(() => joinedHosts.activate(null))
+		rerender({ spaceId: "local-space" })
+
+		await waitFor(() =>
+			expect(result.current.map(({ mission }) => mission.id)).toEqual([
+				LOCAL_MISSION.id,
 			]),
 		)
 	})

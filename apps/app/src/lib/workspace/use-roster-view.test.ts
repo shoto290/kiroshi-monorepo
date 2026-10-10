@@ -202,7 +202,7 @@ const localConversationOpen = async () => {
 		useSpaceLoading({ core, scopes: { selectedSpaceId, openRowId } } as never)
 		const rosterView = useRosterView({
 			core,
-			drivers: { spaceMissions: [], waitingMissionIds: new Set() } as never,
+			drivers: { missionMarks: [], waitingMissionIds: new Set() } as never,
 			openRowId,
 		})
 		useMissions(rosterView.selectedConversation?.id ?? null)

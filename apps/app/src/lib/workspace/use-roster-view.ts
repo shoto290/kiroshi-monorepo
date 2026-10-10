@@ -17,7 +17,7 @@ export const useRosterView = ({
 	openRowId,
 }: RosterViewInput) => {
 	const { roster } = core
-	const { spaceMissions, waitingMissionIds } = drivers
+	const { missionMarks, waitingMissionIds } = drivers
 
 	const {
 		bots,
@@ -48,12 +48,12 @@ export const useRosterView = ({
 	const missions = useMemo(
 		() =>
 			missionsBySpaceId({
-				entries: spaceMissions,
+				entries: missionMarks,
 				conversationRosters,
 				soloThreads,
 				waitingMissionIds,
 			}),
-		[spaceMissions, conversationRosters, soloThreads, waitingMissionIds],
+		[missionMarks, conversationRosters, soloThreads, waitingMissionIds],
 	)
 
 	return {
