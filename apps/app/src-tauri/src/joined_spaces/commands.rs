@@ -10,6 +10,8 @@ pub const CHANGED_EVENT: &str = "joined-space://changed";
 
 pub const REMOVED_EVENT: &str = "joined-space://removed";
 
+pub const RECONNECTED_EVENT: &str = "joined-space://reconnected";
+
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JoinedSpaceChanged {
@@ -21,6 +23,12 @@ pub struct JoinedSpaceChanged {
 pub struct JoinedSpaceRemoved {
 	pub id: String,
 	pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct JoinedSpaceReconnected {
+	pub id: String,
 }
 
 pub(super) fn ready(state: &db::DatabaseState) -> Result<&db::Database, JoinedSpaceError> {
@@ -41,6 +49,14 @@ pub(super) fn announce_removal<R: Runtime>(
 	name: String,
 ) -> Result<(), JoinedSpaceError> {
 	events::emit(app, REMOVED_EVENT, JoinedSpaceRemoved { id, name })
+		.map_err(|error| JoinedSpaceError::Undeliverable { detail: error.to_string() })
+}
+
+pub(super) fn announce_reconnection<R: Runtime>(
+	app: &AppHandle<R>,
+	id: String,
+) -> Result<(), JoinedSpaceError> {
+	events::emit(app, RECONNECTED_EVENT, JoinedSpaceReconnected { id })
 		.map_err(|error| JoinedSpaceError::Undeliverable { detail: error.to_string() })
 }
 

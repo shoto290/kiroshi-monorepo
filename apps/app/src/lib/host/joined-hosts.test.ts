@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+import type { NoticeMessage } from "@workspace/ui/components/notice-surface"
+import { activateLanguage, type Language } from "@workspace/ui/lib/i18n"
 
 import type { HostSocket } from "./http"
 import {
@@ -62,6 +65,7 @@ const joinedHostsOf = ({ join, answer = answerJoined }: Seed = {}) => {
 	const sockets: ReturnType<typeof socketStub>[] = []
 	const socketUrls: string[] = []
 	const reportFailure = vi.fn()
+	const reportJoinRefusal = vi.fn<(notice: NoticeMessage) => void>()
 	const reportHostDown = vi.fn(
 		() => `notice-${reportHostDown.mock.calls.length}`,
 	)
@@ -78,6 +82,7 @@ const joinedHostsOf = ({ join, answer = answerJoined }: Seed = {}) => {
 			return stub.socket
 		},
 		reportFailure,
+		reportJoinRefusal,
 		reportHostDown,
 		endHostDown,
 	})
@@ -89,6 +94,7 @@ const joinedHostsOf = ({ join, answer = answerJoined }: Seed = {}) => {
 		sockets,
 		socketUrls,
 		reportFailure,
+		reportJoinRefusal,
 		reportHostDown,
 		endHostDown,
 		join: joinSpy,
@@ -96,6 +102,91 @@ const joinedHostsOf = ({ join, answer = answerJoined }: Seed = {}) => {
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+const STORAGE_FAILURE = {
+	kind: "sqlite",
+	detail: "database is locked",
+} as const
+
+const REFUSALS: JoinedSpaceError[] = [
+	{ kind: "unavailable", failure: STORAGE_FAILURE },
+	{ kind: "storage", failure: STORAGE_FAILURE },
+	{ kind: "unknownJoinedSpace", id: "garage" },
+	{ kind: "undeliverable", detail: "the local server answers no call" },
+	{ kind: "hostOffline", id: "garage" },
+	{ kind: "proxyUnavailable", detail: "address already in use" },
+]
+
+const REFUSAL_KINDS = REFUSALS.map(({ kind }) => kind)
+
+const LANGUAGES: Language[] = ["en", "fr"]
+
+const HOST_OFFLINE_NOTICES: Record<Language, NoticeMessage> = {
+	en: {
+		title: "Couldn’t reach the host of this space",
+		description: "Its Mac is offline. Try again once it’s back online.",
+	},
+	fr: {
+		title: "Impossible de joindre l’hôte de cet espace",
+		description:
+			"Son Mac est hors ligne. Réessayez une fois qu’il est de nouveau en ligne.",
+	},
+}
+
+const refusedNoticeOf = async (refusal: JoinedSpaceError) => {
+	const { hosts, reportJoinRefusal } = joinedHostsOf({
+		join: async () => ({ status: "error", error: refusal }),
+	})
+	await hosts.connect("garage")
+	expect(reportJoinRefusal).toHaveBeenCalledOnce()
+	return reportJoinRefusal.mock.calls[0]?.[0] as NoticeMessage
+}
+
+const textOf = ({ title, description }: NoticeMessage) =>
+	`${title} ${description ?? ""}`
+
+describe("a refused join", () => {
+	afterEach(() => activateLanguage("en"))
+
+	describe.each(LANGUAGES)("in %s", (language) => {
+		it.each(REFUSALS)(
+			"says why the $kind refusal happened in a sentence",
+			async (refusal) => {
+				activateLanguage(language)
+
+				const notice = await refusedNoticeOf(refusal)
+
+				expect(notice.title).toMatch(/\p{L}{2,}/u)
+				expect(notice.description).toMatch(/\p{L}{2,}/u)
+				for (const kind of REFUSAL_KINDS) {
+					expect(textOf(notice)).not.toContain(kind)
+				}
+				if ("detail" in refusal) {
+					expect(textOf(notice)).not.toContain(refusal.detail)
+				}
+			},
+		)
+
+		it("raises the host offline notice on a hostOffline refusal", async () => {
+			activateLanguage(language)
+
+			const notice = await refusedNoticeOf({
+				kind: "hostOffline",
+				id: "garage",
+			})
+
+			expect(notice).toEqual(HOST_OFFLINE_NOTICES[language])
+		})
+
+		it("gives every refusal kind its own sentence", async () => {
+			activateLanguage(language)
+
+			const notices = await Promise.all(REFUSALS.map(refusedNoticeOf))
+
+			expect(new Set(notices.map(textOf)).size).toBe(REFUSALS.length)
+		})
+	})
+})
 
 const localCommands = (local: ReturnType<typeof joinedHostsOf>["local"]) =>
 	local.invoke.mock.calls.map(([command]) => command)
@@ -126,6 +217,50 @@ describe("the local command list", () => {
 
 		expect(fetch).not.toHaveBeenCalled()
 		expect(local.invoke).toHaveBeenCalledTimes(LOCAL_COMMANDS.size + 1)
+	})
+})
+
+const SIGN_IN_COMMANDS = [
+	"agent_sign_in",
+	"agent_sign_in_code",
+	"agent_sign_in_cancel",
+	"connection_set",
+]
+
+describe("the onboarding account step on a joined space", () => {
+	it("reads the guest own agent account, not the joined host one", async () => {
+		const { hosts, local, fetch } = joinedHostsOf()
+		await hosts.activate("garage")
+
+		await hosts.invoke("agent_account")
+
+		expect(localCommands(local)).toContain("agent_account")
+		expect(fetch).not.toHaveBeenCalled()
+	})
+
+	it("signs the guest own agent in on the local host", async () => {
+		const { hosts, local, fetch } = joinedHostsOf()
+		await hosts.activate("garage")
+
+		for (const command of SIGN_IN_COMMANDS) {
+			await hosts.invoke(command)
+		}
+
+		expect(localCommands(local)).toEqual(SIGN_IN_COMMANDS)
+		expect(fetch).not.toHaveBeenCalled()
+	})
+
+	it("hears the sign-in start from the local host", async () => {
+		const { hosts, local } = joinedHostsOf()
+		await hosts.activate("garage")
+		const started = vi.fn()
+
+		await hosts.listen("agent://sign-in-started", started)
+
+		expect(local.listen).toHaveBeenCalledWith(
+			"agent://sign-in-started",
+			started,
+		)
 	})
 })
 
@@ -176,7 +311,7 @@ describe("connecting a joined space", () => {
 			kind: "unknownJoinedSpace",
 			id: "garage",
 		}
-		const { hosts, reportFailure } = joinedHostsOf({
+		const { hosts, reportFailure, reportJoinRefusal } = joinedHostsOf({
 			join: async () => ({ status: "error", error: refusal }),
 		})
 
@@ -184,9 +319,13 @@ describe("connecting a joined space", () => {
 
 		expect(hosts.getState().connections.garage).toEqual({
 			status: "refused",
-			failure: "unknownJoinedSpace",
+			failure: "This space is no longer in your list",
 		})
-		expect(reportFailure).toHaveBeenCalledWith("unknownJoinedSpace")
+		expect(reportJoinRefusal).toHaveBeenCalledExactlyOnceWith({
+			title: "This space is no longer in your list",
+			description: "You may have left it. Ask its host for a new invitation.",
+		})
+		expect(reportFailure).not.toHaveBeenCalled()
 	})
 
 	it("records and surfaces a rejected connect, then retries on the next one", async () => {
@@ -318,7 +457,7 @@ describe("the active host", () => {
 		const answer = hosts.invoke("mission_list", { conversationId: "c1" })
 		await activating
 
-		await expect(answer).rejects.toThrow("no route")
+		await expect(answer).rejects.toThrow("Couldn’t open this space")
 		expect(localCommands(local)).not.toContain("mission_list")
 	})
 

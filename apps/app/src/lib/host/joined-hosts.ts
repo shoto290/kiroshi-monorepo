@@ -2,11 +2,17 @@ import type { InvokeArgs, InvokeOptions } from "@tauri-apps/api/core"
 import type { EventCallback, UnlistenFn } from "@tauri-apps/api/event"
 
 import {
+	type NoticeMessage,
+	raiseFailureNotice,
+} from "@workspace/ui/components/notice-surface"
+
+import {
 	type ConversationSource,
 	createConversationProvenance,
 	LOCAL_IDS_COMMAND,
 } from "./conversation-provenance"
 import { createHttpHost, type HostSocket, type HttpHost } from "./http"
+import { joinRefusalNoticeOf } from "./join-refusal"
 
 import {
 	type commands,
@@ -40,6 +46,11 @@ export const LOCAL_COMMANDS: ReadonlySet<string> = new Set([
 	"account_state",
 	"account_sign_in",
 	"account_sign_out",
+	"agent_account",
+	"agent_sign_in",
+	"agent_sign_in_code",
+	"agent_sign_in_cancel",
+	"connection_set",
 	"invitations_list",
 	"invitation_accept",
 	"invitation_decline",
@@ -60,6 +71,7 @@ const LOCAL_EVENTS: ReadonlySet<string> = new Set([
 	"companion://created",
 	"companion://seed-refused",
 	"account://changed",
+	"agent://sign-in-started",
 ])
 
 const TAURI_PLUGIN_PREFIX = "plugin:"
@@ -107,6 +119,7 @@ export type JoinedHostsOptions = {
 	fetch: typeof fetch
 	openSocket: (url: string) => HostSocket
 	reportFailure: (message: string, status?: number) => void
+	reportJoinRefusal?: (notice: NoticeMessage) => void
 	reportHostDown: () => string
 	endHostDown: (noticeId: string) => void
 }
@@ -147,9 +160,6 @@ const carriesPersonalScope = (args?: InvokeArgs): boolean => {
 	return isPersonalScope(scope) || isPersonalOwner(owner)
 }
 
-export const describeJoinError = (error: JoinedSpaceError): string =>
-	"detail" in error ? error.detail : error.kind
-
 const describeRejection = (reason: unknown): string =>
 	reason instanceof Error ? reason.message : String(reason)
 
@@ -159,6 +169,7 @@ export const createJoinedHosts = ({
 	fetch,
 	openSocket,
 	reportFailure,
+	reportJoinRefusal = raiseFailureNotice,
 	reportHostDown,
 	endHostDown,
 }: JoinedHostsOptions) => {
@@ -185,8 +196,19 @@ export const createJoinedHosts = ({
 
 	const refuse = (id: string, failure: string): null => {
 		record(id, { status: "refused", failure })
-		reportFailure(failure)
 		return null
+	}
+
+	const refuseJoin = (id: string, error: JoinedSpaceError): null => {
+		const notice = joinRefusalNoticeOf(error)
+		reportJoinRefusal(notice)
+		return refuse(id, notice.title)
+	}
+
+	const refuseRejection = (id: string, reason: unknown): null => {
+		const failure = describeRejection(reason)
+		reportFailure(failure)
+		return refuse(id, failure)
 	}
 
 	const isDown = (id: string) =>
@@ -253,14 +275,14 @@ export const createJoinedHosts = ({
 	const settleJoin = (id: string, outcome: JoinOutcome) =>
 		outcome.status === "ok"
 			? openHost(id, outcome.data)
-			: refuse(id, describeJoinError(outcome.error))
+			: refuseJoin(id, outcome.error)
 
 	const startJoin = async (id: string): Promise<HttpHost | null> => {
 		record(id, { status: "connecting" })
 		try {
 			return settleJoin(id, await join(id))
 		} catch (reason) {
-			return refuse(id, describeRejection(reason))
+			return refuseRejection(id, reason)
 		} finally {
 			pendingJoins.delete(id)
 		}
