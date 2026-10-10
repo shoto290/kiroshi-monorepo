@@ -259,11 +259,11 @@ export type ApplicationInstall_Deserialize = {
 	conversationId: string,
 	application: string,
 	title: string,
-	logo: string,
-	logoUrl: string,
-	description: string,
+	logo?: string,
+	logoUrl?: string,
+	description?: string,
 	scope: Destination,
-	destinationId: string,
+	destinationId?: string,
 	install: InstallCase,
 	lastMessageSeq: number,
 	createdAt: number,
@@ -287,18 +287,18 @@ export type ApplicationInstall_Serialize = {
 export type ApplicationInstalled = ApplicationInstalled_Serialize | ApplicationInstalled_Deserialize;
 
 export type ApplicationInstalled_Deserialize = {
-	id: string,
+	id?: string,
 	conversationId: string,
 	application: string,
 	title: string,
-	logo: string,
-	logoUrl: string,
-	description: string,
+	logo?: string,
+	logoUrl?: string,
+	description?: string,
 	scope: Destination,
-	destinationId: string,
+	destinationId?: string,
 	install: InstallCase,
-	lastMessageSeq: number,
-	createdAt: number,
+	lastMessageSeq?: number,
+	createdAt?: number,
 };
 
 export type ApplicationInstalled_Serialize = {
@@ -346,9 +346,9 @@ export type ApplicationSearch = ApplicationSearch_Serialize | ApplicationSearch_
 
 export type ApplicationSearch_Deserialize = {
 	applications: Application_Deserialize[],
-	registryFailure: ApplicationsError,
-	readAt: number,
-	isStale: boolean,
+	registryFailure?: ApplicationsError,
+	readAt?: number,
+	isStale?: boolean,
 };
 
 export type ApplicationSearch_Serialize = {

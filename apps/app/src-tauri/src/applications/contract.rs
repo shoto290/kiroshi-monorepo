@@ -18,27 +18,27 @@ pub struct Application {
 	#[specta(type = BTreeMap<String, specta_typescript::Unknown>)]
 	pub config: serde_json::Value,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	#[specta(type = Vec<String>)]
+	#[specta(type = Vec<String>, optional)]
 	pub tools: Option<Vec<String>>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub logo: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub logo_url: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	#[specta(type = u64)]
+	#[specta(type = u64, optional)]
 	pub use_count: Option<u64>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	#[specta(type = bool)]
+	#[specta(type = bool, optional)]
 	pub verified: Option<bool>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub hosted_by: Option<String>,
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub categories: Vec<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	#[specta(type = AuthPosture)]
+	#[specta(type = AuthPosture, optional)]
 	pub auth_posture: Option<AuthPosture>,
 	pub install: Install,
 }
@@ -251,17 +251,17 @@ pub struct ApplicationInstall {
 	pub application: String,
 	pub title: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub logo: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub logo_url: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub description: Option<String>,
 	pub scope: Destination,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub destination_id: Option<String>,
 	pub install: InstallCase,
 	pub last_message_seq: i64,
@@ -272,30 +272,30 @@ pub struct ApplicationInstall {
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInstalled {
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub id: Option<String>,
 	pub conversation_id: String,
 	pub application: String,
 	pub title: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub logo: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub logo_url: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub description: Option<String>,
 	pub scope: Destination,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = String)]
+	#[specta(type = String, optional)]
 	pub destination_id: Option<String>,
 	pub install: InstallCase,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = i64)]
+	#[specta(type = i64, optional)]
 	pub last_message_seq: Option<i64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = i64)]
+	#[specta(type = i64, optional)]
 	pub created_at: Option<i64>,
 }
 
@@ -342,13 +342,13 @@ impl From<InstallDraft> for ApplicationInstalled {
 pub struct ApplicationSearch {
 	pub applications: Vec<Application>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = ApplicationsError)]
+	#[specta(type = ApplicationsError, optional)]
 	pub registry_failure: Option<ApplicationsError>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = i64)]
+	#[specta(type = i64, optional)]
 	pub read_at: Option<i64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	#[specta(type = bool)]
+	#[specta(type = bool, optional)]
 	pub is_stale: Option<bool>,
 }
 
