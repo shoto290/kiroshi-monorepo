@@ -232,9 +232,11 @@ describe("watching the joined spaces", () => {
 		await settle()
 
 		expect(joined.getState().hasFailedToLoad).toBe(true)
-		expect(reportFailure).toHaveBeenCalledWith(
-			expect.objectContaining({ description: "database locked" }),
-		)
+		expect(reportFailure).toHaveBeenCalledExactlyOnceWith({
+			title: "Something went wrong with this space",
+			description:
+				"Kiroshi couldn’t finish the request. Try again in a moment.",
+		})
 	})
 
 	it("raises a refused list in a sentence, never the refusal kind", async () => {
@@ -327,9 +329,11 @@ describe("leaving a space", () => {
 
 		expect(gear.joined.getState().joinedSpaces).toEqual([GARAGE])
 		expect(gear.hosts.forget).not.toHaveBeenCalled()
-		expect(gear.reportFailure).toHaveBeenCalledWith(
-			expect.objectContaining({ description: "disk full" }),
-		)
+		expect(gear.reportFailure).toHaveBeenCalledExactlyOnceWith({
+			title: "Something went wrong with this space",
+			description:
+				"Kiroshi couldn’t finish the request. Try again in a moment.",
+		})
 	})
 })
 

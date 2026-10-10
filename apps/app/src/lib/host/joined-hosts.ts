@@ -12,7 +12,11 @@ import {
 	LOCAL_IDS_COMMAND,
 } from "./conversation-provenance"
 import { createHttpHost, type HostSocket, type HttpHost } from "./http"
-import { joinRefusalNoticeOf } from "./join-refusal"
+import {
+	isJoinedSpaceError,
+	joinRefusalNoticeOf,
+	joinRejectionNoticeOf,
+} from "./join-refusal"
 
 import {
 	type commands,
@@ -216,9 +220,11 @@ export const createJoinedHosts = ({
 	}
 
 	const refuseRejection = (id: string, reason: unknown): null => {
-		const failure = describeRejection(reason)
-		reportFailure(failure)
-		return refuse(id, failure)
+		if (isJoinedSpaceError(reason)) {
+			return refuseJoin(id, reason)
+		}
+		reportJoinRefusal(joinRejectionNoticeOf(reason))
+		return refuse(id, describeRejection(reason))
 	}
 
 	const isDown = (id: string) =>

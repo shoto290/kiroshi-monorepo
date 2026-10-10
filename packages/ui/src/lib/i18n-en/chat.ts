@@ -280,6 +280,11 @@ const chat = {
 					description:
 						"The connection to its host couldn’t be opened. Check your network, then try again.",
 				},
+				unexpected: {
+					title: "Something went wrong with this space",
+					description:
+						"Kiroshi couldn’t finish the request. Try again in a moment.",
+				},
 			},
 			readFailed: "Couldn’t load earlier messages",
 		},

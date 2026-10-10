@@ -297,6 +297,11 @@ const chat = {
 					description:
 						"La connexion à son hôte n’a pas pu s’ouvrir. Vérifiez votre réseau, puis réessayez.",
 				},
+				unexpected: {
+					title: "Un problème est survenu avec cet espace",
+					description:
+						"Kiroshi n’a pas pu terminer la demande. Réessayez dans un instant.",
+				},
 			},
 			readFailed: "Impossible de charger les messages précédents",
 		},

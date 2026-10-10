@@ -195,6 +195,74 @@ describe("a refused join", () => {
 	})
 })
 
+const THROWN_MESSAGE = "ipc channel closed unexpectedly"
+
+const UNEXPECTED_NOTICES: Record<Language, NoticeMessage> = {
+	en: {
+		title: "Something went wrong with this space",
+		description: "Kiroshi couldn’t finish the request. Try again in a moment.",
+	},
+	fr: {
+		title: "Un problème est survenu avec cet espace",
+		description:
+			"Kiroshi n’a pas pu terminer la demande. Réessayez dans un instant.",
+	},
+}
+
+const thrownJoinOf = async (thrown: unknown) => {
+	const { hosts, reportFailure, reportJoinRefusal } = joinedHostsOf({
+		join: async () => {
+			throw thrown
+		},
+	})
+	await hosts.connect("garage")
+	expect(reportJoinRefusal).toHaveBeenCalledOnce()
+	expect(reportFailure).not.toHaveBeenCalled()
+	return {
+		notice: reportJoinRefusal.mock.calls[0]?.[0] as NoticeMessage,
+		connection: hosts.getState().connections.garage,
+	}
+}
+
+describe("a join that throws", () => {
+	afterEach(() => activateLanguage("en"))
+
+	describe.each(LANGUAGES)("in %s", (language) => {
+		it("raises the notice of the refusal kind it throws", async () => {
+			activateLanguage(language)
+
+			const { notice, connection } = await thrownJoinOf({
+				kind: "hostOffline",
+				id: "garage",
+			})
+
+			expect(notice).toEqual(HOST_OFFLINE_NOTICES[language])
+			expect(connection).toEqual({
+				status: "refused",
+				failure: HOST_OFFLINE_NOTICES[language].title,
+			})
+		})
+
+		it.each([new Error(THROWN_MESSAGE), THROWN_MESSAGE])(
+			"raises the generic sentence, never the thrown %s",
+			async (thrown) => {
+				activateLanguage(language)
+
+				const { notice, connection } = await thrownJoinOf(thrown)
+
+				expect(notice).toEqual(UNEXPECTED_NOTICES[language])
+				for (const word of THROWN_MESSAGE.split(" ")) {
+					expect(textOf(notice)).not.toContain(word)
+				}
+				expect(connection).toEqual({
+					status: "refused",
+					failure: THROWN_MESSAGE,
+				})
+			},
+		)
+	})
+})
+
 const localCommands = (local: ReturnType<typeof joinedHostsOf>["local"]) =>
 	local.invoke.mock.calls.map(([command]) => command)
 
@@ -335,19 +403,18 @@ describe("connecting a joined space", () => {
 		expect(reportFailure).not.toHaveBeenCalled()
 	})
 
-	it("records and surfaces a rejected connect, then retries on the next one", async () => {
+	it("records a rejected connect, then retries on the next one", async () => {
 		const join = vi
 			.fn<JoinedHostsOptions["join"]>()
 			.mockRejectedValueOnce(new Error("ipc closed"))
 			.mockImplementation(async (id) => joinedConnection(id))
-		const { hosts, reportFailure } = joinedHostsOf({ join })
+		const { hosts } = joinedHostsOf({ join })
 
 		await hosts.connect("garage")
 		expect(hosts.getState().connections.garage).toEqual({
 			status: "refused",
 			failure: "ipc closed",
 		})
-		expect(reportFailure).toHaveBeenCalledWith("ipc closed")
 
 		await hosts.connect("garage")
 		expect(hosts.getState().connections.garage).toEqual({
