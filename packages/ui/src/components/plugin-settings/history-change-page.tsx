@@ -73,33 +73,37 @@ const HistoryFileTab = ({ path }: HistoryFileTabProps) => {
 	const folds = foldsOf(path)
 	const fitting = useFittingCandidate(candidates, label)
 
-	const row = (
-		<Tabs.Tab className={FILE_ROW_CLASS} data-slot="history-file" value={path}>
-			<Icons.File
-				aria-hidden="true"
-				className="size-4 shrink-0"
-				data-slot="history-file-glyph"
-			/>
-			<span aria-hidden="true" className={CANDIDATES_CLASS} ref={setCandidates}>
-				{folds.map((fold) => (
-					<span className={CANDIDATE_CLASS} key={fold}>
-						{fold}
-					</span>
-				))}
-			</span>
-			<span
-				className="block min-w-0 flex-1 truncate"
-				data-slot="history-file-path"
-				ref={setLabel}
-			>
-				{folds[fitting] ?? path}
-			</span>
-		</Tabs.Tab>
-	)
-
 	return (
 		<TooltipHint content={fitting === 0 ? null : path} side="right">
-			{row}
+			<Tabs.Tab
+				className={FILE_ROW_CLASS}
+				data-slot="history-file"
+				value={path}
+			>
+				<Icons.File
+					aria-hidden="true"
+					className="size-4 shrink-0"
+					data-slot="history-file-glyph"
+				/>
+				<span
+					aria-hidden="true"
+					className={CANDIDATES_CLASS}
+					ref={setCandidates}
+				>
+					{folds.map((fold) => (
+						<span className={CANDIDATE_CLASS} key={fold}>
+							{fold}
+						</span>
+					))}
+				</span>
+				<span
+					className="block min-w-0 flex-1 truncate"
+					data-slot="history-file-path"
+					ref={setLabel}
+				>
+					{folds[fitting] ?? path}
+				</span>
+			</Tabs.Tab>
 		</TooltipHint>
 	)
 }
