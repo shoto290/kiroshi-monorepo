@@ -77,6 +77,7 @@ export const commands = {
 	conversationMainChat: (botId: string, spaceId: string | null) => typedError<Chat, TranscriptStoreError>(__TAURI_INVOKE("conversation_main_chat", { botId, spaceId })),
 	conversationCreate: (spaceId: string, sectionId: string | null, title: string, botIds: string[]) => typedError<Conversation, TranscriptStoreError>(__TAURI_INVOKE("conversation_create", { spaceId, sectionId, title, botIds })),
 	conversationList: (spaceId: string) => typedError<Conversation[], TranscriptStoreError>(__TAURI_INVOKE("conversation_list", { spaceId })),
+	conversationLocalIds: () => typedError<string[], TranscriptStoreError>(__TAURI_INVOKE("conversation_local_ids")),
 	conversationUpdate: (conversationId: string, title: string, instructions: string, sectionId: string | null) => typedError<Conversation, TranscriptStoreError>(__TAURI_INVOKE("conversation_update", { conversationId, title, instructions, sectionId })),
 	conversationDelete: (conversationId: string) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_delete", { conversationId })),
 	conversationAddParticipant: (conversationId: string, botId: string, invitedByBotId: string | null) => typedError<Conversation, TranscriptStoreError>(__TAURI_INVOKE("conversation_add_participant", { conversationId, botId, invitedByBotId })),

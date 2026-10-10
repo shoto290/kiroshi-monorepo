@@ -56,6 +56,16 @@ pub async fn conversation_list<R: Runtime>(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn conversation_local_ids(
+	state: State<'_, db::DatabaseState>,
+) -> Result<Vec<String>, TranscriptStoreError> {
+	let mut ids = ready(&state)?.conversations().conversation_ids().await?;
+	ids.sort_unstable();
+	Ok(ids)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn conversation_update<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,

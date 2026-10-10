@@ -884,6 +884,11 @@ fn a_relay_guest_cannot_list_the_joined_spaces_of_the_host() {
 	run(a_relay_guest_is_refused("joined_spaces_list"));
 }
 
+#[test]
+fn a_relay_guest_cannot_read_the_conversation_ids_of_the_host() {
+	run(a_relay_guest_is_refused("conversation_local_ids"));
+}
+
 fn a_space_scope() -> EnvScope {
 	EnvScope::Space { id: PERSONAL.to_owned() }
 }
