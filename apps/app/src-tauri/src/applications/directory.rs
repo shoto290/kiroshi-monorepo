@@ -211,7 +211,7 @@ impl Directory {
 
 	pub async fn named(&self, name: &str) -> Result<Option<Application>, ApplicationsError> {
 		self.answered(|cached, _| {
-			distinct(cached.rows.iter()).find(|held| held.name == name).cloned()
+			cached.rows.iter().map(|row| &row.application).find(|held| held.name == name).cloned()
 		})
 		.await
 	}
