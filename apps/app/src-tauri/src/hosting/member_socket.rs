@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Map, Value};
 use specta::datatype::{
 	DataType, Enum, Fields, Function, NamedDataType, NamedReferenceType, Primitive, Reference,
+	Tuple,
 };
 use specta::{Format, Type, Types};
 use specta_serde::{select_phase_datatype, Phase, PhasesFormat};
@@ -191,42 +192,32 @@ impl Walker<'_> {
 			"args".to_owned(),
 			json!({ "type": "object", "properties": properties, "required": required }),
 		);
-		let result = function.result();
-		match result.and_then(|result| self.result_halves(result)) {
-			Some((ok, error)) => {
-				entry.insert("ok".to_owned(), self.schema(&ok, Phase::Serialize, &Generics::new()));
-				entry.insert(
-					"error".to_owned(),
-					self.schema(&error, Phase::Serialize, &Generics::new()),
-				);
-			}
-			None => {
-				let ok = match result {
-					Some(result) => self.schema(result, Phase::Serialize, &Generics::new()),
-					None => json!({ "type": "null" }),
-				};
-				entry.insert("ok".to_owned(), ok);
-			}
+		let (ok, error) = self.answer_halves(function.result());
+		entry.insert("ok".to_owned(), self.schema(&ok, Phase::Serialize, &Generics::new()));
+		if let Some(error) = error {
+			entry.insert(
+				"error".to_owned(),
+				self.schema(&error, Phase::Serialize, &Generics::new()),
+			);
 		}
 		Value::Object(entry)
 	}
 
-	fn result_halves(&self, result: &DataType) -> Option<(DataType, DataType)> {
-		let DataType::Reference(Reference::Named(named)) = result else {
-			return None;
+	fn answer_halves(&self, result: Option<&DataType>) -> (DataType, Option<DataType>) {
+		let Some(result) = result else {
+			return (DataType::Tuple(Tuple::new(Vec::new())), None);
 		};
-		let ndt = self.types.get(named)?;
-		let is_result =
-			ndt.name == "Result" && matches!(&*ndt.module_path, "std::result" | "core::result");
-		match &named.inner {
-			NamedReferenceType::Reference { generics, .. } if is_result => {
-				match generics.as_slice() {
-					[(_, ok), (_, error), ..] => Some((ok.clone(), error.clone())),
-					_ => None,
+		if let DataType::Reference(Reference::Named(named)) = result {
+			let is_result = self.types.get(named).is_some_and(|ndt| {
+				ndt.name == "Result" && matches!(&*ndt.module_path, "std::result" | "core::result")
+			});
+			if let NamedReferenceType::Reference { generics, .. } = &named.inner {
+				if let ([(_, ok), (_, error), ..], true) = (generics.as_slice(), is_result) {
+					return (ok.clone(), Some(error.clone()));
 				}
 			}
-			_ => None,
 		}
+		(result.clone(), None)
 	}
 
 	fn schema(&mut self, dt: &DataType, phase: Phase, generics: &Generics) -> Value {
@@ -324,7 +315,6 @@ impl Walker<'_> {
 			None => {
 				assert!(!self.defs.contains_key(&name), "the type {origin} shadows a frame");
 				self.origins.insert(name.clone(), origin);
-				self.defs.insert(name.clone(), json!(true));
 				let body = match &ndt.ty {
 					Some(ty) => self.schema(ty, phase, &Generics::new()),
 					None => json!(true),
