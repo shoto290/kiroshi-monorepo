@@ -27,7 +27,7 @@ struct SpaceScreen: View {
 
     var body: some View {
         NavigationStack {
-            ContentUnavailableView(section.title, systemImage: section.systemImage)
+            content
                 .safeAreaInset(edge: .top) {
                     if let offlineSpace = store.offlineSpace {
                         HostOfflineLine(space: offlineSpace, email: store.email)
@@ -49,6 +49,15 @@ struct SpaceScreen: View {
                         }
                     }
                 }
+        }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch section {
+        case .conversations:
+            ConversationsView(space: store)
+        case .missions:
+            ContentUnavailableView(section.title, systemImage: section.systemImage)
         }
     }
 }

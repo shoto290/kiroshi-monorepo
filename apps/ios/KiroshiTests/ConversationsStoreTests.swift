@@ -1,0 +1,161 @@
+import Foundation
+import Observation
+import Testing
+
+@testable import Kiroshi
+
+@MainActor
+@Suite(.timeLimit(.minutes(1)))
+struct ConversationsStoreTests {
+    let transport = TestRelayTransport()
+    let clock = TestRelayClock()
+    let juniper = Companion(id: "juniper", name: "Juniper")
+    let atlas = Companion(id: "atlas", name: "Atlas")
+    let pico = Companion(id: "pico", name: "Pico")
+
+    func makeConnection() -> RelayConnection {
+        RelayConnection(
+            baseURL: KiroshiCloud.productionURL, instanceId: "instance-1", bearer: "fixture-bearer",
+            environment: RelayEnvironment(transport: transport, clock: clock),
+            backoff: Backoff(jitter: { $0 }))
+    }
+
+    func waitUntil(_ condition: @escaping @MainActor @Sendable () -> Bool) async {
+        for await isMet in Observations({ condition() }) where isMet {
+            return
+        }
+    }
+
+    func follow(_ host: TestHost) async -> (ConversationsStore, RelayConnection, Task<Void, Never>)
+    {
+        let connection = makeConnection()
+        let store = ConversationsStore()
+        let following = Task { await store.follow(connection) }
+        await connection.start()
+        await transport.nextOpening().accept(host.socket)
+        await waitUntil { store.phase == .loaded }
+        return (store, connection, following)
+    }
+
+    var host: TestHost {
+        TestHost(
+            companions: [juniper, atlas, pico],
+            messages: [
+                "chat-juniper": [
+                    TestHost.message(
+                        "j1", in: "chat-juniper", seq: 1, isYours: false,
+                        "The release notes are drafted.", at: 2_000)
+                ],
+                "chat-atlas": [
+                    TestHost.message(
+                        "a1", in: "chat-atlas", seq: 1, isYours: true,
+                        "Can you split the onboarding ticket in two?", at: 3_000)
+                ],
+            ])
+    }
+
+    @Test func listsTheCompanionsOfTheSharedSpaceNewestConversationFirst() async throws {
+        let host = host
+        let (store, connection, following) = await follow(host)
+
+        #expect(store.summaries.map(\.companion.name) == ["Atlas", "Juniper", "Pico"])
+        #expect(
+            store.summaries.map(\.conversationId) == ["chat-atlas", "chat-juniper", "chat-pico"])
+        #expect(
+            store.summaries[0].lastMessage?.line
+                == "You: Can you split the onboarding ticket in two?")
+        #expect(store.summaries[1].lastMessage?.line == "The release notes are drafted.")
+        #expect(store.summaries[1].lastMessage?.sentAt == Date(milliseconds: 2_000))
+        #expect(store.summaries[2].lastMessage == nil)
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func asksForTheCompanionsOfTheSpaceTheHostShares() async throws {
+        let host = host
+        let connection = makeConnection()
+        let store = ConversationsStore()
+        let following = Task { await store.follow(connection) }
+        await connection.start()
+        await transport.nextOpening().accept(host.socket)
+
+        let call = try #require(await host.nextCall("conversation_bots"))
+
+        #expect(try call.args(as: SpaceArgs.self).spaceId == "s-1")
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func aSpaceWithoutCompanionsLoadsEmpty() async {
+        let (store, connection, following) = await follow(TestHost())
+
+        #expect(store.summaries.isEmpty)
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func aRunningTurnMarksItsCompanionWorkingUntilItEnds() async {
+        let host = host
+        let (store, connection, following) = await follow(host)
+
+        host.pushAgent("chat-pico", #"{"type":"turnChanged","state":"running"}"#)
+        await waitUntil { store.summaries.first { $0.id == "pico" }?.isWorking == true }
+        host.pushAgent(
+            "chat-pico", #"{"type":"turnEnded","ended":{"sessionId":null,"outcome":"success"}}"#)
+        await waitUntil { store.summaries.first { $0.id == "pico" }?.isWorking == false }
+
+        #expect(store.summaries.allSatisfy { !$0.isWorking })
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func aStoredMessageBecomesThePreviewAndMovesItsCompanionUp() async {
+        let host = host
+        let (store, connection, following) = await follow(host)
+
+        host.push(
+            event: "conversation://message-stored",
+            payload: TestHost.message(
+                "p1", in: "chat-pico", seq: 1, isYours: true, "Ship it.", at: 9_000))
+        await waitUntil { store.summaries.first?.id == "pico" }
+
+        #expect(store.summaries[0].lastMessage?.line == "You: Ship it.")
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func aCompletedReplyBecomesThePreview() async {
+        let host = host
+        let (store, connection, following) = await follow(host)
+
+        host.pushAgent(
+            "chat-juniper",
+            #"{"type":"messageCompleted","message":{"id":"j2","role":"assistant","text":"Done.","completion":"complete","timestamp":9000}}"#
+        )
+        await waitUntil { store.summaries.first?.lastMessage?.text == "Done." }
+
+        #expect(store.summaries[0].id == "juniper")
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func theListStaysWhenTheHostGoesOffline() async {
+        let host = host
+        let (store, connection, following) = await follow(host)
+        let updates = await connection.updates()
+
+        host.socket.push(.close(RelayClosure.hostOffline))
+        for await update in updates {
+            if case .state(.hostOffline) = update { break }
+        }
+
+        #expect(store.phase == .loaded)
+        #expect(store.summaries.count == 3)
+        following.cancel()
+        await connection.stop()
+    }
+
+    struct SpaceArgs: Decodable {
+        let spaceId: String
+    }
+}

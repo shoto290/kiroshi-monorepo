@@ -1,0 +1,129 @@
+import Foundation
+
+@testable import Kiroshi
+
+struct TestCall: Sendable {
+    let id: Int
+    let command: String
+    let text: String
+
+    func args<Args: Decodable>(as type: Args.Type) throws -> Args {
+        try JSONDecoder().decode(Envelope<Args>.self, from: Data(text.utf8)).args
+    }
+
+    private struct Envelope<Args: Decodable>: Decodable {
+        let args: Args
+    }
+}
+
+final class TestHost: Sendable {
+    typealias Answer = @Sendable (TestCall) -> String?
+
+    let socket = ScriptedRelaySocket(sharedSpaceId: "s-1")
+    let calls: AsyncStream<TestCall>
+    private let callsContinuation: AsyncStream<TestCall>.Continuation
+    private let listening: Task<Void, Never>
+
+    init(
+        companions: [Companion] = [],
+        messages: [String: [String]] = [:],
+        answer: @escaping Answer = { _ in nil }
+    ) {
+        let (calls, callsContinuation) = AsyncStream.makeStream(of: TestCall.self)
+        self.calls = calls
+        self.callsContinuation = callsContinuation
+        let socket = socket
+        listening = Task {
+            for await text in socket.sent {
+                guard let head = try? JSONDecoder().decode(Head.self, from: Data(text.utf8)),
+                    head.command != "relay_shared_space"
+                else { continue }
+                let call = TestCall(id: head.id, command: head.command, text: text)
+                callsContinuation.yield(call)
+                let body =
+                    answer(call)
+                    ?? Self.standard(call, companions: companions, messages: messages)
+                if let body {
+                    socket.push(.frame(body))
+                }
+            }
+        }
+    }
+
+    deinit {
+        listening.cancel()
+    }
+
+    func push(event name: String, payload: String) {
+        socket.push(.frame(#"{"event":{"event":"\#(name)","payload":\#(payload)}}"#))
+    }
+
+    func pushAgent(_ conversationId: String, _ event: String) {
+        push(
+            event: "agent://event",
+            payload:
+                #"{"scope":{"conversationId":"\#(conversationId)","botId":"bot","runtimeSessionId":"session-1","epoch":1},"event":\#(event),"turn":null}"#
+        )
+    }
+
+    func nextCall(_ command: String) async -> TestCall? {
+        for await call in calls where call.command == command {
+            return call
+        }
+        return nil
+    }
+
+    static func ok(_ call: TestCall, _ body: String) -> String {
+        #"{"id":\#(call.id),"status":200,"body":\#(body)}"#
+    }
+
+    static func refused(_ call: TestCall, status: Int, _ body: String) -> String {
+        #"{"id":\#(call.id),"status":\#(status),"body":\#(body)}"#
+    }
+
+    static func message(
+        _ id: String, in conversationId: String, seq: Int, isYours: Bool, _ content: String,
+        at createdAt: Int
+    ) -> String {
+        FixtureHost.messageJSON(
+            id: id, conversationId: conversationId, seq: seq,
+            role: isYours ? "user" : "assistant", content: content, createdAt: createdAt)
+    }
+
+    private static func standard(
+        _ call: TestCall, companions: [Companion], messages: [String: [String]]
+    ) -> String? {
+        switch call.command {
+        case "conversation_bots":
+            let bots = companions.map { #"{"id":"\#($0.id)","name":"\#($0.name)"}"# }
+            return ok(call, "[\(bots.joined(separator: ","))]")
+        case "conversation_main_chat":
+            guard let args = try? call.args(as: BotArgs.self) else { return nil }
+            return ok(call, #"{"id":"chat-\#(args.botId)","createdAt":0,"updatedAt":0}"#)
+        case "conversation_message_page":
+            guard let args = try? call.args(as: PageArgs.self) else { return nil }
+            let page = (messages[args.conversationId] ?? []).suffix(args.limit)
+            return ok(
+                call,
+                #"{"conversationId":"\#(args.conversationId)","messages":[\#(page.joined(separator: ","))],"arrivals":[],"hasMore":false}"#
+            )
+        default:
+            return nil
+        }
+    }
+
+    private struct Head: Decodable {
+        let id: Int
+        let command: String
+    }
+
+    struct BotArgs: Decodable {
+        let botId: String
+        let spaceId: String
+    }
+
+    struct PageArgs: Decodable {
+        let conversationId: String
+        let limit: Int
+    }
+}

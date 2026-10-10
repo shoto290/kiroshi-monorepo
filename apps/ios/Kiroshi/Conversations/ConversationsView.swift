@@ -1,0 +1,93 @@
+import SwiftUI
+
+struct ConversationsView: View {
+    let space: SpaceStore
+    @State private var store: ConversationsStore
+
+    init(space: SpaceStore) {
+        self.space = space
+        #if DEBUG
+            let opening = ConversationsFixture.opening
+        #else
+            let opening: Companion.ID? = nil
+        #endif
+        _store = State(initialValue: ConversationsStore(opening: opening))
+    }
+
+    var body: some View {
+        content
+            .task(id: space.connection.map(ObjectIdentifier.init)) {
+                guard let connection = space.connection else { return }
+                await store.follow(connection)
+            }
+            .navigationDestination(item: $store.opened) { companion in
+                ThreadView(companion: companion, space: space)
+            }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch store.phase {
+        case .loading where space.offlineSpace != nil:
+            Color.clear
+        case .loading:
+            List(CompanionSummary.placeholders) { summary in
+                CompanionRow(summary: summary, time: ConversationTime())
+                    .listRowSeparator(.hidden)
+            }
+            .listStyle(.plain)
+            .redacted(reason: .placeholder)
+            .allowsHitTesting(false)
+            .accessibilityLabel("Loading companions")
+        case .loaded where store.summaries.isEmpty:
+            ContentUnavailableView {
+                Label("No companions yet", systemImage: "hexagon")
+            } description: {
+                Text("Add one to \(space.currentSpace?.name ?? "") on your Mac. It shows up here.")
+            }
+        case .loaded:
+            List(store.summaries) { summary in
+                Button {
+                    store.opened = summary.companion
+                } label: {
+                    CompanionRow(summary: summary, time: ConversationTime())
+                }
+                .listRowSeparator(.hidden, edges: .top)
+            }
+            .listStyle(.plain)
+        }
+    }
+}
+
+#if DEBUG
+    #Preview("3.1 Conversations · list") {
+        SignInRootView(model: .fixture(.conversations))
+    }
+
+    #Preview("3.2 Thread") {
+        SignInRootView(model: .fixture(.thread))
+    }
+
+    #Preview("3.3 State · no companion") {
+        SignInRootView(model: .fixture(.noCompanion))
+    }
+
+    #Preview("3.4 State · loading") {
+        SignInRootView(model: .fixture(.loadingCompanions))
+    }
+
+    #Preview("3.5 State · empty thread") {
+        SignInRootView(model: .fixture(.emptyThread))
+    }
+
+    #Preview("3.6 State · host offline") {
+        SignInRootView(model: .fixture(.conversationsHostOffline))
+    }
+
+    #Preview("3.7 State · agent working (list)") {
+        SignInRootView(model: .fixture(.workingList))
+    }
+
+    #Preview("3.8 State · agent working (thread)") {
+        SignInRootView(model: .fixture(.workingThread))
+    }
+#endif
