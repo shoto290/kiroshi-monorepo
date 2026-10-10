@@ -193,9 +193,6 @@ const readsWhatTheHostKeeps = (command: string, args?: InvokeArgs): boolean => {
 	)
 }
 
-const keptByTheHost = (command: string): Error =>
-	new Error(`${command} of a joined space stays on its host`)
-
 const describeRejection = (reason: unknown): string =>
 	reason instanceof Error ? reason.message : String(reason)
 
@@ -579,7 +576,9 @@ export const createJoinedHosts = ({
 			return sendTo<T>(null, call)
 		}
 		if (readsWhatTheHostKeeps(command, args)) {
-			return Promise.reject(keptByTheHost(command))
+			return Promise.reject(
+				new Error(`${command} of a joined space stays on its host`),
+			)
 		}
 		const route = () => sendTo<T>(ownerOf(active, args), call)
 		return provenance.namesConversation(args)
