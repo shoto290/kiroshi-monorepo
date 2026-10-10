@@ -344,17 +344,13 @@ impl<R: Runtime> HostTurn<R> {
 	}
 
 	async fn end_failed(&self) {
-		let ended = match database(&self.app) {
-			Ok(database) => database
-				.messages()
-				.complete_turn(self.turn_id.clone(), now_ms())
-				.await
-				.map_err(TranscriptStoreError::from),
-			Err(error) => Err(error),
-		};
-		if let Err(error) = ended {
+		if let Err(error) = self.ended_failed().await {
 			eprintln!("{} could not be ended as failed: {error:?}", self.label());
 		}
+	}
+
+	async fn ended_failed(&self) -> Result<(), TranscriptStoreError> {
+		Ok(database(&self.app)?.messages().complete_turn(self.turn_id.clone(), now_ms()).await?)
 	}
 
 	async fn close(&self, done: Speaker, waiting: &mut Vec<Summons>) {
@@ -395,13 +391,13 @@ impl<R: Runtime> HostTurn<R> {
 
 	async fn shut_down(&self, scope: RuntimeScope) {
 		let bot_id = scope.bot_id.clone();
-		let shut = match self.agent() {
-			Ok(agent) => agent_shutdown(self.app.clone(), agent, scope).await,
-			Err(error) => Err(error),
-		};
-		if let Err(error) = shut {
+		if let Err(error) = self.shut(scope).await {
 			eprintln!("{} could not shut the session of {bot_id} down: {error:?}", self.label());
 		}
+	}
+
+	async fn shut(&self, scope: RuntimeScope) -> Result<(), TransportError> {
+		agent_shutdown(self.app.clone(), self.agent()?, scope).await
 	}
 
 	fn agent(&self) -> Result<State<'_, AgentState>, TransportError> {
