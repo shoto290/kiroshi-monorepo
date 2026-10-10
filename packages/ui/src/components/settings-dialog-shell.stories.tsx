@@ -12,6 +12,7 @@ import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	expectHeadingFont,
+	FRAME_POLL,
 } from "@workspace/storybook/story-utils"
 import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import { Icons } from "@workspace/ui/components/icons"
@@ -107,6 +108,9 @@ const ShellWithSessions = (props: SettingsDialogShellProps) => {
 const dialogIn = async () => {
 	const dialog = await screen.findByRole("dialog")
 	await waitFor(() => expect(dialog).toBeVisible())
+	await waitFor(async () => {
+		await expect(dialog.contains(document.activeElement)).toBe(true)
+	}, FRAME_POLL)
 	return dialog
 }
 

@@ -1,9 +1,10 @@
 import { useState } from "react"
-import { expect, fn, screen, spyOn, within } from "storybook/test"
+import { expect, fn, screen, spyOn, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	FRAME_POLL,
 	slotIn,
 } from "@workspace/storybook/story-utils"
 import {
@@ -770,7 +771,14 @@ export const FilterCarriedToAnotherSource = meta.story({
 		const operator = row().getByRole("combobox", { name: "Operator" })
 		await expect(operator).toHaveTextContent("is present")
 		await userEvent.click(operator)
-		await expect(await screen.findAllByRole("option")).toHaveLength(2)
+		await waitFor(async () => {
+			await expect(operator).toHaveAttribute("aria-expanded", "true")
+		}, FRAME_POLL)
+		await expect(
+			within(screen.getByRole("listbox", { name: "Operator" })).getAllByRole(
+				"option",
+			),
+		).toHaveLength(2)
 	},
 })
 
@@ -954,7 +962,11 @@ export const FilterOperatorTakenBackOnAnUndescribedSource = meta.story({
 	play: async ({ canvas, userEvent }) => {
 		const row = () => within(canvas.getByRole("group", { name: "Row 1" }))
 		const pick = async (option: string) => {
-			await userEvent.click(row().getByRole("combobox", { name: "Operator" }))
+			const operator = row().getByRole("combobox", { name: "Operator" })
+			await userEvent.click(operator)
+			await waitFor(async () => {
+				await expect(operator).toHaveAttribute("aria-expanded", "true")
+			}, FRAME_POLL)
 			await userEvent.click(await screen.findByRole("option", { name: option }))
 		}
 

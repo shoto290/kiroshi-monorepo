@@ -1909,6 +1909,9 @@ export const RowContextMenu = meta.story({
 		const menu = await shown(
 			await overlay.findByRole("menu", { name: "Actions for Cinder" }),
 		)
+		await waitFor(async () => {
+			await expect(menu).toHaveFocus()
+		}, FRAME_POLL)
 		const items = within(menu).getAllByRole("menuitem")
 		await expect(items.map((item) => item.textContent)).toEqual([
 			"Pin",
@@ -2340,6 +2343,21 @@ const swipeBeside = async (carousel: HTMLElement, step: number) => {
 	await new Promise((resolve) => setTimeout(resolve, SETTLE))
 }
 
+const panelsDrawnWhile = async (
+	carousel: HTMLElement,
+	act: () => Promise<void>,
+) => {
+	let drawn = 0
+	const observer = new MutationObserver((records) => {
+		for (const record of records) drawn += record.addedNodes.length
+	})
+	observer.observe(carousel, { childList: true })
+	await act()
+	await new Promise((resolve) => setTimeout(resolve, SETTLE))
+	observer.disconnect()
+	return drawn
+}
+
 const carryTo = async (carousel: HTMLElement, panels: number) => {
 	carousel.style.scrollSnapType = "none"
 	carousel.scrollLeft = panels * carousel.clientWidth
@@ -2565,11 +2583,13 @@ const crossSafePolygon = async (panel: HTMLElement) => {
 
 const openRowMenu = async (canvasElement: HTMLElement, name: string) => {
 	fireEvent.contextMenu(rowButton(rowFor(canvasElement, name)))
-	return within(
-		await shown(
-			await screen.findByRole("menu", { name: `Actions for ${name}` }),
-		),
+	const menu = await shown(
+		await screen.findByRole("menu", { name: `Actions for ${name}` }),
 	)
+	await waitFor(async () => {
+		await expect(menu.contains(document.activeElement)).toBe(true)
+	}, FRAME_POLL)
+	return within(menu)
 }
 
 const LAST_SPACE_NOTE =
@@ -3162,9 +3182,12 @@ export const LiveSpaceSelection = meta.story({
 
 		await expect(slotShown(carousel)).toBe(1)
 
-		await userEvent.keyboard("{Meta>}5{/Meta}")
+		const drawn = await panelsDrawnWhile(carousel, () =>
+			userEvent.keyboard("{Meta>}5{/Meta}"),
+		)
 		await expect(args.onSelectSpace).toHaveBeenCalledTimes(3)
 		await expect(args.onSelectSpace).toHaveBeenLastCalledWith("archives")
+		await expect(drawn).toBe(1)
 
 		await waitFor(async () => {
 			await expect(panelsIn(canvasElement)).toHaveLength(2)

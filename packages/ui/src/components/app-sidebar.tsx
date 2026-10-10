@@ -1698,6 +1698,7 @@ const SpaceCarousel = ({
 		const node = viewport.current
 		if (!node || chosen === covering.current) return
 		if (!isBeside || isCut) {
+			covering.current = chosen
 			setRestingOn(chosen)
 			return
 		}

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -69,8 +69,6 @@ const ANSWER_WORDS = (
 const SHORT_ANSWER_WORDS = ANSWER_WORDS.slice(0, 1)
 
 const LONG_ANSWER_WORDS = [...ANSWER_WORDS, ...ANSWER_WORDS, ...ANSWER_WORDS]
-
-const STREAM_TICK_MS = 16
 
 const ONE_LINE = 24
 
@@ -245,7 +243,6 @@ const StreamingDemo = ({
 	const [words, setWords] = useState(0)
 	const [isStreaming, setIsStreaming] = useState(false)
 	const [frameHeight, setFrameHeight] = useState(FRAME_HEIGHTS[0])
-	const timerRef = useRef<number | undefined>(undefined)
 
 	const sendPrompt = () => {
 		setShown([...HISTORY, PROMPT])
@@ -253,13 +250,16 @@ const StreamingDemo = ({
 		setIsStreaming(true)
 
 		let delivered = 0
-		timerRef.current = window.setInterval(() => {
+		const deliverNextWord = () => {
 			delivered += 1
 			setWords(delivered)
-			if (delivered < answerWords.length) return
-			window.clearInterval(timerRef.current)
+			if (delivered < answerWords.length) {
+				requestAnimationFrame(deliverNextWord)
+				return
+			}
 			setIsStreaming(false)
-		}, STREAM_TICK_MS)
+		}
+		requestAnimationFrame(deliverNextWord)
 	}
 
 	const streamed =
