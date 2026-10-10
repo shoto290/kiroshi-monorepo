@@ -1,4 +1,3 @@
-
 use std::io::Cursor;
 
 use image::imageops::FilterType;
@@ -20,16 +19,9 @@ const WEBP_SIGNATURE: &[u8] = b"WEBP";
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Rejection {
 	UnknownFormat,
-	TooLarge {
-		bytes: u64,
-		limit: u64,
-	},
-	Undecodable {
-		detail: String,
-	},
-	Unwritable {
-		detail: String,
-	},
+	TooLarge { bytes: u64, limit: u64 },
+	Undecodable { detail: String },
+	Unwritable { detail: String },
 }
 
 pub fn normalised(bytes: &[u8]) -> Result<Vec<u8>, Rejection> {

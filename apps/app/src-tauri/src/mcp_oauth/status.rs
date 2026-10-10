@@ -276,7 +276,10 @@ mod tests {
 
 		let unread = [
 			Evidence { is_authorizing: true, ..unreported(Values::new(), false) },
-			Evidence { refusal: Some("invalid_grant".to_owned()), ..unreported(Values::new(), false) },
+			Evidence {
+				refusal: Some("invalid_grant".to_owned()),
+				..unreported(Values::new(), false)
+			},
 			unreported(Values::from([(OAUTH_REASON.to_owned(), STORED_REASON.to_owned())]), false),
 			unreported(a_grant(Some(NOW + 1)), false),
 			left_out_holding(a_grant(Some(NOW - 1))),

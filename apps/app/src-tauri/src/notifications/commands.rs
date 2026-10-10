@@ -64,8 +64,7 @@ mod tests {
 	#[test]
 	fn a_notification_reads_the_kind_it_stands_for_beside_its_id() {
 		let target: NotificationTarget =
-			from_value(json!({ "kind": "conversation", "id": "c-1" }))
-				.expect("the target reads");
+			from_value(json!({ "kind": "conversation", "id": "c-1" })).expect("the target reads");
 
 		assert_eq!(target.kind, NotificationKind::Conversation);
 		assert_eq!(target.id, "c-1");
@@ -74,11 +73,8 @@ mod tests {
 	#[test]
 	fn a_clicked_notification_carries_its_kind_and_its_id_back() {
 		assert_eq!(
-			to_value(NotificationTarget {
-				kind: NotificationKind::Bot,
-				id: "b-1".to_owned(),
-			})
-			.expect("the target serializes"),
+			to_value(NotificationTarget { kind: NotificationKind::Bot, id: "b-1".to_owned() })
+				.expect("the target serializes"),
 			json!({ "kind": "bot", "id": "b-1" })
 		);
 	}

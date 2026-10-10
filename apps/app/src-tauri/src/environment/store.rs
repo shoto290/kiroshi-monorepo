@@ -554,8 +554,7 @@ mod tests {
 		};
 		set(&root, &a_user_server("clock"), "SHARED", "user").expect("the user scope keeps it");
 		set(&root, &a_user_server("clock"), "SPACE_WINS", "user").expect("the user scope keeps it");
-		set(&root, &a_user_server("clock"), "ONLY_USER", "user")
-			.expect("the user scope keeps it");
+		set(&root, &a_user_server("clock"), "ONLY_USER", "user").expect("the user scope keeps it");
 		set(&root, &space_clock, "SPACE_WINS", "space").expect("the space keeps it");
 		set(&root, &space_clock, "SHARED", "space").expect("the space keeps it");
 		set(&root, &a_server(), "SHARED", "bot").expect("the bot keeps it");

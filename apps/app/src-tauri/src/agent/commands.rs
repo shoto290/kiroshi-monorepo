@@ -20,10 +20,9 @@ use super::translate::now_ms;
 use crate::applications::host::ApplicationHost;
 use crate::bundles;
 use crate::companions::host::CompanionHost;
-use crate::json::JsonValue;
 use crate::conversations::commands::{ready, space_of_the_conversation};
-use crate::conversations::host_turn::HostTurns;
 use crate::conversations::contract::TranscriptStoreError;
+use crate::conversations::host_turn::HostTurns;
 use crate::db;
 use crate::db::repositories::conversations::{Bot as StoredBot, MISSION_KIND};
 use crate::db::repositories::runtime_context::ParticipantKey;
@@ -31,6 +30,7 @@ use crate::environment::connection;
 use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv, Values};
 use crate::environment::store as environment;
 use crate::events::{self, AGENT_EVENT};
+use crate::json::JsonValue;
 use crate::mcp_oauth::refresh;
 use crate::mcp_oauth::reports::StandingHost;
 use crate::missions::host::MissionHost;
@@ -666,11 +666,7 @@ async fn runtime_identity<R: Runtime>(
 	.flatten()
 	.collect();
 	let server_env = served_environment(app, sidecar, &bot.id, &space_id, &serving).await;
-	RuntimeIdentity {
-		bundle,
-		server_env,
-		space_id: Some(space_id),
-	}
+	RuntimeIdentity { bundle, server_env, space_id: Some(space_id) }
 }
 
 async fn opens_on_a_mission_thread(state: &db::DatabaseState, conversation_id: &str) -> bool {
@@ -799,11 +795,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 			scope.bot_id.clone(),
 			attachments,
 		)))
-		.hosting(hosted(StandingHost::new(
-			app.clone(),
-			scope.bot_id.clone(),
-			identity.space_id,
-		)))
+		.hosting(hosted(StandingHost::new(app.clone(), scope.bot_id.clone(), identity.space_id)))
 		.hosting(hosted(ApplicationHost::new(
 			app.clone(),
 			scope.conversation_id.clone(),

@@ -344,9 +344,13 @@ impl<R: Runtime> Host for CompanionHost<R> {
 			Operation::Create => {
 				let asked: Drafted = Self::read(payload)?;
 				let space_id = self.space(database).await?;
-				let created =
-					conversation_create_bot_from_draft(self.app.clone(), state, asked.into(), space_id)
-						.await?;
+				let created = conversation_create_bot_from_draft(
+					self.app.clone(),
+					state,
+					asked.into(),
+					space_id,
+				)
+				.await?;
 				let companion = CompanionCreated { id: created.id, name: created.name };
 				self.announce(COMPANION_CREATED, companion.clone())?;
 				Self::answered(companion)
@@ -646,10 +650,11 @@ mod tests {
 						Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
 					})?
 					.collect::<rusqlite::Result<Vec<_>>>()?;
-				let arrivals =
-					connection.query_row("SELECT count(*) FROM conversation_arrivals", [], |row| {
-						row.get(0)
-					})?;
+				let arrivals = connection.query_row(
+					"SELECT count(*) FROM conversation_arrivals",
+					[],
+					|row| row.get(0),
+				)?;
 				Ok((held, arrivals))
 			})
 			.await
@@ -792,8 +797,7 @@ mod tests {
 	async fn a_name_blank_once_trimmed_is_refused_and_nothing_is_created() {
 		let app = a_host("nameless").await;
 
-		let refused =
-			refusal(serving(&app, "c1").answer(a_create(json!({ "name": "   " }))).await);
+		let refused = refusal(serving(&app, "c1").answer(a_create(json!({ "name": "   " }))).await);
 
 		assert_eq!(refused["kind"], json!("namelessCompanion"));
 		assert_eq!(worn(&app).await.len(), 1);

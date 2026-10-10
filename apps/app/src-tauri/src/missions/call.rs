@@ -544,9 +544,11 @@ mod tests {
 		let stood = state_of(&app, &mission.id).await;
 		let webhook = listening(&app, Ticking::at(NOON));
 
-		let held =
-			answered(webhook.address(), calling(Some(A_KEY), None, &a_body(hook::PROMPT_SUBMITTED)))
-				.await;
+		let held = answered(
+			webhook.address(),
+			calling(Some(A_KEY), None, &a_body(hook::PROMPT_SUBMITTED)),
+		)
+		.await;
 
 		assert_eq!(held, answer(ACCEPTED));
 		assert_eq!(stood.0, MissionState::WaitingHuman);
@@ -675,9 +677,11 @@ mod tests {
 		let webhook = listening(&app, Ticking::at(now));
 		let received = heard(&app);
 
-		let held =
-			answered(webhook.address(), calling(Some(A_KEY), None, &a_tool_body("Edit", "/w/a.rs")))
-				.await;
+		let held = answered(
+			webhook.address(),
+			calling(Some(A_KEY), None, &a_tool_body("Edit", "/w/a.rs")),
+		)
+		.await;
 
 		assert_eq!(held, answer(ACCEPTED));
 		assert_eq!(events_of(&app, &mission.id).await, before, "a tool call wrote a thread line");

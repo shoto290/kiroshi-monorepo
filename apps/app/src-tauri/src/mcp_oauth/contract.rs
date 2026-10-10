@@ -140,10 +140,11 @@ mod tests {
 	fn the_flow_deadline_and_a_sidecar_that_never_started_read_as_two_reasons() {
 		let flow = to_value(OauthError::from(OauthFlowError::Outlasted { timeout_ms: 310_000 }))
 			.expect("the error serializes");
-		let never_started = to_value(OauthError::from(OauthFlowError::Transport(
-			TransportError::StartupTimeout { timeout_ms: 310_000 },
-		)))
-		.expect("the error serializes");
+		let never_started =
+			to_value(OauthError::from(OauthFlowError::Transport(TransportError::StartupTimeout {
+				timeout_ms: 310_000,
+			})))
+			.expect("the error serializes");
 
 		assert_eq!(flow, json!({ "kind": "flowTimedOut", "timeoutMs": 310_000 }));
 		assert_eq!(

@@ -105,9 +105,7 @@ impl<R: Runtime> StandingHost<R> {
 	}
 
 	fn owner(&self) -> Option<EnvOwner> {
-		self.space_id
-			.clone()
-			.map(|space_id| EnvOwner::Bot { id: self.bot_id.clone(), space_id })
+		self.space_id.clone().map(|space_id| EnvOwner::Bot { id: self.bot_id.clone(), space_id })
 	}
 
 	async fn renewed(&self, name: &str) -> Result<Value, StandingError> {

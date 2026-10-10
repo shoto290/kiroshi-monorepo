@@ -6,13 +6,13 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use common::{an_app_of_its_own, AppOfItsOwn};
-use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::commands::{
 	agent_shutdown, agent_start_or_resume_session, agent_submit_prompt, shutdown_session,
 	terminate_session,
 };
 use kiroshi_app::agent::contract::{RuntimeScope, SessionHandle, TransportError};
 use kiroshi_app::agent::sidecar::live_groups;
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
@@ -135,7 +135,6 @@ fn two_concurrent_starts_leave_one_session_and_one_sidecar() {
 		terminate_session(app.state::<AgentState>().inner()).await;
 		assert!(live_groups().is_empty(), "the sidecar outlived the host it served");
 	});
-
 }
 
 #[test]

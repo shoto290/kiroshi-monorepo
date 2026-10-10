@@ -9,13 +9,13 @@ use super::bot::ready;
 use crate::avatars;
 use crate::companions::launch;
 use crate::db;
-use crate::events::{
-	Event, COMPANION_ARRIVED, CONVERSATION_CREATED, CONVERSATION_DELETED, CONVERSATION_UPDATED,
-};
 use crate::db::repositories::conversations::{
 	Conversation as StoredConversation, ConversationDraft, ConversationEdit, Joined,
 };
 use crate::db::repositories::runtime_context::{Handover, ParticipantKey};
+use crate::events::{
+	Event, COMPANION_ARRIVED, CONVERSATION_CREATED, CONVERSATION_DELETED, CONVERSATION_UPDATED,
+};
 use crate::file_store::FileStore;
 
 #[tauri::command]
@@ -118,8 +118,10 @@ pub(crate) async fn seat_participant<R: Runtime>(
 	bot_id: String,
 	invited_by_bot_id: Option<String>,
 ) -> Result<Joined, TranscriptStoreError> {
-	let joined =
-		database.conversations().add_participant(conversation_id, bot_id, invited_by_bot_id).await?;
+	let joined = database
+		.conversations()
+		.add_participant(conversation_id, bot_id, invited_by_bot_id)
+		.await?;
 	if let Some(arrival) = &joined.arrival {
 		launch::announce(app, COMPANION_ARRIVED, CompanionArrival::from(arrival.clone()));
 	}

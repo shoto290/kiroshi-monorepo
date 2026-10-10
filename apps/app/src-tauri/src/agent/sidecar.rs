@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -541,10 +540,7 @@ fn outlasted(timeout: Duration) -> TransportError {
 	TransportError::StartupTimeout { timeout_ms: timeout.as_millis() as u64 }
 }
 
-async fn awaited(
-	rx: oneshot::Receiver<Value>,
-	timeout: Duration,
-) -> Result<Value, TransportError> {
+async fn awaited(rx: oneshot::Receiver<Value>, timeout: Duration) -> Result<Value, TransportError> {
 	match tokio::time::timeout(timeout, rx).await {
 		Ok(value) => received(value),
 		Err(_) => Err(outlasted(timeout)),
@@ -805,7 +801,10 @@ mod tests {
 		let kept = tail.kept().expect("kept stderr");
 
 		assert_eq!(kept.len(), STDERR_TAIL_BYTES);
-		assert!(kept.ends_with("panicked: the port is taken"), "the newest bytes were dropped: {kept}");
+		assert!(
+			kept.ends_with("panicked: the port is taken"),
+			"the newest bytes were dropped: {kept}"
+		);
 	}
 
 	#[test]

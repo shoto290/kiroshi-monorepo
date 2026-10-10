@@ -59,9 +59,14 @@ impl ConnectionKind {
 pub enum EnvOwner {
 	User,
 	#[serde(rename_all = "camelCase")]
-	Space { id: String },
+	Space {
+		id: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	Bot { id: String, space_id: String },
+	Bot {
+		id: String,
+		space_id: String,
+	},
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -69,11 +74,19 @@ pub enum EnvOwner {
 pub enum EnvScope {
 	User,
 	#[serde(rename_all = "camelCase")]
-	Space { id: String },
+	Space {
+		id: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	Bot { id: String, space_id: String },
+	Bot {
+		id: String,
+		space_id: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	Server { name: String, owner: EnvOwner },
+	Server {
+		name: String,
+		owner: EnvOwner,
+	},
 	#[serde(skip_deserializing)]
 	Person,
 	#[serde(skip_deserializing)]

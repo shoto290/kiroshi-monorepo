@@ -1,18 +1,17 @@
-
 mod common;
 
 use std::sync::{Arc, Mutex};
 
-use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::commands::{
 	agent_start_or_resume_session, shutdown_session, terminate_session, EVENT_CHANNEL,
 };
 use kiroshi_app::agent::contract::{AgentEvent, ConnectionState, RuntimeScope, ScopedEvent};
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::db::connection::{open, FILE_NAME};
-use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::db::migrations;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};

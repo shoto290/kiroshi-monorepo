@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -29,8 +28,8 @@ struct Harness {
 }
 
 fn options(scenario: &str) -> SessionOptions {
-	let mut options = SessionOptions::new(std::env::temp_dir())
-		.with_env("FAKE_AGENT_SCENARIO", scenario);
+	let mut options =
+		SessionOptions::new(std::env::temp_dir()).with_env("FAKE_AGENT_SCENARIO", scenario);
 	options.startup_timeout = Duration::from_secs(2);
 	options
 }
@@ -46,9 +45,8 @@ async fn sidecar() -> Arc<Sidecar> {
 }
 
 async fn sidecar_with(env: &[(&str, &str)]) -> Arc<Sidecar> {
-	let options = env
-		.iter()
-		.fold(sidecar_options(), |options, (key, value)| options.with_env(key, *value));
+	let options =
+		env.iter().fold(sidecar_options(), |options, (key, value)| options.with_env(key, *value));
 	Sidecar::start(options).await.expect("the fake sidecar announces itself")
 }
 
@@ -124,9 +122,7 @@ impl Harness {
 	}
 }
 
-async fn drain_after_settling(
-	events: &mut mpsc::UnboundedReceiver<AgentEvent>,
-) -> Vec<AgentEvent> {
+async fn drain_after_settling(events: &mut mpsc::UnboundedReceiver<AgentEvent>) -> Vec<AgentEvent> {
 	tokio::time::sleep(SETTLE).await;
 	let mut seen = Vec::new();
 	while let Ok(event) = events.try_recv() {
@@ -215,9 +211,7 @@ fn values(offered: Vec<OfferedModel>) -> Vec<String> {
 async fn the_install_is_asked_of_the_sidecar_the_sessions_are_served_from() {
 	let live = sidecar_with(&[("FAKE_AGENT_MODELS", "quasar,nimbus-preview")]).await;
 
-	assert!(
-		live.checked(&Values::new()).await.expect("the sign-in probe answers").authenticated
-	);
+	assert!(live.checked(&Values::new()).await.expect("the sign-in probe answers").authenticated);
 	assert_eq!(
 		values(live.catalogue(&Values::new()).await.expect("the catalogue answers")),
 		["quasar", "nimbus-preview"]
@@ -369,7 +363,9 @@ async fn a_child_exiting_before_opened_is_reported_with_its_code_and_last_stderr
 		error,
 		TransportError::Crashed {
 			code: Some(71),
-			detail: Some("the sidecar exited during startup: the provider binary is missing".into()),
+			detail: Some(
+				"the sidecar exited during startup: the provider binary is missing".into()
+			),
 		}
 	);
 }
@@ -388,9 +384,10 @@ async fn a_refused_resume_falls_back_to_a_fresh_session() {
 	let (tx, _events) = mpsc::unbounded_channel();
 	let sink: Arc<dyn EventSink> = Arc::new(tx);
 
-	let started = start_with_fallback(sidecar().await, options("resume_crash"), Some("dead-id".into()), sink)
-		.await
-		.expect("the fresh start rescues the launch");
+	let started =
+		start_with_fallback(sidecar().await, options("resume_crash"), Some("dead-id".into()), sink)
+			.await
+			.expect("the fresh start rescues the launch");
 
 	assert!(!started.session.resumed(), "the fallback session must not claim the stored id");
 	assert!(matches!(started.resume_refusal, Some(TransportError::Crashed { .. })));
@@ -402,9 +399,14 @@ async fn a_resume_that_timed_out_is_reported_as_a_timeout() {
 	let (tx, _events) = mpsc::unbounded_channel();
 	let sink: Arc<dyn EventSink> = Arc::new(tx);
 
-	let started = start_with_fallback(sidecar().await, options("resume_timeout"), Some("slow-id".into()), sink)
-		.await
-		.expect("the fresh start rescues the launch");
+	let started = start_with_fallback(
+		sidecar().await,
+		options("resume_timeout"),
+		Some("slow-id".into()),
+		sink,
+	)
+	.await
+	.expect("the fresh start rescues the launch");
 
 	assert!(!started.session.resumed());
 	assert!(
@@ -437,8 +439,10 @@ async fn a_failed_start_keeps_the_child_it_killed_off_the_channel() {
 	let (tx, mut events) = mpsc::unbounded_channel();
 	let sink: Arc<dyn EventSink> = Arc::new(tx);
 
-	let error =
-		Session::start(sidecar().await, options("startup_timeout"), sink).await.err().expect("handshake fails");
+	let error = Session::start(sidecar().await, options("startup_timeout"), sink)
+		.await
+		.err()
+		.expect("handshake fails");
 	assert!(matches!(error, TransportError::StartupTimeout { .. }));
 
 	let seen = drain_after_settling(&mut events).await;
@@ -516,11 +520,15 @@ async fn a_start_failing_without_the_resume_flag_too_stays_a_failure() {
 	let (tx, _events) = mpsc::unbounded_channel();
 	let sink: Arc<dyn EventSink> = Arc::new(tx);
 
-	let error =
-		start_with_fallback(sidecar().await, options("startup_crash"), Some("dead-id".into()), sink)
-			.await
-			.err()
-			.expect("both attempts fail");
+	let error = start_with_fallback(
+		sidecar().await,
+		options("startup_crash"),
+		Some("dead-id".into()),
+		sink,
+	)
+	.await
+	.err()
+	.expect("both attempts fail");
 
 	assert!(matches!(error, TransportError::Crashed { .. }));
 }

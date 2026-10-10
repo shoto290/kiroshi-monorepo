@@ -1,6 +1,5 @@
 mod common;
 
-
 use common::an_app_of_its_own;
 use kiroshi_app::agent::commands::terminate_session;
 use kiroshi_app::agent::protocol::OauthCredentials;

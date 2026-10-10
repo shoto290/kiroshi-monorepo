@@ -26,9 +26,6 @@ use super::contract::{
 use super::members::{invite, list, remove, withdraw};
 use super::reach;
 use super::{resumed, signed_out, start, stop, Hosting};
-use crate::spaces::commands::{
-	bot_add_to_space, bot_move_to_space, bot_remove_from_space, space_delete,
-};
 use crate::account::contract::AccountState;
 use crate::account::session::restore;
 use crate::account::session::AccountSession;
@@ -64,6 +61,9 @@ use crate::joined_spaces::relay::RelayGuests;
 use crate::mcp_oauth::credentials;
 use crate::routines::commands::CHANGED_EVENT as ROUTINE_CHANGED_EVENT;
 use crate::routines::webhook::{self, Webhook};
+use crate::spaces::commands::{
+	bot_add_to_space, bot_move_to_space, bot_remove_from_space, space_delete,
+};
 use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 const BEARER: &str = "bearer-that-never-leaves";
@@ -1125,7 +1125,8 @@ fn stopping_closes_with_1000_clears_the_flag_and_keeps_the_instance() {
 		};
 		assert_eq!(close.code, 1000);
 		assert_eq!(harness.stored().await, (registered, Vec::new()));
-		let heard = harness.heard_until(|kinds| kinds.last().is_some_and(|kind| kind == "off")).await;
+		let heard =
+			harness.heard_until(|kinds| kinds.last().is_some_and(|kind| kind == "off")).await;
 		assert_eq!(heard.last().map(String::as_str), Some("off"));
 	});
 }

@@ -90,35 +90,65 @@ pub struct LaunchOutcome {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum CompanionError {
 	#[serde(rename_all = "camelCase")]
-	Unavailable { failure: StorageFailure },
+	Unavailable {
+		failure: StorageFailure,
+	},
 	#[serde(rename_all = "camelCase")]
-	Storage { failure: StorageFailure },
+	Storage {
+		failure: StorageFailure,
+	},
 	NamelessCompanion,
 	EmptyCompanionField,
 	EmptyTitleField,
 	EmptyMessageField,
 	#[serde(rename_all = "camelCase")]
-	AmbiguousCompanion { companion: String, ids: Vec<String> },
+	AmbiguousCompanion {
+		companion: String,
+		ids: Vec<String>,
+	},
 	#[serde(rename_all = "camelCase")]
-	UnknownCompanion { companion: String },
+	UnknownCompanion {
+		companion: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	ConversationWithoutSeats { conversation_id: String, conversation_kind: String },
+	ConversationWithoutSeats {
+		conversation_id: String,
+		conversation_kind: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	ConversationWithoutSpace { conversation_id: String },
+	ConversationWithoutSpace {
+		conversation_id: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	CallerNotSeated { conversation_id: String },
+	CallerNotSeated {
+		conversation_id: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	UnreadableFile { path: String, detail: String },
+	UnreadableFile {
+		path: String,
+		detail: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	NotAnImage { path: String, accepted: Vec<String> },
+	NotAnImage {
+		path: String,
+		accepted: Vec<String>,
+	},
 	#[serde(rename_all = "camelCase")]
-	AttachmentRefused { refusal: AttachmentStoreError },
+	AttachmentRefused {
+		refusal: AttachmentStoreError,
+	},
 	#[serde(rename_all = "camelCase")]
-	UnreadableRequest { detail: String },
+	UnreadableRequest {
+		detail: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	Undeliverable { detail: String },
+	Undeliverable {
+		detail: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	Unexpected { detail: String },
+	Unexpected {
+		detail: String,
+	},
 }
 
 impl From<DatabaseError> for CompanionError {
@@ -130,7 +160,9 @@ impl From<DatabaseError> for CompanionError {
 impl From<TranscriptStoreError> for CompanionError {
 	fn from(error: TranscriptStoreError) -> Self {
 		match error {
-			TranscriptStoreError::Unavailable { failure } => CompanionError::Unavailable { failure },
+			TranscriptStoreError::Unavailable { failure } => {
+				CompanionError::Unavailable { failure }
+			}
 			TranscriptStoreError::Storage { failure } => CompanionError::Storage { failure },
 			TranscriptStoreError::NamelessBot => CompanionError::NamelessCompanion,
 			other => CompanionError::Unexpected { detail: format!("{other:?}") },

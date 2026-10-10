@@ -5,17 +5,17 @@ use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::contract::{
-	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, Install,
-	InstallCase, InstallOutcome, ApplicationSearch, ApplicationState, Destination, InstallDraft,
-	ApplicationsError,
+	Application, ApplicationCallError, ApplicationInstall, ApplicationInstalled, ApplicationSearch,
+	ApplicationState, ApplicationsError, Destination, Install, InstallCase, InstallDraft,
+	InstallOutcome,
 };
 use super::directory::Directory;
 use super::runnable::{refusal, Runners};
 use super::search::terms;
 use crate::account::cloud::api_url;
 use crate::agent::host::{Host, Refusal};
-use crate::conversations::commands::ready;
 use crate::bundles::ApplicationMark;
+use crate::conversations::commands::ready;
 use crate::conversations::contract::McpServer;
 use crate::environment::contract::EnvOwner;
 use crate::events::{self, APPLICATION_INSTALLED};
@@ -43,13 +43,7 @@ fn held_directory<R: Runtime>(app: &AppHandle<R>) -> Arc<Directory> {
 impl<R: Runtime> ApplicationHost<R> {
 	pub fn new(app: AppHandle<R>, conversation_id: String, bot_id: String) -> Self {
 		let directory = held_directory(&app);
-		Self {
-			app,
-			conversation_id,
-			bot_id,
-			runners: Runners::default(),
-			directory,
-		}
+		Self { app, conversation_id, bot_id, runners: Runners::default(), directory }
 	}
 
 	async fn search(&self, query: &str) -> Result<ApplicationSearch, ApplicationCallError> {
@@ -72,10 +66,7 @@ impl<R: Runtime> ApplicationHost<R> {
 		let scope = destination(&asked.scope)?;
 		let owner = self.owner(scope).await?;
 		if self.declared(&owner).await?.iter().any(|server| server.name == asked.application) {
-			return Ok(InstallOutcome::AlreadyInstalled {
-				application: asked.application,
-				scope,
-			});
+			return Ok(InstallOutcome::AlreadyInstalled { application: asked.application, scope });
 		}
 		let application = self.application(&asked.application).await?;
 		let install = InstallCase::try_from(application.install.clone()).map_err(|refusal| {
@@ -120,7 +111,10 @@ impl<R: Runtime> ApplicationHost<R> {
 		}
 	}
 
-	async fn record(&self, draft: InstallDraft) -> Result<ApplicationInstall, ApplicationCallError> {
+	async fn record(
+		&self,
+		draft: InstallDraft,
+	) -> Result<ApplicationInstall, ApplicationCallError> {
 		let state = Self::database(&self.app)?;
 		Ok(ready(&state)?.application_installs().record(draft).await?)
 	}
@@ -135,8 +129,8 @@ impl<R: Runtime> ApplicationHost<R> {
 	}
 
 	async fn application(&self, name: &str) -> Result<Application, ApplicationCallError> {
-		self.directory.named(name).await?.ok_or_else(|| {
-			ApplicationCallError::UnknownApplication { application: name.to_owned() }
+		self.directory.named(name).await?.ok_or_else(|| ApplicationCallError::UnknownApplication {
+			application: name.to_owned(),
 		})
 	}
 
@@ -314,12 +308,12 @@ mod tests {
 	use tauri::{App, Listener as _};
 
 	use super::*;
+	use crate::agent::translate::now_ms;
 	use crate::applications::contract::ApplicationInstall;
 	use crate::applications::directory::tests::{self as directory_stub, a_page, a_row, carrying};
 	use crate::applications::runnable::tests::a_path_carrying;
 	use crate::applications::runnable::{NPX, UVX};
 	use crate::bundles;
-	use crate::agent::translate::now_ms;
 	use crate::db;
 	use crate::mcp_oauth::asking::AuthorizationAnswers;
 	use crate::mcp_oauth::commands::McpOauthState;

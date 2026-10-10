@@ -18,18 +18,9 @@ use activities::{advance_activity, read_activity, store_activity, ACTIVITIES_OF_
 
 #[derive(Debug)]
 pub enum TranscriptError {
-	Conflict {
-		id: String,
-		field: &'static str,
-	},
-	InvalidTransition {
-		id: String,
-		from: &'static str,
-		to: &'static str,
-	},
-	UnknownMessage {
-		id: String,
-	},
+	Conflict { id: String, field: &'static str },
+	InvalidTransition { id: String, from: &'static str, to: &'static str },
+	UnknownMessage { id: String },
 	Database(DatabaseError),
 }
 

@@ -1,8 +1,8 @@
 pub mod account;
+pub mod agent;
 pub mod applications;
 pub mod attachments;
 pub mod avatars;
-pub mod agent;
 pub mod bundles;
 pub mod commands;
 pub mod companions;
@@ -20,15 +20,15 @@ pub mod mcp_oauth;
 pub mod missions;
 pub mod notifications;
 pub mod plugins;
+mod private_files;
 pub mod routines;
 pub mod search;
 pub mod sections;
 pub mod spaces;
 pub mod termination;
-pub mod user;
-mod private_files;
 #[cfg(test)]
 mod test_app;
+pub mod user;
 mod window_controls;
 
 use tauri::{Manager, RunEvent};
