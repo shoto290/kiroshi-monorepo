@@ -1038,3 +1038,102 @@ describe("a bot or a Space only this Mac holds", () => {
 		expect(reportFailure).toHaveBeenCalledWith(OTHER_SPACE_REFUSAL, 403)
 	})
 })
+
+describe("personal Settings while a joined Space is active", () => {
+	const JOINED_BOT = { kind: "bot", id: "shared-bot", spaceId: "garage" }
+	const JOINED_SPACE = { kind: "space", id: "garage" }
+	const MEMBER_REFUSAL = "a member cannot change the Space settings"
+
+	const relayedCommands = (fetch: ReturnType<typeof vi.fn>) =>
+		fetch.mock.calls.map(([url]) => String(url).split("/").at(-1))
+
+	const onGarage = async () => {
+		const seeded = joinedHostsOf()
+		await seeded.hosts.activate("garage")
+		seeded.fetch.mockClear()
+		return seeded
+	}
+
+	it.each([
+		["plugin_skills", { scope: { kind: "user" } }],
+		["plugin_set_skill_preloaded", { scope: { kind: "user" }, skillId: "s" }],
+		["plugin_set_mcp_server", { scope: { kind: "user" }, name: "linear" }],
+		["plugin_history", { scope: { kind: "user" } }],
+		["env_list", { scope: { kind: "user" } }],
+		["env_list", { scope: { kind: "person" } }],
+		["env_set", { scope: { kind: "account" }, name: "TOKEN", value: "v" }],
+		[
+			"env_delete",
+			{ scope: { kind: "server", name: "linear", owner: { kind: "user" } } },
+		],
+		["mcp_application_status", { owner: { kind: "user" } }],
+		["mcp_oauth_connect", { owner: { kind: "user" }, name: "linear" }],
+		["mcp_oauth_disconnect", { owner: { kind: "user" }, name: "linear" }],
+	])("serves %s locally for this Mac", async (command, args) => {
+		const { hosts, local, fetch } = await onGarage()
+
+		await hosts.invoke(command, args)
+
+		expect(local.invoke).toHaveBeenLastCalledWith(command, args)
+		expect(relayedCommands(fetch)).toEqual([])
+	})
+
+	it.each([
+		["plugin_skills", { scope: { kind: "bot", id: "shared-bot" } }],
+		["plugin_history", { scope: JOINED_SPACE }],
+		["env_list", { scope: JOINED_BOT }],
+		["env_set", { scope: JOINED_SPACE, name: "TOKEN", value: "v" }],
+		[
+			"env_delete",
+			{ scope: { kind: "server", name: "linear", owner: JOINED_SPACE } },
+		],
+		["mcp_application_status", { owner: JOINED_BOT }],
+		["mcp_oauth_connect", { owner: JOINED_SPACE, name: "linear" }],
+		["mcp_oauth_disconnect", { owner: JOINED_BOT, name: "linear" }],
+	])("relays %s of the joined Space", async (command, args) => {
+		const { hosts, local, fetch } = await onGarage()
+
+		await hosts.invoke(command, args)
+
+		expect(relayedCommands(fetch)).toEqual([command])
+		expect(localCommands(local)).not.toContain(command)
+	})
+
+	it("cancels a connect on this Mac when this Mac received it", async () => {
+		const { hosts, local, fetch } = await onGarage()
+
+		await hosts.invoke("mcp_oauth_connect", { owner: { kind: "user" } })
+		await hosts.invoke("mcp_oauth_cancel")
+
+		expect(localCommands(local)).toContain("mcp_oauth_cancel")
+		expect(relayedCommands(fetch)).toEqual([])
+	})
+
+	it("cancels a connect on the joined host when the joined host received it", async () => {
+		const { hosts, local, fetch } = await onGarage()
+
+		await hosts.invoke("mcp_oauth_connect", { owner: JOINED_SPACE })
+		await hosts.activate(null)
+		await hosts.invoke("mcp_oauth_cancel")
+
+		expect(relayedCommands(fetch)).toEqual([
+			"mcp_oauth_connect",
+			"mcp_oauth_cancel",
+		])
+		expect(localCommands(local)).not.toContain("mcp_oauth_cancel")
+	})
+
+	it("raises one notice when the joined host refuses a relayed call", async () => {
+		const { hosts, fetch, reportFailure } = await onGarage()
+		fetch.mockImplementation(
+			async () => new Response(MEMBER_REFUSAL, { status: 403 }),
+		)
+
+		await expect(
+			hosts.invoke("env_set", { scope: JOINED_SPACE, name: "T", value: "v" }),
+		).rejects.toBe(MEMBER_REFUSAL)
+
+		expect(reportFailure).toHaveBeenCalledTimes(1)
+		expect(reportFailure).toHaveBeenCalledWith(MEMBER_REFUSAL, 403)
+	})
+})

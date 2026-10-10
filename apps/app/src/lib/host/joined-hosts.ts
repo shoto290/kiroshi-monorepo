@@ -64,6 +64,16 @@ const LOCAL_EVENTS: ReadonlySet<string> = new Set([
 
 const TAURI_PLUGIN_PREFIX = "plugin:"
 
+const OAUTH_CONNECT_COMMAND = "mcp_oauth_connect"
+
+const OAUTH_CANCEL_COMMAND = "mcp_oauth_cancel"
+
+const PERSONAL_SCOPE_KINDS: ReadonlySet<unknown> = new Set([
+	"user",
+	"person",
+	"account",
+])
+
 export type JoinedHostState =
 	| { status: "connecting" }
 	| { status: "up" }
@@ -113,8 +123,29 @@ type Subscription = {
 
 const unheard: Listen = async () => () => undefined
 
+type ScopeFields = { kind?: unknown; owner?: unknown; scope?: unknown }
+
 const isLocalCommand = (command: string): boolean =>
 	command.startsWith(TAURI_PLUGIN_PREFIX) || LOCAL_COMMANDS.has(command)
+
+const fieldsOf = (value: unknown): ScopeFields =>
+	typeof value === "object" && value !== null ? value : {}
+
+const isPersonalOwner = (owner: unknown): boolean =>
+	fieldsOf(owner).kind === "user"
+
+const isPersonalScope = (scope: unknown): boolean => {
+	const { kind, owner } = fieldsOf(scope)
+	return (
+		PERSONAL_SCOPE_KINDS.has(kind) ||
+		(kind === "server" && isPersonalOwner(owner))
+	)
+}
+
+const carriesPersonalScope = (args?: InvokeArgs): boolean => {
+	const { scope, owner } = fieldsOf(args)
+	return isPersonalScope(scope) || isPersonalOwner(owner)
+}
 
 export const describeJoinError = (error: JoinedSpaceError): string =>
 	"detail" in error ? error.detail : error.kind
@@ -142,6 +173,7 @@ export const createJoinedHosts = ({
 	let requested: string | null = null
 	let localIdsRecall: Promise<void> | null = null
 	let hasLocalIds = false
+	let oauthConnectSide: ConversationSource = null
 
 	const record = (id: string, state: JoinedHostState) => {
 		const current = store.getState()
@@ -402,6 +434,9 @@ export const createJoinedHosts = ({
 		call: Parameters<Invoke>,
 	): Promise<T> => {
 		const [command, args] = call
+		if (command === OAUTH_CONNECT_COMMAND) {
+			oauthConnectSide = target
+		}
 		if (target === null) {
 			return provenance.record(null, command, local.invoke<T>(...call))
 		}
@@ -417,8 +452,15 @@ export const createJoinedHosts = ({
 
 	const invoke: Invoke = <T>(...call: Parameters<Invoke>): Promise<T> => {
 		const [command, args] = call
+		if (command === OAUTH_CANCEL_COMMAND) {
+			return sendTo<T>(oauthConnectSide, call)
+		}
 		const { active } = store.getState()
-		if (isLocalCommand(command) || active === null) {
+		if (
+			isLocalCommand(command) ||
+			active === null ||
+			carriesPersonalScope(args)
+		) {
 			return sendTo<T>(null, call)
 		}
 		const route = () => sendTo<T>(ownerOf(active, args), call)
