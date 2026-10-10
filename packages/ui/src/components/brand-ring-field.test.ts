@@ -4,7 +4,7 @@ import {
 	BRAND_FIELD,
 	PLAYABLE_STATES,
 } from "@workspace/ui/components/app-icon-mark"
-import { fieldTones } from "@workspace/ui/components/dithered-field-avatar"
+import { fieldTones } from "@workspace/ui/components/companion-avatar"
 
 const FRAME_TIMES = Array.from({ length: 40 }, (_, index) => index * 97)
 

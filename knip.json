@@ -1,7 +1,10 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
 	"ignoreWorkspaces": ["apps/app/sidecar"],
-	"ignore": ["apps/app/src/lib/bindings.ts"],
+	"ignore": [
+		"apps/app/src/lib/bindings.ts",
+		"apps/ios/Kiroshi/Resources/companion-avatar.js"
+	],
 	"ignoreDependencies": ["babel-plugin-react-compiler"],
 	"ignoreBinaries": ["xcodegen"],
 	"workspaces": {

@@ -10,14 +10,12 @@ import {
 } from "react"
 
 import { brandRingField } from "@workspace/ui/components/brand-ring-field"
+import { FIELD_CELLS } from "@workspace/ui/components/companion-avatar"
 import {
 	companionSeed,
 	type FieldState,
 } from "@workspace/ui/components/companion-field"
-import {
-	DitheredField,
-	FIELD_CELLS,
-} from "@workspace/ui/components/dithered-field-avatar"
+import { DitheredField } from "@workspace/ui/components/dithered-field-avatar"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 

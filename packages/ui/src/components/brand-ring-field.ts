@@ -1,7 +1,7 @@
 import {
 	type DensityField,
 	fieldLattice,
-} from "@workspace/ui/components/dithered-field-avatar"
+} from "@workspace/ui/components/companion-avatar"
 import { squareGrid } from "@workspace/ui/components/field-grid"
 import {
 	isInsideRoundedHexagon,
