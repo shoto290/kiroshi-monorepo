@@ -24,9 +24,7 @@ const INSTALLS: &str = "skills/applications/SKILL.md";
 
 const TRIGGERS: &str = ".triggers.json";
 
-pub(crate) const APPLICATIONS: &str = "applications/catalogue.json";
-
-const FILES: [(&str, &[u8]); 13] = [
+const FILES: [(&str, &[u8]); 10] = [
 	(MANIFEST, include_bytes!("../../plugins/kiroshi/.claude-plugin/plugin.json")),
 	(TRIGGERS, include_bytes!("../../plugins/kiroshi/.triggers.json")),
 	(LEARN, include_bytes!("../../plugins/kiroshi/skills/learn/SKILL.md")),
@@ -46,20 +44,7 @@ const FILES: [(&str, &[u8]); 13] = [
 		"skills/learn/references/determinism.md",
 		include_bytes!("../../plugins/kiroshi/skills/learn/references/determinism.md"),
 	),
-	(APPLICATIONS, include_bytes!("../../plugins/kiroshi/applications/catalogue.json")),
-	(
-		"applications/logos/paper.svg",
-		include_bytes!("../../plugins/kiroshi/applications/logos/paper.svg"),
-	),
-	(
-		"applications/logos/superset.svg",
-		include_bytes!("../../plugins/kiroshi/applications/logos/superset.svg"),
-	),
 ];
-
-pub(crate) fn file(name: &str) -> Option<&'static [u8]> {
-	FILES.iter().find(|(held, _)| *held == name).map(|(_, bytes)| *bytes)
-}
 
 pub fn path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
 	Some(app.path().app_data_dir().ok()?.join(DIR_NAME).join(PLUGIN_NAME))
