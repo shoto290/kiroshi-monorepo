@@ -2,20 +2,23 @@ import SwiftUI
 
 struct CompanionAvatar: View {
     enum Size {
+        case inline
         case title
         case row
         case hero
 
         var points: CGFloat {
             switch self {
+            case .inline: 20
             case .title: 28
             case .row: 52
             case .hero: 72
             }
         }
 
-        var glyphFont: Font.TextStyle {
+        var textStyle: Font.TextStyle {
             switch self {
+            case .inline: .subheadline
             case .title: .caption2
             case .row: .subheadline
             case .hero: .title3
@@ -25,54 +28,141 @@ struct CompanionAvatar: View {
 
     let companion: Companion?
     let size: Size
+    let isWorking: Bool
 
-    init(_ companion: Companion?, size: Size) {
+    init(_ companion: Companion?, size: Size, isWorking: Bool = false) {
         self.companion = companion
         self.size = size
+        self.isWorking = isWorking
     }
 
     var body: some View {
-        ScaledHexagon(companion: companion, size: size)
+        ScaledAvatar(companion: companion, size: size, isWorking: isWorking)
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .accessibilityHidden(true)
     }
 }
 
-private struct ScaledHexagon: View {
-    let companion: Companion?
-    let size: CompanionAvatar.Size
-    @ScaledMetric private var side: CGFloat
+private struct ScaledAvatar: View {
+    static let frameInterval = 1.0 / 30
+    static let placeholderName = "Companion"
 
-    init(companion: Companion?, size: CompanionAvatar.Size) {
+    let companion: Companion?
+    let isWorking: Bool
+    @ScaledMetric private var side: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(CompanionPictures.self) private var pictures: CompanionPictures?
+
+    init(companion: Companion?, size: CompanionAvatar.Size, isWorking: Bool) {
         self.companion = companion
-        self.size = size
-        _side = ScaledMetric(wrappedValue: size.points, relativeTo: size.glyphFont)
+        self.isWorking = isWorking
+        _side = ScaledMetric(wrappedValue: size.points, relativeTo: size.textStyle)
     }
 
     var body: some View {
+        content
+            .frame(width: side, height: side)
+            .task(id: pictureRequest) {
+                guard let file = pictureRequest?.file else { return }
+                await pictures?.load(file)
+            }
+    }
+
+    @ViewBuilder private var content: some View {
+        if let companion, let picture = companion.pictureFile.flatMap({ pictures?.pictures[$0] }) {
+            Image(uiImage: picture)
+                .resizable()
+                .scaledToFill()
+                .clipShape(CompanionOutline(drawing: drawing(of: companion, at: .now, pose: .idle)))
+        } else if let companion {
+            TimelineView(.animation(minimumInterval: Self.frameInterval, paused: !isAnimated)) {
+                timeline in
+                if let drawing = drawing(
+                    of: companion, at: timeline.date, pose: isAnimated ? .working : .idle)
+                {
+                    CompanionField(drawing: drawing)
+                } else {
+                    plainHexagon
+                }
+            }
+        } else if let ground = placeholderGround {
+            CompanionOutline(drawing: ground).fill(ground.groundColour.color)
+        } else {
+            plainHexagon
+        }
+    }
+
+    private var isAnimated: Bool {
+        isWorking && !reduceMotion
+    }
+
+    private var theme: CompanionTheme {
+        colorScheme == .dark ? .dark : .light
+    }
+
+    private var pictureRequest: PictureRequest? {
+        companion?.pictureFile.map {
+            PictureRequest(file: $0, pictures: pictures.map(ObjectIdentifier.init))
+        }
+    }
+
+    private var placeholderGround: CompanionDrawing? {
+        try? CompanionAvatarEngine.shared?.drawing(
+            name: Self.placeholderName, tint: nil, pose: .idle, time: 0, theme: theme)
+    }
+
+    private func drawing(of companion: Companion, at date: Date, pose: CompanionPose)
+        -> CompanionDrawing?
+    {
+        do {
+            return try CompanionAvatarEngine.shared?.drawing(
+                name: companion.name, tint: companion.tint, pose: pose,
+                time: date.timeIntervalSinceReferenceDate * 1000, theme: theme)
+        } catch {
+            CompanionAvatarEngine.log.error(
+                "\(companion.name)'s avatar falls back to a plain hexagon: \(String(describing: error))"
+            )
+            return nil
+        }
+    }
+
+    private var plainHexagon: some View {
         Image(systemName: "hexagon.fill")
             .resizable()
             .scaledToFit()
-            .foregroundStyle(Color.kiroshi(companion == nil ? .muted : .railAvatar))
-            .overlay {
-                if let companion {
-                    Canvas { context, canvas in
-                        let glyph = Text(companion.glyph)
-                            .font(.system(size.glyphFont, design: .monospaced, weight: .bold))
-                            .foregroundStyle(Color.kiroshi(.foreground))
-                        context.draw(glyph, at: CGPoint(x: canvas.width / 2, y: canvas.height / 2))
-                    }
-                }
-            }
-            .frame(width: side, height: side)
+            .foregroundStyle(Color.kiroshi(.railAvatar))
     }
 }
 
-extension Companion {
-    static let glyphs = ["/\\", "#=", "{}", ".:", "%*", "<>", "+-", "[]", "~=", "::", "*.", "|/"]
+private struct PictureRequest: Hashable {
+    let file: String
+    let pictures: ObjectIdentifier?
+}
 
-    var glyph: String {
-        let seed = id.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0x7fff_ffff }
-        return Self.glyphs[seed % Self.glyphs.count]
+private struct CompanionField: View {
+    let drawing: CompanionDrawing
+
+    var body: some View {
+        Canvas { context, canvas in
+            let side = canvas.width
+            context.clip(to: drawing.outlinePath(side: side))
+            context.fill(
+                Path(CGRect(origin: .zero, size: canvas)), with: .color(drawing.groundColour.color))
+            for lit in drawing.toneOpacities {
+                context.fill(
+                    drawing.cellsPath(lit: lit.tone, side: side),
+                    with: .color(drawing.cellColour.color.opacity(lit.opacity)))
+            }
+        }
+    }
+}
+
+private struct CompanionOutline: Shape {
+    let drawing: CompanionDrawing?
+
+    func path(in rect: CGRect) -> Path {
+        guard let drawing else { return Path(rect) }
+        return drawing.outlinePath(side: rect.width).offsetBy(dx: rect.minX, dy: rect.minY)
     }
 }

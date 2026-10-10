@@ -7,8 +7,11 @@ struct CompanionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CompanionAvatar(redactionReasons.isEmpty ? summary.companion : nil, size: .row)
-                .unredacted()
+            CompanionAvatar(
+                redactionReasons.isEmpty ? summary.companion : nil, size: .row,
+                isWorking: summary.isWorking
+            )
+            .unredacted()
             VStack(alignment: .leading, spacing: 2) {
                 headerLayout {
                     Text(summary.companion.name)
