@@ -144,4 +144,4 @@ const BotRosterRow = ({
 	)
 }
 
-export { BotRosterRow, type BotRosterRowProps }
+export { BotRosterRow }

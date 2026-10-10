@@ -3,15 +3,15 @@
 import { type ComponentProps, memo, useState } from "react"
 
 import { AppRail, type AppRailPanel } from "@workspace/ui/components/app-rail"
-import type {
-	AppSidebarBot,
-	AppSidebarConversation,
-	AppSidebarProps,
-	AppSidebarRowMission,
-	AppSidebarSection,
-	RosterPin,
+import {
+	type AppSidebarBot,
+	type AppSidebarConversation,
+	type AppSidebarProps,
+	type AppSidebarRowMission,
+	type AppSidebarSection,
+	ROW_AVATAR_SIZE,
+	type RosterPin,
 } from "@workspace/ui/components/app-sidebar-model"
-import { ROW_AVATAR_SIZE } from "@workspace/ui/components/app-sidebar-model"
 import { AppSidebarPanel } from "@workspace/ui/components/app-sidebar-panel"
 import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"

@@ -130,4 +130,4 @@ const ConversationRosterRow = ({
 	)
 }
 
-export { ConversationRosterRow, type ConversationRosterRowProps }
+export { ConversationRosterRow }

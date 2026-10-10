@@ -257,4 +257,4 @@ const BotRoster = ({
 	)
 }
 
-export { BotRoster, type BotRosterProps }
+export { BotRoster }

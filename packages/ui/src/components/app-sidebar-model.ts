@@ -203,13 +203,13 @@ interface ConversationRosterActions {
 	onDeleteConversation?: (id: string) => void
 }
 
-type AppSidebarPanelProps = Omit<
+type SidebarShellProps = Omit<
 	ComponentProps<typeof Sidebar>,
 	"children" | "collapsible"
 >
 
 interface AppSidebarProps
-	extends AppSidebarPanelProps,
+	extends SidebarShellProps,
 		BotRosterActions,
 		ConversationRosterActions,
 		SectionActions {
@@ -261,7 +261,6 @@ export {
 	type AppSidebarProps,
 	type AppSidebarRowMission,
 	type AppSidebarSection,
-	type AppSidebarStatus,
 	announcementFor,
 	type BotRosterActions,
 	badgeOf,

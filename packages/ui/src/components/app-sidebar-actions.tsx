@@ -259,9 +259,4 @@ const AppSidebarHeader = ({
 	)
 }
 
-export {
-	AppSidebarHeader,
-	type AppSidebarHeaderProps,
-	RosterSurface,
-	type RosterSurfaceProps,
-}
+export { AppSidebarHeader, RosterSurface, type RosterSurfaceProps }

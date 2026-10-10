@@ -212,4 +212,4 @@ const AppSidebarPanel = ({
 	)
 }
 
-export { AppSidebarPanel, type AppSidebarPanelProps }
+export { AppSidebarPanel }

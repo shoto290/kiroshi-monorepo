@@ -198,4 +198,4 @@ const AppSidebarList = ({
 		<SidebarContent className={CONTENT_INSET}>{children}</SidebarContent>
 	)
 
-export { AppSidebarList, type AppSidebarListProps }
+export { AppSidebarList }

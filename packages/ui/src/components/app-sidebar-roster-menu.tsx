@@ -205,10 +205,4 @@ const PinnedZone = ({
 	)
 }
 
-export {
-	PinnedZone,
-	type PinnedZoneProps,
-	type RosterRowsContext,
-	recentMenuOf,
-	rosterMenuOf,
-}
+export { PinnedZone, type RosterRowsContext, recentMenuOf, rosterMenuOf }
