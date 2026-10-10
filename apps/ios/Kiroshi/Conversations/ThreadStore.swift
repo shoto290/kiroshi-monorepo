@@ -121,7 +121,7 @@ final class ThreadStore {
     private func deliver(_ message: SentMessage, through relay: ConversationRelay) async {
         defer { isSending = false }
         do {
-            try await relay.sendTurn(message)
+            try await relay.sendTurn(message, summoning: companion.id)
             insert(
                 ThreadMessage(
                     id: message.id, isYours: true, text: message.content,

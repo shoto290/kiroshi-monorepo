@@ -198,7 +198,7 @@ struct ThreadStoreTests {
         let call = try #require(await host.nextCall("conversation_send_turn"))
 
         let args = try call.args(as: SendTurnArgs.self)
-        #expect(args.summoned == [])
+        #expect(args.summoned == ["juniper"])
         #expect(args.message.id == "id-1")
         #expect(args.message.turnId == "id-2")
         #expect(args.message.conversationId == "chat-juniper")
@@ -209,6 +209,35 @@ struct ThreadStoreTests {
         #expect(store.draft.isEmpty)
         #expect(store.isWorking)
         #expect(store.sendFailure == nil)
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func aSentMessageSummonsTheCompanionAndTheThreadSettlesWhenItsTurnEnds() async throws {
+        let host = TestHost { call in
+            call.command == "conversation_send_turn" ? TestHost.ok(call, "4") : nil
+        }
+        let store = makeStore()
+        let (connection, following) = await follow(host, store)
+
+        store.draft = "Can you draft the release notes?"
+        await store.send()?.value
+        let call = try #require(await host.nextCall("conversation_send_turn"))
+        #expect(try call.args(as: SendTurnArgs.self).summoned == [juniper.id])
+        #expect(store.isWorking)
+
+        host.pushAgent("chat-juniper", #"{"type":"turnChanged","state":"running"}"#)
+        host.pushAgent(
+            "chat-juniper",
+            #"{"type":"messageCompleted","message":{"id":"a1","role":"assistant","text":"Drafted.","timestamp":1791000001000}}"#
+        )
+        host.pushAgent(
+            "chat-juniper", #"{"type":"turnEnded","ended":{"sessionId":null,"outcome":"success"}}"#)
+        await waitUntil { store.runningScope == nil && !store.isWorking }
+
+        #expect(texts(store) == ["you: Can you draft the release notes?", "Drafted."])
+        store.draft = "Thanks!"
+        #expect(store.canSend)
         following.cancel()
         await connection.stop()
     }

@@ -21,8 +21,9 @@ struct ConversationRelay: Sendable {
         return page.messages.sorted { $0.seq < $1.seq }
     }
 
-    func sendTurn(_ message: SentMessage) async throws {
-        _ = try await ask("conversation_send_turn", SendTurnArgs(message: message), as: Int.self)
+    func sendTurn(_ message: SentMessage, summoning companionId: Companion.ID) async throws {
+        let args = SendTurnArgs(message: message, summoned: [companionId])
+        _ = try await ask("conversation_send_turn", args, as: Int.self)
     }
 
     func cancelTurn(_ scope: AgentEvent.Scope) async throws {
@@ -85,7 +86,7 @@ private struct PageArgs: Encodable {
 
 private struct SendTurnArgs: Encodable {
     let message: SentMessage
-    let summoned: [String] = []
+    let summoned: [String]
 }
 
 private struct CancelArgs: Encodable {
