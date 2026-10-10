@@ -129,6 +129,55 @@ describe("the local command list", () => {
 	})
 })
 
+describe("the onboarding account step on a joined space", () => {
+	it("reads the guest own agent account, not the joined host one", async () => {
+		const { hosts, local, fetch } = joinedHostsOf()
+		await hosts.activate("garage")
+
+		await hosts.invoke("agent_account")
+
+		expect(localCommands(local)).toContain("agent_account")
+		expect(fetch).not.toHaveBeenCalled()
+	})
+
+	it("signs the guest own agent in on the local host", async () => {
+		const { hosts, local, fetch } = joinedHostsOf()
+		await hosts.activate("garage")
+
+		for (const command of [
+			"agent_sign_in",
+			"agent_sign_in_code",
+			"agent_sign_in_cancel",
+			"connection_set",
+		]) {
+			await hosts.invoke(command)
+		}
+
+		expect(localCommands(local)).toEqual(
+			expect.arrayContaining([
+				"agent_sign_in",
+				"agent_sign_in_code",
+				"agent_sign_in_cancel",
+				"connection_set",
+			]),
+		)
+		expect(fetch).not.toHaveBeenCalled()
+	})
+
+	it("hears the sign-in start from the local host", async () => {
+		const { hosts, local } = joinedHostsOf()
+		await hosts.activate("garage")
+		const started = vi.fn()
+
+		await hosts.listen("agent://sign-in-started", started)
+
+		expect(local.listen).toHaveBeenCalledWith(
+			"agent://sign-in-started",
+			started,
+		)
+	})
+})
+
 describe("connecting a joined space", () => {
 	it("opens one connection per joined space and reuses it", async () => {
 		const { hosts, join, socketUrls } = joinedHostsOf()

@@ -40,6 +40,11 @@ export const LOCAL_COMMANDS: ReadonlySet<string> = new Set([
 	"account_state",
 	"account_sign_in",
 	"account_sign_out",
+	"agent_account",
+	"agent_sign_in",
+	"agent_sign_in_code",
+	"agent_sign_in_cancel",
+	"connection_set",
 	"invitations_list",
 	"invitation_accept",
 	"invitation_decline",
@@ -60,6 +65,7 @@ const LOCAL_EVENTS: ReadonlySet<string> = new Set([
 	"companion://created",
 	"companion://seed-refused",
 	"account://changed",
+	"agent://sign-in-started",
 ])
 
 const TAURI_PLUGIN_PREFIX = "plugin:"
