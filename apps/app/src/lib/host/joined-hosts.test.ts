@@ -129,6 +129,13 @@ describe("the local command list", () => {
 	})
 })
 
+const SIGN_IN_COMMANDS = [
+	"agent_sign_in",
+	"agent_sign_in_code",
+	"agent_sign_in_cancel",
+	"connection_set",
+]
+
 describe("the onboarding account step on a joined space", () => {
 	it("reads the guest own agent account, not the joined host one", async () => {
 		const { hosts, local, fetch } = joinedHostsOf()
@@ -144,23 +151,11 @@ describe("the onboarding account step on a joined space", () => {
 		const { hosts, local, fetch } = joinedHostsOf()
 		await hosts.activate("garage")
 
-		for (const command of [
-			"agent_sign_in",
-			"agent_sign_in_code",
-			"agent_sign_in_cancel",
-			"connection_set",
-		]) {
+		for (const command of SIGN_IN_COMMANDS) {
 			await hosts.invoke(command)
 		}
 
-		expect(localCommands(local)).toEqual(
-			expect.arrayContaining([
-				"agent_sign_in",
-				"agent_sign_in_code",
-				"agent_sign_in_cancel",
-				"connection_set",
-			]),
-		)
+		expect(localCommands(local)).toEqual(SIGN_IN_COMMANDS)
 		expect(fetch).not.toHaveBeenCalled()
 	})
 
