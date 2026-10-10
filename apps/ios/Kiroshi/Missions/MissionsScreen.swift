@@ -15,6 +15,8 @@ struct MissionsScreen: View {
     var body: some View {
         NavigationStack(path: $path) {
             content
+                .scrollContentBackground(.hidden)
+                .background(Color.kiroshi(.background))
                 .spaceChrome(store: store, settings: MissionsRoute.settings)
                 .navigationDestination(for: MissionsRoute.self) { route in
                     switch route {
@@ -43,6 +45,7 @@ struct MissionsScreen: View {
                                 mission: mission,
                                 companionName: missions.companionName(of: mission))
                         }
+                        .listRowBackground(Color.kiroshi(.card))
                     }
                 }
             }
@@ -53,7 +56,6 @@ struct MissionsScreen: View {
             } description: {
                 Text("Missions your companions open in this space show up here.")
             }
-            .background(Color(.systemGroupedBackground))
         } else if missions.hasFailed {
             ContentUnavailableView {
                 Label("Couldn’t load missions", systemImage: "exclamationmark.triangle")
@@ -66,7 +68,7 @@ struct MissionsScreen: View {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            Color(.systemGroupedBackground)
+            Color.kiroshi(.background)
                 .ignoresSafeArea()
         }
     }

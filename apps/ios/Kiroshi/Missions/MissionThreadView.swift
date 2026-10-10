@@ -22,6 +22,7 @@ struct MissionThreadView: View {
             .padding(.vertical, 12)
         }
         .defaultScrollAnchor(.bottom)
+        .background(Color.kiroshi(.card))
         .overlay {
             if thread.hasFailed {
                 ContentUnavailableView {
@@ -43,9 +44,10 @@ struct MissionThreadView: View {
                 VStack(spacing: 1) {
                     Text(subtitle)
                         .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.kiroshi(.mutedForeground))
                     Text(thread.mission.objective)
                         .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.kiroshi(.foreground))
                         .lineLimit(1)
                 }
                 .accessibilityElement(children: .combine)
@@ -74,7 +76,7 @@ struct MissionThreadRowView: View {
         case .day(_, let at):
             Text(Self.dayLabel(at))
                 .font(.footnote.weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.kiroshi(.mutedForeground))
                 .frame(maxWidth: .infinity)
         case .person(_, let text, let attachments):
             VStack(alignment: .leading, spacing: 6) {
@@ -84,16 +86,18 @@ struct MissionThreadRowView: View {
                 ForEach(attachments, id: \.self) { name in
                     Label(name, systemImage: "paperclip")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.kiroshi(.mutedForeground))
                 }
             }
+            .foregroundStyle(Color.kiroshi(.foreground))
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(Color(.systemGray5), in: .rect(cornerRadius: 20))
+            .background(Color.kiroshi(.muted), in: .rect(cornerRadius: 20))
             .padding(.leading, 56)
             .frame(maxWidth: .infinity, alignment: .trailing)
         case .companion(_, let text):
             Text(text)
+                .foregroundStyle(Color.kiroshi(.foreground))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .textSelection(.enabled)
         }

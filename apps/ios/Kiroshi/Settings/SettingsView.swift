@@ -7,21 +7,32 @@ struct SettingsView: View {
     var body: some View {
         List {
             Section {
-                LabeledContent("Email", value: model.signedInEmail)
+                LabeledContent("Email") {
+                    Text(model.signedInEmail)
+                        .foregroundStyle(Color.kiroshi(.mutedForeground))
+                }
+                .foregroundStyle(Color.kiroshi(.foreground))
                 Button("Sign out", role: .destructive, action: model.signOutTapped)
+                    .foregroundStyle(Color.kiroshi(.destructive))
             } header: {
                 Text("Account")
                     .textCase(.uppercase)
+                    .foregroundStyle(Color.kiroshi(.mutedForeground))
             } footer: {
                 Text("Your spaces stop working on this iPhone until you sign in again.")
+                    .foregroundStyle(Color.kiroshi(.mutedForeground))
             }
+            .listRowBackground(Color.kiroshi(.card))
             Section {
             } footer: {
                 Text(Self.version)
+                    .foregroundStyle(Color.kiroshi(.mutedForeground))
                     .frame(maxWidth: .infinity)
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.kiroshi(.background))
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Sign out of Kiroshi?", isPresented: $model.isConfirmingSignOut) {
