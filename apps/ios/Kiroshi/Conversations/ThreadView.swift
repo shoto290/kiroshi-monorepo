@@ -7,7 +7,12 @@ struct ThreadView: View {
 
     init(companion: Companion, space: SpaceStore) {
         self.space = space
-        _thread = State(initialValue: ThreadStore(companion: companion))
+        #if DEBUG
+            let draft = ConversationsFixture.draft
+        #else
+            let draft = ""
+        #endif
+        _thread = State(initialValue: ThreadStore(companion: companion, draft: draft))
     }
 
     var body: some View {
@@ -27,7 +32,20 @@ struct ThreadView: View {
         .defaultScrollAnchor(.bottom)
         .defaultScrollAnchor(.bottom, for: .sizeChanges)
         .overlay {
-            if thread.phase == .loaded, thread.entries.isEmpty, !thread.isWorking {
+            if thread.phase == .failed {
+                ContentUnavailableView {
+                    Label(
+                        "Couldn’t load this conversation.", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text("Check that your Mac is on, then try again.")
+                } actions: {
+                    Button("Try Again") {
+                        thread.reload()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .background(.background)
+            } else if thread.phase == .loaded, thread.entries.isEmpty, !thread.isWorking {
                 ContentUnavailableView {
                     Label {
                         Text(thread.companion.name)
@@ -52,17 +70,6 @@ struct ThreadView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(thread.companion.name)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                VStack(spacing: 2) {
-                    CompanionAvatar(thread.companion, size: .title)
-                    Text(thread.companion.name)
-                        .font(.footnote.weight(.semibold))
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isHeader)
-            }
-        }
         .toolbar(.hidden, for: .tabBar)
         .task(id: space.connection.map(ObjectIdentifier.init)) {
             guard let connection = space.connection else { return }
@@ -80,14 +87,14 @@ struct ThreadEntryView: View {
     var body: some View {
         switch entry {
         case .message(let message):
-            if message.opensDay {
-                Text(ConversationTime().threadLabel(for: message.sentAt))
+            if let dayLabel = message.dayLabel {
+                Text(dayLabel)
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
             }
             if message.isYours {
-                Text(message.text)
+                Text(message.rendered)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(Color(.systemGray5), in: .rect(cornerRadius: 20))
@@ -95,7 +102,7 @@ struct ThreadEntryView: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .textSelection(.enabled)
             } else {
-                Text(Self.markdown(message.text))
+                Text(message.rendered)
                     .lineSpacing(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
@@ -103,12 +110,6 @@ struct ThreadEntryView: View {
         case .activities(let group):
             ActivityGroupView(group: group)
         }
-    }
-
-    private static func markdown(_ text: String) -> AttributedString {
-        let options = AttributedString.MarkdownParsingOptions(
-            interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
     }
 }
 
@@ -142,24 +143,30 @@ struct ActivityGroupView: View {
 struct ThreadComposer: View {
     @Bindable var thread: ThreadStore
     let isHostOffline: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let failure = thread.sendFailure {
                 ProblemLabel(message: failure.message(name: thread.companion.name))
             }
+            if thread.stopFailed {
+                ProblemLabel(
+                    message: "Couldn’t stop \(thread.companion.name). Tap Stop to try again.")
+            }
             HStack(alignment: .bottom, spacing: 8) {
                 TextField(placeholder, text: $thread.draft, axis: .vertical)
-                    .lineLimit(1...6)
+                    .lineLimit(1...(dynamicTypeSize.isAccessibilitySize ? 3 : 6))
                     .padding(.vertical, 9)
                     .disabled(isHostOffline)
-                if thread.isWorking, thread.runningScope != nil {
+                if thread.isWorking {
                     Button {
                         thread.stop()
                     } label: {
                         Image(systemName: "stop.circle.fill")
                             .font(.title)
                     }
+                    .disabled(thread.runningScope == nil)
                     .accessibilityLabel("Stop")
                 } else if !thread.draft.isEmpty {
                     Button {

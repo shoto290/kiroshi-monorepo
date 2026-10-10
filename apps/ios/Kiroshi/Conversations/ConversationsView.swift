@@ -31,13 +31,24 @@ struct ConversationsView: View {
             Color.clear
         case .loading:
             List(CompanionSummary.placeholders) { summary in
-                CompanionRow(summary: summary, time: ConversationTime())
+                CompanionRow(summary: summary)
                     .listRowSeparator(.hidden)
             }
             .listStyle(.plain)
             .redacted(reason: .placeholder)
             .allowsHitTesting(false)
             .accessibilityLabel("Loading companions")
+        case .failed:
+            ContentUnavailableView {
+                Label("Couldn’t load your companions.", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text("Check that your Mac is on, then try again.")
+            } actions: {
+                Button("Try Again") {
+                    store.reload()
+                }
+                .buttonStyle(.bordered)
+            }
         case .loaded where store.summaries.isEmpty:
             ContentUnavailableView {
                 Label("No companions yet", systemImage: "hexagon")
@@ -49,11 +60,14 @@ struct ConversationsView: View {
                 Button {
                     store.opened = summary.companion
                 } label: {
-                    CompanionRow(summary: summary, time: ConversationTime())
+                    CompanionRow(summary: summary)
                 }
                 .listRowSeparator(.hidden, edges: .top)
             }
             .listStyle(.plain)
+            .refreshable {
+                await store.refresh()
+            }
         }
     }
 }

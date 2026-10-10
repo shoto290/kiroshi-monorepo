@@ -73,7 +73,7 @@ struct ThreadStoreTests {
         #expect(texts(store) == ["you: Can you draft the notes?", "Drafted.", "you: Thanks!"])
         let opensDay = store.entries.map { entry -> Bool in
             guard case .message(let message) = entry else { return false }
-            return message.opensDay
+            return message.dayLabel != nil
         }
         #expect(opensDay == [true, false, true])
         #expect(!store.isWorking)
@@ -323,6 +323,157 @@ struct ThreadStoreTests {
 
         #expect(try call.args(as: CancelArgs.self).scope.conversationId == "chat-juniper")
         #expect(try call.args(as: CancelArgs.self).scope.runtimeSessionId == "session-1")
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func aRefusedLoadFailsTheThread() async throws {
+        let host = TestHost(holding: ["conversation_message_page"])
+        let store = makeStore()
+        let connection = makeConnection()
+        let following = Task { await store.follow(connection) }
+        await connection.start()
+        await transport.nextOpening().accept(host.socket)
+
+        let page = try #require(await host.nextCall("conversation_message_page"))
+        host.reply(TestHost.refused(page, status: 500, TestHost.unavailable))
+        await waitUntil { store.phase == .failed }
+
+        #expect(store.entries.isEmpty)
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func tryingAgainAfterAFailureLoadsTheThread() async throws {
+        let host = TestHost(holding: ["conversation_message_page"])
+        let store = makeStore()
+        let connection = makeConnection()
+        let following = Task { await store.follow(connection) }
+        await connection.start()
+        await transport.nextOpening().accept(host.socket)
+        let refused = try #require(await host.nextCall("conversation_message_page"))
+        host.reply(TestHost.refused(refused, status: 500, TestHost.unavailable))
+        await waitUntil { store.phase == .failed }
+
+        let retrying = store.reload()
+        #expect(store.phase == .loading)
+        let page = try #require(await host.nextCall("conversation_message_page"))
+        host.reply(
+            TestHost.ok(
+                page,
+                #"{"conversationId":"chat-juniper","messages":[\#(twoDays[0])],"arrivals":[],"hasMore":false}"#
+            ))
+        await retrying?.value
+
+        #expect(store.phase == .loaded)
+        #expect(texts(store) == ["you: Can you draft the notes?"])
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func anEventHeardWhileThePageLoadsSurvivesTheLoad() async throws {
+        let host = TestHost(holding: ["conversation_message_page"])
+        let store = makeStore()
+        let connection = makeConnection()
+        let following = Task { await store.follow(connection) }
+        await connection.start()
+        await transport.nextOpening().accept(host.socket)
+        let page = try #require(await host.nextCall("conversation_message_page"))
+
+        host.push(
+            event: "conversation://message-stored",
+            payload: TestHost.message(
+                "m4", in: "chat-juniper", seq: 4, isYours: true, "Sent from the Mac",
+                at: 1_791_000_100_000))
+        host.pushAgent("chat-juniper", #"{"type":"turnChanged","state":"running"}"#)
+        await waitUntil { store.entries.count == 1 && store.isWorking }
+        host.reply(
+            TestHost.ok(
+                page,
+                #"{"conversationId":"chat-juniper","messages":[\#(twoDays.joined(separator: ","))],"arrivals":[],"hasMore":false}"#
+            ))
+        await waitUntil { store.phase == .loaded }
+
+        #expect(
+            texts(store) == [
+                "you: Can you draft the notes?", "Drafted.", "you: Thanks!",
+                "you: Sent from the Mac",
+            ])
+        #expect(store.isWorking)
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func aReloadAfterAReconnectDropsTheToolsHeardBefore() async throws {
+        let reply = TestHost.message(
+            "r1", in: "chat-juniper", seq: 2, isYours: false, "Done.", at: 1_790_900_060_000)
+        let host = TestHost(messages: ["chat-juniper": [twoDays[0]]])
+        let store = makeStore()
+        let (connection, following) = await follow(host, store)
+        host.pushAgent("chat-juniper", #"{"type":"turnChanged","state":"running"}"#)
+        host.pushAgent(
+            "chat-juniper",
+            #"{"type":"activity","activity":{"id":"t1","title":"Read · a.md","kind":"tool","status":"succeeded"}}"#
+        )
+        host.pushAgent(
+            "chat-juniper",
+            #"{"type":"messageCompleted","message":{"id":"r1","role":"assistant","text":"Done.","completion":"complete","timestamp":1790900060000}}"#
+        )
+        host.pushAgent(
+            "chat-juniper", #"{"type":"turnEnded","ended":{"sessionId":null,"outcome":"success"}}"#)
+        await waitUntil { !store.isWorking && store.entries.count == 3 }
+        #expect(
+            texts(store) == ["you: Can you draft the notes?", "[The agent read 1 file]", "Done."])
+
+        host.socket.push(.close(RelayClosure.hostOffline))
+        await waitUntil { !store.isReachable }
+        await clock.wakeNextSleep(of: Backoff.first)
+        let back = TestHost(messages: ["chat-juniper": [twoDays[0], reply]])
+        await transport.nextOpening().accept(back.socket)
+        _ = await back.nextCall("conversation_message_page")
+        await waitUntil { store.isReachable && store.entries.count == 2 }
+
+        #expect(texts(store) == ["you: Can you draft the notes?", "Done."])
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func aTurnUnderwayAtLoadShowsStopOnceTheHostNamesItsScope() async {
+        let unfinished =
+            #"{"id":"m1","conversationId":"chat-juniper","turnId":"t","seq":1,"role":"assistant","content":"Draft","completion":"streaming","createdAt":1,"authorBotId":null,"authorAccountId":null,"authorName":null,"repliedToMessageId":null,"runtimeSessionId":"session-1"}"#
+        let host = TestHost(messages: ["chat-juniper": [unfinished]])
+        let store = makeStore()
+        let (connection, following) = await follow(host, store)
+
+        #expect(store.isWorking)
+        #expect(store.runningScope == nil)
+        #expect(store.stop() == nil)
+
+        host.pushAgent("chat-juniper", #"{"type":"messageDelta","id":"m1","seq":2,"text":"ed."}"#)
+        await waitUntil { store.runningScope != nil }
+
+        #expect(texts(store) == ["Drafted."])
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func aRefusedStopSaysSo() async throws {
+        let host = TestHost { call in
+            call.command == "agent_cancel_turn"
+                ? TestHost.refused(call, status: 500, #"{"kind":"noActiveTurn"}"#) : nil
+        }
+        let store = makeStore()
+        let (connection, following) = await follow(host, store)
+        host.pushAgent("chat-juniper", #"{"type":"turnChanged","state":"running"}"#)
+        await waitUntil { store.runningScope != nil }
+
+        await store.stop()?.value
+
+        #expect(store.stopFailed)
+        host.pushAgent(
+            "chat-juniper", #"{"type":"turnEnded","ended":{"sessionId":null,"outcome":"success"}}"#)
+        await waitUntil { !store.isWorking }
+        #expect(!store.stopFailed)
         following.cancel()
         await connection.stop()
     }

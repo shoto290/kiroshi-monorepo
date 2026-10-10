@@ -5,6 +5,10 @@
     enum ConversationsFixture {
         static var opening: Companion.ID?
 
+        static var draft: String {
+            UserDefaults.standard.string(forKey: "draft") ?? ""
+        }
+
         static let juniper = Companion(id: "juniper-6", name: "Juniper")
         static let companions = [
             juniper,
@@ -76,6 +80,10 @@
                 script.hostLeavesAfter = .seconds(2)
             case .workingList:
                 script.workingCompanion = juniper.id
+            case .conversationsFailed:
+                script.refusesCompanions = true
+            case .threadFailed:
+                script.refusesThread = true
             case .workingThread:
                 script.messages[juniper.id] = [releaseNotesAsk]
                 script.workingCompanion = juniper.id
@@ -88,7 +96,7 @@
 
         static func opening(_ fixture: SignInFixture) -> Companion.ID? {
             switch fixture {
-            case .thread, .emptyThread, .workingThread: juniper.id
+            case .thread, .emptyThread, .workingThread, .threadFailed: juniper.id
             default: nil
             }
         }
@@ -122,6 +130,8 @@
 
         struct Script: Sendable {
             var answersCompanions = true
+            var refusesCompanions = false
+            var refusesThread = false
             var companions: [Companion] = []
             var messages: [Companion.ID: [Message]] = [:]
             var workingCompanion: Companion.ID?
@@ -245,10 +255,22 @@
             push(.frame(#"{"id":\#(id),"status":200,"body":\#(body)}"#))
         }
 
+        private func refuse(_ id: Int) {
+            push(
+                .frame(
+                    #"{"id":\#(id),"status":500,"body":{"kind":"unavailable","failure":{"kind":"locked"}}}"#
+                ))
+        }
+
         private func answer(_ id: Int, _ command: String, _ args: [String: Any]) {
             switch command {
             case "relay_shared_space":
                 reply(id, #"{"spaceId":"\#(FixtureHost.spaceId)"}"#)
+            case "conversation_bots" where script.refusesCompanions:
+                refuse(id)
+            case "conversation_message_page"
+            where script.refusesThread && args["limit"] as? Int != 1:
+                refuse(id)
             case "conversation_bots":
                 guard script.answersCompanions else { return }
                 let bots = script.companions.map { #"{"id":"\#($0.id)","name":"\#($0.name)"}"# }

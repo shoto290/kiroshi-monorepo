@@ -7,6 +7,7 @@ final class ThreadStore {
     enum Phase: Equatable {
         case loading
         case loaded
+        case failed
     }
 
     static let pageSize = 50
@@ -19,10 +20,13 @@ final class ThreadStore {
     private(set) var isSending = false
     private(set) var runningScope: AgentEvent.Scope?
     private(set) var sendFailure: SendFailure?
-    var draft = ""
+    private(set) var stopFailed = false
+    var draft: String
 
     @ObservationIgnored private(set) var conversationId: String?
+    @ObservationIgnored private var spaceId: String?
     @ObservationIgnored private var relay: ConversationRelay?
+    @ObservationIgnored private var heardTurnWhileLoading = false
     @ObservationIgnored private var loading: Task<Void, Never>?
     @ObservationIgnored private var sending: Task<Void, Never>?
     @ObservationIgnored private var stopping: Task<Void, Never>?
@@ -32,11 +36,13 @@ final class ThreadStore {
 
     init(
         companion: Companion,
+        draft: String = "",
         now: @escaping () -> Date = Date.init,
         makeId: @escaping () -> String = { UUID().uuidString.lowercased() },
         calendar: Calendar = .current
     ) {
         self.companion = companion
+        self.draft = draft
         self.now = now
         self.makeId = makeId
         self.calendar = calendar
@@ -48,14 +54,13 @@ final class ThreadStore {
     }
 
     func follow(_ connection: RelayConnection) async {
-        let relay = ConversationRelay(connection: connection)
-        self.relay = relay
+        relay = ConversationRelay(connection: connection)
         for await update in await connection.updates() {
             switch update {
-            case .state(.online(let spaceId)):
+            case .state(.online(let sharedSpaceId)):
                 isReachable = true
-                loading?.cancel()
-                loading = Task { await load(in: spaceId, through: relay) }
+                spaceId = sharedSpaceId
+                reload()
             case .state:
                 isReachable = false
             case .event(let event):
@@ -70,6 +75,18 @@ final class ThreadStore {
     }
 
     @discardableResult
+    func reload() -> Task<Void, Never>? {
+        guard let spaceId, let relay else { return nil }
+        if phase == .failed {
+            phase = .loading
+        }
+        loading?.cancel()
+        let task = Task { await load(in: spaceId, through: relay) }
+        loading = task
+        return task
+    }
+
+    @discardableResult
     func send() -> Task<Void, Never>? {
         guard canSend, let relay, let conversationId else { return nil }
         let message = SentMessage(
@@ -79,15 +96,26 @@ final class ThreadStore {
         draft = ""
         sendFailure = nil
         isSending = true
-        sending = Task { await deliver(message, through: relay) }
-        return sending
+        let task = Task { await deliver(message, through: relay) }
+        sending = task
+        return task
     }
 
     @discardableResult
     func stop() -> Task<Void, Never>? {
         guard let relay, let runningScope else { return nil }
-        stopping = Task { try? await relay.cancelTurn(runningScope) }
-        return stopping
+        stopFailed = false
+        let task = Task {
+            do {
+                try await relay.cancelTurn(runningScope)
+            } catch is CancellationError {
+                return
+            } catch {
+                stopFailed = true
+            }
+        }
+        stopping = task
+        return task
     }
 
     private func deliver(_ message: SentMessage, through relay: ConversationRelay) async {
@@ -110,24 +138,41 @@ final class ThreadStore {
     }
 
     private func load(in spaceId: String, through relay: ConversationRelay) async {
+        heardTurnWhileLoading = false
+        let shownBeforeLoad = Set(entries.map(\.id))
         do {
             let conversationId = try await relay.mainChat(of: companion.id, in: spaceId)
+            guard !Task.isCancelled else { return }
+            self.conversationId = conversationId
             let messages = try await relay.latestMessages(
                 in: conversationId, limit: Self.pageSize)
             guard !Task.isCancelled else { return }
-            self.conversationId = conversationId
-            entries = messages.map { message in
-                .message(
-                    ThreadMessage(
-                        id: message.id, isYours: message.role == .user, text: message.content,
-                        sentAt: Date(milliseconds: message.createdAt)))
+            merge(messages, droppingAnyOf: shownBeforeLoad)
+            if !heardTurnWhileLoading {
+                isWorking = messages.last?.completion.isUnderway ?? false
             }
-            isWorking = messages.last?.completion.isUnderway ?? false
-            markDays()
             phase = .loaded
-        } catch {
+        } catch is CancellationError {
             return
+        } catch {
+            guard !Task.isCancelled else { return }
+            phase = .failed
         }
+    }
+
+    private func merge(_ messages: [TranscriptMessage], droppingAnyOf shownBeforeLoad: Set<String>)
+    {
+        let paged = messages.map { message in
+            ThreadMessage(
+                id: message.id, isYours: message.role == .user, text: message.content,
+                sentAt: Date(milliseconds: message.createdAt))
+        }
+        let pagedIds = Set(paged.map(\.id))
+        let heardDuringLoad = entries.filter {
+            !pagedIds.contains($0.id) && !shownBeforeLoad.contains($0.id)
+        }
+        entries = paged.map(ThreadEntry.message) + heardDuringLoad
+        markDays()
     }
 
     private func apply(_ event: ConversationEvent) {
@@ -148,9 +193,13 @@ final class ThreadStore {
     }
 
     private func apply(_ change: AgentEvent.Change) {
+        heardTurnWhileLoading = true
         switch change {
         case .turn(let state):
             isWorking = state.isWorking
+            if !state.isWorking {
+                stopFailed = false
+            }
         case .messageStarted(let message):
             isWorking = true
             insert(
@@ -158,9 +207,9 @@ final class ThreadStore {
                     id: message.id, isYours: message.role == .user, text: message.text,
                     sentAt: Date(milliseconds: message.timestamp)))
         case .messageDelta(let id, let text):
-            updateMessage(id) { $0.text += text }
+            updateMessage(id) { $0.append(text) }
         case .messageCompleted(let message):
-            if !updateMessage(message.id, { $0.text = message.text }) {
+            if !updateMessage(message.id, { $0.replaceText(message.text) }) {
                 insert(
                     ThreadMessage(
                         id: message.id, isYours: message.role == .user, text: message.text,
@@ -172,13 +221,14 @@ final class ThreadStore {
         case .turnEnded:
             isWorking = false
             runningScope = nil
+            stopFailed = false
         case .activity, .other:
             break
         }
     }
 
     private func insert(_ message: ThreadMessage) {
-        guard !updateMessage(message.id, { $0.text = message.text }) else { return }
+        guard !updateMessage(message.id, { $0.replaceText(message.text) }) else { return }
         entries.append(.message(message))
         markDays()
     }
@@ -196,7 +246,8 @@ final class ThreadStore {
     private func record(_ activity: ActivityGroup.Activity) {
         guard case .activities(var group) = entries.last else {
             entries.append(
-                .activities(ActivityGroup(id: "activities-\(activity.id)", activities: [activity])))
+                .activities(
+                    ActivityGroup(id: "activities-\(activity.id)", activities: [activity])))
             return
         }
         if let index = group.activities.firstIndex(where: { $0.id == activity.id }) {
@@ -208,14 +259,16 @@ final class ThreadStore {
     }
 
     private func markDays() {
+        let time = ConversationTime(now: now(), calendar: calendar)
         var previous: Date?
         for index in entries.indices {
             guard case .message(var message) = entries[index] else { continue }
             let opensDay =
                 previous.map { !calendar.isDate($0, inSameDayAs: message.sentAt) } ?? true
             previous = message.sentAt
-            if message.opensDay != opensDay {
-                message.opensDay = opensDay
+            let dayLabel = opensDay ? time.threadLabel(for: message.sentAt) : nil
+            if message.dayLabel != dayLabel {
+                message.dayLabel = dayLabel
                 entries[index] = .message(message)
             }
         }

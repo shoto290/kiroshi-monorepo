@@ -27,6 +27,7 @@ final class TestHost: Sendable {
     init(
         companions: [Companion] = [],
         messages: [String: [String]] = [:],
+        holding: Set<String> = [],
         answer: @escaping Answer = { _ in nil }
     ) {
         let (calls, callsContinuation) = AsyncStream.makeStream(of: TestCall.self)
@@ -40,6 +41,7 @@ final class TestHost: Sendable {
                 else { continue }
                 let call = TestCall(id: head.id, command: head.command, text: text)
                 callsContinuation.yield(call)
+                guard !holding.contains(call.command) else { continue }
                 let body =
                     answer(call)
                     ?? Self.standard(call, companions: companions, messages: messages)
@@ -65,6 +67,12 @@ final class TestHost: Sendable {
                 #"{"scope":{"conversationId":"\#(conversationId)","botId":"bot","runtimeSessionId":"session-1","epoch":1},"event":\#(event),"turn":null}"#
         )
     }
+
+    func reply(_ frame: String) {
+        socket.push(.frame(frame))
+    }
+
+    static let unavailable = #"{"kind":"unavailable","failure":{"kind":"locked"}}"#
 
     func nextCall(_ command: String) async -> TestCall? {
         for await call in calls where call.command == command {
