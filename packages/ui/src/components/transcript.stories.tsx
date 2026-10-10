@@ -850,10 +850,15 @@ export const RestsWithoutABand = meta.story({
 		await atLiveEdge(viewport)
 
 		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
-		await waitFor(() => expect(canvas.getByText("Working")).toBeInTheDocument())
-		await waitFor(() => expect(canvas.queryByText("Working")).toBeNull(), {
-			timeout: 5000,
-		})
+		await waitFor(
+			() => {
+				expect(
+					canvas.getByText(SHORT_ANSWER_WORDS.join(" ")),
+				).toBeInTheDocument()
+				expect(canvas.queryByText("Working")).toBeNull()
+			},
+			{ timeout: 5000 },
+		)
 
 		await expectRestingPadding(
 			viewport,
@@ -881,10 +886,15 @@ export const ConversationRestsWithoutABand = meta.story({
 		await atLiveEdge(viewport)
 
 		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
-		await waitFor(() => expect(canvas.getByText("Working")).toBeInTheDocument())
-		await waitFor(() => expect(canvas.queryByText("Working")).toBeNull(), {
-			timeout: 5000,
-		})
+		await waitFor(
+			() => {
+				expect(
+					canvas.getByText(SHORT_ANSWER_WORDS.join(" ")),
+				).toBeInTheDocument()
+				expect(canvas.queryByText("Working")).toBeNull()
+			},
+			{ timeout: 5000 },
+		)
 
 		await expectRestingPadding(
 			viewport,
@@ -912,10 +922,15 @@ export const RestsAfterAResize = meta.story({
 		await atLiveEdge(viewport)
 
 		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
-		await waitFor(() => expect(canvas.getByText("Working")).toBeInTheDocument())
-		await waitFor(() => expect(canvas.queryByText("Working")).toBeNull(), {
-			timeout: 5000,
-		})
+		await waitFor(
+			() => {
+				expect(
+					canvas.getByText(SHORT_ANSWER_WORDS.join(" ")),
+				).toBeInTheDocument()
+				expect(canvas.queryByText("Working")).toBeNull()
+			},
+			{ timeout: 5000 },
+		)
 
 		const answer = canvas.getByText(SHORT_ANSWER_WORDS.join(" "))
 		await expectRestingPadding(viewport, answer)

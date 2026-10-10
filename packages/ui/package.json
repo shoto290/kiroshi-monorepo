@@ -65,15 +65,14 @@
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
 		"@vitejs/plugin-react": "^6.0.1",
-		"@vitest/browser": "4.1.10",
-		"@vitest/browser-playwright": "4.1.10",
-		"@vitest/coverage-v8": "4.1.10",
+		"@vitest/browser": "5.0.3",
+		"@vitest/browser-playwright": "5.0.3",
 		"happy-dom": "^20.11.6",
 		"playwright": "1.62.1",
 		"storybook": "10.5.9",
 		"storybook-addon-pseudo-states": "10.5.9",
 		"tailwindcss": "^4",
 		"vite": "^8.0.0",
-		"vitest": "4.1.10"
+		"vitest": "5.0.3"
 	}
 }
