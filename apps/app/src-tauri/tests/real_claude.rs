@@ -894,5 +894,5 @@ async fn a_refused_api_key_surfaces_the_failure_text_of_the_binary() {
 
 	let read = surfaced(&events);
 	println!("the binary surfaced: {read}");
-	assert!(read.contains("401"), "the refusal did not reach the reader: {read}");
+	assert!(read.contains("Invalid API key"), "the refusal did not reach the reader: {read}");
 }
