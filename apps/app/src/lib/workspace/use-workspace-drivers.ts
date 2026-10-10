@@ -7,7 +7,7 @@ import { useBotBadges } from "../chat/use-bot-badges"
 import { useCompanionSpokeDriver } from "../conversations/use-companion-spoke-driver"
 import { useConversationBadges } from "../conversations/use-conversation-badges"
 import { useExternalLinks } from "../links/use-external-links"
-import { useMissionBoard } from "../missions/use-mission-board"
+import { useMissionMarks } from "../missions/use-mission-marks"
 import { useMissionRunDriver } from "../missions/use-mission-run-driver"
 import { useWaitingMissions } from "../missions/use-waiting-missions"
 import { useNotifications } from "../notifications/use-notifications"
@@ -101,10 +101,10 @@ export const useWorkspaceDrivers = (core: WorkspaceCore) => {
 		roster: roster.controller,
 	})
 
-	const missionBoard = useMissionBoard()
+	const missionMarks = useMissionMarks(spaces.state.selectedSpaceId)
 	const openMissions = useMemo(
-		() => missionBoard.map(({ mission }) => mission),
-		[missionBoard],
+		() => missionMarks.map(({ mission }) => mission),
+		[missionMarks],
 	)
 	const waitingMissionIds = useWaitingMissions(
 		conversationRuntimes,
@@ -120,9 +120,9 @@ export const useWorkspaceDrivers = (core: WorkspaceCore) => {
 	return {
 		badges,
 		conversationBadges,
-		missionBoard,
 		onboarding,
 		signIn,
+		missionMarks,
 		updater,
 		waitingMissionIds,
 	}

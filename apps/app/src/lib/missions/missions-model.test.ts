@@ -984,7 +984,7 @@ const SOLO_THREADS = {
 describe("missionsBySpaceId", () => {
 	it("strips a solo mission on the line of the space its origin thread sits in", () => {
 		const missions = missionsBySpaceId({
-			board: [onBoard({ id: "m-1", originConversationId: "chat-away" })],
+			entries: [onBoard({ id: "m-1", originConversationId: "chat-away" })],
 			conversationRosters: { [HOME]: [], [AWAY]: [] },
 			soloThreads: SOLO_THREADS,
 		})
@@ -997,7 +997,7 @@ describe("missionsBySpaceId", () => {
 
 	it("strips a group mission on the conversation row of its own space", () => {
 		const missions = missionsBySpaceId({
-			board: [onBoard({ id: "m-1", originConversationId: "room-1" })],
+			entries: [onBoard({ id: "m-1", originConversationId: "room-1" })],
 			conversationRosters: { [HOME]: [], [AWAY]: [{ id: "room-1" }] },
 			soloThreads: SOLO_THREADS,
 		})
@@ -1010,7 +1010,7 @@ describe("missionsBySpaceId", () => {
 
 	it("strips nothing when no space holds the origin conversation", () => {
 		const missions = missionsBySpaceId({
-			board: [onBoard({ id: "m-1", originConversationId: "gone" })],
+			entries: [onBoard({ id: "m-1", originConversationId: "gone" })],
 			conversationRosters: { [HOME]: [] },
 			soloThreads: SOLO_THREADS,
 		})

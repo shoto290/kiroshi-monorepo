@@ -3,7 +3,7 @@ import type { JoinedHostsState } from "./joined-hosts"
 
 import { useControllerState } from "../use-controller"
 
-const LOCAL_HOST = "local"
+export const LOCAL_HOST = "local"
 
 const reachableHostOf = ({
 	active,

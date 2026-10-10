@@ -7,12 +7,19 @@ import type {
 	MissionOnBoard,
 } from "./mission-contract"
 
-import { invoke, listen } from "../host"
+import { activeJoinedSpaceId, invoke, listen } from "../host"
 
 export const MISSION_CHANGED_EVENT = "mission://changed"
 
+const NOT_ON_A_JOINED_SPACE: MissionOnBoard[] = []
+
+const readBoardOfThisMac = () =>
+	activeJoinedSpaceId() === null
+		? invoke<MissionOnBoard[]>("mission_board")
+		: Promise.resolve(NOT_ON_A_JOINED_SPACE)
+
 export const missionsTransport = {
-	board: () => invoke<MissionOnBoard[]>("mission_board"),
+	board: readBoardOfThisMac,
 	spaceFeed: (spaceId: string, closedSince: number) =>
 		invoke<MissionInSpace[]>("mission_space_feed", { spaceId, closedSince }),
 	unreported: () => invoke<MissionOnBoard[]>("mission_unreported"),

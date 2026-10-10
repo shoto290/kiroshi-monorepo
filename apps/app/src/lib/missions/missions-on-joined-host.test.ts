@@ -4,6 +4,8 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { Mission, MissionInSpace } from "./mission-contract"
+import { missionsTransport } from "./missions-transport"
+import { useMissionMarks } from "./use-mission-marks"
 import { useMissions } from "./use-missions"
 import { useSpaceMissions } from "./use-space-missions"
 
@@ -33,6 +35,7 @@ vi.mock("../host", () => {
 	})
 	return {
 		joinedHosts,
+		activeJoinedSpaceId: () => joinedHosts.activeSpaceId(),
 		invoke: ((...args: Parameters<JoinedHosts["invoke"]>) =>
 			joinedHosts.invoke(...args)) as JoinedHosts["invoke"],
 		listen: ((...args: Parameters<JoinedHosts["listen"]>) =>
@@ -221,6 +224,80 @@ describe("missions read on a joined host", () => {
 
 		await waitFor(() =>
 			expect(objectivesOf(result.current.open)).toEqual([reopened.objective]),
+		)
+	})
+
+	it("marks the host's open missions without asking the host for its board", async () => {
+		const asked: string[] = []
+		wire.hostAnswer = async (command) => {
+			asked.push(command)
+			return hostAnswers(command)
+		}
+		await joinedHosts.activate("garage")
+		await openLastSocket()
+		const { result } = renderHook(() => useMissionMarks("space-on-host"))
+
+		await waitFor(() =>
+			expect(
+				objectivesOf(result.current.map(({ mission }) => mission)),
+			).toEqual([HOST_MISSION.objective]),
+		)
+		expect(await missionsTransport.board()).toEqual([])
+		expect(asked).not.toContain("mission_board")
+	})
+
+	it("drops the marks while the host is down and reads them again once it is back", async () => {
+		await joinedHosts.activate("garage")
+		await openLastSocket()
+		const { result } = renderHook(() => useMissionMarks("space-on-host"))
+		await waitFor(() => expect(result.current).toHaveLength(1))
+
+		dropLastSocket()
+		await waitFor(() => expect(result.current).toEqual([]))
+
+		const reopened = missionOf("m-reopened", "Ship the parser")
+		wire.hostAnswer = answering({
+			mission_space_feed: [
+				{
+					mission: reopened,
+					conversationId: "c-1",
+					conversationTitle: "Parser",
+				},
+			] satisfies MissionInSpace[],
+		})
+		await openLastSocket()
+
+		await waitFor(() =>
+			expect(result.current.map(({ mission }) => mission.objective)).toEqual([
+				reopened.objective,
+			]),
+		)
+	})
+
+	it("reads the local board again and drops the host's marks when leaving for a local Space", async () => {
+		wire.localAnswer = answering({
+			conversation_local_ids: [],
+			mission_board: [{ mission: LOCAL_MISSION }],
+		})
+		await joinedHosts.activate("garage")
+		await openLastSocket()
+		const { result, rerender } = renderHook(
+			({ spaceId }) => useMissionMarks(spaceId),
+			{ initialProps: { spaceId: "space-on-host" } },
+		)
+		await waitFor(() =>
+			expect(result.current.map(({ mission }) => mission.id)).toEqual([
+				HOST_MISSION.id,
+			]),
+		)
+
+		await act(() => joinedHosts.activate(null))
+		rerender({ spaceId: "local-space" })
+
+		await waitFor(() =>
+			expect(result.current.map(({ mission }) => mission.id)).toEqual([
+				LOCAL_MISSION.id,
+			]),
 		)
 	})
 })
