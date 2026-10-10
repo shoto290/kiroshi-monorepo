@@ -703,14 +703,14 @@ fn is_named_at(chars: &[char], from: usize, name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
-	use tauri::App;
+	use tauri::test::{mock_builder, MockRuntime};
 
 	use super::*;
 	use crate::db::repositories::conversations::DEFAULT_BOT_ID;
 	use crate::db::repositories::messages::{
 		MessageRole, MessageState, NewUserMessage, StoredMessage,
 	};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	type Heard = (AgentEvent, Option<EventTurn>);
 
@@ -727,20 +727,14 @@ mod tests {
 	}
 
 	struct Written {
-		app: App<MockRuntime>,
+		app: AppOfItsOwn,
 		conversation_id: String,
 		attachments: Arc<TurnAttachments>,
 	}
 
 	impl Written {
 		async fn new(name: &str) -> Self {
-			let mut context = mock_context(noop_assets());
-			context.config_mut().identifier =
-				format!("com.kiroshi.reply-writer-{name}-{}", std::process::id());
-			let app = mock_builder().build(context).expect("the app builds");
-			if let Ok(dir) = app.path().app_data_dir() {
-				let _ = std::fs::remove_dir_all(&dir);
-			}
+			let app = an_app_of_its_own(&format!("reply-writer-{name}"), mock_builder());
 			app.manage(db::bootstrap(app.handle()));
 			let written = Self { app, conversation_id: String::new(), attachments: Arc::default() };
 			let conversations = written.database().conversations();
@@ -823,12 +817,6 @@ mod tests {
 				.await
 				.expect("the turn reads")
 		}
-
-		fn close(self) {
-			if let Ok(dir) = self.app.path().app_data_dir() {
-				let _ = std::fs::remove_dir_all(&dir);
-			}
-		}
 	}
 
 	fn submitted(turn_id: &str, prompt_id: &str) -> SubmittedTurn {
@@ -869,7 +857,6 @@ mod tests {
 		assert_eq!(earlier.state, MessageState::Cancelled);
 		assert!(written.completed_at("t1").await.is_some(), "the earlier turn was left open");
 		assert_eq!(written.completed_at("t2").await, None, "the new turn was closed");
-		written.close();
 	}
 
 	fn option(label: &str, description: Option<&str>) -> QuestionOption {
@@ -959,7 +946,6 @@ mod tests {
 		assert!(asked.seq > reply.seq, "the question landed before the reply");
 		assert_eq!(asked.content, QUESTION_TEXT);
 		assert!(desk.store.owned.owns_message("question-r1"));
-		written.close();
 	}
 
 	#[tokio::test]
@@ -973,7 +959,6 @@ mod tests {
 		desk.record(&question("r1")).await;
 
 		assert_eq!(written.assistant_rows().await, 1);
-		written.close();
 	}
 
 	#[tokio::test]
@@ -985,7 +970,6 @@ mod tests {
 
 		assert_eq!(written.stored("question-r1").await, None);
 		assert!(!desk.store.owned.owns_message("question-r1"));
-		written.close();
 	}
 
 	#[test]
@@ -1095,7 +1079,6 @@ mod tests {
 		let reply = written.stored("m1").await.expect("the reply is stored");
 		with_block("Here\nThe chart of May\n", &["/data/attachments/c/a.png"])(&reply.content);
 		assert_eq!(reply.state, MessageState::Complete);
-		written.close();
 	}
 
 	#[tokio::test]
@@ -1117,7 +1100,6 @@ mod tests {
 			&reply.content,
 		);
 		assert_eq!(written.assistant_rows().await, 1);
-		written.close();
 	}
 
 	#[tokio::test]
@@ -1143,7 +1125,6 @@ mod tests {
 			.await
 			.expect("the reply is stored");
 		with_block("", &["/data/attachments/c/a.png"])(&content);
-		written.close();
 	}
 
 	#[tokio::test]
@@ -1166,7 +1147,6 @@ mod tests {
 			let reply = written.stored("m1").await.expect("the reply is stored");
 			with_block("half\n", &["/data/attachments/c/a.png"])(&reply.content);
 			assert_eq!(reply.state, state);
-			written.close();
 		}
 	}
 
@@ -1212,7 +1192,6 @@ mod tests {
 		let heard = written.forwarded(entries_of(&spoken)).await;
 
 		assert_eq!(heard, spoken);
-		written.close();
 	}
 
 	#[tokio::test]
@@ -1236,7 +1215,6 @@ mod tests {
 			other => panic!("expected the completion of m1, got {other:?}"),
 		}
 		assert_eq!(heard[4], turn_ended());
-		written.close();
 	}
 
 	#[tokio::test]
@@ -1260,7 +1238,6 @@ mod tests {
 		assert_eq!(completed.text, stored);
 		with_block("", &["/data/attachments/c/a.png"])(&stored);
 		assert_eq!(heard[2], turn_ended());
-		written.close();
 	}
 
 	#[tokio::test]
@@ -1285,7 +1262,6 @@ mod tests {
 		desk.record(&turn_ended()).await;
 
 		assert!(heard.try_recv().is_err(), "a block that was not stored was told");
-		written.close();
 	}
 
 	#[tokio::test]
@@ -1307,7 +1283,6 @@ mod tests {
 		assert!(spoken.iter().any(|(event, _)| *event == turn_ended()));
 		assert!(spoken.iter().all(|(_, turn)| *turn == named), "{spoken:?}");
 		assert_eq!(after, [(after_the_end, None)]);
-		written.close();
 	}
 
 	#[tokio::test]
@@ -1320,7 +1295,6 @@ mod tests {
 
 		assert_eq!(heard.len(), a_spoken_turn().len());
 		assert!(heard.iter().all(|(_, turn)| turn.is_none()), "{heard:?}");
-		written.close();
 	}
 
 	#[tokio::test]
@@ -1338,6 +1312,5 @@ mod tests {
 			.await;
 
 		assert_eq!(heard, [(late, None)]);
-		written.close();
 	}
 }

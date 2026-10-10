@@ -12,7 +12,7 @@ use axum::routing::{get, post};
 use axum::Router;
 use futures_util::StreamExt;
 use serde_json::{json, Value};
-use tauri::test::{mock_app, MockRuntime};
+use tauri::test::{mock_builder, MockRuntime};
 use tauri::{App, Listener, Manager};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
@@ -30,6 +30,7 @@ use crate::joined_spaces::commands::{
 };
 use crate::joined_spaces::contract::{JoinedSpaceConnection, JoinedSpaceError};
 use crate::joined_spaces::relay::{reconciled, RelayGuests};
+use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 const BEARER: &str = "bearer-that-never-leaves";
 const INSTANCE: &str = "instance-1";
@@ -162,7 +163,7 @@ async fn a_closed_port() -> String {
 }
 
 struct Harness {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	cloud: Cloud,
 	members: mpsc::UnboundedReceiver<WebSocket>,
 	heard: Arc<Mutex<Vec<(String, String)>>>,
@@ -223,7 +224,7 @@ impl Harness {
 			store::set(&root, &EnvScope::Account, ACCOUNT_BEARER, bearer)
 				.expect("the bearer is kept");
 		}
-		let app = mock_app();
+		let app = an_app_of_its_own("invitations", mock_builder());
 		let database = database.map(|()| db::open(&temp_dir()));
 		app.manage::<DatabaseState>(database);
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root.clone()), &api_url));

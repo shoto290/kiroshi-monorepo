@@ -1,8 +1,11 @@
 
+mod common;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::commands::EVENT_CHANNEL;
 use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
@@ -11,14 +14,12 @@ use kiroshi_app::bundles;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 const SCENARIO_ENV: &str = "FAKE_AGENT_SCENARIO_FILE";
-const IDENTIFIER: &str = "com.kiroshi.runtime-identity";
-const SPACES_IDENTIFIER: &str = "com.kiroshi.runtime-identity-spaces";
 const DEADLINE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(25);
 
@@ -30,30 +31,24 @@ const SPANISH: &str = "Answer only in Spanish.";
 const DESK: &str = "TICKET_DESK";
 
 struct Harness {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	window: WebviewWindow<MockRuntime>,
 	log: Arc<Mutex<Vec<ScopedEvent>>>,
 }
 
 fn launch() -> Harness {
-	launch_as(IDENTIFIER)
+	launch_as("runtime-identity")
 }
 
-fn launch_as(identifier: &str) -> Harness {
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier = identifier.into();
-
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.invoke_handler(invoke_handler())
-		.build(context)
-		.expect("app builds");
-	if let Ok(dir) = app.path().app_data_dir() {
-		let _ = std::fs::remove_dir_all(&dir);
-	}
+fn launch_as(name: &str) -> Harness {
+	let app = an_app_of_its_own(
+		name,
+		mock_builder().manage(AgentState::default()).invoke_handler(invoke_handler()),
+	);
 	app.manage(db::bootstrap(app.handle()));
-	let window =
-		WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window builds");
+	let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
+		.build()
+		.expect("window builds");
 
 	let log: Arc<Mutex<Vec<ScopedEvent>>> = Arc::new(Mutex::new(Vec::new()));
 	let sink = log.clone();
@@ -441,10 +436,6 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 	harness.call("conversation_delete_bot", json!({ "id": bot })).expect("the bot is deleted");
 	assert!(!bundle.exists(), "a deleted bot left its bundle behind");
 	assert_eq!(listed_plugins(&harness), Vec::new());
-
-	if let Ok(dir) = harness.app.path().app_data_dir() {
-		let _ = std::fs::remove_dir_all(dir);
-	}
 }
 
 #[test]
@@ -452,7 +443,7 @@ fn a_run_stacks_the_space_of_the_thread_it_speaks_in() {
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
 	scenario("identity");
 
-	let harness = launch_as(SPACES_IDENTIFIER);
+	let harness = launch_as("runtime-identity-spaces");
 	let bot = harness.create_bot();
 	let home = harness.first_space();
 	let elsewhere = harness.create_space("Writers");
@@ -482,10 +473,6 @@ fn a_run_stacks_the_space_of_the_thread_it_speaks_in() {
 		"got {}",
 		elsewhere_spoken.spoken
 	);
-
-	if let Ok(dir) = harness.app.path().app_data_dir() {
-		let _ = std::fs::remove_dir_all(dir);
-	}
 }
 
 fn plugin_of(harness: &Harness, space: &str) -> PathBuf {

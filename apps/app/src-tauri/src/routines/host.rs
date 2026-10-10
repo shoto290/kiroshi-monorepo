@@ -178,12 +178,11 @@ fn every_event() -> Filter {
 
 #[cfg(test)]
 mod tests {
-	use std::fs;
 	use std::sync::mpsc;
 	use std::time::Duration;
 
 	use serde_json::json;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::{App, Listener as _, Manager as _};
 
 	use super::super::commands::CHANGED_EVENT;
@@ -191,6 +190,7 @@ mod tests {
 	use super::*;
 	use crate::agent::protocol::HostAnswer;
 	use crate::bundles;
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const A_SPACE: &str = "
 		INSERT INTO bots (id, name, model, created_at)
@@ -207,14 +207,8 @@ mod tests {
 				('c2', 'b1', 'assistant', 1, 0), ('m1', 'b1', 'assistant', 1, 0);
 	";
 
-	async fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.routine-host-{name}-{}", std::process::id()).into();
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	async fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("routine-host-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		let system = bundles::system::path(app.handle()).expect("the system bundle is named");
 		bundles::system::write(&system).expect("the system bundle lands");
@@ -224,12 +218,6 @@ mod tests {
 			.await
 			.expect("the space is planted");
 		app
-	}
-
-	fn cleaned(app: &App<MockRuntime>) {
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
 	}
 
 	fn serving(app: &App<MockRuntime>, conversation_id: &str) -> RoutineHost<MockRuntime> {
@@ -315,8 +303,6 @@ mod tests {
 		assert_eq!(created["conversationId"], json!("c1"));
 		assert_eq!(created["botId"], json!("b1"));
 		assert_eq!(created["title"], json!("Nightly report"));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -332,8 +318,6 @@ mod tests {
 			"got {refused}"
 		);
 		assert!(listed(&app, "c1").await.is_empty());
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -356,8 +340,6 @@ mod tests {
 			.collect();
 		assert_eq!(ids.len(), 2, "got {answered}");
 		assert!(ids.contains(&mine.id.as_str()) && ids.contains(&theirs.id.as_str()));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -373,8 +355,6 @@ mod tests {
 			assert_eq!(refused["id"], json!(held.id));
 		}
 		assert_eq!(listed(&app, "c2").await, vec![held]);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -390,8 +370,6 @@ mod tests {
 			assert_eq!(refused["id"], json!(held.id));
 		}
 		assert_eq!(listed(&app, "c1").await, vec![held]);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -414,8 +392,6 @@ mod tests {
 		assert_eq!(updated["title"], json!("Renamed"));
 		assert_eq!(ran["kind"], json!("started"));
 		assert!(listed(&app, "m1").await.is_empty());
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -439,8 +415,6 @@ mod tests {
 			.filter_map(|field| field["name"].as_str())
 			.collect();
 		assert_eq!(fields, vec!["occurrenceId", "firedAt", "expression"]);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -465,7 +439,5 @@ mod tests {
 			let announced: Value = serde_json::from_str(&announced).expect("the event is JSON");
 			assert_eq!(announced["conversationId"], json!("c1"), "on {write}");
 		}
-
-		cleaned(&app);
 	}
 }

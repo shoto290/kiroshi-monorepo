@@ -652,7 +652,8 @@ mod tests {
 
 	use super::*;
 	use crate::db::repositories::conversations::AvatarBlot as StoredBlot;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::App;
 
 	fn a_bot() -> StoredBot {
@@ -686,14 +687,8 @@ mod tests {
 		StoredBot { avatar_blot: blot, ..a_bot() }
 	}
 
-	fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.conversation-commands-{name}-{}", std::process::id()).into();
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("conversation-commands-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		app
 	}

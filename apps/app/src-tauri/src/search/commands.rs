@@ -55,16 +55,16 @@ pub async fn search_recent(
 
 #[cfg(test)]
 mod tests {
-	use std::fs;
 
 	use rusqlite::params;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::{App, Manager as _};
 
 	use super::*;
 	use crate::db::repositories::messages::{NewAssistantMessage, TerminalState};
 	use crate::db::repositories::search::MAX_HITS;
 	use crate::search::contract::{ConversationKind, SnippetPart, MAX_QUERY_CHARS};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const A_SPACE_EACH: &str = "
 		INSERT INTO spaces (id, name, colour, position, created_at)
@@ -81,23 +81,11 @@ mod tests {
 			VALUES ('t1', 'c1', 1, 1), ('t2', 'c2', 1, 1);
 	";
 
-	async fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.search-commands-{name}-{}", std::process::id()).into();
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	async fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("search-commands-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		plant(&app, A_SPACE_EACH).await;
 		app
-	}
-
-	fn cleaned(app: &App<MockRuntime>) {
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
 	}
 
 	async fn plant(app: &App<MockRuntime>, statements: &str) {
@@ -179,8 +167,6 @@ mod tests {
 		assert_eq!(here[0].author_bot_id.as_deref(), Some("b1"), "the author of the hit moved");
 		assert_eq!(here[0].seq, 1, "the seq of the hit moved");
 		assert_eq!(ids(&anywhere), vec!["m2".to_owned(), "m1".to_owned()], "a space was left out");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -228,8 +214,6 @@ mod tests {
 			"a settled message stayed out of the index"
 		);
 		assert_eq!(indexed_rows(&app, "m1").await, 1, "a message holds more than one index row");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -243,8 +227,6 @@ mod tests {
 
 		assert_eq!(ids(&both), vec!["m1".to_owned()], "a word of the query went unmatched");
 		assert!(missing.is_empty(), "a message carrying only one of the words was answered");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -260,8 +242,6 @@ mod tests {
 		assert_eq!(ids(&unaccented), vec!["m1".to_owned()], "an accent in the message hid it");
 		assert_eq!(ids(&accented), vec!["m2".to_owned()], "an accent in the query hid a message");
 		assert_eq!(ids(&shouted), vec!["m1".to_owned()], "the case of the query hid a message");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -276,8 +256,6 @@ mod tests {
 		assert!(empty.is_empty(), "a query without a letter or a digit answered a hit");
 		assert_eq!(ids(&operators), vec!["m1".to_owned()], "an operator broke the search");
 		assert_eq!(ids(&quoted), vec!["m1".to_owned()], "a quote broke the search");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -292,8 +270,6 @@ mod tests {
 		assert!(found(&app, everywhere("cafe")).await.is_empty(), "a deleted row still answers");
 		assert_eq!(indexed_rows(&app, "m1").await, 0, "a deleted message kept its index row");
 		assert_eq!(indexed_rows(&app, "m2").await, 0, "a deleted conversation kept its index rows");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -312,8 +288,6 @@ mod tests {
 			],
 			"the snippet lost the words it matched"
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -331,8 +305,6 @@ mod tests {
 			vec!["m2".to_owned(), "m1".to_owned(), "m3".to_owned()],
 			"the hits came back out of relevance and recency order"
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -345,8 +317,6 @@ mod tests {
 		let capped = found(&app, in_space("cafe", "personal")).await;
 
 		assert_eq!(capped.len(), MAX_HITS as usize, "the answer went past the hit cap");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -373,7 +343,5 @@ mod tests {
 			Err(CatalogueError::QueryTooLong { limit: MAX_QUERY_CHARS }),
 			"the catalogue read a query past the cap"
 		);
-
-		cleaned(&app);
 	}
 }

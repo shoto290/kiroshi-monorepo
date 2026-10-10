@@ -140,7 +140,7 @@ mod tests {
 	use std::sync::mpsc::channel;
 
 	use serde_json::{json, Value};
-	use tauri::test::{mock_builder, mock_context, noop_assets};
+	use tauri::test::mock_builder;
 	use tauri::{Listener as _, Manager as _};
 
 	use super::super::commands::{AnnouncedRunning, CHANGED_EVENT};
@@ -150,6 +150,7 @@ mod tests {
 	use super::*;
 	use crate::db::connection::temp_dir;
 	use crate::db::{open, Database};
+	use crate::test_app::an_app_of_its_own;
 
 	const A_PARTICIPANT: &str = "
 		INSERT INTO bots (id, name, model, created_at) VALUES ('b1', 'First', 'sonnet', 1);
@@ -311,7 +312,7 @@ mod tests {
 			.await
 			.expect("stale counts are planted");
 		let events_before = events_in(&database).await;
-		let app = mock_builder().build(mock_context(noop_assets())).expect("the app builds");
+		let app = an_app_of_its_own("mission-checkout", mock_builder());
 
 		pass(app.handle(), &database).await;
 
@@ -327,7 +328,7 @@ mod tests {
 		let (database, dir) = planted().await;
 		let quiet = a_mission_in(&database, None).await;
 		let started = a_mission_in(&database, None).await;
-		let app = mock_builder().build(mock_context(noop_assets())).expect("the app builds");
+		let app = an_app_of_its_own("mission-checkout", mock_builder());
 		app.manage(AnnouncedRunning::default());
 		told(app.handle(), &quiet);
 		told(app.handle(), &started);

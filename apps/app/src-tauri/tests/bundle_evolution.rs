@@ -1,7 +1,10 @@
+mod common;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::commands::EVENT_CHANNEL;
 use kiroshi_app::agent::contract::{AgentEvent, EvolvedBundle, RuntimeScope, ScopedEvent};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
@@ -11,13 +14,12 @@ use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::db::repositories::conversations::Bot as StoredBot;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 const SCENARIO_ENV: &str = "FAKE_AGENT_SCENARIO_FILE";
-const IDENTIFIER: &str = "com.kiroshi.bundle-evolution";
 const DEADLINE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(25);
 const SETTLE: Duration = Duration::from_millis(500);
@@ -26,26 +28,20 @@ const NAME: &str = "Camille";
 const BRIEF: &str = "Answer only in French.";
 
 struct Harness {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	window: WebviewWindow<MockRuntime>,
 	log: Arc<Mutex<Vec<ScopedEvent>>>,
 }
 
 fn launch() -> Harness {
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier = IDENTIFIER.into();
-
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.invoke_handler(invoke_handler())
-		.build(context)
-		.expect("app builds");
-	if let Ok(dir) = app.path().app_data_dir() {
-		let _ = std::fs::remove_dir_all(&dir);
-	}
+	let app = an_app_of_its_own(
+		"bundle-evolution",
+		mock_builder().manage(AgentState::default()).invoke_handler(invoke_handler()),
+	);
 	app.manage(db::bootstrap(app.handle()));
-	let window =
-		WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window builds");
+	let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
+		.build()
+		.expect("window builds");
 
 	let log: Arc<Mutex<Vec<ScopedEvent>>> = Arc::new(Mutex::new(Vec::new()));
 	let sink = log.clone();
@@ -285,8 +281,4 @@ fn every_bundle_the_turn_changed_is_announced_once() {
 	harness.end_turn(&quiet);
 	std::thread::sleep(SETTLE);
 	assert!(evolutions(&harness.events()).is_empty(), "a quiet turn was announced");
-
-	if let Ok(dir) = harness.app.path().app_data_dir() {
-		let _ = std::fs::remove_dir_all(dir);
-	}
 }

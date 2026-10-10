@@ -297,13 +297,12 @@ fn answers_to(application: &Application, term: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-	use std::fs;
 	use std::path::PathBuf;
 	use std::sync::mpsc;
 	use std::time::Duration;
 
 	use serde_json::json;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::{App, Listener as _};
 
 	use super::*;
@@ -318,6 +317,7 @@ mod tests {
 	use crate::mcp_oauth::asking::AuthorizationAnswers;
 	use crate::mcp_oauth::commands::McpOauthState;
 	use crate::mcp_oauth::reports::{ApplicationReports, Standing};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const A_SPACE: &str = "
 		INSERT INTO bots (id, name, model, created_at) VALUES ('b1', 'Shoto', 'sonnet', 1);
@@ -336,12 +336,8 @@ mod tests {
 
 	const NO_DIRECTORY: &str = "http://127.0.0.1:1";
 
-	async fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.application-host-{name}-{}", std::process::id());
-		let app = mock_builder().build(context).expect("the app builds");
-		cleaned(&app);
+	async fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("application-host-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		app.manage(McpOauthState::default());
 		app.manage(ApplicationReports::default());
@@ -354,12 +350,6 @@ mod tests {
 		bundles::space::lay_down(app.handle(), "personal").expect("the space plugin lands");
 		bundles::user::lay_down(&user_plugin(&app)).expect("the person plugin lands");
 		app
-	}
-
-	fn cleaned(app: &App<MockRuntime>) {
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
 	}
 
 	fn user_plugin(app: &App<MockRuntime>) -> PathBuf {
@@ -500,7 +490,6 @@ mod tests {
 		);
 		assert!(answer.get("registryFailure").is_none(), "got {answer}");
 		assert!(held.asked.lock().expect("the stub records").is_empty(), "the registry was read");
-		cleaned(&app);
 	}
 
 	const A_DIRECTORY_PAGE: [&str; 12] = [
@@ -554,7 +543,6 @@ mod tests {
 				"zinc-9"
 			]
 		);
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -574,7 +562,6 @@ mod tests {
 		assert_eq!(answered[0], "superset");
 		assert_eq!(answered[1], "superset-1");
 		assert_eq!(answered[9], "superset-9");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -594,7 +581,6 @@ mod tests {
 
 		assert_eq!(names(&answer).len(), 9, "got {answer}");
 		assert!(!names(&answer).contains(&"io.test/collapsed"), "got {answer}");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -608,7 +594,6 @@ mod tests {
 			.expect("the search answers");
 
 		assert_eq!(names(&answer), ["io.github.Digital-Defiance/mcp-filesystem"]);
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -622,7 +607,6 @@ mod tests {
 
 		assert_eq!(names(&answer), ["superset"]);
 		assert_eq!(answer["registryFailure"]["kind"], "registryUnreached");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -652,7 +636,6 @@ mod tests {
 				};
 				assert_eq!(declared, expected, "installing in {scope}");
 			}
-			cleaned(&app);
 		}
 	}
 
@@ -669,7 +652,6 @@ mod tests {
 			let kept: Vec<(String, ApplicationMark)> = marks(&app).into_iter().flatten().collect();
 
 			assert_eq!(kept, [("paper".to_owned(), curated_mark("paper"))], "in {scope}");
-			cleaned(&app);
 		}
 	}
 
@@ -683,7 +665,6 @@ mod tests {
 			.expect("the install answers");
 
 		assert_eq!(answer["install"], json!({ "kind": "key", "secrets": ["SUPERSET_API_KEY"] }));
-		cleaned(&app);
 	}
 
 	async fn recorded_in(app: &App<MockRuntime>, conversation_id: &str) -> Vec<ApplicationInstall> {
@@ -755,7 +736,6 @@ mod tests {
 		for event in &announced {
 			assert!(event["createdAt"].as_i64().is_some_and(|held| held > 0), "got {event}");
 		}
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -781,7 +761,6 @@ mod tests {
 		assert_eq!(held.description.as_deref(), Some(curated("superset").description.as_str()));
 		assert_eq!(held.last_message_seq, 0);
 		assert!(held.created_at > 0, "the row holds no moment");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -800,7 +779,6 @@ mod tests {
 		assert_eq!(held.logo, None);
 		assert_eq!(held.logo_url.as_deref(), Some("https://zinc-1.test/icon.png"));
 		assert_eq!(held.description.as_deref(), Some("zinc-1 does things."));
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -820,7 +798,6 @@ mod tests {
 			.expect("the install answers");
 
 		assert_eq!(recorded_in(&app, "c1").await, Vec::new());
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -843,7 +820,6 @@ mod tests {
 		assert_eq!(announced["conversationId"], "ghost");
 		assert_eq!(announced["application"], "paper");
 		assert_eq!(recorded_in(&app, "ghost").await, Vec::new());
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -864,7 +840,6 @@ mod tests {
 
 		assert_eq!(read, ["paper", "superset"]);
 		assert_eq!(recorded_in(&app, "nowhere").await, Vec::new());
-		cleaned(&app);
 	}
 
 	async fn searched(app: &App<MockRuntime>, query: &str) -> Value {
@@ -880,7 +855,6 @@ mod tests {
 		let app = a_host("described").await;
 
 		assert_eq!(names(&searched(&app, "designs").await), ["paper"]);
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -891,7 +865,6 @@ mod tests {
 		assert_eq!(names(&searched(&app, "run workspaces").await), ["superset"]);
 		assert_eq!(names(&searched(&app, "write designs").await), ["paper"]);
 		assert_eq!(names(&searched(&app, "workspaces designs").await), Vec::<&str>::new());
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -905,7 +878,6 @@ mod tests {
 
 		assert_eq!(names(&searched(&app, "an my").await), everything);
 		assert_eq!(names(&searched(&app, "").await), everything);
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -923,7 +895,6 @@ mod tests {
 		assert_eq!(declarations(&app)[1][0].0, "com.notion/mcp");
 		assert!(held.asked.lock().expect("the stub records").is_empty(), "a search ran");
 		assert_eq!(*held.detailed.lock().expect("the stub records"), ["com.notion/mcp"]);
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -945,7 +916,6 @@ mod tests {
 		);
 		assert_eq!(declarations(&app)[1], [("superset".to_owned(), mine)]);
 		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "nothing is announced");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -959,7 +929,6 @@ mod tests {
 
 		assert_eq!(refusal, json!({ "kind": "unknownScope", "scope": "team" }));
 		assert_eq!(declarations(&app), [Vec::new(), Vec::new(), Vec::new()]);
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -980,7 +949,6 @@ mod tests {
 		}
 		assert_eq!(declarations(&app), [Vec::new(), Vec::new(), Vec::new()]);
 		assert!(held.asked.lock().expect("the stub records").is_empty(), "a search ran");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1001,7 +969,6 @@ mod tests {
 		assert_eq!(declarations(&app), [Vec::new(), Vec::new(), Vec::new()]);
 		assert!(recorded_in(&app, "c1").await.is_empty(), "an install was recorded");
 		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "it was announced");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1026,7 +993,6 @@ mod tests {
 		assert_eq!(declarations(&app), [Vec::new(), Vec::new(), Vec::new()]);
 		assert!(recorded_in(&app, "c1").await.is_empty(), "an install was recorded");
 		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "it was announced");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1045,7 +1011,6 @@ mod tests {
 			);
 		}
 		assert_eq!(declarations(&app), [Vec::new(), Vec::new(), Vec::new()]);
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1076,7 +1041,6 @@ mod tests {
 			read("paper", "companion").await,
 			json!({ "status": "failed", "reason": "refused" })
 		);
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1089,6 +1053,5 @@ mod tests {
 			.expect_err("the scope is refused");
 
 		assert_eq!(refusal, json!({ "kind": "unknownScope", "scope": "team" }));
-		cleaned(&app);
 	}
 }

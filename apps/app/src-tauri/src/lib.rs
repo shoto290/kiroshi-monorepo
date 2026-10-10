@@ -27,6 +27,8 @@ pub mod spaces;
 pub mod termination;
 pub mod user;
 mod private_files;
+#[cfg(test)]
+mod test_app;
 mod window_controls;
 
 use tauri::{Manager, RunEvent};

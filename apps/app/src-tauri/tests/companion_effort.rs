@@ -1,3 +1,6 @@
+mod common;
+
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::commands::terminate_session;
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
@@ -5,7 +8,7 @@ use kiroshi_app::bundles::{self, EffortLevel};
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
 use tauri::{App, Manager, WebviewWindow, WebviewWindowBuilder};
 
@@ -13,15 +16,11 @@ const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 
 const OFFERED: &str = "sonnet=low+high,haiku";
 
-fn host() -> App<MockRuntime> {
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier =
-		format!("com.kiroshi.companion-effort-{}", std::process::id());
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.invoke_handler(invoke_handler())
-		.build(context)
-		.expect("app builds");
+fn host() -> AppOfItsOwn {
+	let app = an_app_of_its_own(
+		"companion-effort",
+		mock_builder().manage(AgentState::default()).invoke_handler(invoke_handler()),
+	);
 	app.manage(db::bootstrap(app.handle()));
 	app
 }
@@ -131,10 +130,6 @@ fn the_agent_file_carries_only_an_effort_the_catalogue_offers_for_the_model() {
 	);
 
 	tauri::async_runtime::block_on(terminate_session(app.state::<AgentState>().inner()));
-	let data = app.path().app_data_dir().expect("data dir");
-	drop(window);
-	drop(app);
 	std::env::remove_var("FAKE_AGENT_MODELS");
 	std::env::remove_var(SIDECAR_OVERRIDE_ENV);
-	std::fs::remove_dir_all(data).expect("cleanup");
 }

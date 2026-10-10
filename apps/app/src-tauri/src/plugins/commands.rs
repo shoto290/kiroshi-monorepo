@@ -348,36 +348,25 @@ mod tests {
 	use crate::db::repositories::conversations::BotIdentity;
 	use crate::db::DatabaseError;
 	use crate::environment::contract::EnvScope;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::{App, Manager};
 
-	fn a_bare_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.plugin-commands-{name}-{}", std::process::id());
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	fn a_bare_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("plugin-commands-{name}"), mock_builder());
 		app
 	}
 
-	fn a_host(name: &str) -> App<MockRuntime> {
+	fn a_host(name: &str) -> AppOfItsOwn {
 		let app = a_bare_host(name);
 		app.manage(db::bootstrap(app.handle()));
 		app
 	}
 
-	fn a_host_without_a_database(name: &str) -> App<MockRuntime> {
+	fn a_host_without_a_database(name: &str) -> AppOfItsOwn {
 		let app = a_bare_host(name);
 		app.manage::<db::DatabaseState>(Err(DatabaseError::AppDataDir));
 		app
-	}
-
-	fn forget_host(app: &App<MockRuntime>) {
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(dir);
-		}
 	}
 
 	fn database(app: &App<MockRuntime>) -> &db::Database {
@@ -479,8 +468,6 @@ mod tests {
 		let app = a_host("bot-empty");
 
 		reads_empty(&app, bot("b-absent")).await;
-
-		forget_host(&app);
 	}
 
 	#[tokio::test]
@@ -488,8 +475,6 @@ mod tests {
 		let app = a_host_without_a_database("space-empty");
 
 		reads_empty(&app, space("s-absent")).await;
-
-		forget_host(&app);
 	}
 
 	#[tokio::test]
@@ -497,8 +482,6 @@ mod tests {
 		let app = a_host_without_a_database("user-empty");
 
 		reads_empty(&app, PluginScope::User).await;
-
-		forget_host(&app);
 	}
 
 	#[tokio::test]
@@ -508,8 +491,6 @@ mod tests {
 
 		forgets_the_clock_of(&app, bot(&bot_id), EnvOwner::Bot { id: bot_id.clone(), space_id })
 			.await;
-
-		forget_host(&app);
 	}
 
 	#[tokio::test]
@@ -518,8 +499,6 @@ mod tests {
 		a_space_laid_down(&app, "s1");
 
 		forgets_the_clock_of(&app, space("s1"), EnvOwner::Space { id: "s1".to_owned() }).await;
-
-		forget_host(&app);
 	}
 
 	#[tokio::test]
@@ -528,8 +507,6 @@ mod tests {
 		the_person_laid_down(&app);
 
 		forgets_the_clock_of(&app, PluginScope::User, EnvOwner::User).await;
-
-		forget_host(&app);
 	}
 
 	#[tokio::test]
@@ -551,7 +528,6 @@ mod tests {
 		assert!(matches!(refused, Err(TranscriptStoreError::UnwritableBundle { .. })));
 		let held = environment::store::values(&root, &server).expect("the store reads");
 		assert_eq!(held.get("REGION").map(String::as_str), Some("eu"));
-		forget_host(&app);
 	}
 
 	#[tokio::test]
@@ -574,7 +550,6 @@ mod tests {
 
 		assert!(matches!(refused, Err(TranscriptStoreError::UnwritableBundle { .. })));
 		assert_eq!(fs::read_to_string(path.join(".mcp.json")).expect("the file reads"), held);
-		forget_host(&app);
 	}
 
 	#[tokio::test]
@@ -608,7 +583,6 @@ mod tests {
 				detail: "the person's own plugin has not been laid down yet".to_owned()
 			})
 		);
-		forget_host(&app);
 	}
 
 	#[tokio::test]
@@ -629,7 +603,6 @@ mod tests {
 			matches!(refused, Err(TranscriptStoreError::Unavailable { .. })),
 			"got {refused:?}"
 		);
-		forget_host(&app);
 	}
 
 	#[tokio::test]
@@ -657,6 +630,5 @@ mod tests {
 			Err(TranscriptStoreError::SystemSkill { id: "remembering".to_owned() })
 		);
 		assert_eq!(fs::read_to_string(marked.join("SKILL.md")).expect("the skill reads"), held);
-		forget_host(&app);
 	}
 }

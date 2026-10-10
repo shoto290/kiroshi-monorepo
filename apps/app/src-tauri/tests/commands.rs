@@ -1,4 +1,6 @@
 
+mod common;
+
 use std::sync::{Arc, Mutex};
 
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
@@ -10,14 +12,21 @@ use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::db::connection::{open, FILE_NAME};
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::db::migrations;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
 use tauri::{Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
-fn app() -> tauri::App<MockRuntime> {
-	build(mock_context(noop_assets()))
+fn app() -> AppOfItsOwn {
+	an_app_of_its_own(
+		"commands",
+		mock_builder()
+			.manage(AgentState::default())
+			.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
+			.invoke_handler(invoke_handler()),
+	)
 }
 
 fn a_scope() -> Value {
@@ -31,15 +40,6 @@ fn a_scope() -> Value {
 
 fn a_scope_value() -> RuntimeScope {
 	serde_json::from_value(a_scope()).expect("the scope parses")
-}
-
-fn build(context: tauri::Context<MockRuntime>) -> tauri::App<MockRuntime> {
-	mock_builder()
-		.manage(AgentState::default())
-		.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
-		.invoke_handler(invoke_handler())
-		.build(context)
-		.expect("app builds")
 }
 
 fn call(window: &WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result<Value, Value> {
@@ -62,8 +62,9 @@ fn call(window: &WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result<V
 #[test]
 fn commands_are_registered_and_report_typed_errors_without_a_session() {
 	let app = app();
-	let window =
-		WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window builds");
+	let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
+		.build()
+		.expect("window builds");
 
 	assert_eq!(
 		call(&window, "agent_cancel_turn", json!({ "scope": a_scope() })),
@@ -86,8 +87,9 @@ fn commands_are_registered_and_report_typed_errors_without_a_session() {
 #[test]
 fn a_command_reaching_a_host_that_runs_nothing_says_so_whatever_run_it_names() {
 	let app = app();
-	let window =
-		WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window builds");
+	let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
+		.build()
+		.expect("window builds");
 	let another = json!({
 		"conversationId": "c2",
 		"botId": "other",
@@ -105,8 +107,9 @@ fn a_command_reaching_a_host_that_runs_nothing_says_so_whatever_run_it_names() {
 #[test]
 fn shutdown_announces_the_connection_state_on_the_single_event_channel() {
 	let app = app();
-	let window =
-		WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window builds");
+	let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
+		.build()
+		.expect("window builds");
 
 	let seen: Arc<Mutex<Vec<ScopedEvent>>> = Arc::new(Mutex::new(Vec::new()));
 	let sink = seen.clone();
@@ -167,11 +170,9 @@ fn shutting_down_a_session_never_queues_behind_the_quit() {
 
 #[test]
 fn bootstrapping_leaves_a_migrated_file_in_the_app_data_directory() {
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier = "com.kiroshi.db-test".into();
-	let app = build(context);
+	let app = app();
 
-	let database = db::bootstrap(app.handle()).expect("the database opens");
+	let _database = db::bootstrap(app.handle()).expect("the database opens");
 
 	let dir = app.path().app_data_dir().expect("data dir");
 	let file = dir.join(FILE_NAME);
@@ -182,8 +183,4 @@ fn bootstrapping_leaves_a_migrated_file_in_the_app_data_directory() {
 		migrations::latest_version(),
 		"the file was left short of the schema this build expects"
 	);
-
-	drop(reopened);
-	drop(database);
-	std::fs::remove_dir_all(&dir).expect("cleanup");
 }

@@ -191,8 +191,9 @@ mod tests {
 
 	use super::*;
 	use crate::db::repositories::conversations::BotIdentity;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
-	use tauri::{App, Manager};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
+	use tauri::test::mock_builder;
+	use tauri::Manager;
 
 	fn a_root(name: &str) -> PathBuf {
 		let root = std::env::temp_dir().join(format!("kiroshi-space-bundles-{name}"));
@@ -234,14 +235,8 @@ mod tests {
 			.id
 	}
 
-	fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.space-commands-{name}-{}", std::process::id()).into();
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("space-commands-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		app
 	}
@@ -260,8 +255,6 @@ mod tests {
 		assert!(matches!(failure, SpaceError::UnwritableBundle { .. }), "got {failure:?}");
 		let listed = space_list(app.state()).await.expect("the spaces read");
 		assert!(!listed.iter().any(|space| space.name == "Vocca"), "got {listed:?}");
-
-		let _ = fs::remove_dir_all(&data);
 	}
 
 	#[tokio::test]

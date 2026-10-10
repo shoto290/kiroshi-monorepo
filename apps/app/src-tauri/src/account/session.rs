@@ -209,10 +209,11 @@ mod tests {
 	use axum::routing::{get, post};
 	use axum::Router;
 	use serde_json::{json, Value};
-	use tauri::test::{mock_app, MockRuntime};
-	use tauri::{App, Listener};
+	use tauri::test::mock_builder;
+	use tauri::Listener;
 
 	use super::*;
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const BEARER: &str = "bearer-that-never-leaves";
 	const REVOKED: &str = "bearer-the-cloud-forgot";
@@ -303,7 +304,7 @@ mod tests {
 	}
 
 	struct Harness {
-		app: App<MockRuntime>,
+		app: AppOfItsOwn,
 		root: PathBuf,
 		heard: Arc<Mutex<Vec<String>>>,
 	}
@@ -323,7 +324,7 @@ mod tests {
 		}
 
 		fn holding(root: Result<PathBuf, EnvError>, api_url: &str) -> Self {
-			let app = mock_app();
+			let app = an_app_of_its_own("account-session", mock_builder());
 			app.manage(AccountSession::new(root.clone(), api_url));
 			let root = root.unwrap_or_default();
 			let heard = Arc::new(Mutex::new(Vec::new()));

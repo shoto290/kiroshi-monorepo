@@ -65,10 +65,11 @@ pub(crate) mod tests {
 
 	use serde::ser::Error;
 	use serde::Serializer;
-	use tauri::test::{mock_app, MockRuntime};
-	use tauri::{App, Listener};
+	use tauri::test::mock_builder;
+	use tauri::Listener;
 
 	use super::*;
+	use crate::test_app::an_app_of_its_own;
 
 	const FAN_OUT: &str = "src/events.rs";
 
@@ -134,7 +135,7 @@ pub(crate) mod tests {
 
 	#[test]
 	fn an_unserializable_payload_reaches_no_client_and_is_still_handed_to_the_window() {
-		let app: App<MockRuntime> = mock_app();
+		let app = an_app_of_its_own("events", mock_builder());
 		let mut heard = subscribed(app.handle());
 
 		assert!(emit(app.handle(), "user://first-run-done", Unserializable).is_err());
@@ -143,7 +144,7 @@ pub(crate) mod tests {
 
 	#[test]
 	fn without_a_client_the_window_still_hears() {
-		let app: App<MockRuntime> = mock_app();
+		let app = an_app_of_its_own("events", mock_builder());
 		let (told, hearing) = std::sync::mpsc::channel();
 		app.listen_any("user://first-run-done", move |event| {
 			told.send(event.payload().to_owned()).expect("the test listens");

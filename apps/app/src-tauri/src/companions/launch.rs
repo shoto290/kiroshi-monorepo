@@ -64,13 +64,14 @@ pub(crate) fn announce<R: Runtime, T: Serialize + Clone + Debug>(
 
 #[cfg(test)]
 mod tests {
-	use tauri::test::{mock_app, MockRuntime};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::App;
 
 	use super::*;
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
-	fn a_host() -> App<MockRuntime> {
-		let app = mock_app();
+	fn a_host() -> AppOfItsOwn {
+		let app = an_app_of_its_own("companion-launch", mock_builder());
 		app.manage(LaunchOutcomeState::default());
 		app
 	}

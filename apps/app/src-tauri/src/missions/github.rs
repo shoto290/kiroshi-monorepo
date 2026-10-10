@@ -562,8 +562,8 @@ mod tests {
 	use axum::Router;
 	use reqwest::header::AUTHORIZATION;
 	use serde_json::Value;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
-	use tauri::{App, Listener as _};
+	use tauri::test::mock_builder;
+	use tauri::Listener as _;
 	use tokio::sync::Mutex;
 
 	use super::super::commands::CHANGED_EVENT;
@@ -573,6 +573,7 @@ mod tests {
 	use super::*;
 	use crate::db::connection::temp_dir;
 	use crate::db::{open, Database};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const NOON: i64 = 1_800_000_000_000;
 
@@ -873,8 +874,8 @@ mod tests {
 		(held.state, held.closed_at.is_some())
 	}
 
-	fn a_host() -> App<MockRuntime> {
-		mock_builder().build(mock_context(noop_assets())).expect("the app builds")
+	fn a_host() -> AppOfItsOwn {
+		an_app_of_its_own("mission-github", mock_builder())
 	}
 
 	async fn announced_by(

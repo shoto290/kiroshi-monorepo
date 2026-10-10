@@ -476,7 +476,7 @@ mod tests {
 	use std::time::Duration;
 
 	use serde_json::json;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::{App, Listener as _, Manager as _};
 
 	use super::*;
@@ -484,6 +484,7 @@ mod tests {
 	use crate::bundles;
 	use crate::conversations::contract::{COMPANION_ARRIVED_EVENT, COMPANION_SPOKE_EVENT};
 	use crate::db::repositories::conversations::DEFAULT_BOT_MODEL;
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const A_SPACE: &str = "
 		INSERT INTO bots (id, name, model, created_at) VALUES ('b1', 'Shoto', 'sonnet', 1);
@@ -543,14 +544,8 @@ mod tests {
 
 	type Standing = (Vec<(String, String, String, i64, Option<i64>)>, i64);
 
-	async fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.companion-host-{name}-{}", std::process::id()).into();
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	async fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("companion-host-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		let system = bundles::system::path(app.handle()).expect("the system bundle is named");
 		bundles::system::write(&system).expect("the system bundle lands");
@@ -562,12 +557,6 @@ mod tests {
 		app
 	}
 
-	fn cleaned(app: &App<MockRuntime>) {
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
-	}
-
 	fn serving(app: &App<MockRuntime>, conversation_id: &str) -> CompanionHost<MockRuntime> {
 		CompanionHost::new(
 			app.handle().clone(),
@@ -577,7 +566,7 @@ mod tests {
 		)
 	}
 
-	async fn a_room(name: &str) -> App<MockRuntime> {
+	async fn a_room(name: &str) -> AppOfItsOwn {
 		let app = a_host(name).await;
 		planted(&app, A_ROOM).await;
 		app
@@ -765,8 +754,6 @@ mod tests {
 			answered,
 			serde_json::to_value(conversation_suggested_bots()).expect("the list serialises")
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -788,8 +775,6 @@ mod tests {
 			.and_then(|root| bundles::generated(&root, id))
 			.expect("the bundle is written");
 		assert_eq!(bundled.output_style, bundles::DEFAULT_OUTPUT_STYLE);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -803,8 +788,6 @@ mod tests {
 		let id = created["id"].as_str().expect("the companion is named");
 		assert!(roster_of(&app, "shared").await.contains(&id.to_owned()), "missing from its space");
 		assert!(!roster_of(&app, "personal").await.contains(&id.to_owned()), "leaked elsewhere");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -816,8 +799,6 @@ mod tests {
 
 		assert_eq!(refused["kind"], json!("namelessCompanion"));
 		assert_eq!(worn(&app).await.len(), 1);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -829,8 +810,6 @@ mod tests {
 		assert_eq!(refused["kind"], json!("conversationWithoutSpace"));
 		assert_eq!(refused["conversationId"], json!("nowhere"));
 		assert_eq!(worn(&app).await.len(), 1);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -846,8 +825,6 @@ mod tests {
 			"got {refused}"
 		);
 		assert_eq!(worn(&app).await.len(), 1);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -858,8 +835,6 @@ mod tests {
 		let created = serving(&app, "c1").answer(a_create(json!({}))).await.expect("it is created");
 
 		assert_eq!(announced(&arriving)["id"], created["id"]);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -872,8 +847,6 @@ mod tests {
 
 		assert!(is_first_run_done(&app).await);
 		assert_eq!(announced(&arriving), Value::Null);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -886,8 +859,6 @@ mod tests {
 
 		assert_eq!(again, Value::Null);
 		assert!(is_first_run_done(&app).await);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -908,8 +879,6 @@ mod tests {
 		assert_eq!(arrival["conversationId"], json!("room"));
 		assert_eq!(arrival["invitedByBotId"], json!("b1"));
 		assert_eq!(standing(&app).await.1, 1);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -922,8 +891,6 @@ mod tests {
 			.expect("it is invited");
 
 		assert_eq!(ada, json!({ "id": "b2", "name": "Ada", "alreadySeated": false }));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -937,8 +904,6 @@ mod tests {
 
 		assert_eq!(role_of(&app, "unled", "b2").await, "lead");
 		assert_eq!(role_of(&app, "unled", "b1").await, "assistant");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -958,8 +923,6 @@ mod tests {
 		assert_eq!(lead, json!({ "id": "b1", "name": "Shoto", "alreadySeated": true }));
 		assert_eq!(mate, json!({ "id": "b2", "name": "Ada", "alreadySeated": true }));
 		assert_eq!(standing(&app).await, before);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -969,8 +932,6 @@ mod tests {
 		let refused = refused_and_untouched(&app, "room", json!({ "companion": "   " })).await;
 
 		assert_eq!(refused, json!({ "kind": "emptyCompanionField" }));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -985,8 +946,6 @@ mod tests {
 			serde_json::from_value(refused["ids"].clone()).expect("the ids are listed");
 		ids.sort();
 		assert_eq!(ids, vec!["b3".to_owned(), "b4".to_owned()]);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -999,8 +958,6 @@ mod tests {
 
 			assert_eq!(refused, json!({ "kind": "unknownCompanion", "companion": companion }));
 		}
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1017,8 +974,6 @@ mod tests {
 				"conversationKind": "main"
 			})
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1031,8 +986,6 @@ mod tests {
 			refused,
 			json!({ "kind": "conversationWithoutSpace", "conversationId": "drifting" })
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1051,8 +1004,6 @@ mod tests {
 			refused["detail"].as_str().is_some_and(|detail| detail.contains("conversationId")),
 			"got {refused}"
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1106,8 +1057,6 @@ mod tests {
 		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "announced twice");
 		assert_eq!(written(&app).await, (before.0 + 1, before.1, before.2));
 		assert_eq!(standing(&app).await.1, 0);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1128,8 +1077,6 @@ mod tests {
 			roles_in(&app, id).await,
 			vec![("b1".to_owned(), "lead".to_owned()), ("b2".to_owned(), "assistant".to_owned())]
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1144,8 +1091,6 @@ mod tests {
 		assert_eq!(opened["companions"], json!([{ "id": "b1", "name": "Shoto" }]));
 		let id = opened["conversationId"].as_str().expect("the room is named");
 		assert_eq!(roles_in(&app, id).await, vec![("b1".to_owned(), "lead".to_owned())]);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1166,8 +1111,6 @@ mod tests {
 			open_refused(&app, "c1", json!({ "title": "Trip", "with": ["rex"], "message": "Hi" }))
 				.await;
 		assert_eq!(refused["kind"], json!("ambiguousCompanion"));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1181,8 +1124,6 @@ mod tests {
 
 		assert_eq!(title, json!({ "kind": "emptyTitleField" }));
 		assert_eq!(message, json!({ "kind": "emptyMessageField" }));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1197,8 +1138,6 @@ mod tests {
 			refused,
 			json!({ "kind": "conversationWithoutSpace", "conversationId": "nowhere" })
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1217,8 +1156,6 @@ mod tests {
 			refused["detail"].as_str().is_some_and(|detail| detail.contains("spaceId")),
 			"got {refused}"
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1240,8 +1177,6 @@ mod tests {
 		assert_eq!(invited, json!({ "id": "b5", "name": "Kai", "alreadySeated": false }));
 		assert_eq!(role_of(&app, "studio", "b5").await, "assistant");
 		assert_eq!(outsider, json!({ "kind": "unknownCompanion", "companion": "Ada" }));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1270,8 +1205,6 @@ mod tests {
 		assert_eq!(left, json!({ "kind": "callerNotSeated", "conversationId": "unled" }));
 		assert_eq!(never, json!({ "kind": "callerNotSeated", "conversationId": "studio" }));
 		assert_eq!(standing(&app).await, before);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1292,8 +1225,6 @@ mod tests {
 		);
 		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "announced twice");
 		assert_eq!((written(&app).await, standing(&app).await), before);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1308,8 +1239,6 @@ mod tests {
 
 		assert_eq!(said, json!({ "conversationId": "room", "title": "Plans" }));
 		assert_eq!(announced(&arriving)["conversationId"], json!("room"));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1325,8 +1254,6 @@ mod tests {
 		.await;
 
 		assert_eq!(refused, json!({ "kind": "callerNotSeated", "conversationId": "unled" }));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1343,8 +1270,6 @@ mod tests {
 			say_refused(&app, &stranger, json!({ "conversation": "unled", "message": "Hi" })).await;
 
 		assert_eq!(refused, json!({ "kind": "callerNotSeated", "conversationId": "unled" }));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1369,8 +1294,6 @@ mod tests {
 				})
 			);
 		}
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1388,8 +1311,6 @@ mod tests {
 			refused,
 			json!({ "kind": "conversationWithoutSpace", "conversationId": "ghost" })
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1404,8 +1325,6 @@ mod tests {
 		.await;
 
 		assert_eq!(refused, json!({ "kind": "emptyMessageField" }));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1424,8 +1343,6 @@ mod tests {
 			refused["detail"].as_str().is_some_and(|detail| detail.contains("conversationId")),
 			"got {refused}"
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1444,8 +1361,6 @@ mod tests {
 				"conversationKind": "main"
 			})
 		);
-
-		cleaned(&app);
 	}
 
 	fn an_attach(payload: Value) -> Value {
@@ -1513,8 +1428,6 @@ mod tests {
 		assert_eq!(held.len(), 1);
 		assert_eq!(held[0].path, stored[0]);
 		assert_eq!(held[0].caption.as_deref(), Some("The chart"));
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1550,8 +1463,6 @@ mod tests {
 		assert!(lines[1].ends_with(", 1 file:"), "{text}");
 		assert_eq!(lines[2], format!("1/1 {path}"));
 		assert!(host.attachments.take().is_empty(), "a room post was held for this turn");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1576,8 +1487,6 @@ mod tests {
 			assert_eq!(refused["kind"], json!("unreadableFile"));
 			assert_eq!(refused["path"], json!(path));
 		}
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1600,8 +1509,6 @@ mod tests {
 				}
 			})
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1635,8 +1542,6 @@ mod tests {
 		assert_eq!(overflowing["refusal"]["bytes"], json!(36 * 1024 * 1024));
 		assert_eq!(overflowing["refusal"]["limit"], json!(30 * 1024 * 1024));
 		assert_eq!(fresh.attachments.take().len(), 3);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1661,7 +1566,5 @@ mod tests {
 
 		assert_eq!(unseated["kind"], json!("callerNotSeated"));
 		assert_eq!(seatless["kind"], json!("conversationWithoutSeats"));
-
-		cleaned(&app);
 	}
 }

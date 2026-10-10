@@ -1,7 +1,10 @@
 
+mod common;
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::commands::EVENT_CHANNEL;
 use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TransportError};
@@ -9,13 +12,12 @@ use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 const SCENARIO_ENV: &str = "FAKE_AGENT_SCENARIO_FILE";
-const IDENTIFIER: &str = "com.kiroshi.bounded-rotation";
 const DEADLINE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(25);
 
@@ -27,26 +29,20 @@ const PROMPT: &str = "p1";
 const PROMPT_TEXT: &str = "so where does that leave the roof?";
 
 struct Harness {
-	app: App<MockRuntime>,
+	_app: AppOfItsOwn,
 	window: WebviewWindow<MockRuntime>,
 	log: Arc<Mutex<Vec<ScopedEvent>>>,
 }
 
 fn launch() -> Harness {
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier = IDENTIFIER.into();
-
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.invoke_handler(invoke_handler())
-		.build(context)
-		.expect("app builds");
-	if let Ok(dir) = app.path().app_data_dir() {
-		let _ = std::fs::remove_dir_all(&dir);
-	}
+	let app = an_app_of_its_own(
+		"bounded-rotation",
+		mock_builder().manage(AgentState::default()).invoke_handler(invoke_handler()),
+	);
 	app.manage(db::bootstrap(app.handle()));
-	let window =
-		WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window builds");
+	let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
+		.build()
+		.expect("window builds");
 
 	let log: Arc<Mutex<Vec<ScopedEvent>>> = Arc::new(Mutex::new(Vec::new()));
 	let sink = log.clone();
@@ -56,7 +52,7 @@ fn launch() -> Harness {
 		}
 	});
 
-	Harness { app, window, log }
+	Harness { _app: app, window, log }
 }
 
 impl Harness {
@@ -252,7 +248,6 @@ fn a_refused_provider_session_is_rotated_and_the_same_chat_carries_on() {
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
 
 	let harness = launch();
-	let data_dir = harness.app.path().app_data_dir().expect("data dir");
 	let conversation = a_chat_with_a_history(&harness);
 	let before = harness.page(&conversation);
 	assert_eq!(before.len(), SPOKEN, "the history was not written as it was told");
@@ -379,5 +374,4 @@ fn a_refused_provider_session_is_rotated_and_the_same_chat_carries_on() {
 	assert_eq!(after[SPOKEN]["content"], json!(PROMPT_TEXT));
 
 	assert_eq!(harness.call("agent_shutdown", json!({ "scope": live })), Ok(Value::Null));
-	std::fs::remove_dir_all(&data_dir).expect("cleanup");
 }

@@ -461,7 +461,8 @@ mod tests {
 	use super::*;
 	use crate::agent::protocol::{OauthFailure, OauthFailureKind};
 	use crate::mcp_oauth::status::ApplicationStatus;
-	use tauri::test::{mock_builder, mock_context, noop_assets};
+	use crate::test_app::an_app_of_its_own;
+	use tauri::test::mock_builder;
 
 	fn a_server(name: &str) -> EnvScope {
 		EnvScope::Server {
@@ -472,12 +473,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn the_applications_of_the_user_are_the_servers_the_user_plugin_declares() {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.mcp-oauth-user-applications-{}", std::process::id()).into();
-		let app = mock_builder().build(context).expect("the app builds");
-		let data = app.path().app_data_dir().expect("the data dir is named");
-		let _ = std::fs::remove_dir_all(&data);
+		let app = an_app_of_its_own("mcp-oauth-user-applications", mock_builder());
 		app.manage(McpOauthState::default());
 		app.manage(ApplicationReports::default());
 		app.manage(AuthorizationAnswers::default());
@@ -516,18 +512,12 @@ mod tests {
 				.map(String::as_str),
 			Some("held-access")
 		);
-		let _ = std::fs::remove_dir_all(&data);
 	}
 
 	#[tokio::test]
 	async fn a_connect_to_a_server_kiroshi_does_not_authorize_is_refused_naming_why_and_opens_no_flow(
 	) {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.mcp-oauth-withheld-{}", std::process::id());
-		let app = mock_builder().build(context).expect("the app builds");
-		let data = app.path().app_data_dir().expect("the data dir is named");
-		let _ = std::fs::remove_dir_all(&data);
+		let app = an_app_of_its_own("mcp-oauth-withheld", mock_builder());
 		app.manage(McpOauthState::default());
 		app.manage(ApplicationReports::default());
 		let path = bundles::user::path(app.handle()).expect("the plugin has a home");
@@ -584,7 +574,6 @@ mod tests {
 				"detail": "it is served on a loopback address"
 			})
 		);
-		let _ = std::fs::remove_dir_all(&data);
 	}
 
 	#[test]
@@ -776,7 +765,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn a_settled_disconnect_forgets_every_standing_of_that_server() {
-		let app = tauri::test::mock_app();
+		let app = an_app_of_its_own("mcp-oauth-disconnect", mock_builder());
 		app.manage(McpOauthState::default());
 		app.manage(ApplicationReports::default());
 		let reports = app.state::<ApplicationReports>();

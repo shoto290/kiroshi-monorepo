@@ -1,7 +1,10 @@
 
+mod common;
+
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::commands::{terminate_session, EVENT_CHANNEL};
 use kiroshi_app::agent::contract::{
@@ -13,18 +16,17 @@ use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::db::repositories::messages::{MessagePageQuery, MessageState, StoredMessage};
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 const SCENARIO_ENV: &str = "FAKE_AGENT_SCENARIO_FILE";
-const IDENTIFIER: &str = "com.kiroshi.e2e";
 const DEADLINE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(25);
 
 struct Harness {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	window: WebviewWindow<MockRuntime>,
 	log: Arc<Mutex<Vec<ScopedEvent>>>,
 	run: Mutex<RuntimeScope>,
@@ -62,17 +64,16 @@ fn serial() -> MutexGuard<'static, ()> {
 }
 
 fn launch() -> Harness {
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier = IDENTIFIER.into();
-
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
-		.invoke_handler(invoke_handler())
-		.build(context)
-		.expect("app builds");
-	let window =
-		WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window builds");
+	let app = an_app_of_its_own(
+		"e2e",
+		mock_builder()
+			.manage(AgentState::default())
+			.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
+			.invoke_handler(invoke_handler()),
+	);
+	let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
+		.build()
+		.expect("window builds");
 
 	let log: Arc<Mutex<Vec<ScopedEvent>>> = Arc::new(Mutex::new(Vec::new()));
 	let sink = log.clone();
@@ -263,8 +264,6 @@ fn a_session_streams_survives_a_relaunch_and_leaves_no_orphan() {
 	scenario("normal");
 
 	let first = launch();
-	let data_dir = first.app.path().app_data_dir().expect("data dir");
-	let _ = std::fs::remove_dir_all(&data_dir);
 
 	let report: CheckReport = serde_json::from_value(
 		first.call("agent_check", json!({ "scope": Value::Null })).expect("check reports"),
@@ -343,7 +342,6 @@ fn a_session_streams_survives_a_relaunch_and_leaves_no_orphan() {
 	);
 
 	assert_eq!(second.call("agent_shutdown", json!({ "scope": second.scope() })), Ok(Value::Null));
-	let _ = std::fs::remove_dir_all(&data_dir);
 }
 
 const BOT: &str = "default";
@@ -351,30 +349,25 @@ const PROMPT: &str = "hello";
 const STREAMED: &str = "echo :: hello";
 
 struct Stored {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	window: WebviewWindow<MockRuntime>,
 	conversation_id: String,
-	data_dir: std::path::PathBuf,
 }
 
 fn launch_stored(name: &str, played: &str) -> Stored {
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
 	scenario(played);
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier = format!("com.kiroshi.e2e-{name}-{}", std::process::id());
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.invoke_handler(invoke_handler())
-		.build(context)
-		.expect("app builds");
-	let data_dir = app.path().app_data_dir().expect("data dir");
-	let _ = std::fs::remove_dir_all(&data_dir);
+	let app = an_app_of_its_own(
+		&format!("e2e-{name}"),
+		mock_builder().manage(AgentState::default()).invoke_handler(invoke_handler()),
+	);
 	app.manage(db::bootstrap(app.handle()));
-	let window =
-		WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window builds");
+	let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
+		.build()
+		.expect("window builds");
 	let chat = invoke(&window, "conversation_main_chat", json!({ "botId": BOT })).expect("the chat");
 	let conversation_id = chat["id"].as_str().expect("the chat holds an id").to_owned();
-	Stored { app, window, conversation_id, data_dir }
+	Stored { app, window, conversation_id }
 }
 
 impl Stored {
@@ -487,7 +480,6 @@ impl Stored {
 
 	fn close(self) {
 		tauri::async_runtime::block_on(terminate_session(&self.app.state::<AgentState>()));
-		let _ = std::fs::remove_dir_all(&self.data_dir);
 	}
 }
 

@@ -344,7 +344,7 @@ mod tests {
 	use std::sync::mpsc;
 	use std::time::Duration;
 
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::App;
 	use tokio::io::{AsyncReadExt, AsyncWriteExt};
 	use tokio::net::TcpStream;
@@ -358,6 +358,7 @@ mod tests {
 	use super::*;
 	use crate::bundles;
 	use crate::db::repositories::routines::MAX_RUNS_PER_PAGE;
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const NOON: i64 = 1_800_000_000_000;
 
@@ -399,12 +400,8 @@ mod tests {
 
 	const A_SECOND_KEY: &str = "the-second-webhook-key";
 
-	async fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.routine-webhook-{name}-{}", std::process::id()).into();
-		let app = mock_builder().build(context).expect("the app builds");
-		cleaned(&app);
+	async fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("routine-webhook-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		let system = bundles::system::path(app.handle()).expect("the system bundle is named");
 		bundles::system::write(&system).expect("the system bundle lands");
@@ -433,12 +430,6 @@ mod tests {
 			trigger_config: json!({ "expression": "0 * * * *" }),
 		};
 		database.routines().create(draft, key.to_owned(), 1).await.expect("the routine is stored");
-	}
-
-	fn cleaned(app: &App<MockRuntime>) {
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
 	}
 
 	async fn counted(database: &db::Database, statement: &'static str) -> i64 {
@@ -701,7 +692,6 @@ mod tests {
 		assert_eq!(after_bound, ["left-behind", "token"]);
 		assert_eq!(fs::read_to_string(host.join("token")).expect("the token"), "a-held-token");
 		assert_eq!(host_files_of(&host), ["left-behind", "token"]);
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -717,7 +707,6 @@ mod tests {
 
 		assert!(host.join("web-link.txt").is_dir());
 		assert_eq!(answer, (REFUSED.0.as_u16(), REFUSED.1.to_owned()));
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -741,7 +730,6 @@ mod tests {
 		assert_eq!(counted(database, "SELECT count(*) FROM routine_runs").await, 1);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -761,7 +749,6 @@ mod tests {
 		no_row_was_written(&app).await;
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -776,7 +763,6 @@ mod tests {
 		no_row_was_written(&app).await;
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -796,7 +782,6 @@ mod tests {
 		no_row_was_written(&app).await;
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -814,7 +799,6 @@ mod tests {
 		}
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -834,7 +818,6 @@ mod tests {
 		no_row_was_written(&app).await;
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -869,7 +852,6 @@ mod tests {
 		assert_eq!(runs_of(&app).await, carried_runs + 1);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -894,7 +876,6 @@ mod tests {
 		assert_eq!(skipped_rows(&app, A_KEY, SkipReason::HourlyCap).await, 1);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -914,7 +895,6 @@ mod tests {
 		assert_eq!(skipped_rows(&app, A_KEY, SkipReason::HourlyCap).await, 2);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -935,7 +915,6 @@ mod tests {
 		assert_eq!(skipped_rows(&app, A_SECOND_KEY, SkipReason::HourlyCap).await, 1);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -953,7 +932,6 @@ mod tests {
 		assert_eq!(skipped_rows(&app, A_KEY, SkipReason::LeaseHeld).await, 1);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -979,7 +957,6 @@ mod tests {
 		assert_eq!(skipped_rows(&app, A_KEY, SkipReason::LeaseHeld).await, 1);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1001,7 +978,6 @@ mod tests {
 		assert_eq!(runs_of(&app).await, 3);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1021,7 +997,6 @@ mod tests {
 		no_row_was_written(&app).await;
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1050,7 +1025,6 @@ mod tests {
 		assert_eq!(runs_of(&app).await, 3);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1068,7 +1042,6 @@ mod tests {
 		assert_ne!(generated, "delivery-1");
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1094,7 +1067,6 @@ mod tests {
 		assert_eq!(runs_of(&app).await, 1);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1109,7 +1081,6 @@ mod tests {
 		no_row_was_written(&app).await;
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1127,8 +1098,6 @@ mod tests {
 			tokio::time::sleep(Duration::from_millis(20)).await;
 		}
 		assert!(refusals < 100, "the listener outlived the signal that stops it");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]

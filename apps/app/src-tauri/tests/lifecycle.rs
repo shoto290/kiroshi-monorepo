@@ -1,8 +1,11 @@
 #![cfg(unix)]
 
+mod common;
+
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::commands::{
 	agent_shutdown, agent_start_or_resume_session, agent_submit_prompt, shutdown_session,
@@ -13,7 +16,7 @@ use kiroshi_app::agent::sidecar::live_groups;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+use tauri::test::{mock_builder, MockRuntime};
 use tauri::{App, Manager};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
@@ -27,13 +30,14 @@ fn serial() -> std::sync::MutexGuard<'static, ()> {
 	SERIAL.lock().unwrap_or_else(|error| error.into_inner())
 }
 
-fn app() -> App<MockRuntime> {
-	mock_builder()
-		.manage(AgentState::default())
-		.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
-		.invoke_handler(invoke_handler())
-		.build(mock_context(noop_assets()))
-		.expect("app builds")
+fn app() -> AppOfItsOwn {
+	an_app_of_its_own(
+		"lifecycle",
+		mock_builder()
+			.manage(AgentState::default())
+			.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
+			.invoke_handler(invoke_handler()),
+	)
 }
 
 fn runtime() -> tokio::runtime::Runtime {

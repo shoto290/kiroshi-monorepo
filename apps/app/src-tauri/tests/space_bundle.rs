@@ -1,9 +1,11 @@
+mod common;
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::avatars::{self, Avatars};
 use kiroshi_app::bundles;
 use kiroshi_app::commands::invoke_handler;
@@ -12,37 +14,29 @@ use kiroshi_app::environment::contract::EnvOwner;
 use kiroshi_app::environment::store;
 use kiroshi_app::file_store::FileStore;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, Manager, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Manager, WebviewWindow, WebviewWindowBuilder};
 
 const ATTACHMENT: &[u8] = b"the bytes of a note that travels with its conversation";
 const SPACE_SECRET: (&str, &str) = ("SPACE_TOKEN", "space-value");
 const BOT_SECRET: (&str, &str) = ("BOT_TOKEN", "bot-value");
 
 struct Home {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	window: WebviewWindow<MockRuntime>,
 	dir: PathBuf,
 }
 
 impl Home {
 	fn new() -> Self {
-		static CLAIMED: AtomicUsize = AtomicUsize::new(0);
-		let identifier = format!(
-			"com.kiroshi.space-bundle-{}-{}",
-			std::process::id(),
-			CLAIMED.fetch_add(1, Ordering::Relaxed)
-		);
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier = identifier;
 		let app =
-			mock_builder().invoke_handler(invoke_handler()).build(context).expect("app builds");
+			an_app_of_its_own("space-bundle", mock_builder().invoke_handler(invoke_handler()));
 		let dir = app.path().app_data_dir().expect("data dir");
-		let _ = fs::remove_dir_all(&dir);
 		app.manage(db::bootstrap(app.handle()));
-		let window =
-			WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window");
+		let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
+			.build()
+			.expect("window");
 		Self { app, window, dir }
 	}
 
@@ -141,12 +135,6 @@ impl Home {
 			.find(|bot| bot["id"] == json!(bot_id))
 			.expect("the bot is listed")["avatarImagePath"]
 			.clone()
-	}
-}
-
-impl Drop for Home {
-	fn drop(&mut self) {
-		let _ = fs::remove_dir_all(&self.dir);
 	}
 }
 

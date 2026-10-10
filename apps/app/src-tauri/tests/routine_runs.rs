@@ -1,6 +1,9 @@
+mod common;
+
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::commands::{agent_live_sessions, terminate_session};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
@@ -17,7 +20,7 @@ use kiroshi_app::routines::runner::{RunTiming, Runner};
 use kiroshi_app::routines::schedule::{self, Occurrence};
 use serde_json::{json, Value};
 use tauri::async_runtime::block_on;
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+use tauri::test::{mock_builder, MockRuntime};
 use tauri::{App, Listener, Manager};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
@@ -30,7 +33,7 @@ const DEADLINE: Duration = Duration::from_secs(15);
 const POLL: Duration = Duration::from_millis(25);
 
 struct Host {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	conversation_id: String,
 	routine: Routine,
 	changed: Arc<Mutex<Vec<String>>>,
@@ -85,20 +88,18 @@ fn planted(app: &App<MockRuntime>, statements: &'static str) {
 	.expect("the fixture is planted");
 }
 
-fn booted(name: &str, played: &str) -> App<MockRuntime> {
+fn booted(name: &str, played: &str) -> AppOfItsOwn {
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
 	scenario(played);
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier =
-		format!("com.kiroshi.routine-runs-{name}-{}", std::process::id());
-	let app = mock_builder().manage(AgentState::default()).build(context).expect("app builds");
-	let data_dir = app.path().app_data_dir().expect("data dir");
-	let _ = std::fs::remove_dir_all(&data_dir);
+	let app = an_app_of_its_own(
+		&format!("routine-runs-{name}"),
+		mock_builder().manage(AgentState::default()),
+	);
 	app.manage(db::bootstrap(app.handle()));
 	app
 }
 
-fn hosting(app: App<MockRuntime>, name: &str, conversation_id: String) -> Host {
+fn hosting(app: AppOfItsOwn, name: &str, conversation_id: String) -> Host {
 	let changed: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
 	let heard = changed.clone();
 	app.listen(CHANGED_EVENT, move |event| {
@@ -254,9 +255,6 @@ impl Host {
 
 	fn quit(self) {
 		block_on(terminate_session(&self.app.state::<AgentState>()));
-		if let Ok(dir) = self.app.path().app_data_dir() {
-			let _ = std::fs::remove_dir_all(dir);
-		}
 	}
 }
 

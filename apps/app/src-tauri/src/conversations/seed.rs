@@ -202,7 +202,7 @@ mod tests {
 	use std::sync::mpsc::{channel, Receiver};
 
 	use serde::de::DeserializeOwned;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::{App, Listener, Manager};
 
 	use super::super::commands::list_bundles_at_launch;
@@ -212,20 +212,15 @@ mod tests {
 	};
 	use crate::companions::launch::LaunchOutcomeState;
 	use crate::db::repositories::conversations::{Bot as StoredBot, ConversationDraft};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
-	fn a_bare_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.conversation-seed-{name}-{}", std::process::id());
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	fn a_bare_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("conversation-seed-{name}"), mock_builder());
 		app.manage(LaunchOutcomeState::default());
 		app
 	}
 
-	fn a_host(name: &str) -> App<MockRuntime> {
+	fn a_host(name: &str) -> AppOfItsOwn {
 		let app = a_bare_host(name);
 		app.manage(db::bootstrap(app.handle()));
 		app

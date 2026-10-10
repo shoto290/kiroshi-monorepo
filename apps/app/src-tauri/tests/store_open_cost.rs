@@ -1,17 +1,19 @@
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+mod common;
+
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::db::repositories::messages::{MessagePageQuery, NewUserMessage};
 use rusqlite::{params, Connection};
 use serde_json::{json, Value};
 use tauri::ipc::{CallbackFn, InvokeResponseBody};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, AppHandle, Manager, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const CONVERSATIONS: usize = 40;
 const MESSAGES_PER_CONVERSATION: usize = 500;
@@ -37,45 +39,26 @@ const A_FIRST_PAGE: &str = "SELECT id, turn_id, author_bot_id, replied_to_messag
 	FROM messages WHERE conversation_id = ?1 AND seq < ?2 ORDER BY seq DESC LIMIT ?3";
 
 struct Home {
-	app: App<MockRuntime>,
-	dir: PathBuf,
+	app: AppOfItsOwn,
 }
 
 impl Home {
 	fn new() -> Self {
-		static CLAIMED: AtomicUsize = AtomicUsize::new(0);
-		let identifier = format!(
-			"com.kiroshi.store-open-cost-{}-{}",
-			std::process::id(),
-			CLAIMED.fetch_add(1, Ordering::Relaxed)
-		);
-		let app = host(&identifier);
-		let dir = app.path().app_data_dir().expect("data dir");
+		let app =
+			an_app_of_its_own("store-open-cost", mock_builder().invoke_handler(invoke_handler()));
 		app.manage(db::bootstrap(app.handle()));
-		Self { app, dir }
+		Self { app }
 	}
 
 	fn database(&self) -> &db::Database {
-		database_of(&self.app)
+		database_of(self.app.handle())
 	}
 
 	fn window(&self) -> WebviewWindow<MockRuntime> {
-		WebviewWindowBuilder::new(&self.app, "main", Default::default())
+		WebviewWindowBuilder::new(self.app.handle(), "main", Default::default())
 			.build()
 			.expect("window builds")
 	}
-}
-
-impl Drop for Home {
-	fn drop(&mut self) {
-		let _ = std::fs::remove_dir_all(&self.dir);
-	}
-}
-
-fn host(identifier: &str) -> App<MockRuntime> {
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier = identifier.into();
-	mock_builder().invoke_handler(invoke_handler()).build(context).expect("app builds")
 }
 
 fn database_of<M: Manager<MockRuntime>>(manager: &M) -> &db::Database {

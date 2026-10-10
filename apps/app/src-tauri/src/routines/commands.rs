@@ -266,11 +266,12 @@ mod tests {
 	use std::fs;
 
 	use serde_json::json;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
-	use tauri::{App, Manager as _};
+	use tauri::test::{mock_builder, MockRuntime};
+	use tauri::App;
 
 	use super::*;
 	use crate::routines::contract::{FilterMatchMode, RoutineDraft};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const A_PARTICIPANT: &str = "
 		INSERT INTO bots (id, name, model, created_at)
@@ -282,14 +283,8 @@ mod tests {
 			VALUES ('c1', 'b1', 'assistant', 1, 0);
 	";
 
-	async fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.routine-commands-{name}-{}", std::process::id()).into();
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	async fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("routine-commands-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		let system = bundles::system::path(app.handle()).expect("the system bundle is named");
 		bundles::system::write(&system).expect("the system bundle lands");
@@ -321,12 +316,6 @@ mod tests {
 		}
 	}
 
-	fn cleaned(app: &App<MockRuntime>) {
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
-	}
-
 	#[tokio::test]
 	async fn only_a_routine_the_local_route_fires_is_answered_the_url_it_is_called_on() {
 		let app = a_host("called-at").await;
@@ -353,8 +342,6 @@ mod tests {
 		assert!(answered.url.is_some_and(|url| url.starts_with("http://127.0.0.1:")));
 		assert_eq!(silent.url, None, "a scheduled routine is handed no address");
 		app.state::<webhook::Webhook>().stop();
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -372,8 +359,6 @@ mod tests {
 		assert!(!reason.is_empty(), "the reason is carried");
 		let stored = routine_list(app.state(), "c1".to_owned()).await.expect("the routines read");
 		assert!(stored.is_empty(), "got {stored:?}");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -407,8 +392,6 @@ mod tests {
 		let held = routine_list(app.state(), "c1".to_owned()).await.expect("the routines read");
 		assert_eq!(held.len(), 1, "got {held:?}");
 		assert_eq!(held[0].trigger_config, json!({ "expression": "0 * * * *" }));
-
-		cleaned(&app);
 	}
 
 	const A_SECOND_SPACE: &str = "
@@ -470,7 +453,5 @@ mod tests {
 			matches!(named_by_no_space, RoutineError::UnknownSource { ref id } if id == SHIFT_LOG),
 			"got {named_by_no_space:?}"
 		);
-
-		cleaned(&app);
 	}
 }

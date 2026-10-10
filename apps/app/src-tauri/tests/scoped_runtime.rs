@@ -1,7 +1,10 @@
 
+mod common;
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::commands::EVENT_CHANNEL;
 use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TurnOutcome};
@@ -9,9 +12,9 @@ use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, Listener, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Listener, WebviewWindow, WebviewWindowBuilder};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 const DEADLINE: Duration = Duration::from_secs(10);
@@ -35,18 +38,20 @@ fn a_run(epoch: i64) -> Value {
 struct Harness {
 	window: WebviewWindow<MockRuntime>,
 	log: Arc<Mutex<Vec<ScopedEvent>>>,
-	_app: App<MockRuntime>,
+	_app: AppOfItsOwn,
 }
 
 fn launch() -> Harness {
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
-		.invoke_handler(invoke_handler())
-		.build(mock_context(noop_assets()))
-		.expect("app builds");
-	let window =
-		WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window builds");
+	let app = an_app_of_its_own(
+		"scoped-runtime",
+		mock_builder()
+			.manage(AgentState::default())
+			.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
+			.invoke_handler(invoke_handler()),
+	);
+	let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
+		.build()
+		.expect("window builds");
 
 	let log: Arc<Mutex<Vec<ScopedEvent>>> = Arc::new(Mutex::new(Vec::new()));
 	let sink = log.clone();
