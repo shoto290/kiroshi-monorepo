@@ -581,7 +581,6 @@ const ThreadEmptyState = ({
 	return status ? (
 		<ChatEmptyState
 			blot={thread.bot.avatarBlot ?? undefined}
-			className="m-auto"
 			image={botImage}
 			name={thread.bot.name}
 			onOpenSettings={thread.onToggleSettings}

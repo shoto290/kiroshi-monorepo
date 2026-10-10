@@ -156,3 +156,50 @@ export const NotConnected = meta.story({
 		await expect(args.onSetup).not.toHaveBeenCalled()
 	},
 })
+
+const CENTRE_TOLERANCE = 1
+
+const gapsAround = (inner: Element, outer: Element) => {
+	const innerBox = inner.getBoundingClientRect()
+	const outerBox = outer.getBoundingClientRect()
+	return {
+		above: innerBox.top - outerBox.top,
+		below: outerBox.bottom - innerBox.bottom,
+		before: innerBox.left - outerBox.left,
+		after: outerBox.right - innerBox.right,
+	}
+}
+
+export const CentredInItsFrame = meta.story({
+	args: { status: "ready" },
+	parameters: {
+		layout: "fullscreen",
+		docs: {
+			description: {
+				story:
+					"Reach for this to check the placement the transcript gets for free: dropped into a flex region taller and wider than itself, with no class from its caller, the empty state sits in the middle on both axes. Check that the column does not hug the top or the start edge. `apps/app/src/components/thread-screen.tsx` mounts it with no class at all.",
+			},
+		},
+	},
+	decorators: [
+		(Story) => (
+			<div className="flex h-[32rem] w-full" data-testid="frame">
+				<Story />
+			</div>
+		),
+	],
+	play: async ({ canvas, canvasElement }) => {
+		const gaps = gapsAround(
+			canvasElement.querySelector('[data-slot="chat-empty-state"]') as Element,
+			canvas.getByTestId("frame"),
+		)
+
+		await expect(gaps.above).toBeGreaterThan(0)
+		await expect(Math.abs(gaps.above - gaps.below)).toBeLessThanOrEqual(
+			CENTRE_TOLERANCE,
+		)
+		await expect(Math.abs(gaps.before - gaps.after)).toBeLessThanOrEqual(
+			CENTRE_TOLERANCE,
+		)
+	},
+})

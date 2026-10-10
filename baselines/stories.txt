@@ -135,6 +135,7 @@ conversation-markdown-markdowntable--header-only
 conversation-markdown-markdowntable--wider-than-the-block
 conversation-markdown-markdowntaskcheckbox--default
 conversation-markdown-markdowntaskcheckbox--read-only
+conversation-message-chatemptystate--centred-in-its-frame
 conversation-message-chatemptystate--not-connected
 conversation-message-chatemptystate--unavailable
 conversation-message-chatemptystate--unnamed

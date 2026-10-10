@@ -18,6 +18,14 @@ const NAMED_KINDS = [
 
 const A_CAMEL_CASE_TOKEN = /[a-z][A-Z]/
 
+const AN_UNCONTRACTED_NEGATION = /\b(could|did|was|is) not\b/
+
+const CONTRACTED_SENTENCES = [
+	["binaryNotFound", "the agent binary wasn’t found"],
+	["spawnFailed", "the agent couldn’t be started"],
+	["startupTimeout", "the agent didn’t start in time"],
+]
+
 describe("the exit detail of a failure", () => {
 	it("shows the detail a failure carries", () => {
 		expect(
@@ -30,7 +38,15 @@ describe("the exit detail of a failure", () => {
 
 		expect(detail).not.toBe(kind)
 		expect(detail).not.toMatch(A_CAMEL_CASE_TOKEN)
+		expect(detail).not.toMatch(AN_UNCONTRACTED_NEGATION)
 	})
+
+	it.each(CONTRACTED_SENTENCES)(
+		"contracts the negation of %s",
+		(kind, sentence) => {
+			expect(exitDetailOf({ kind })).toBe(sentence)
+		},
+	)
 
 	it("says in words a kind it does not know", () => {
 		const detail = exitDetailOf({ kind: "staleRuntimeSession" })
@@ -46,6 +62,7 @@ describe("the exit detail of a failure", () => {
 
 	it("says in words a refusal that names nothing", () => {
 		expect(exitDetailOf(undefined)).not.toMatch(A_CAMEL_CASE_TOKEN)
+		expect(exitDetailOf(undefined)).not.toMatch(AN_UNCONTRACTED_NEGATION)
 	})
 
 	it("knows the sign-in that is no longer running", () => {
