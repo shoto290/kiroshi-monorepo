@@ -18,7 +18,7 @@ const HELD_ID_KEYS = [
 
 export const LOCAL_IDS_COMMAND = "conversation_local_ids"
 
-const CONVERSATION_ANSWERS: ReadonlySet<string> = new Set([
+const ANSWERS_NAMING_THEIR_IDS: ReadonlySet<string> = new Set([
 	"conversation_main_chat",
 	"conversation_create",
 	"conversation_list",
@@ -26,9 +26,6 @@ const CONVERSATION_ANSWERS: ReadonlySet<string> = new Set([
 	"conversation_add_participant",
 	"conversation_remove_participant",
 	"conversation_set_lead",
-])
-
-const HELD_ANSWERS: ReadonlySet<string> = new Set([
 	"conversation_bots",
 	"conversation_bots_by_presence",
 	"conversation_create_bot",
@@ -93,8 +90,7 @@ const listedIdsOf = (answer: unknown): string[] =>
 	[answer].flat().filter(isText)
 
 const idsAnswered = (command: string, answer: unknown) => [
-	...(CONVERSATION_ANSWERS.has(command) ? ownIdsOf(answer) : []),
-	...(HELD_ANSWERS.has(command) ? ownIdsOf(answer) : []),
+	...(ANSWERS_NAMING_THEIR_IDS.has(command) ? ownIdsOf(answer) : []),
 	...(command === LOCAL_IDS_COMMAND ? listedIdsOf(answer) : []),
 	...conversationIdsNamedIn(answer),
 ]
