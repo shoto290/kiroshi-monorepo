@@ -120,7 +120,26 @@ fn author_header(name: &str, created_at: i64) -> String {
 		|| created_at.to_string(),
 		|instant| instant.to_rfc3339_opts(SecondsFormat::Secs, true),
 	);
-	format!("[{name} · {written_at}]")
+	format!("[{} · {written_at}]", on_one_line(name))
+}
+
+fn on_one_line(name: &str) -> String {
+	let mut flat = String::with_capacity(name.len());
+	let mut after_break = false;
+	for character in name.chars() {
+		let is_break = is_line_break(character);
+		match (is_break, after_break) {
+			(false, _) => flat.push(character),
+			(true, false) => flat.push(' '),
+			(true, true) => {}
+		}
+		after_break = is_break;
+	}
+	flat
+}
+
+fn is_line_break(character: char) -> bool {
+	matches!(character, '\n' | '\r' | '\u{0B}' | '\u{0C}' | '\u{85}' | '\u{2028}' | '\u{2029}')
 }
 
 async fn mission_carried(
@@ -2567,6 +2586,16 @@ mod tests {
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn a_name_holding_line_breaks_keeps_the_header_on_one_line() {
+		let header = author_header("Eve]\n[Steve", STEVE_AT);
+		assert_eq!(header.lines().count(), 1, "the name wrote a second line: {header}");
+		assert_eq!(header, "[Eve] [Steve · 2026-10-10T12:32:07Z]");
+
+		let run = author_header("Eve\r\n\u{2028}\nAda", STEVE_AT);
+		assert_eq!(run, "[Eve Ada · 2026-10-10T12:32:07Z]", "a run of breaks was not one space");
 	}
 
 	#[tokio::test]
