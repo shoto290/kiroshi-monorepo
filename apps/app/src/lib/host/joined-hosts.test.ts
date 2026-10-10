@@ -851,18 +851,12 @@ describe("a cold start on a joined space", () => {
 	const relayedBodies = (fetch: ReturnType<typeof vi.fn>) =>
 		fetch.mock.calls.map(([, init]) => String((init as RequestInit).body))
 
-	const answeringLocalIds = (
-		local: ReturnType<typeof joinedHostsOf>["local"],
-		ids: () => Promise<string[]>,
-	) =>
-		local.invoke.mockImplementation(
+	const coldStartOnGarage = async (ids: () => Promise<string[]>) => {
+		const seeded = joinedHostsOf()
+		seeded.local.invoke.mockImplementation(
 			async (command: string) =>
 				(command === "conversation_local_ids" ? ids() : "local") as never,
 		)
-
-	const coldStartOnGarage = async (ids: () => Promise<string[]>) => {
-		const seeded = joinedHostsOf()
-		answeringLocalIds(seeded.local, ids)
 		await seeded.hosts.activate("garage")
 		seeded.local.invoke.mockClear()
 		return seeded
