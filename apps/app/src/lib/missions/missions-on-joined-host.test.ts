@@ -22,16 +22,14 @@ const wire = vi.hoisted(() => ({
 	joinedHosts: null as JoinedHosts | null,
 }))
 
-const currentJoinedHosts = (): JoinedHosts => {
-	if (!wire.joinedHosts) {
-		throw new Error("no joined-hosts router built for this test")
-	}
-	return wire.joinedHosts
-}
-
 vi.mock("../host", () => {
 	const joinedHosts = new Proxy({} as JoinedHosts, {
-		get: (_, key) => Reflect.get(currentJoinedHosts(), key),
+		get: (_, key) => {
+			if (!wire.joinedHosts) {
+				throw new Error("no joined-hosts router built for this test")
+			}
+			return Reflect.get(wire.joinedHosts, key)
+		},
 	})
 	return {
 		joinedHosts,
