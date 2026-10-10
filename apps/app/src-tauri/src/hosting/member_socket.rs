@@ -438,7 +438,7 @@ fn committed_path() -> PathBuf {
 mod tests {
 	use super::*;
 
-	const REGENERATE: &str = "UPDATE_SNAPSHOTS=1 cargo test --manifest-path apps/app/src-tauri/Cargo.toml --features fake-claude member_socket::tests::the_committed_schema_is_the_one_the_specta_types_produce && bunx biome format --write docs/relay/member-socket.schema.json";
+	const REGENERATE: &str = "bun run snapshots";
 
 	fn committed() -> Value {
 		let committed = std::fs::read_to_string(committed_path()).expect("the schema reads");
@@ -494,10 +494,10 @@ mod tests {
 			std::fs::write(committed_path(), &live).expect("the schema is written");
 			return;
 		}
-		let live: Value = serde_json::from_str(&live).expect("the generated schema is json");
+		let held = std::fs::read_to_string(committed_path()).expect("the schema reads");
 
 		assert!(
-			committed() == live,
+			held == live,
 			"docs/relay/member-socket.schema.json differs from the specta types, regenerate it with `{REGENERATE}`"
 		);
 	}

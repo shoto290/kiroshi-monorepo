@@ -13,6 +13,7 @@
 			"!**/src/generated",
 			"!apps/app/contracts",
 			"!apps/app/src/lib/bindings.ts",
+			"!docs/relay/member-socket.schema.json",
 			"!packages/ui/src/components/ui"
 		]
 	},

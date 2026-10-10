@@ -16,8 +16,7 @@ The schema is generated from the Rust types of the host. Never edit it by hand:
 from the repository root, run
 
 ```sh
-UPDATE_SNAPSHOTS=1 cargo test --manifest-path apps/app/src-tauri/Cargo.toml --features fake-claude member_socket::tests::the_committed_schema_is_the_one_the_specta_types_produce
-bunx biome format --write docs/relay/member-socket.schema.json
+bun run snapshots
 ```
 
 A cargo test fails when the file drifts from the types, when a command or event a
@@ -53,8 +52,8 @@ The upgrade answers with one of:
 |---|---|---|
 | 101 | The socket is open. | Go online. Reset the backoff. |
 | 401 | The relay refused the account. | Stop. Reconnect only after a new sign-in. |
-| 403 | The account is not a member of this instance. | Treat as offline and retry with backoff. |
-| 404 | The instance is unknown. | The membership ended: stop and forget the space. |
+| 403 | The account is invited to this instance but has not accepted its invitation yet. | Retry with backoff; the upgrade opens once the invitation is accepted. |
+| 404 | The instance is unknown, or the account holds no membership of it. | The membership ended: stop and forget the space. |
 | other, timeout, network error | The relay is unreachable. | Retry with backoff. |
 
 The desktop client gives the upgrade 20 seconds.
@@ -68,6 +67,10 @@ right after joining and gives it 30 seconds.
 The client sends a WebSocket ping every 30 seconds. Any frame received, pong
 included, proves the socket alive. After 90 seconds without any frame, the client
 drops the socket and reconnects.
+
+The relay pings the member socket every 30 seconds too; a WebSocket library
+answers those pings by itself. The relay closes a socket idle for 120 seconds,
+and one whose unsent frames exceed 4 MiB because the client reads too slowly.
 
 ## Frames
 
@@ -107,6 +110,7 @@ with `id` and `status` is an answer frame. Anything else is ignored.
 | 200 | `commands.<command>.ok` |
 | 500 | `commands.<command>.error`, or a string when the host could not read the args |
 | 400 | a string: the frame is not `{id, command, args}` with `args` an object |
+| 400 | `{ "error": "<reason>" }`, `id` null: the relay refused the frame (see [Frames the relay refuses](#frames-the-relay-refuses)) |
 | 403 | `"this command belongs to the host"`: the command is not open to members, or no command bears this name |
 | 403 | `"this command reaches outside the shared space"`: an id in `args` names something outside the shared space |
 | 413 | a string: the call is larger than the host accepts |
@@ -169,23 +173,43 @@ must be this one. The call takes no args.
 
 ### The sender stamp
 
-The host reads `sender.accountId` on every call frame it receives:
+The relay writes a `sender` object on every frame a member sends before it hands
+the frame to the host:
 
 ```json
-{ "id": 7, "command": "conversation_send_turn", "args": {}, "sender": { "accountId": "acc-1" } }
+{ "id": 7, "command": "conversation_send_turn", "args": {}, "sender": { "accountId": "acc-1", "name": "Ada", "image": null } }
 ```
 
-The relay adds it from the account that opened the member socket; the host takes
-it as the author of what the call writes. A client never sends `sender`. A call
+- `accountId`: the kiroshi-cloud account that opened the member socket.
+- `name`: that account's name.
+- `image`: that account's picture URL, or `null` when the account has none.
+
+The relay writes it over any `sender` the member put in the frame, and leaves
+every other key unchanged; a client has no reason to send one. The host reads
+`sender.accountId` and takes it as the author of what the call writes. A call
 that reaches the host without it still runs, with no member named as its author.
+
+### Frames the relay refuses
+
+When a member sends a binary frame, or text that is not a JSON object, the relay
+does not forward it: nothing reaches the host. The relay alone answers that
+member:
+
+```json
+{ "id": null, "status": 400, "body": { "error": "Frame must be a JSON object" } }
+```
+
+`body.error` is `"Frame must be text"` for a binary frame and `"Frame must be a
+JSON object"` otherwise. `id` is `null` because the relay reads no id from such a
+frame: a client fails the call it was sending, if any, by itself.
 
 ## Close codes
 
 | Code | Sent to | Meaning | What the client does |
 |---|---|---|---|
 | 4001 | the host socket | Another host took the instance over. | A member never receives it. The replaced host stops hosting and does not reconnect. |
-| 4002 | a member socket | The relay room has no host right now. | Treat the space as offline; reconnect with backoff. |
-| 4003 | a member socket | The account's membership ended. | Stop; do not reconnect; forget the space. |
+| 4002 | a member socket | The relay room has no host: the host left, or none was there when the socket opened. | Treat the space as offline; reconnect with backoff. |
+| 4003 | a member socket | The account's membership ended, or the instance was deleted. | Stop; do not reconnect; forget the space. |
 | 1000 | the relay | The client leaves on purpose. | Sent by the client when it closes the socket. |
 
 Any other close code, and a socket that ends without a close frame, mean the
