@@ -97,10 +97,8 @@ const HistoryFileTab = ({ path }: HistoryFileTabProps) => {
 		</Tabs.Tab>
 	)
 
-	return fitting === 0 ? (
-		row
-	) : (
-		<TooltipHint content={path} side="right">
+	return (
+		<TooltipHint content={fitting === 0 ? null : path} side="right">
 			{row}
 		</TooltipHint>
 	)

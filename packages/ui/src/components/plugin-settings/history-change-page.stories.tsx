@@ -119,6 +119,7 @@ export const LongContent = meta.story({
 			canvas.getByRole("tab", { name: FOLDED_DEEP_PATH }),
 		)
 
+		await expect(entries).toContain(deep)
 		await readsStartAlignedBehindItsGlyph(deep)
 		await expect(DEEP_PATH.endsWith(`/${foldedAwayOf(deep)}`)).toBe(true)
 
