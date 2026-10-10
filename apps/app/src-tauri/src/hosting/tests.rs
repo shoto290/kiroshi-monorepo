@@ -1,5 +1,7 @@
 use std::collections::HashSet;
+use std::io::ErrorKind;
 use std::net::Ipv4Addr;
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -12,7 +14,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::Router;
 use serde_json::{json, Value};
-use tauri::test::{mock_app, mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
 use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 use tokio::net::TcpListener;
@@ -292,11 +294,42 @@ async fn served(router: Router) -> String {
 }
 
 struct Harness {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	relay: Relay,
 	sockets: mpsc::UnboundedReceiver<WebSocket>,
 	heard: Arc<Mutex<Vec<Value>>>,
 	heard_members: Arc<Mutex<Vec<Value>>>,
+}
+
+struct AppOfItsOwn(App<MockRuntime>);
+
+impl Deref for AppOfItsOwn {
+	type Target = App<MockRuntime>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl Drop for AppOfItsOwn {
+	fn drop(&mut self) {
+		let Ok(dir) = self.0.path().app_data_dir() else {
+			return;
+		};
+		match std::fs::remove_dir_all(&dir) {
+			Err(failure) if failure.kind() != ErrorKind::NotFound => {
+				eprintln!("the test data dir was not removed: {failure}");
+			}
+			_ => {}
+		}
+	}
+}
+
+fn an_app_of_its_own(name: &str) -> AppOfItsOwn {
+	let mut context = mock_context(noop_assets());
+	context.config_mut().identifier =
+		format!("com.kiroshi.hosting-{name}-{}", uuid::Uuid::new_v4());
+	AppOfItsOwn(mock_builder().build(context).expect("the app builds"))
 }
 
 impl Harness {
@@ -382,7 +415,7 @@ impl Harness {
 			store::set(&root, &EnvScope::Account, ACCOUNT_BEARER, bearer)
 				.expect("the bearer is kept");
 		}
-		let app = mock_app();
+		let app = an_app_of_its_own(name);
 		app.manage::<DatabaseState>(Ok(db::open(&database)));
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
 		app.manage(RelayGuests::new(&cloud));
@@ -1563,7 +1596,7 @@ fn an_unreachable_cloud_is_unreachable_with_its_cause() {
 			std::env::temp_dir().join(format!("kiroshi-hosting-down-{}", uuid::Uuid::new_v4()));
 		store::set(&root, &EnvScope::Account, ACCOUNT_BEARER, BEARER).expect("the bearer is kept");
 		let cloud = format!("http://{address}");
-		let app = mock_app();
+		let app = an_app_of_its_own("down");
 		app.manage::<DatabaseState>(Ok(db::open(&temp_dir())));
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
 		app.manage(Hosting::new(&cloud, None));
