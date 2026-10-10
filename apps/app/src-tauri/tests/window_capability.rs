@@ -11,7 +11,8 @@ const CORE_DEFAULT: &str = "core:default";
 const HANDLE_FACTORY: &str = "getCurrentWindow()";
 
 const DIALOG_PREFIX: &str = "dialog:";
-const DIALOG_PERMISSIONS_OF_THE_ARCHIVE_PICKERS: &[&str] = &["dialog:allow-save", "dialog:allow-open"];
+const DIALOG_PERMISSIONS_OF_THE_ARCHIVE_PICKERS: &[&str] =
+	&["dialog:allow-save", "dialog:allow-open"];
 
 const WINDOW_COMMANDS_OF_CORE_DEFAULT: &[&str] = &["is-focused"];
 
@@ -151,7 +152,8 @@ fn the_capability_grants_only_the_archive_pickers_of_the_dialog_plugin() {
 		.filter_map(|entry| entry.as_str().or_else(|| entry["identifier"].as_str()))
 		.filter(|identifier| identifier.starts_with(DIALOG_PREFIX))
 		.collect();
-	let expected: BTreeSet<&str> = DIALOG_PERMISSIONS_OF_THE_ARCHIVE_PICKERS.iter().copied().collect();
+	let expected: BTreeSet<&str> =
+		DIALOG_PERMISSIONS_OF_THE_ARCHIVE_PICKERS.iter().copied().collect();
 	assert_eq!(granted, expected, "the capability grants a dialog permission beyond save and open");
 }
 

@@ -4,12 +4,12 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime, State};
 
+use super::checkout;
 use super::contract::{
 	ConversationMissions, HookedMission, Mission, MissionAnswer, MissionClosing, MissionDetail,
 	MissionDraft, MissionEntry, MissionError, MissionEventKind, MissionInSpace, MissionNote,
 	MissionOnBoard, MissionOpened, MissionState, MissionWatch, MissionWatching,
 };
-use super::checkout;
 use super::hook;
 use crate::avatars;
 use crate::bundles;
@@ -532,9 +532,14 @@ mod tests {
 		mission_escalate(app.handle().clone(), app.state(), here.id.clone(), a_note())
 			.await
 			.expect("the mission is escalated");
-		mission_conclude(app.handle().clone(), app.state(), done.id, a_closing(MissionOutcome::Done))
-			.await
-			.expect("the mission is closed");
+		mission_conclude(
+			app.handle().clone(),
+			app.state(),
+			done.id,
+			a_closing(MissionOutcome::Done),
+		)
+		.await
+		.expect("the mission is closed");
 
 		let board =
 			mission_board(app.handle().clone(), app.state()).await.expect("the board reads");
@@ -884,7 +889,10 @@ mod tests {
 	}
 
 	fn a_watch(branch: &str) -> MissionWatch {
-		MissionWatch { branch: branch.to_owned(), repository: "shoto290/kiroshi-monorepo".to_owned() }
+		MissionWatch {
+			branch: branch.to_owned(),
+			repository: "shoto290/kiroshi-monorepo".to_owned(),
+		}
 	}
 
 	fn drafted_in(objective: &str, workspace: Option<&std::path::Path>) -> MissionDraft {

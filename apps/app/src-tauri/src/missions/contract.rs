@@ -389,4 +389,3 @@ impl From<MissionError> for TranscriptStoreError {
 		}
 	}
 }
-

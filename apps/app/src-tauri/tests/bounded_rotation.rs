@@ -1,13 +1,12 @@
-
 mod common;
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use common::{an_app_of_its_own, AppOfItsOwn};
-use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::commands::EVENT_CHANNEL;
 use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TransportError};
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
@@ -151,8 +150,8 @@ impl Harness {
 }
 
 fn scenario(name: &str) {
-	let path = std::env::temp_dir()
-		.join(format!("kiroshi-fake-scenario-{}.txt", std::process::id()));
+	let path =
+		std::env::temp_dir().join(format!("kiroshi-fake-scenario-{}.txt", std::process::id()));
 	std::fs::write(&path, name).expect("the scenario is written");
 	std::env::set_var(SCENARIO_ENV, path);
 }

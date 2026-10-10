@@ -1,4 +1,3 @@
-
 mod common;
 
 use std::path::{Path, PathBuf};
@@ -1061,8 +1060,9 @@ fn the_rules_the_panel_reads_are_the_stored_ones_and_never_the_file_it_writes() 
 		"deny": ["Bash", "Edit", "Write", "NotebookEdit"]
 	});
 
-	let created = call(&window, "conversation_create_bot", json!({ "identity": held_back.clone() }))
-		.expect("the bot is created");
+	let created =
+		call(&window, "conversation_create_bot", json!({ "identity": held_back.clone() }))
+			.expect("the bot is created");
 	let id = created["id"].as_str().expect("the bot holds an id").to_owned();
 
 	let root = bundles::root(app.handle()).expect("the bundle root");
@@ -1073,8 +1073,7 @@ fn the_rules_the_panel_reads_are_the_stored_ones_and_never_the_file_it_writes() 
 
 	assert_eq!(listed[0]["changesNothing"], json!(true));
 	assert_eq!(
-		listed[0]["permissions"],
-		held_back["permissions"],
+		listed[0]["permissions"], held_back["permissions"],
 		"a file that is gone took the stored rules with it"
 	);
 }
@@ -1731,8 +1730,12 @@ fn a_bots_skills_are_written_listed_marked_and_taken_away() {
 		json!({ "scope": a_bot_plugin(BOT), "skillId": "baking", "isPreloaded": false }),
 	)
 	.expect("the mark goes");
-	call(&window, "plugin_delete_skill", json!({ "scope": a_bot_plugin(BOT), "skillId": "baking" }))
-		.expect("the skill is taken away");
+	call(
+		&window,
+		"plugin_delete_skill",
+		json!({ "scope": a_bot_plugin(BOT), "skillId": "baking" }),
+	)
+	.expect("the skill is taken away");
 
 	assert_eq!(readers_skills(&window, BOT), json!([]));
 	assert_eq!(
@@ -1846,8 +1849,7 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 	assert_eq!(json_at(&servers)["mcpServers"]["atlas"], replaced, "the refusal wrote anyway");
 
 	let taken = json!({ "scope": a_bot_plugin(BOT), "name": "atlas" });
-	call(&window, "plugin_delete_mcp_server", taken)
-		.expect("the server is taken away");
+	call(&window, "plugin_delete_mcp_server", taken).expect("the server is taken away");
 	assert_eq!(json_at(&servers)["mcpServers"], json!({ "ledger": ledger }));
 	assert_eq!(
 		call(
@@ -1860,8 +1862,7 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 	);
 
 	let taken = json!({ "scope": a_bot_plugin(BOT), "name": "ledger" });
-	call(&window, "plugin_delete_mcp_server", taken)
-		.expect("the last server is taken away");
+	call(&window, "plugin_delete_mcp_server", taken).expect("the last server is taken away");
 	let bare = json_at(&servers);
 	assert_eq!(bare["mcpServers"], Value::Null);
 	assert_eq!(bare["kiroshiIsNotToTouchThis"], json!(true));
@@ -1869,8 +1870,7 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 	std::fs::write(&servers, json!({ "mcpServers": { "atlas": atlas } }).to_string())
 		.expect("a file with nothing but servers in it");
 	let taken = json!({ "scope": a_bot_plugin(BOT), "name": "atlas" });
-	call(&window, "plugin_delete_mcp_server", taken)
-		.expect("the server is taken away");
+	call(&window, "plugin_delete_mcp_server", taken).expect("the server is taken away");
 	assert_eq!(json_at(&servers), Value::Null, "an empty server file was left behind");
 	assert_eq!(json_at(&manifest)["mcpServers"], Value::Null);
 
@@ -2058,12 +2058,9 @@ fn a_solo_thread_asked_over_ipc_with_the_bot_alone_is_the_one_of_its_oldest_spac
 		.expect("the thread of the bot alone");
 	let again = call(&window, "conversation_main_chat", json!({ "botId": bot_id }))
 		.expect("the thread of the bot alone again");
-	let at_home = call(
-		&window,
-		"conversation_main_chat",
-		json!({ "botId": bot_id, "spaceId": oldest }),
-	)
-	.expect("the thread of the oldest space");
+	let at_home =
+		call(&window, "conversation_main_chat", json!({ "botId": bot_id, "spaceId": oldest }))
+			.expect("the thread of the oldest space");
 	let away =
 		call(&window, "conversation_main_chat", json!({ "botId": bot_id, "spaceId": joined }))
 			.expect("the thread of the space that was joined");

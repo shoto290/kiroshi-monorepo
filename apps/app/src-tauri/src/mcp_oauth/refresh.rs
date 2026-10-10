@@ -665,8 +665,10 @@ mod tests {
 			.expect("the grant is written");
 
 		let awaiting = awaiting_authorization(&root, &a_bot(), &declared(), NOW, |_| {
-			let connected =
-				OauthCredentials { redirect_uri: Some(REGISTERED_REDIRECT.to_owned()), ..renewed() };
+			let connected = OauthCredentials {
+				redirect_uri: Some(REGISTERED_REDIRECT.to_owned()),
+				..renewed()
+			};
 			credentials::store(&root, &granola(), &connected).expect("a connect lands meanwhile");
 			async { answering(OauthFailureKind::Rejected, Some(INVALID_GRANT)) }
 		})
@@ -750,9 +752,7 @@ mod tests {
 
 		assert_eq!(
 			settled.get("granola"),
-			Some(&Renewal::Awaiting {
-				reason: Some(format!("{REFUSED_DETAIL}: {EXPIRED_ON}"))
-			})
+			Some(&Renewal::Awaiting { reason: Some(format!("{REFUSED_DETAIL}: {EXPIRED_ON}")) })
 		);
 	}
 
@@ -954,8 +954,7 @@ mod tests {
 			async { Ok(Authorized { credentials: Some(renewed()), error: None }) }
 		};
 
-		let tokenless =
-			renewed_grant(&root, &a_bot(), "granola", &declared(), &exchange).await;
+		let tokenless = renewed_grant(&root, &a_bot(), "granola", &declared(), &exchange).await;
 		let undeclared =
 			renewed_grant(&root, &a_bot(), "granola", &ServerUrls::new(), &exchange).await;
 		let unknown = renewed_grant(&root, &a_bot(), "clock", &declared(), &exchange).await;
@@ -981,7 +980,10 @@ mod tests {
 		.expect("the pass reads the store");
 
 		assert_eq!(settled.get("granola"), Some(&Renewal::Renewed));
-		assert_eq!(asked.take().map(|request| request.refresh_token), Some("held-refresh".to_owned()));
+		assert_eq!(
+			asked.take().map(|request| request.refresh_token),
+			Some("held-refresh".to_owned())
+		);
 	}
 
 	#[tokio::test]
@@ -1014,8 +1016,7 @@ mod tests {
 		bundles::set_mcp_server_at(&bot, "granola", &mirrored, None)
 			.expect("the server is declared");
 		let clock = serde_json::json!({ "command": "run" });
-		bundles::set_mcp_server_at(&bot, "clock", &clock, None)
-			.expect("the server is declared");
+		bundles::set_mcp_server_at(&bot, "clock", &clock, None).expect("the server is declared");
 
 		assert_eq!(
 			server_urls(&[system, bot]),

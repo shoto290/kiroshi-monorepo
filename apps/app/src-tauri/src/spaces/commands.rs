@@ -46,11 +46,7 @@ pub async fn space_update(
 	name: String,
 	colour: Option<AvatarBlot>,
 ) -> Result<Space, SpaceError> {
-	Ok(ready(&state)?
-		.spaces()
-		.update(id, name, colour.map(Into::into))
-		.await
-		.map(Space::from)?)
+	Ok(ready(&state)?.spaces().update(id, name, colour.map(Into::into)).await.map(Space::from)?)
 }
 
 #[tauri::command]

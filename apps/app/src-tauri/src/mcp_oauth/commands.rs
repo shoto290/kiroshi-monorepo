@@ -141,8 +141,9 @@ async fn settlement<R: Runtime>(
 		Opening::Settled(settled) => Ok(settled),
 		Opening::Authorization(authorization) => {
 			if !is_openable(&authorization) {
-				return Err(Step::HandingTheUrl
-					.refused(OauthError::RefusedUrl { url: authorization }));
+				return Err(
+					Step::HandingTheUrl.refused(OauthError::RefusedUrl { url: authorization })
+				);
 			}
 			if app.opener().open_url(authorization.clone(), None::<&str>).is_err() {
 				return Err(Step::OpeningTheBrowser
@@ -211,12 +212,10 @@ fn refuse_what_kiroshi_does_not_authorize<R: Runtime>(
 	let withheld = authorization_withheld(app, owner, name, url)
 		.map_err(|error| Step::ReadingTheDeclaredServer.refused(error.into()))?;
 	match withheld {
-		Some(carries) => {
-			Err(Step::CheckingTheServer.refused(OauthError::NotAuthorizable {
-				carries,
-				detail: withheld_reason(carries).to_owned(),
-			}))
-		}
+		Some(carries) => Err(Step::CheckingTheServer.refused(OauthError::NotAuthorizable {
+			carries,
+			detail: withheld_reason(carries).to_owned(),
+		})),
 		None => Ok(()),
 	}
 }
@@ -481,8 +480,7 @@ mod tests {
 		bundles::user::lay_down(&path).expect("the plugin is laid down");
 		for name in ["clock", "granola"] {
 			let config = serde_json::json!({ "command": name });
-			bundles::plugin::set_mcp_server(&path, name, &config, None)
-				.expect("the server lands");
+			bundles::plugin::set_mcp_server(&path, name, &config, None).expect("the server lands");
 		}
 		bundles::plugin::set_mcp_server(
 			&path,

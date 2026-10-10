@@ -327,7 +327,8 @@ async fn settling(
 	let Some(standing) = held.filter(|held| !held.checks.settled()) else {
 		return Ok(None);
 	};
-	let Some(settled) = learned_checks(reach, kept, &mission.repository, &standing.head_sha).await?
+	let Some(settled) =
+		learned_checks(reach, kept, &mission.repository, &standing.head_sha).await?
 	else {
 		return Ok(None);
 	};
@@ -1025,8 +1026,8 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_listing_answered_not_modified_carries_the_checks_to_failed_and_appends_checks_failed()
-	{
+	async fn a_listing_answered_not_modified_carries_the_checks_to_failed_and_appends_checks_failed(
+	) {
 		let (database, dir) = planted().await;
 		let mission = an_armed_mission(&database).await;
 		let stub = Stub::holding(a_pull("open", "abc", false), "\"one\"").await;

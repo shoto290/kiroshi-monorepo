@@ -342,7 +342,11 @@ fn packed(file: &mut File, space_id: &str, rows: &SpaceRows, trees: &Trees) -> i
 	builder.finish()
 }
 
-fn appended_bytes(builder: &mut tar::Builder<&mut File>, name: &str, bytes: &[u8]) -> io::Result<()> {
+fn appended_bytes(
+	builder: &mut tar::Builder<&mut File>,
+	name: &str,
+	bytes: &[u8],
+) -> io::Result<()> {
 	let mut header = tar::Header::new_gnu();
 	header.set_entry_type(tar::EntryType::Regular);
 	header.set_size(bytes.len() as u64);

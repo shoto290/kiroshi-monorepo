@@ -1,16 +1,15 @@
-
 mod common;
 
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use common::{an_app_of_its_own, AppOfItsOwn};
-use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::commands::{terminate_session, EVENT_CHANNEL};
 use kiroshi_app::agent::contract::{
-	CheckReport, AgentEvent, ConnectionState, PermissionDecision, PermissionRequest, RuntimeScope,
+	AgentEvent, CheckReport, ConnectionState, PermissionDecision, PermissionRequest, RuntimeScope,
 	ScopedEvent, TransportError, TurnOutcome,
 };
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
@@ -149,8 +148,8 @@ impl Harness {
 }
 
 fn scenario(name: &str) {
-	let path = std::env::temp_dir()
-		.join(format!("kiroshi-fake-scenario-{}.txt", std::process::id()));
+	let path =
+		std::env::temp_dir().join(format!("kiroshi-fake-scenario-{}.txt", std::process::id()));
 	std::fs::write(&path, name).expect("the scenario is written");
 	std::env::set_var(SCENARIO_ENV, path);
 }
@@ -315,10 +314,7 @@ fn a_session_streams_survives_a_relaunch_and_leaves_no_orphan() {
 	first.forget_events();
 	first.prompt("compte jusqu'a mille").expect("prompt accepted");
 	first.wait_for("the slow turn to start streaming", message_started);
-	assert_eq!(
-		first.call("agent_cancel_turn", json!({ "scope": first.scope() })),
-		Ok(Value::Null)
-	);
+	assert_eq!(first.call("agent_cancel_turn", json!({ "scope": first.scope() })), Ok(Value::Null));
 	assert_eq!(first.wait_for("the cancelled turn to end", turn_outcome), TurnOutcome::Cancelled);
 	first.prompt("encore").expect("a cancelled session still accepts a prompt");
 
@@ -365,7 +361,8 @@ fn launch_stored(name: &str, played: &str) -> Stored {
 	let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
 		.build()
 		.expect("window builds");
-	let chat = invoke(&window, "conversation_main_chat", json!({ "botId": BOT })).expect("the chat");
+	let chat =
+		invoke(&window, "conversation_main_chat", json!({ "botId": BOT })).expect("the chat");
 	let conversation_id = chat["id"].as_str().expect("the chat holds an id").to_owned();
 	Stored { app, window, conversation_id }
 }

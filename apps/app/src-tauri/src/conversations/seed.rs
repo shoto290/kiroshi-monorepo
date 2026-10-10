@@ -118,8 +118,7 @@ async fn plant<R: Runtime>(
 		return Err(withdrawn(database, rejection.into(), None, &path).await);
 	}
 
-	let created = match create_bundled_bot(app, database, identity(&path), personal_space()).await
-	{
+	let created = match create_bundled_bot(app, database, identity(&path), personal_space()).await {
 		Ok(created) => created,
 		Err(failure) => return Err(withdrawn(database, failure.into(), None, &path).await),
 	};
@@ -165,7 +164,9 @@ async fn withdrawn(
 
 fn discarded(picture: &Path) -> std::io::Result<()> {
 	match fs::remove_file(picture) {
-		Err(failure) if matches!(failure.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {
+		Err(failure)
+			if matches!(failure.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) =>
+		{
 			Ok(())
 		}
 		removed => removed,

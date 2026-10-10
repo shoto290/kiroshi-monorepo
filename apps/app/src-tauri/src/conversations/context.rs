@@ -12,7 +12,7 @@ use crate::missions::contract::{
 	Mission, MissionEvent, MissionEventKind, MissionInThread, MissionState, Ticket,
 };
 
-use super::contract::{MessageRun, TranscriptStoreError, message_uri};
+use super::contract::{message_uri, MessageRun, TranscriptStoreError};
 
 const RECENT_TAIL: u32 = 20;
 

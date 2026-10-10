@@ -265,11 +265,7 @@ mod tests {
 		answer.expect_err("the operation is refused")
 	}
 
-	async fn a_routine_of(
-		app: &App<MockRuntime>,
-		conversation_id: &str,
-		bot_id: &str,
-	) -> Routine {
+	async fn a_routine_of(app: &App<MockRuntime>, conversation_id: &str, bot_id: &str) -> Routine {
 		routine_create(
 			app.handle().clone(),
 			app.state(),
@@ -287,10 +283,7 @@ mod tests {
 		.expect("the routine is created")
 	}
 
-	async fn listed(
-		app: &App<MockRuntime>,
-		conversation_id: &str,
-	) -> Vec<Routine> {
+	async fn listed(app: &App<MockRuntime>, conversation_id: &str) -> Vec<Routine> {
 		routine_list(app.state(), conversation_id.to_owned()).await.expect("the routines read")
 	}
 

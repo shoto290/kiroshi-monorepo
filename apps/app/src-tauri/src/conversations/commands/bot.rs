@@ -676,11 +676,7 @@ mod tests {
 	}
 
 	fn a_draft(name: &str, job: &str, description: &str) -> BotDraft {
-		BotDraft {
-			name: name.to_owned(),
-			job: job.to_owned(),
-			description: description.to_owned(),
-		}
+		BotDraft { name: name.to_owned(), job: job.to_owned(), description: description.to_owned() }
 	}
 
 	fn wearing(blot: Option<StoredBlot>) -> StoredBot {
@@ -869,7 +865,10 @@ mod tests {
 			.await
 			.expect_err("the bundle is refused");
 
-		assert!(matches!(failure, TranscriptStoreError::UnwritableBundle { .. }), "got {failure:?}");
+		assert!(
+			matches!(failure, TranscriptStoreError::UnwritableBundle { .. }),
+			"got {failure:?}"
+		);
 		assert_eq!(bot_ids(&app).await, before);
 	}
 

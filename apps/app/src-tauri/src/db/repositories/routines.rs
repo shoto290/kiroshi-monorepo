@@ -84,8 +84,7 @@ const CONVERSATION_OF_OPEN_RUN: &str = "SELECT routines.conversation_id
 	FROM routine_runs JOIN routines ON routines.id = routine_runs.routine_id
 	WHERE routine_runs.id = ?1 AND routine_runs.ended_at IS NULL";
 
-const RUN_REPORTING_IN_TURN: &str =
-	"SELECT id FROM routine_runs WHERE reported_turn_id = ?1";
+const RUN_REPORTING_IN_TURN: &str = "SELECT id FROM routine_runs WHERE reported_turn_id = ?1";
 
 const SELECT_REPORTED_RUNS: &str = "SELECT routine_runs.reported_turn_id, routines.title,
 	routines.trigger_source_id

@@ -1,4 +1,3 @@
-
 use tauri::{AppHandle, Runtime, State};
 
 use super::contract::{AttachmentStoreError, SubmittedAttachment};

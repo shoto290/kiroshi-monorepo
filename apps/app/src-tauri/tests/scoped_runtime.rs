@@ -1,13 +1,12 @@
-
 mod common;
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use common::{an_app_of_its_own, AppOfItsOwn};
-use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::commands::EVENT_CHANNEL;
 use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TurnOutcome};
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;

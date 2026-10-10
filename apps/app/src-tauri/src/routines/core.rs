@@ -160,7 +160,10 @@ pub async fn run_now<S: RunSink + ?Sized>(
 	announce(sink, admitted)
 }
 
-fn announce<S: RunSink + ?Sized>(sink: &S, admitted: Admitted) -> Result<TriggerDecision, RoutineError> {
+fn announce<S: RunSink + ?Sized>(
+	sink: &S,
+	admitted: Admitted,
+) -> Result<TriggerDecision, RoutineError> {
 	if let Some(requested) = admitted.requested {
 		sink.requested(requested)?;
 	}

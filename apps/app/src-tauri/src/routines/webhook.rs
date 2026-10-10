@@ -525,8 +525,7 @@ mod tests {
 	}
 
 	fn delivery_id_of(arriving: &mpsc::Receiver<RunRequested>) -> String {
-		let requested =
-			arriving.recv_timeout(Duration::from_secs(5)).expect("a run was requested");
+		let requested = arriving.recv_timeout(Duration::from_secs(5)).expect("a run was requested");
 		requested.payload["deliveryId"]
 			.as_str()
 			.expect("the payload names a delivery id")
@@ -717,7 +716,8 @@ mod tests {
 		let answer = answered(address_of(&webhook), calling(Some(A_KEY), "{\"ok\":true}")).await;
 
 		assert_eq!(answer, (ACCEPTED.0.as_u16(), ACCEPTED.1.to_owned()));
-		let requested = arriving.recv_timeout(Duration::from_secs(5)).expect("the run was requested");
+		let requested =
+			arriving.recv_timeout(Duration::from_secs(5)).expect("the run was requested");
 		let payload = &requested.payload;
 		assert_eq!(payload["body"], json!("{\"ok\":true}"));
 		assert!(payload["deliveryId"].as_str().is_some_and(|id| !id.is_empty()), "got {payload}");

@@ -1,4 +1,3 @@
-
 mod common;
 
 use common::an_app_of_its_own;

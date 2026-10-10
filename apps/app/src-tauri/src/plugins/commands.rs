@@ -5,7 +5,6 @@ use tauri::{AppHandle, Runtime, State};
 use super::contract::PluginScope;
 use crate::bundles::{self, plugin, ApplicationMark};
 use crate::conversations::commands::{bot_owner, bot_row, bundled, ready, recounted};
-use crate::json::JsonValue;
 use crate::conversations::contract::{
 	BotChangedFile, BotHistoryEntry, McpServer, Skill, SkillDraft, TranscriptStoreError,
 };
@@ -13,6 +12,7 @@ use crate::db;
 use crate::db::repositories::conversations::Bot as StoredBot;
 use crate::environment;
 use crate::environment::contract::EnvOwner;
+use crate::json::JsonValue;
 
 enum Plugin {
 	Bot { root: PathBuf, id: String },

@@ -639,7 +639,10 @@ async fn a_client_that_leaves_is_dropped_and_the_others_keep_hearing() {
 
 	for order in 0..20 {
 		assert_eq!(staying.text().await, relayed_change(order));
-		assert_eq!(window.recv_timeout(PATIENCE).expect("the window heard"), window_payload_of(order));
+		assert_eq!(
+			window.recv_timeout(PATIENCE).expect("the window heard"),
+			window_payload_of(order)
+		);
 	}
 }
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use super::contract::{
-	Application, ApplicationInstall, ApplicationSearch, ApplicationsError, ApplicationCallError,
+	Application, ApplicationCallError, ApplicationInstall, ApplicationSearch, ApplicationsError,
 	InstallRefusal,
 };
 use super::directory::Directory;

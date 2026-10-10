@@ -2334,10 +2334,7 @@ mod tests {
 			vec!["hello".to_owned(), "hi there".to_owned()],
 			"the step the bot gained a face in cost it its transcript"
 		);
-		assert_eq!(
-			identity_of(&connection, "default"),
-			(String::new(), "cat".to_owned(), None)
-		);
+		assert_eq!(identity_of(&connection, "default"), (String::new(), "cat".to_owned(), None));
 
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");
@@ -3204,11 +3201,9 @@ mod tests {
 		assert_eq!(version(&connection).expect("version"), latest_version());
 		assert_eq!(
 			connection
-				.query_row(
-					"SELECT title, avatar_image_path FROM bots WHERE id = 'b1'",
-					[],
-					|row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
-				)
+				.query_row("SELECT title, avatar_image_path FROM bots WHERE id = 'b1'", [], |row| {
+					Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+				},)
 				.expect("query"),
 			("Reviewer".to_owned(), Some("/pictures/owl.png".to_owned())),
 			"a second run rewrote a row it had nothing to do with"

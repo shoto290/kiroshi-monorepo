@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 use std::io::{BufRead, Write};
 use std::path::Path;
@@ -703,9 +702,7 @@ fn on_oauth_authorize(command: &Value) {
 			.to_string(),
 		);
 	}
-	emit_raw(
-		&json!({ "type": "oauth_started", "url": OAUTH_AUTHORIZATION_URL }).to_string(),
-	);
+	emit_raw(&json!({ "type": "oauth_started", "url": OAUTH_AUTHORIZATION_URL }).to_string());
 }
 
 fn handed_client_settled(command: &Value, handed_settles: &str) -> Value {

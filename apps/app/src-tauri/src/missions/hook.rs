@@ -75,9 +75,9 @@ fn written(path: &Path, bytes: &[u8]) -> Result<(), MissionError> {
 }
 
 pub fn checkout(workspace: &str) -> Result<PathBuf, MissionError> {
-	let root = Path::new(workspace)
-		.canonicalize()
-		.map_err(|_| unreachable(format!("the workspace {workspace} is nowhere on this machine")))?;
+	let root = Path::new(workspace).canonicalize().map_err(|_| {
+		unreachable(format!("the workspace {workspace} is nowhere on this machine"))
+	})?;
 	if !root.is_dir() {
 		return Err(unreachable(format!("the workspace {workspace} is not a directory")));
 	}
@@ -180,8 +180,7 @@ mod tests {
 	const ANOTHER_HOOK: &str = "./scripts/another-hook.sh";
 
 	fn a_dir(name: &str) -> PathBuf {
-		let path =
-			std::env::temp_dir().join(format!("kiroshi-hook-{name}-{}", std::process::id()));
+		let path = std::env::temp_dir().join(format!("kiroshi-hook-{name}-{}", std::process::id()));
 		let _ = fs::remove_dir_all(&path);
 		fs::create_dir_all(path.join("workspace").join(GIT_ENTRY)).expect("the workspace is there");
 		path
@@ -527,8 +526,13 @@ mod tests {
 		let hook_dir = dir.join("hook");
 		let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("the stub binds");
 		let address = listener.local_addr().expect("the stub is named");
-		installed(&hook_dir, &workspace_of(&dir), &format!("http://{address}/missions/call"), A_KEY)
-			.expect("the hook installs");
+		installed(
+			&hook_dir,
+			&workspace_of(&dir),
+			&format!("http://{address}/missions/call"),
+			A_KEY,
+		)
+		.expect("the hook installs");
 		(dir, hook_dir, listener)
 	}
 
@@ -586,10 +590,8 @@ mod tests {
 	async fn a_tool_call_is_sent_without_opening_the_transcript() {
 		let (dir, hook_dir, listener) = a_listening_hook("unopened").await;
 		let transcript = dir.join("transcript.jsonl");
-		let made = std::process::Command::new("mkfifo")
-			.arg(&transcript)
-			.status()
-			.expect("mkfifo runs");
+		let made =
+			std::process::Command::new("mkfifo").arg(&transcript).status().expect("mkfifo runs");
 		assert!(made.success(), "the transcript fifo was not made");
 		let called = tokio::spawn(one_call_to(listener));
 
