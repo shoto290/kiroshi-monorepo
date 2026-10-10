@@ -123,10 +123,10 @@ type Subscription = {
 
 const unheard: Listen = async () => () => undefined
 
-type ScopeFields = { kind?: unknown; owner?: unknown; scope?: unknown }
-
 const isLocalCommand = (command: string): boolean =>
 	command.startsWith(TAURI_PLUGIN_PREFIX) || LOCAL_COMMANDS.has(command)
+
+type ScopeFields = { kind?: unknown; owner?: unknown; scope?: unknown }
 
 const fieldsOf = (value: unknown): ScopeFields =>
 	typeof value === "object" && value !== null ? value : {}
