@@ -9,7 +9,11 @@ targets:
   Kiroshi:
     type: application
     platform: iOS
-    sources: [Kiroshi]
+    sources:
+      - path: Kiroshi
+        excludes: [Resources]
+      - path: Kiroshi/Resources/companion-avatar.js
+        buildPhase: resources
     info:
       path: Kiroshi/Info.plist
       properties:

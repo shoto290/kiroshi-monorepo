@@ -44,6 +44,7 @@ branding-botidentityavatar--waiting
 branding-botidentityavatar--with-badge
 branding-botidentityavatar--with-image
 branding-botidentityavatar--working
+branding-companionavatar--module-colour-matches-the-browser
 branding-ditheredfieldavatar--every-state
 branding-ditheredfieldavatar--ground-in-every-colour
 branding-ditheredfieldavatar--one-drawing-at-every-size

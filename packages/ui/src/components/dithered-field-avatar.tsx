@@ -3,27 +3,27 @@
 import { useRef } from "react"
 
 import {
+	type AvatarCell,
+	companionField,
+	type DensityField,
+	FIELD_CHROMA,
+	fieldCells,
+	fieldTones,
+	hueShift,
+	TONE_OPACITIES,
+} from "@workspace/ui/components/companion-avatar"
+import {
 	type BotAvatarBlot,
 	blotTint,
 } from "@workspace/ui/components/companion-colour"
-import {
-	companionSeed,
-	type FieldAvatarProps,
-	type FieldState,
-	fieldIntensity,
-	pickSilhouette,
-	seededRandom,
+import type {
+	FieldAvatarProps,
+	FieldState,
 } from "@workspace/ui/components/companion-field"
-import {
-	COMPANION_SILHOUETTE_SPACE,
-	silhouetteCells,
-} from "@workspace/ui/components/companion-silhouette"
 import { FieldFrame, useFieldClock } from "@workspace/ui/components/field-frame"
 import {
 	type FieldGrid,
-	type FieldPoint,
 	hexagonCorners,
-	honeycombGrid,
 } from "@workspace/ui/components/field-grid"
 import { useColorScheme } from "@workspace/ui/hooks/use-color-scheme"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
@@ -33,13 +33,6 @@ type FieldInk = "companion" | "foreground"
 type DitheredFieldAvatarProps = FieldAvatarProps & {
 	hasGround?: boolean
 	ink?: FieldInk
-}
-
-type DensityField = {
-	grid: FieldGrid
-	silhouette: Float32Array
-	lattice: Float32Array
-	mask?: Uint8Array
 }
 
 type DitheredFieldProps = {
@@ -52,159 +45,59 @@ type DitheredFieldProps = {
 	tint?: BotAvatarBlot
 }
 
-const FIELD_CELLS = 16
-const LATTICE = 5
-const BLOB_SIGMA = 0.055
-const COLUMN_STEP = 0.13
-const ROW_STEP = 0.1
-const FLOOR = 0.03
-const NOISE_AMPLITUDE = 0.2
-const SILHOUETTE_WEIGHT = 0.95
-const DRIFT_PERIOD = 9000
-const STATE_HOLD = 0.6
-const HUE_SALT = 0x51ed270b
-const HUE_JITTER = 12
-const FIELD_CHROMA = 0.16
-const CELL_SHARE = 0.9
-const TONES = [0, 0.5, 1]
-const HALF_TONE_ALPHA = 0.45
-const TONE_ALPHAS = [
-	[0.5, HALF_TONE_ALPHA],
-	[1, 1],
-] as const
 const DITHER_SCREEN = "square-tone"
 const FOREGROUND_INK = "var(--foreground)"
 const UNTINTED_FIELD = "var(--bot-avatar-field-untinted)"
 
-const COMPANION_GRID = honeycombGrid(FIELD_CELLS, CELL_SHARE)
-
-const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
-
-const inkOf = (seed: number, tint?: BotAvatarBlot) => {
-	const random = seededRandom(seed ^ HUE_SALT)
-	const jitter = Math.round((random() * 2 - 1) * HUE_JITTER)
-	return tint
-		? `oklch(from ${blotTint(tint)} var(--bot-avatar-field-lightness) ${FIELD_CHROMA} calc(h + ${jitter}))`
+const inkOf = (name: string, tint?: BotAvatarBlot) =>
+	tint
+		? `oklch(from ${blotTint(tint)} var(--bot-avatar-field-lightness) ${FIELD_CHROMA} calc(h + ${hueShift(name)}))`
 		: UNTINTED_FIELD
-}
 
 const groundOf = (tint?: BotAvatarBlot) =>
 	`color-mix(in oklab, ${tint ? blotTint(tint) : UNTINTED_FIELD} var(--bot-avatar-ground-strength), var(--secondary))`
 
-const fieldLattice = (seed: number) =>
-	Float32Array.from({ length: LATTICE * LATTICE }, seededRandom(seed))
-
-const densityField = (seed: number, grid: FieldGrid): DensityField => {
-	const glyph = silhouetteCells(
-		pickSilhouette(seed, COMPANION_SILHOUETTE_SPACE),
-	).map(({ column, row }) => ({
-		x: 0.5 + (column - 2) * COLUMN_STEP,
-		y: 0.5 + (row - 3) * ROW_STEP,
-	}))
-	const silhouette = Float32Array.from(grid.points, ({ u, v }) => {
-		let sum = 0
-		for (const blob of glyph)
-			sum += Math.exp(
-				-((u - blob.x) ** 2 + (v - blob.y) ** 2) / (2 * BLOB_SIGMA ** 2),
-			)
-		return clamp01(sum)
-	})
-	return { grid, silhouette, lattice: fieldLattice(seed) }
-}
-
-const smooth = (value: number) => value * value * (3 - 2 * value)
-
-const noiseAt = (lattice: Float32Array, u: number, v: number) => {
-	const x = (((u % 1) + 1) % 1) * LATTICE
-	const y = (((v % 1) + 1) % 1) * LATTICE
-	const x0 = Math.floor(x)
-	const y0 = Math.floor(y)
-	const at = (column: number, row: number) =>
-		lattice[(row % LATTICE) * LATTICE + (column % LATTICE)]
-	const fx = smooth(x - x0)
-	const fy = smooth(y - y0)
-	const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * fx
-	const bottom = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * fx
-	return top + (bottom - top) * fy
-}
-
-const densities = (
-	{ grid, silhouette, lattice }: DensityField,
-	state: FieldState,
-	time: number,
-) => {
-	const drift = state === "idle" ? 0 : time / DRIFT_PERIOD
-	return Array.from(silhouette, (shape, index) => {
-		const { u, v } = grid.points[index]
-		const floor = FLOOR + NOISE_AMPLITUDE * noiseAt(lattice, u + drift, v)
-		const hold =
-			STATE_HOLD +
-			(1 - STATE_HOLD) *
-				fieldIntensity(state, { x: u * 2 - 1, y: v * 2 - 1 }, time)
-		return clamp01((floor + SILHOUETTE_WEIGHT * shape) * hold)
-	})
-}
-
-const organicTones = (field: number[], { ahead }: FieldGrid) => {
-	const error = Float32Array.from(field)
-	return Array.from(error, (_, index) => {
-		const value = error[index]
-		const tone = TONES.reduce((best, next) =>
-			Math.abs(next - value) < Math.abs(best - value) ? next : best,
-		)
-		for (const { to, share } of ahead[index])
-			error[to] += (value - tone) * share
-		return tone
-	})
-}
-
-const fieldTones = (field: DensityField, state: FieldState, time: number) =>
-	organicTones(densities(field, state, time), field.grid).map((tone, index) =>
-		field.mask?.[index] === 0 ? 0 : tone,
-	)
-
 const traceHexagon = (
 	context: CanvasRenderingContext2D,
-	centre: FieldPoint,
-	radius: number,
+	cell: AvatarCell,
 	side: number,
 ) => {
-	for (const [corner, { u, v }] of hexagonCorners(centre, radius).entries())
+	for (const [corner, { u, v }] of hexagonCorners(cell, cell.radius).entries())
 		if (corner === 0) context.moveTo(u * side, v * side)
 		else context.lineTo(u * side, v * side)
 }
 
 const paintHoneycomb = (
 	context: CanvasRenderingContext2D,
+	cells: AvatarCell[],
 	tones: number[],
-	{ points, radius }: FieldGrid,
 	side: number,
 ) => {
-	for (const [lit, alpha] of TONE_ALPHAS) {
+	for (const { tone: lit, opacity } of TONE_OPACITIES) {
 		context.beginPath()
 		for (const [index, tone] of tones.entries())
-			if (tone === lit)
-				traceHexagon(context, points[index], radius * CELL_SHARE, side)
-		context.globalAlpha = alpha
+			if (tone === lit) traceHexagon(context, cells[index], side)
+		context.globalAlpha = opacity
 		context.fill()
 	}
 }
 
 const paintSquares = (
 	context: CanvasRenderingContext2D,
+	cells: AvatarCell[],
 	tones: number[],
-	{ points, radius }: FieldGrid,
 	side: number,
 ) => {
-	const half = radius * CELL_SHARE
 	for (const [index, tone] of tones.entries()) {
-		if (tone === 0) continue
-		context.globalAlpha = tone === 1 ? 1 : HALF_TONE_ALPHA
+		const opacity = TONE_OPACITIES.find((entry) => entry.tone === tone)?.opacity
+		if (opacity === undefined) continue
+		const { u, v, radius } = cells[index]
+		context.globalAlpha = opacity
 		context.fillRect(
-			(points[index].u - half) * side,
-			(points[index].v - half) * side,
-			2 * half * side,
-			2 * half * side,
+			(u - radius) * side,
+			(v - radius) * side,
+			2 * radius * side,
+			2 * radius * side,
 		)
 	}
 }
@@ -212,14 +105,15 @@ const paintSquares = (
 const paintScreen = (
 	context: CanvasRenderingContext2D,
 	ink: string,
+	shape: FieldGrid["shape"],
+	cells: AvatarCell[],
 	tones: number[],
-	grid: FieldGrid,
 	side: number,
 ) => {
 	context.clearRect(0, 0, side, side)
 	context.fillStyle = ink
-	if (grid.shape === "hexagon") paintHoneycomb(context, tones, grid, side)
-	else paintSquares(context, tones, grid, side)
+	if (shape === "hexagon") paintHoneycomb(context, cells, tones, side)
+	else paintSquares(context, cells, tones, side)
 	context.globalAlpha = 1
 }
 
@@ -251,8 +145,9 @@ const DitheredField = ({
 			paintScreen(
 				context,
 				getComputedStyle(element).color,
+				field.grid.shape,
+				fieldCells(field.grid),
 				fieldTones(field, drawnState, time),
-				field.grid,
 				side,
 			)
 		},
@@ -285,12 +180,11 @@ const DitheredFieldAvatar = ({
 	hasGround = true,
 	ink: fieldInk = "companion",
 }: DitheredFieldAvatarProps) => {
-	const seed = companionSeed(name)
-	const ink = fieldInk === "foreground" ? FOREGROUND_INK : inkOf(seed, tint)
+	const ink = fieldInk === "foreground" ? FOREGROUND_INK : inkOf(name, tint)
 
 	return (
 		<DitheredField
-			field={densityField(seed, COMPANION_GRID)}
+			field={companionField(name)}
 			ink={ink}
 			name={name}
 			size={size}
@@ -301,11 +195,4 @@ const DitheredFieldAvatar = ({
 	)
 }
 
-export {
-	type DensityField,
-	DitheredField,
-	DitheredFieldAvatar,
-	FIELD_CELLS,
-	fieldLattice,
-	fieldTones,
-}
+export { DitheredField, DitheredFieldAvatar }

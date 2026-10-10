@@ -44,6 +44,9 @@ jobs:
       - name: Colour asset catalogue matches tokens.json
         run: git add --intent-to-add apps/ios/Kiroshi/Colors.xcassets && git diff --exit-code apps/ios/Kiroshi/Colors.xcassets
 
+      - name: iOS avatar bundle matches the avatar module
+        run: bun run avatar:build && git diff --exit-code apps/ios/Kiroshi/Resources
+
       - name: Build website
         run: bun run --filter=website build
 

@@ -403,7 +403,7 @@ const UNPREMULTIPLY_ROUNDING = 1
 const channelsAt = (data: Uint8ClampedArray, offset: number) =>
 	Array.from(data.subarray(offset, offset + 3))
 
-const resolvedChannelsOf = (token: string, scope: Element) => {
+export const resolvedChannelsOf = (token: string, scope: Element) => {
 	const probe = document.createElement("span")
 	probe.style.color = token
 	scope.append(probe)
