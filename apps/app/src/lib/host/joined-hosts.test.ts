@@ -1429,7 +1429,7 @@ describe("a bot or a Space only this Mac holds", () => {
 		const owner = { kind: "bot", id: botId, spaceId: "personal" }
 		return [
 			["mcp_application_status", { owner }],
-			["mcp_oauth_connect", { owner, name: "linear", url: "https://x" }],
+			["mcp_oauth_connect", { owner, name: "linear" }],
 			[
 				"env_set",
 				{
