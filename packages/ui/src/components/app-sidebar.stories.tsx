@@ -2340,6 +2340,21 @@ const swipeBeside = async (carousel: HTMLElement, step: number) => {
 	await new Promise((resolve) => setTimeout(resolve, SETTLE))
 }
 
+const panelsDrawnWhile = async (
+	carousel: HTMLElement,
+	act: () => Promise<void>,
+) => {
+	let drawn = 0
+	const observer = new MutationObserver((records) => {
+		for (const record of records) drawn += record.addedNodes.length
+	})
+	observer.observe(carousel, { childList: true })
+	await act()
+	await new Promise((resolve) => setTimeout(resolve, SETTLE))
+	observer.disconnect()
+	return drawn
+}
+
 const carryTo = async (carousel: HTMLElement, panels: number) => {
 	carousel.style.scrollSnapType = "none"
 	carousel.scrollLeft = panels * carousel.clientWidth
@@ -3162,9 +3177,12 @@ export const LiveSpaceSelection = meta.story({
 
 		await expect(slotShown(carousel)).toBe(1)
 
-		await userEvent.keyboard("{Meta>}5{/Meta}")
+		const drawn = await panelsDrawnWhile(carousel, () =>
+			userEvent.keyboard("{Meta>}5{/Meta}"),
+		)
 		await expect(args.onSelectSpace).toHaveBeenCalledTimes(3)
 		await expect(args.onSelectSpace).toHaveBeenLastCalledWith("archives")
+		await expect(drawn).toBe(1)
 
 		await waitFor(async () => {
 			await expect(panelsIn(canvasElement)).toHaveLength(2)
