@@ -13,7 +13,9 @@ const MERMAID_THEMES = { light: "neutral", dark: "dark" } as const
 
 const configure = (scheme: DiagramScheme) => {
 	mermaid.initialize({
-		flowchart: { useMaxWidth: false },
+		flowchart: { minNodeWidth: 0, useMaxWidth: false, wrappingWidth: 200 },
+		layout: "dagre",
+		look: "classic",
 		securityLevel: "strict",
 		sequence: { useMaxWidth: false },
 		startOnLoad: false,

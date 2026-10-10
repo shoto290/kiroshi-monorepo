@@ -7,7 +7,7 @@ import {
 import { SidebarMenuRow } from "@workspace/ui/components/sidebar-menu-row"
 import { cn } from "@workspace/ui/lib/utils"
 
-const CHIP = "min-w-0 flex-1 px-1 group-data-[collapsible=icon]:flex-none"
+const CHIP = "min-w-0 flex-1 pe-1 group-data-[collapsible=icon]:flex-none"
 
 type UserChipIdentity = {
 	name?: string

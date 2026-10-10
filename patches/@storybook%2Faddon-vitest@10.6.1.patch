@@ -1,5 +1,5 @@
 diff --git a/dist/vitest-plugin/test-utils.js b/dist/vitest-plugin/test-utils.js
-index 9048740b2c8fba5a813a5541180dbd8bc2ec5984..1b8715d0bdbfa79784667e2354b3ff44a3662ac4 100644
+index 40c323d79fe71610148897e983ed01f134e28f88..b01010733db7328b9cec443db736e6f8a057abd6 100644
 --- a/dist/vitest-plugin/test-utils.js
 +++ b/dist/vitest-plugin/test-utils.js
 @@ -51,7 +51,7 @@ var DEFAULT_VIEWPORT_DIMENSIONS = {
