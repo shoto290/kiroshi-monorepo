@@ -1,4 +1,4 @@
-import { expect, within } from "storybook/test"
+import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { DaySeparator } from "@workspace/ui/components/day-separator"
@@ -27,11 +27,9 @@ const meta = preview.meta({
 
 export const Today = meta.story({
 	args: { at: new Date(2026, 9, 10, 0, 3).getTime() },
-	play: async ({ canvasElement }) => {
-		await expect(within(canvasElement).getByText("Today")).toBeVisible()
-		await expect(
-			within(canvasElement).queryAllByRole("separator"),
-		).toHaveLength(0)
+	play: async ({ canvas }) => {
+		await expect(canvas.getByText("Today")).toBeVisible()
+		await expect(canvas.queryAllByRole("separator")).toHaveLength(0)
 	},
 })
 
