@@ -277,6 +277,43 @@ struct RelayConnectionTests {
         await connection.stop()
     }
 
+    @Test func aCancelledSubscriberIsDropped() async {
+        let connection = makeConnection()
+        let updates = await connection.updates()
+        #expect(await connection.subscriberCount == 1)
+        let consumer = Task {
+            for await _ in updates {}
+        }
+
+        consumer.cancel()
+        await consumer.value
+
+        while await connection.subscriberCount > 0 {
+            await Task.yield()
+        }
+    }
+
+    @Test func stoppingFinishesEverySubscription() async {
+        let connection = makeConnection()
+        let first = await connection.updates()
+        let second = await connection.updates()
+        await connection.start()
+        await transport.nextOpening().refuse(502)
+        await waitFor(.unreachable, in: first)
+
+        await connection.stop()
+
+        var heard: [RelayState] = []
+        for await update in second {
+            if case .state(let state) = update {
+                heard.append(state)
+            }
+        }
+        #expect(heard.last == .paused)
+        for await _ in first {}
+        #expect(await connection.subscriberCount == 0)
+    }
+
     @Test func stoppingPausesAndStartingAgainReconnectsAtOnce() async {
         let connection = makeConnection()
         let updates = await connection.updates()

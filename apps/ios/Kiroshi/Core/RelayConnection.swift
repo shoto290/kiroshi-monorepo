@@ -47,9 +47,17 @@ actor RelayConnection {
     func updates() -> AsyncStream<RelayUpdate> {
         let (stream, continuation) = AsyncStream.makeStream(
             of: RelayUpdate.self, bufferingPolicy: .bufferingNewest(64))
+        let id = UUID()
+        continuation.onTermination = { [weak self] _ in
+            Task { await self?.drop(id) }
+        }
         continuation.yield(.state(state))
-        subscribers[UUID()] = continuation
+        subscribers[id] = continuation
         return stream
+    }
+
+    var subscriberCount: Int {
+        subscribers.count
     }
 
     func start() {
@@ -65,6 +73,10 @@ actor RelayConnection {
         socket = nil
         failPendingCalls()
         publish(.paused)
+        for subscriber in subscribers.values {
+            subscriber.finish()
+        }
+        subscribers = [:]
     }
 
     func call(_ command: String) async throws -> RelayAnswer {
@@ -207,6 +219,10 @@ actor RelayConnection {
         return nil
     }
 
+    private func drop(_ id: UUID) {
+        subscribers[id] = nil
+    }
+
     private func heardPong() {
         silentPings = 0
     }
@@ -240,10 +256,8 @@ actor RelayConnection {
     }
 
     private func broadcast(_ update: RelayUpdate) {
-        for (id, subscriber) in subscribers {
-            if case .terminated = subscriber.yield(update) {
-                subscribers[id] = nil
-            }
+        for subscriber in subscribers.values {
+            subscriber.yield(update)
         }
     }
 
