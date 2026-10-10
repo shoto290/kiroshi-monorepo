@@ -234,15 +234,12 @@ export const createJoinedHosts = ({
 		}
 	}
 
-	const announceReconnection = () => {
+	const announceReconnectionOf = (id: string) => {
+		if (store.getState().active !== id) {
+			return
+		}
 		for (const listener of [...reconnectionListeners]) {
 			listener()
-		}
-	}
-
-	const announceReconnectionOf = (id: string) => {
-		if (store.getState().active === id) {
-			announceReconnection()
 		}
 	}
 
