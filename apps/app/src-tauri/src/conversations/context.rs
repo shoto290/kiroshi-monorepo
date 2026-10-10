@@ -1,10 +1,11 @@
+use chrono::{DateTime, SecondsFormat};
 use serde::Serialize;
 use serde_json::Value;
 
 use crate::db::repositories::conversations::Seat;
 use crate::db::repositories::messages::{
-	LatestMessageQuery, MessageAuthorship, MessageRole, MessageWindowQuery, StoredMessage,
-	TranscriptError,
+	AccountAuthor, LatestMessageQuery, MessageAuthorship, MessageRole, MessageWindowQuery,
+	StoredMessage, TranscriptError,
 };
 use crate::db::repositories::runtime_context::{ContextCheckpoint, NewCheckpoint, ParticipantKey};
 use crate::db::{Database, DatabaseError};
@@ -33,6 +34,8 @@ const CHARS_PER_TOKEN: i64 = 4;
 const ELIDED: &str = "[elided]";
 
 const UNKNOWN_SESSION: &str = "unknown";
+
+const UNNAMED_PERSON: &str = "user";
 
 const INSTRUCTIONS_LABEL: &str = "The instructions of this conversation:";
 const SUMMARY_LABEL: &str = "The conversation so far:";
@@ -78,6 +81,10 @@ pub async fn bounded_context(
 	let room = room_around(database, &participant).await?;
 	let instructions = database.conversations().instructions(conversation_id.clone()).await?;
 	let mission = mission_carried(database, conversation_id).await?;
+	let header = match prompt.role {
+		MessageRole::User => Some(header_of(&prompt, room.as_ref())),
+		MessageRole::Assistant => None,
+	};
 
 	Ok(compose(Parts {
 		instructions: &instructions,
@@ -85,9 +92,35 @@ pub async fn bounded_context(
 		summary: checkpoint.as_ref().map(|checkpoint| checkpoint.summary.as_str()),
 		replied_to: replied_to.as_ref(),
 		recent: &recent,
+		header: header.as_deref(),
 		prompt: &prompt.content,
 		room: room.as_ref(),
 	}))
+}
+
+pub async fn message_header(
+	database: &Database,
+	conversation_id: String,
+	message_id: String,
+) -> Result<String, TranscriptStoreError> {
+	let message = database
+		.messages()
+		.message(conversation_id, message_id.clone())
+		.await?
+		.ok_or(TranscriptStoreError::UnknownMessage { id: message_id })?;
+	Ok(header_of(&message, None))
+}
+
+fn header_of(message: &StoredMessage, room: Option<&Room>) -> String {
+	author_header(&author_of(message, room), message.created_at)
+}
+
+fn author_header(name: &str, created_at: i64) -> String {
+	let written_at = DateTime::from_timestamp_millis(created_at).map_or_else(
+		|| created_at.to_string(),
+		|instant| instant.to_rfc3339_opts(SecondsFormat::Secs, true),
+	);
+	format!("[{name} · {written_at}]")
 }
 
 async fn mission_carried(
@@ -240,6 +273,7 @@ async fn replied_to_target(
 		uri: message_uri(conversation_id, &target.id),
 		role: target.role,
 		author_bot_id: target.author_bot_id,
+		author: target.author,
 		provider_session_id: run.provider_session_id,
 		content: target.content,
 	}))
@@ -320,6 +354,7 @@ struct RepliedTo {
 	uri: String,
 	role: MessageRole,
 	author_bot_id: Option<String>,
+	author: AccountAuthor,
 	provider_session_id: Option<String>,
 	content: String,
 }
@@ -467,6 +502,7 @@ struct Parts<'a> {
 	summary: Option<&'a str>,
 	replied_to: Option<&'a RepliedTo>,
 	recent: &'a [StoredMessage],
+	header: Option<&'a str>,
 	prompt: &'a str,
 	room: Option<&'a Room>,
 }
@@ -492,14 +528,22 @@ fn compose(parts: Parts<'_>) -> String {
 			parts.recent.iter().map(|message| spoken(message, parts.room)).collect();
 		push_section(&mut sections, RECENT_LABEL, &spoken.join("\n"));
 	}
+	let prompt = headed(parts.header, spelled(parts.room, parts.prompt));
 	if sections.is_empty() {
-		return parts.prompt.to_owned();
+		return prompt;
 	}
-	push_section(&mut sections, PROMPT_LABEL, &spelled(parts.room, parts.prompt));
+	push_section(&mut sections, PROMPT_LABEL, &prompt);
 	if let Some(note) = parts.room.and_then(|room| room.note_about(parts.prompt)) {
 		sections.push(note.to_owned());
 	}
 	sections.join("\n\n")
+}
+
+fn headed(header: Option<&str>, body: String) -> String {
+	match header {
+		Some(header) => format!("{header}\n{body}"),
+		None => body,
+	}
 }
 
 fn push_section(sections: &mut Vec<String>, label: &str, body: &str) {
@@ -516,7 +560,7 @@ fn section_of(label: &str, body: &str) -> Option<String> {
 fn quoted(replied_to: &RepliedTo, room: Option<&Room>) -> String {
 	let session = replied_to.provider_session_id.as_deref().unwrap_or(UNKNOWN_SESSION);
 	let from = authored(replied_to.author_bot_id.as_deref(), room)
-		.unwrap_or_else(|| quoted_speaker(replied_to.role).to_owned());
+		.unwrap_or_else(|| quoted_speaker(replied_to.role, &replied_to.author).to_owned());
 	format!(
 		"uri: {}\nfrom: {from}\nclaude session: {session}\n{}",
 		replied_to.uri,
@@ -524,9 +568,9 @@ fn quoted(replied_to: &RepliedTo, room: Option<&Room>) -> String {
 	)
 }
 
-fn quoted_speaker(role: MessageRole) -> &'static str {
+fn quoted_speaker(role: MessageRole, author: &AccountAuthor) -> &str {
 	match role {
-		MessageRole::User => "user",
+		MessageRole::User => person(author),
 		MessageRole::Assistant => "you",
 	}
 }
@@ -537,18 +581,22 @@ fn spoken(message: &StoredMessage, room: Option<&Room>) -> String {
 
 fn author_of(message: &StoredMessage, room: Option<&Room>) -> String {
 	authored(message.author_bot_id.as_deref(), room)
-		.unwrap_or_else(|| speaker(message.role).to_owned())
+		.unwrap_or_else(|| speaker(message.role, &message.author).to_owned())
 }
 
 fn authored(author_bot_id: Option<&str>, room: Option<&Room>) -> Option<String> {
 	room?.named(author_bot_id?)
 }
 
-fn speaker(role: MessageRole) -> &'static str {
+fn speaker(role: MessageRole, author: &AccountAuthor) -> &str {
 	match role {
-		MessageRole::User => "user",
+		MessageRole::User => person(author),
 		MessageRole::Assistant => "assistant",
 	}
+}
+
+fn person(author: &AccountAuthor) -> &str {
+	author.name.as_deref().unwrap_or(UNNAMED_PERSON)
 }
 
 fn folded_summary(
@@ -634,6 +682,7 @@ mod tests {
 			summary: None,
 			replied_to: None,
 			recent: &[],
+			header: None,
 			prompt,
 			room: None,
 		}
@@ -650,6 +699,7 @@ mod tests {
 			uri: "kiroshi://c/c1/m/m2".to_owned(),
 			role: MessageRole::User,
 			author_bot_id: None,
+			author: Default::default(),
 			provider_session_id: Some("claude-9f3c".to_owned()),
 			content: "what about the roof?".to_owned(),
 		};
@@ -1150,6 +1200,10 @@ mod tests {
 		format!("and now? ({id})")
 	}
 
+	fn unnamed_asked(id: &str) -> String {
+		format!("[user · 1970-01-01T00:00:00Z]\n{}", asked(id))
+	}
+
 	fn section<'a>(context: &'a str, label: &str) -> Option<&'a str> {
 		context
 			.split("\n\n")
@@ -1209,7 +1263,7 @@ mod tests {
 		);
 		assert_eq!(
 			section(&context, PROMPT_LABEL),
-			Some(asked("p1").as_str()),
+			Some(unnamed_asked("p1").as_str()),
 			"the prompt was not the last thing the run is told: {context}"
 		);
 		assert_eq!(occurrences(&context, &asked("p1")), 1, "the prompt was carried twice");
@@ -1748,7 +1802,7 @@ mod tests {
 		);
 		assert_eq!(
 			section(&context, PROMPT_LABEL),
-			Some(asked("p1").as_str()),
+			Some(unnamed_asked("p1").as_str()),
 			"the prompt was not the last thing the run is told: {context}"
 		);
 
@@ -1862,7 +1916,7 @@ mod tests {
 			format!(
 				"{RECENT_LABEL}\nuser: message 1\nassistant: message 2\nuser: message 3\n\
 				assistant: message 4\n\n{PROMPT_LABEL}\n{}",
-				asked("p1")
+				unnamed_asked("p1")
 			),
 			"a conversation holding a mission read as its thread"
 		);
@@ -2355,6 +2409,194 @@ mod tests {
 		.await;
 
 		assert!(refused.is_err(), "a context was built around a prompt nobody wrote: {refused:?}");
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	const STEVE_AT: i64 = 1_791_635_527_000;
+	const STEVE_HEADER: &str = "[Steve · 2026-10-10T12:32:07Z]";
+
+	async fn written_by_steve(
+		database: &Database,
+		conversation_id: &str,
+		id: &str,
+		content: &str,
+		replied_to: Option<&str>,
+	) {
+		database
+			.messages()
+			.append_user_message(NewUserMessage {
+				id: id.to_owned(),
+				conversation_id: conversation_id.to_owned(),
+				turn_id: TURN.to_owned(),
+				author_bot_id: None,
+				author: AccountAuthor {
+					account_id: Some("a1".to_owned()),
+					name: Some("Steve".to_owned()),
+				},
+				replied_to_message_id: replied_to.map(str::to_owned),
+				content: content.to_owned(),
+				created_at: STEVE_AT,
+			})
+			.await
+			.expect("the message is appended");
+	}
+
+	#[tokio::test]
+	async fn a_first_prompt_alone_opens_with_who_wrote_it_and_when_it_was_written() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let conversation = a_conversation(&database).await;
+		written_by_steve(&database, &conversation, "p1", "build me a house", None).await;
+		let run = a_run_of(&database, &conversation, "default").await;
+
+		let context = bounded_context(
+			&database,
+			participant_of(&conversation, "default"),
+			run,
+			"p1".to_owned(),
+		)
+		.await
+		.expect("the context is rebuilt");
+
+		assert_eq!(context, format!("{STEVE_HEADER}\nbuild me a house"));
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_group_turn_names_the_person_everywhere_and_reads_mentions_on_the_text_as_typed() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let conversation = a_conversation(&database).await;
+		another_bot(&database, &conversation, "second").await;
+		written_by_steve(&database, &conversation, "m1", "we are building a house", None).await;
+		said_by(&database, &conversation, "second", "walls are up").await;
+		written_by_steve(&database, &conversation, "p1", "<@default> and the roof?", None).await;
+		let run = a_run_of(&database, &conversation, "default").await;
+
+		let context = bounded_context(
+			&database,
+			participant_of(&conversation, "default"),
+			run,
+			"p1".to_owned(),
+		)
+		.await
+		.expect("the context is rebuilt");
+
+		assert_eq!(
+			section(&context, RECENT_LABEL),
+			Some("Steve: we are building a house\nSecond: walls are up"),
+			"a person was not named in the recent messages: {context}"
+		);
+		assert_eq!(
+			section(&context, PROMPT_LABEL),
+			Some(format!("{STEVE_HEADER}\n@Claude and the roof?").as_str()),
+			"the new message did not open with its header: {context}"
+		);
+		assert!(
+			context.ends_with(ADDRESSED_NOTE),
+			"the mention behind the header went unread: {context}"
+		);
+
+		let first = database
+			.messages()
+			.message(conversation.clone(), "m1".to_owned())
+			.await
+			.expect("the message is read")
+			.expect("the message is held");
+		assert_eq!(summary_line(&first, None), "Steve: we are building a house");
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_quoted_reply_names_the_person_who_wrote_it() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let conversation = a_conversation(&database).await;
+		written_by_steve(&database, &conversation, "m1", "what about the roof?", None).await;
+		prompt(&database, &conversation, "p1", Some("m1")).await;
+		let run = a_run_of(&database, &conversation, "default").await;
+
+		let context = bounded_context(
+			&database,
+			participant_of(&conversation, "default"),
+			run,
+			"p1".to_owned(),
+		)
+		.await
+		.expect("the context is rebuilt");
+
+		assert!(
+			section(&context, REPLY_LABEL).is_some_and(|quoted| quoted.contains("from: Steve\n")),
+			"the quoted message was not named after the person who wrote it: {context}"
+		);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_mission_thread_names_the_person_behind_the_request_it_came_from() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let conversation = a_conversation(&database).await;
+		let mission = a_mission_in(&database, &conversation, None).await;
+		written_by_steve(&database, &conversation, "o1", "take the crash", None).await;
+		let thread = mission.thread_conversation_id.clone();
+		asked_in(&database, &thread, "p1").await;
+		let run = a_run_of(&database, &thread, "default").await;
+
+		let context =
+			bounded_context(&database, participant_of(&thread, "default"), run, "p1".to_owned())
+				.await
+				.expect("the context is rebuilt");
+
+		assert_eq!(
+			occurrences(&context, "\"author\": \"Steve\""),
+			1,
+			"the request went unnamed: {context}"
+		);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_message_with_no_stored_name_is_still_the_user_and_its_header_says_so() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let conversation = a_conversation(&database).await;
+		wrote(&database, &conversation, "m1", "an unnamed ask", STEVE_AT).await;
+
+		let header = message_header(&database, conversation.clone(), "m1".to_owned())
+			.await
+			.expect("the header is read");
+		let line = summary_line(&a_message(1, MessageRole::User, "an unnamed ask"), None);
+
+		assert_eq!(header, "[user · 2026-10-10T12:32:07Z]");
+		assert_eq!(line, "user: an unnamed ask");
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn the_header_of_a_message_the_conversation_does_not_hold_is_refused() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let conversation = a_conversation(&database).await;
+
+		let refused = message_header(&database, conversation, "no such message".to_owned()).await;
+
+		assert!(
+			matches!(&refused, Err(TranscriptStoreError::UnknownMessage { id }) if id == "no such message"),
+			"a header was read for a message nobody wrote: {refused:?}"
+		);
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");

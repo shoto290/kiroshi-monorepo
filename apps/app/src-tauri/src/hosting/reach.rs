@@ -197,6 +197,7 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 	("conversation_message_page", Reach::Scoped(CONVERSATION_ID)),
 	("conversation_message_page_around", Reach::Scoped(CONVERSATION_ID)),
 	("conversation_message_reference", Reach::Scoped(CONVERSATION_AND_MESSAGE)),
+	("conversation_message_header", Reach::Scoped(CONVERSATION_AND_MESSAGE)),
 	("conversation_pin_message", Reach::Scoped(CONVERSATION_AND_MESSAGE)),
 	("conversation_unpin_message", Reach::Scoped(CONVERSATION_AND_MESSAGE)),
 	("conversation_pinned_messages", Reach::Scoped(CONVERSATION_ID)),
