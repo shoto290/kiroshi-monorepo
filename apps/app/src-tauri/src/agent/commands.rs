@@ -536,9 +536,9 @@ pub async fn agent_check<R: Runtime>(
 pub async fn agent_account<R: Runtime>(app: AppHandle<R>) -> AccountReport {
 	announce(&app, None, AgentEvent::ConnectionChanged { state: ConnectionState::Checking });
 	let env_root = environment::root(&app);
-	let account = account(app.state::<AgentState>().inner(), env_root.as_deref()).await;
-	announce(&app, None, AgentEvent::ConnectionChanged { state: account.report.connection });
-	account
+	let read = account(app.state::<AgentState>().inner(), env_root.as_deref()).await;
+	announce(&app, None, AgentEvent::ConnectionChanged { state: read.report.connection });
+	read
 }
 
 pub async fn check(state: &AgentState, env_root: Option<&Path>) -> CheckReport {
