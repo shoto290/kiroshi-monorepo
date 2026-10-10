@@ -14,7 +14,7 @@ use kiroshi_app::agent::sidecar::{self, Sidecar, SidecarOptions};
 use kiroshi_app::bundles;
 use kiroshi_app::db::repositories::conversations::Bot;
 use kiroshi_app::environment::connection;
-use kiroshi_app::environment::contract::{ConnectionKind, EnvOwner, ResolvedEnv, API_KEY};
+use kiroshi_app::environment::contract::{ConnectionKind, EnvOwner, ResolvedEnv, Values, API_KEY};
 use kiroshi_app::environment::store;
 use tokio::sync::mpsc;
 
@@ -51,7 +51,7 @@ async fn started_on(
 }
 
 async fn started_with(resume: Option<String>, bundle: Option<Bundle>, cwd: PathBuf) -> Live {
-	opened(resume, bundle, cwd, ResolvedEnv::default()).await
+	opened(resume, bundle, cwd, ResolvedEnv::default(), Values::new()).await
 }
 
 async fn opened(
@@ -59,6 +59,7 @@ async fn opened(
 	bundle: Option<Bundle>,
 	cwd: PathBuf,
 	server_env: ResolvedEnv,
+	connection: Values,
 ) -> Live {
 	let (tx, events) = mpsc::unbounded_channel();
 	let sink: Arc<dyn EventSink> = Arc::new(tx);
@@ -67,7 +68,11 @@ async fn opened(
 	))
 	.await
 	.expect("the sidecar announces itself");
-	let options = SessionOptions::new(cwd).resuming(resume).bundled(bundle).serving(server_env);
+	let options = SessionOptions::new(cwd)
+		.resuming(resume)
+		.bundled(bundle)
+		.serving(server_env)
+		.connected(connection);
 	let session = Session::start(sidecar.clone(), options, sink).await.expect("session starts");
 	Live { session, sidecar, events }
 }
@@ -878,9 +883,11 @@ async fn a_refused_api_key_surfaces_the_failure_text_of_the_binary() {
 	connection::hold(&root, ConnectionKind::ApiKey, REFUSED_KEY).expect("the key is stored");
 	let owner = EnvOwner::Bot { id: "live-bot".to_owned(), space_id: "live-space".to_owned() };
 	let resolved = store::resolve(&root, &owner).expect("the store reads");
-	assert_eq!(resolved.base.get(API_KEY).map(String::as_str), Some(REFUSED_KEY));
+	assert_eq!(resolved.base.get(API_KEY), None, "the connection source leaked into the base");
+	let held = connection::held(&root).expect("the store reads");
+	assert_eq!(held.get(API_KEY).map(String::as_str), Some(REFUSED_KEY));
 
-	let mut live = opened(None, None, folder.cwd(), resolved).await;
+	let mut live = opened(None, None, folder.cwd(), resolved, held).await;
 	live.session.submit_prompt("Reply with exactly: OK").await.expect("prompt accepted");
 	let events = live.collect_until_settled().await;
 	live.sidecar.shutdown().await;
