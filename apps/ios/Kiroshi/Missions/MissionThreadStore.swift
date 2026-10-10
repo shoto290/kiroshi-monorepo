@@ -102,8 +102,12 @@ final class MissionThreadStore {
                     id: message.id, conversationId: message.conversationId, seq: .max,
                     role: .user, content: content, createdAt: message.createdAt, authorBotId: nil),
                 into: messages)
-            draft = ""
-            attachments = []
+            if draft.trimmingCharacters(in: .whitespacesAndNewlines) == text {
+                draft = ""
+            }
+            if attachments == picked {
+                attachments = []
+            }
         } catch MissionsCallError.refused(status: 413) {
             sendProblem = .tooLarge
         } catch RelayCallError.notConnected {

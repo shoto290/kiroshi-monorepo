@@ -193,6 +193,29 @@ struct MissionStoresTests {
         await connection.stop()
     }
 
+    @Test func whatThePersonTypesWhileTheAnswerIsSendingIsKept() async {
+        let connection = makeConnection()
+        let store = MissionThreadStore(mission: MissionTesting.mission(), newId: { "id-1" })
+        let socket = ScriptedRelaySocket(sharedSpaceId: "s-1")
+        let following = Task { await store.follow(connection) }
+        await connection.start()
+        await transport.nextOpening().accept(socket)
+        await waitUntil { store.isOnline }
+
+        store.draft = "First answer"
+        store.send()
+        let call = await nextCall("conversation_send_turn", on: socket)
+        store.draft = "And a second thought"
+        socket.push(.frame(#"{"id":\#(call["id"] as? Int ?? 0),"status":200,"body":1}"#))
+        await waitUntil { !store.isSending }
+
+        #expect(store.sendProblem == nil)
+        #expect(store.draft == "And a second thought")
+        #expect(store.rows.last?.id == "id-1")
+        following.cancel()
+        await connection.stop()
+    }
+
     @Test func attachedFilesAreStoredBeforeTheAnswerNamesThem() async {
         let connection = makeConnection()
         let store = MissionThreadStore(
