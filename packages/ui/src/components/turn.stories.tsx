@@ -22,7 +22,6 @@ import { Icons } from "@workspace/ui/components/icons"
 import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { Markdown } from "@workspace/ui/components/markdown"
 import type { MessageAuthor } from "@workspace/ui/components/message"
-import { MESSAGE_BUBBLE_INLINE_PADDING } from "@workspace/ui/components/message-bubble"
 import { type RosterBot, RosterProvider } from "@workspace/ui/components/roster"
 import type { RosterMenuSection } from "@workspace/ui/components/roster-menu-items"
 import type { Space } from "@workspace/ui/components/space"
@@ -1749,7 +1748,6 @@ const expectTimeBelowBubble = async (
 	await expect(edge.top).toBeGreaterThanOrEqual(below.bottom)
 	await expect(textEdgeGap).toBeCloseTo(0, 0)
 	await expect(slotIn(article, "message-time-line")).toHaveClass(
-		MESSAGE_BUBBLE_INLINE_PADDING,
 		"text-xs",
 		"text-muted-foreground",
 	)
