@@ -79,6 +79,12 @@
         case conversationsHostOffline = "3.6"
         case workingList = "3.7"
         case workingThread = "3.8"
+        case missions = "4.1"
+        case missionThread = "4.2"
+        case noMissions = "4.3"
+        case missionsHostOffline = "4.4"
+
+        @MainActor static var opened: SignInFixture?
 
         static var launchArgument: SignInFixture? {
             UserDefaults.standard.string(forKey: "fixture").flatMap(SignInFixture.init(rawValue:))
@@ -109,7 +115,8 @@
                     CloudFixture.spacesPath: CloudFixture.threeSpaces,
                     CloudFixture.signOutPath: CloudFixture.signedOut,
                 ]
-            case .space, .spaceMenu, .hostOffline:
+            case .space, .spaceMenu, .hostOffline, .missions, .missionThread, .noMissions,
+                .missionsHostOffline:
                 [CloudFixture.spacesPath: CloudFixture.threeSpaces]
             case .conversations, .thread, .noCompanion, .loadingCompanions, .emptyThread,
                 .conversationsHostOffline, .workingList, .workingThread:
@@ -121,7 +128,7 @@
         fileprivate var isSignedIn: Bool {
             switch self {
             case .loadingSpaces, .noSpace, .spaces, .spacesUnreachable, .space, .spaceMenu,
-                .hostOffline:
+                .hostOffline, .missions, .missionThread, .noMissions, .missionsHostOffline:
                 true
             case .conversations, .thread, .noCompanion, .loadingCompanions, .emptyThread,
                 .conversationsHostOffline, .workingList, .workingThread:
@@ -145,18 +152,40 @@
 
         fileprivate var lastSpaceId: Space.ID? {
             switch self {
-            case .hostOffline, .conversationsHostOffline: CloudFixture.sideProjectId
+            case .hostOffline, .conversationsHostOffline, .missionsHostOffline:
+                CloudFixture.sideProjectId
             default: nil
             }
         }
 
+        var opensOnMissions: Bool {
+            [.missions, .missionThread, .noMissions, .missionsHostOffline].contains(self)
+        }
+
         @MainActor fileprivate var relay: RelayEnvironment {
+            let online: Set<Space.ID> = [CloudFixture.studioId, CloudFixture.homeLabId]
             switch self {
             case .conversations, .thread, .noCompanion, .loadingCompanions, .emptyThread,
                 .conversationsHostOffline, .workingList, .workingThread:
-                ConversationsFixture.relay(ConversationsFixture.script(self))
+                return ConversationsFixture.relay(ConversationsFixture.script(self))
+            case .missions, .missionThread:
+                return RelayEnvironment(
+                    transport: FixtureRelayTransport(
+                        onlineSpaceIds: online, answers: MissionsFixture.answers),
+                    clock: ContinuousRelayClock())
+            case .noMissions:
+                return RelayEnvironment(
+                    transport: FixtureRelayTransport(
+                        onlineSpaceIds: online, answers: MissionsFixture.emptyAnswers),
+                    clock: ContinuousRelayClock())
+            case .missionsHostOffline:
+                return RelayEnvironment(
+                    transport: FixtureRelayTransport(
+                        onlineSpaceIds: online, onlineOnceSpaceIds: [CloudFixture.sideProjectId],
+                        answers: MissionsFixture.answers),
+                    clock: ContinuousRelayClock())
             default:
-                CloudFixture.relay
+                return CloudFixture.relay
             }
         }
 
@@ -173,6 +202,7 @@
 
     extension SignInModel {
         static func fixture(_ fixture: SignInFixture) -> SignInModel {
+            SignInFixture.opened = fixture
             let model = SignInModel(
                 cloud: KiroshiCloud(
                     baseURL: KiroshiCloud.productionURL,
@@ -202,7 +232,8 @@
             case .opening, .loadingSpaces, .noSpace, .spaces, .spacesUnreachable, .keychain,
                 .seededKeychain, .space, .spaceMenu, .hostOffline, .conversations, .thread,
                 .noCompanion, .loadingCompanions, .emptyThread, .conversationsHostOffline,
-                .workingList, .workingThread:
+                .workingList, .workingThread, .missions, .missionThread, .noMissions,
+                .missionsHostOffline:
                 break
             }
             return model

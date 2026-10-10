@@ -4,14 +4,18 @@ struct ShellView: View {
     let store: SpaceStore
     let account: SignInModel
     @Environment(\.scenePhase) private var scenePhase
+    @State private var tab = SpaceSection.atLaunch
 
     var body: some View {
-        TabView {
-            Tab("Conversations", systemImage: "bubble.left.and.bubble.right.fill") {
+        TabView(selection: $tab) {
+            Tab(
+                "Conversations", systemImage: "bubble.left.and.bubble.right.fill",
+                value: .conversations
+            ) {
                 SpaceScreen(store: store, account: account, section: .conversations)
             }
-            Tab("Missions", systemImage: "target") {
-                SpaceScreen(store: store, account: account, section: .missions)
+            Tab("Missions", systemImage: "target", value: SpaceSection.missions) {
+                MissionsScreen(store: store, account: account)
             }
         }
         .tint(.primary)
@@ -27,6 +31,15 @@ struct ShellView: View {
 
     private var isInForeground: Bool {
         scenePhase != .background
+    }
+}
+
+extension SpaceSection {
+    @MainActor static var atLaunch: SpaceSection {
+        #if DEBUG
+            if SignInFixture.opened?.opensOnMissions == true { return .missions }
+        #endif
+        return .conversations
     }
 }
 

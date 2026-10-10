@@ -1,0 +1,151 @@
+import Foundation
+import Observation
+
+struct PickedAttachment: Identifiable, Equatable, Sendable {
+    let id: UUID
+    let name: String
+    let data: Data
+}
+
+enum MissionSendProblem: Equatable {
+    case couldNotSend
+    case tooLarge
+    case offline
+}
+
+@MainActor
+@Observable
+final class MissionThreadStore {
+    let mission: Mission
+    var draft = ""
+    var attachments: [PickedAttachment] = []
+    private(set) var messages: [MissionThreadMessage] = [] {
+        didSet { rows = MissionTranscript.rows(of: messages, calendar: calendar) }
+    }
+    private(set) var rows: [MissionThreadRow] = []
+    private(set) var hasLoaded = false
+    private(set) var hasFailed = false
+    private(set) var isOnline = false
+    private(set) var isSending = false
+    private(set) var sendProblem: MissionSendProblem?
+
+    @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let newId: () -> String
+    @ObservationIgnored private let calendar: Calendar
+    @ObservationIgnored private var relay: MissionsRelay?
+    @ObservationIgnored private var rereads: AsyncStream<Void>.Continuation?
+    @ObservationIgnored private var sending: Task<Void, Never>?
+
+    init(
+        mission: Mission,
+        now: @escaping () -> Date = Date.init,
+        newId: @escaping () -> String = { UUID().uuidString.lowercased() },
+        calendar: Calendar = .current
+    ) {
+        self.mission = mission
+        self.now = now
+        self.newId = newId
+        self.calendar = calendar
+    }
+
+    var canSend: Bool {
+        isOnline && !isSending
+            && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || !attachments.isEmpty)
+    }
+
+    func follow(_ connection: RelayConnection) async {
+        let relay = MissionsRelay(connection: connection)
+        self.relay = relay
+        let updates = await connection.updates()
+        let (signals, rereads) = AsyncStream.makeStream(
+            of: Void.self, bufferingPolicy: .bufferingNewest(1))
+        self.rereads = rereads
+        await withDiscardingTaskGroup { group in
+            group.addTask { await self.reread(signals, through: relay) }
+            for await update in updates {
+                apply(update)
+            }
+            rereads.finish()
+        }
+        self.rereads = nil
+        isOnline = false
+    }
+
+    func send() {
+        guard canSend, let relay else { return }
+        isSending = true
+        sending = Task { await deliver(through: relay) }
+    }
+
+    private func deliver(through relay: MissionsRelay) async {
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let picked = attachments
+        sendProblem = nil
+        defer { isSending = false }
+        do {
+            let sentAt = now()
+            var content = text
+            if !picked.isEmpty {
+                let paths = try await relay.store(
+                    MissionAttachments(
+                        conversationId: mission.threadConversationId,
+                        attachments: picked.map { .init(name: $0.name, bytes: Array($0.data)) }))
+                content = MissionAttachmentBlock.prompt(text: text, paths: paths, sentAt: sentAt)
+            }
+            let message = MissionAnswer.Message(
+                id: newId(), conversationId: mission.threadConversationId, turnId: newId(),
+                content: content, createdAt: Int(sentAt.timeIntervalSince1970 * 1000))
+            try await relay.answer(MissionAnswer(message: message, summoned: [mission.botId]))
+            messages = MissionTranscript.upserting(
+                MissionThreadMessage(
+                    id: message.id, conversationId: message.conversationId, seq: .max,
+                    role: .user, content: content, createdAt: message.createdAt, authorBotId: nil),
+                into: messages)
+            if draft.trimmingCharacters(in: .whitespacesAndNewlines) == text {
+                draft = ""
+            }
+            if attachments == picked {
+                attachments = []
+            }
+        } catch MissionsCallError.refused(status: 413) {
+            sendProblem = .tooLarge
+        } catch RelayCallError.notConnected {
+            sendProblem = .offline
+        } catch {
+            sendProblem = .couldNotSend
+        }
+    }
+
+    private func apply(_ update: RelayUpdate) {
+        switch update {
+        case .state(.online):
+            isOnline = true
+            rereads?.yield()
+        case .state:
+            isOnline = false
+        case .event(let event):
+            switch MissionThreadFrame(event, conversationId: mission.threadConversationId) {
+            case .stored(let message):
+                messages = MissionTranscript.upserting(message, into: messages)
+            case .reread: rereads?.yield()
+            case nil: break
+            }
+        }
+    }
+
+    private func reread(_ signals: AsyncStream<Void>, through relay: MissionsRelay) async {
+        for await _ in signals {
+            do {
+                let page = try await relay.thread(conversationId: mission.threadConversationId)
+                for message in page.messages {
+                    messages = MissionTranscript.upserting(message, into: messages)
+                }
+                hasLoaded = true
+                hasFailed = false
+            } catch {
+                hasFailed = !hasLoaded
+            }
+        }
+    }
+}

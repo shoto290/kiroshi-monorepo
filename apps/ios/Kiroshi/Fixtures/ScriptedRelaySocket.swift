@@ -13,12 +13,20 @@
         private let inboundContinuation: AsyncStream<Inbound>.Continuation
         private let sharedSpaceId: String?
         private let answersPings: Bool
+        private let answers: [String: String]
+        private let hostLeavesAfter: String?
 
-        init(sharedSpaceId: String? = nil, answersPings: Bool = true) {
+        init(
+            sharedSpaceId: String? = nil, answersPings: Bool = true,
+            answers: [String: String] = [:],
+            hostLeavesAfter: String? = nil
+        ) {
             (sent, sentContinuation) = AsyncStream.makeStream()
             (inbound, inboundContinuation) = AsyncStream.makeStream()
             self.sharedSpaceId = sharedSpaceId
             self.answersPings = answersPings
+            self.answers = answers
+            self.hostLeavesAfter = hostLeavesAfter
         }
 
         func push(_ message: Inbound) {
@@ -27,11 +35,19 @@
 
         func send(_ text: String) async throws {
             sentContinuation.yield(text)
-            guard let sharedSpaceId,
-                let call = try? JSONDecoder().decode(Call.self, from: Data(text.utf8)),
-                call.command == "relay_shared_space"
-            else { return }
-            push(.frame(#"{"id":\#(call.id),"status":200,"body":{"spaceId":"\#(sharedSpaceId)"}}"#))
+            guard let call = try? JSONDecoder().decode(Call.self, from: Data(text.utf8)) else {
+                return
+            }
+            if let sharedSpaceId, call.command == "relay_shared_space" {
+                push(
+                    .frame(
+                        #"{"id":\#(call.id),"status":200,"body":{"spaceId":"\#(sharedSpaceId)"}}"#))
+            } else if let body = answers[call.command] {
+                push(.frame(#"{"id":\#(call.id),"status":200,"body":\#(body)}"#))
+                if call.command == hostLeavesAfter {
+                    push(.close(RelayClosure.hostOffline))
+                }
+            }
         }
 
         func receive() async throws -> String {
