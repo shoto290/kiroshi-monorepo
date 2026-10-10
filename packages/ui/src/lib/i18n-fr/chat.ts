@@ -266,6 +266,8 @@ const chat = {
 				title: "L’hôte a refusé cet appel.",
 				description: "Rouvrez le lien depuis l’application de bureau.",
 			},
+			hostOnly:
+				"Seul l’hôte de cet espace peut faire cela. Demandez-lui de le faire depuis son Kiroshi.",
 			hostOffline: {
 				title: "Impossible de joindre l’hôte de cet espace",
 				description:
