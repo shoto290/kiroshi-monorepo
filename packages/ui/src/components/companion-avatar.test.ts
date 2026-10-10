@@ -11,7 +11,7 @@ import {
 import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
 import { hexagonCorners } from "@workspace/ui/components/field-grid"
 
-const FIXTURE = "./companion-avatar.fixture.json"
+const FIXTURE = "./companion-avatar.fixture.jsonl"
 const SOURCE_ROOT = join(import.meta.dirname, "..")
 const RESOURCES = join(
 	import.meta.dirname,
@@ -24,8 +24,10 @@ const { readFileSync } = require("node:fs")
 const { deepStrictEqual } = require("node:assert")
 const [bundle, fixture] = process.argv.slice(1)
 ;(0, eval)(readFileSync(bundle, "utf8"))
-for (const { input, output } of JSON.parse(readFileSync(fixture, "utf8")))
+for (const line of readFileSync(fixture, "utf8").trimEnd().split("\\n")) {
+	const { input, output } = JSON.parse(line)
 	deepStrictEqual(companionAvatar(input), output)
+}
 `
 
 const NAMES = [
@@ -83,7 +85,7 @@ describe("companionAvatar", () => {
 		}))
 
 		await expect(
-			`${JSON.stringify(fixture, null, "\t")}\n`,
+			`${fixture.map((entry) => JSON.stringify(entry)).join("\n")}\n`,
 		).toMatchFileSnapshot(FIXTURE)
 	})
 
@@ -104,7 +106,7 @@ describe("companionAvatar", () => {
 				"-e",
 				REPLAY_FIXTURE_IN_NODE,
 				join(RESOURCES, "companion-avatar.js"),
-				join(RESOURCES, "companion-avatar.fixture.json"),
+				join(import.meta.dirname, FIXTURE),
 			]),
 		).not.toThrow()
 	})

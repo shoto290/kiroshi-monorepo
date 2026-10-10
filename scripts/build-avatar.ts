@@ -1,4 +1,3 @@
-import { copyFileSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = join(import.meta.dir, "..")
@@ -33,8 +32,4 @@ if (!result.success)
 await Bun.write(
 	join(RESOURCES, "companion-avatar.js"),
 	await result.outputs[0].text(),
-)
-copyFileSync(
-	join(COMPONENTS, "companion-avatar.fixture.json"),
-	join(RESOURCES, "companion-avatar.fixture.json"),
 )

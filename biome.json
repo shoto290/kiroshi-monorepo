@@ -14,7 +14,7 @@
 			"!apps/app/contracts",
 			"!apps/app/src/lib/bindings.ts",
 			"!apps/ios/Kiroshi/Resources",
-			"!packages/ui/src/components/companion-avatar.fixture.json",
+			"!packages/ui/src/components/companion-avatar.fixture.jsonl",
 			"!docs/relay/member-socket.schema.json",
 			"!packages/ui/src/components/ui"
 		]
