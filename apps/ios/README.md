@@ -34,7 +34,13 @@ A Debug build opens straight on one state of the Paper file "Kiroshi, iOS", fed 
 xcrun simctl launch --terminate-running-process booted com.kiroshi.app.ios -fixture 1.7
 ```
 
-Page 3 "Conversations" (`3.1` to `3.8`) is fed by a scripted host on the relay: it answers `conversation_bots`, `conversation_main_chat`, `conversation_message_page`, `conversation_send_turn` and `agent_cancel_turn`, and plays the host's events. `3.2`, `3.5` and `3.8` open on Juniper's thread. Sending from any thread plays a whole turn (tools, a streamed reply, then the end of the turn). `3.6` goes online, loads the list, then hears the host leave two seconds later, as when the Mac app quits.
+Page 3 "Conversations" (`3.1` to `3.8`) is fed by a scripted host on the relay: it answers `conversation_bots`, `conversation_main_chat`, `conversation_message_page`, `conversation_send_turn` and `agent_cancel_turn`, and plays the host's events. `3.2`, `3.5` and `3.8` open on Juniper's thread. Sending from any thread plays a whole turn (tools, a streamed reply, then the end of the turn). `3.6` goes online, loads the list, then hears the host leave two seconds later, as when the Mac app quits. `conversations-failed` and `thread-failed` open on the screens shown when the host refuses the list or the thread. `-draft` fills the composer of the thread a fixture opens:
+
+```bash
+xcrun simctl launch --terminate-running-process booted com.kiroshi.app.ios -fixture 3.8 -draft $'Line one\nLine two'
+```
+
+`KiroshiUITests` runs the accessibility audit on 3.1, 3.2 and 3.8 as part of `bun run ios:test`.
 
 The same fixtures feed the `#Preview`s.
 

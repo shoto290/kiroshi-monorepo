@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CompanionRow: View {
     let summary: CompanionSummary
-    let time: ConversationTime
     @Environment(\.redactionReasons) private var redactionReasons
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -15,7 +14,7 @@ struct CompanionRow: View {
                     Text(summary.companion.name)
                         .font(.headline)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    if let label = timeLabel {
+                    if let label = summary.timeLabel {
                         Text(label)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -41,12 +40,6 @@ struct CompanionRow: View {
             : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
     }
 
-    private var timeLabel: String? {
-        if summary.isWorking {
-            return String(localized: "Now")
-        }
-        return summary.lastMessage.map { time.listLabel(for: $0.sentAt) }
-    }
 }
 
 struct WorkingLabel: View {

@@ -5,6 +5,7 @@ struct CompanionSummary: Identifiable, Equatable {
     var conversationId: String?
     var lastMessage: MessagePreview?
     var isWorking = false
+    var timeLabel: String?
 
     var id: Companion.ID {
         companion.id
@@ -14,7 +15,8 @@ struct CompanionSummary: Identifiable, Equatable {
         CompanionSummary(
             companion: Companion(id: "placeholder-\(index)", name: "Companion"),
             lastMessage: MessagePreview(
-                text: "A message from the companion", isYours: false, sentAt: .now))
+                text: "A message from the companion", isYours: false, sentAt: .now),
+            timeLabel: "00:00")
     }
 }
 

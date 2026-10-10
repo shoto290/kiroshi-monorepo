@@ -7,6 +7,7 @@ final class ConversationsStore {
     enum Phase: Equatable {
         case loading
         case loaded
+        case failed
     }
 
     private(set) var phase = Phase.loading
@@ -15,12 +16,20 @@ final class ConversationsStore {
 
     @ObservationIgnored private var instanceId: Space.ID?
     @ObservationIgnored private var spaceId: String?
+    @ObservationIgnored private var relay: ConversationRelay?
     @ObservationIgnored private var opening: Companion.ID?
     @ObservationIgnored private var working: Set<String> = []
     @ObservationIgnored private var loading: Task<Void, Never>?
+    @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let calendar: Calendar
 
-    init(opening: Companion.ID? = nil) {
+    init(
+        opening: Companion.ID? = nil, now: @escaping () -> Date = Date.init,
+        calendar: Calendar = .current
+    ) {
         self.opening = opening
+        self.now = now
+        self.calendar = calendar
     }
 
     func follow(_ connection: RelayConnection) async {
@@ -32,24 +41,40 @@ final class ConversationsStore {
             working = []
             opened = nil
         }
-        let relay = ConversationRelay(connection: connection)
+        relay = ConversationRelay(connection: connection)
         for await update in await connection.updates() {
             switch update {
             case .state(.online(let sharedSpaceId)):
                 spaceId = sharedSpaceId
-                reload(through: relay)
+                reload()
             case .state:
                 break
             case .event(let event):
                 guard let event = ConversationEvent(event) else { continue }
-                apply(event, through: relay)
+                apply(event)
             }
         }
         loading?.cancel()
         loading = nil
     }
 
-    private func apply(_ event: ConversationEvent, through relay: ConversationRelay) {
+    @discardableResult
+    func reload() -> Task<Void, Never>? {
+        guard let spaceId, let relay else { return nil }
+        if phase == .failed {
+            phase = .loading
+        }
+        loading?.cancel()
+        let task = Task { await load(spaceId, through: relay) }
+        loading = task
+        return task
+    }
+
+    func refresh() async {
+        await reload()?.value
+    }
+
+    private func apply(_ event: ConversationEvent) {
         switch event {
         case .messageStored(let message):
             update(message.conversationId) { $0.lastMessage = MessagePreview(message) }
@@ -57,7 +82,7 @@ final class ConversationsStore {
             guard let conversationId = agent.scope?.conversationId else { return }
             apply(agent.change, to: conversationId)
         case .companionsChanged:
-            reload(through: relay)
+            reload()
         }
     }
 
@@ -88,52 +113,66 @@ final class ConversationsStore {
     private func update(_ conversationId: String, _ change: (inout CompanionSummary) -> Void) {
         guard let index = summaries.firstIndex(where: { $0.conversationId == conversationId })
         else { return }
-        change(&summaries[index])
-        summaries = Self.ordered(summaries)
-    }
-
-    private func reload(through relay: ConversationRelay) {
-        guard let spaceId else { return }
-        loading?.cancel()
-        loading = Task { await load(spaceId, through: relay) }
+        var changed = summaries
+        change(&changed[index])
+        publish(changed)
     }
 
     private func load(_ spaceId: String, through relay: ConversationRelay) async {
-        guard let companions = try? await relay.companions(in: spaceId) else { return }
-        let loaded = await withTaskGroup(of: CompanionSummary.self) { group in
-            for companion in companions {
-                group.addTask { await Self.summary(of: companion, in: spaceId, through: relay) }
+        do {
+            let companions = try await relay.companions(in: spaceId)
+            let loaded = try await withThrowingTaskGroup(of: CompanionSummary.self) { group in
+                for companion in companions {
+                    group.addTask {
+                        try await Self.summary(of: companion, in: spaceId, through: relay)
+                    }
+                }
+                var loaded: [CompanionSummary] = []
+                for try await summary in group {
+                    loaded.append(summary)
+                }
+                return loaded
             }
-            var loaded: [CompanionSummary] = []
-            for await summary in group {
-                loaded.append(summary)
+            guard !Task.isCancelled else { return }
+            publish(
+                loaded.map { summary in
+                    var summary = summary
+                    summary.isWorking = summary.conversationId.map(working.contains) ?? false
+                    return summary
+                })
+            phase = .loaded
+            if let opening, let companion = companions.first(where: { $0.id == opening }) {
+                self.opening = nil
+                opened = companion
             }
-            return loaded
-        }
-        guard !Task.isCancelled else { return }
-        summaries = Self.ordered(
-            loaded.map { summary in
-                var summary = summary
-                summary.isWorking = summary.conversationId.map(working.contains) ?? false
-                return summary
-            })
-        phase = .loaded
-        if let opening, let companion = companions.first(where: { $0.id == opening }) {
-            self.opening = nil
-            opened = companion
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else { return }
+            phase = .failed
         }
     }
 
     private nonisolated static func summary(
         of companion: Companion, in spaceId: String, through relay: ConversationRelay
-    ) async -> CompanionSummary {
-        guard let conversationId = try? await relay.mainChat(of: companion.id, in: spaceId) else {
-            return CompanionSummary(companion: companion)
-        }
-        let last = try? await relay.latestMessages(in: conversationId, limit: 1).last
+    ) async throws -> CompanionSummary {
+        let conversationId = try await relay.mainChat(of: companion.id, in: spaceId)
+        let last = try await relay.latestMessages(in: conversationId, limit: 1).last
         return CompanionSummary(
             companion: companion, conversationId: conversationId,
             lastMessage: last.map(MessagePreview.init))
+    }
+
+    private func publish(_ changed: [CompanionSummary]) {
+        let time = ConversationTime(now: now(), calendar: calendar)
+        summaries = Self.ordered(changed).map { summary in
+            var summary = summary
+            summary.timeLabel =
+                summary.isWorking
+                ? String(localized: "Now")
+                : summary.lastMessage.map { time.listLabel(for: $0.sentAt) }
+            return summary
+        }
     }
 
     private static func ordered(_ summaries: [CompanionSummary]) -> [CompanionSummary] {
