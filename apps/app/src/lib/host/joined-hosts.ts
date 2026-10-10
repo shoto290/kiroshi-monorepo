@@ -86,6 +86,11 @@ const OAUTH_CONNECT_COMMAND = "mcp_oauth_connect"
 
 const OAUTH_CANCEL_COMMAND = "mcp_oauth_cancel"
 
+const SPACE_READS_THE_HOST_KEEPS: ReadonlySet<string> = new Set([
+	"env_list",
+	"mcp_application_status",
+])
+
 const PERSONAL_SCOPE_KINDS: ReadonlySet<unknown> = new Set([
 	"user",
 	"person",
@@ -170,6 +175,22 @@ const isPersonalScope = (scope: unknown): boolean => {
 const carriesPersonalScope = (args?: InvokeArgs): boolean => {
 	const { scope, owner } = fieldsOf(args)
 	return isPersonalScope(scope) || isPersonalOwner(owner)
+}
+
+const isSpaceOwner = (owner: unknown): boolean =>
+	fieldsOf(owner).kind === "space"
+
+const isSpaceScope = (scope: unknown): boolean => {
+	const { kind, owner } = fieldsOf(scope)
+	return kind === "space" || (kind === "server" && isSpaceOwner(owner))
+}
+
+const readsWhatTheHostKeeps = (command: string, args?: InvokeArgs): boolean => {
+	const { scope, owner } = fieldsOf(args)
+	return (
+		SPACE_READS_THE_HOST_KEEPS.has(command) &&
+		(isSpaceScope(scope) || isSpaceOwner(owner))
+	)
 }
 
 const describeRejection = (reason: unknown): string =>
@@ -553,6 +574,11 @@ export const createJoinedHosts = ({
 			carriesPersonalScope(args)
 		) {
 			return sendTo<T>(null, call)
+		}
+		if (readsWhatTheHostKeeps(command, args)) {
+			return Promise.reject(
+				new Error(`${command} of a joined space stays on its host`),
+			)
 		}
 		const route = () => sendTo<T>(ownerOf(active, args), call)
 		return provenance.namesConversation(args)

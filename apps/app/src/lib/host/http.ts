@@ -93,7 +93,24 @@ const DEDICATED_REFUSAL_NOTICES: Record<number, () => void> = {
 		}),
 }
 
+const HOST_ONLY_STATUS = 403
+
+const HOST_ONLY_REFUSAL = "this command belongs to the host"
+
+const isHostOnlyRefusal = (message: string, status?: number) =>
+	status === HOST_ONLY_STATUS && message.includes(HOST_ONLY_REFUSAL)
+
+const raiseHostOnlyNotice = () =>
+	raiseFailureNotice({
+		title: i18n.t("chat:screen.notice.failed"),
+		description: i18n.t("chat:screen.notice.hostOnly"),
+	})
+
 export const raiseRefusalNotice = (message: string, status?: number) => {
+	if (isHostOnlyRefusal(message, status)) {
+		raiseHostOnlyNotice()
+		return
+	}
 	const raiseDedicatedNotice = status
 		? DEDICATED_REFUSAL_NOTICES[status]
 		: undefined

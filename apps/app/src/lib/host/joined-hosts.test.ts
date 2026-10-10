@@ -1578,3 +1578,61 @@ describe("personal Settings while a joined Space is active", () => {
 		expect(reportFailure).toHaveBeenCalledWith(MEMBER_REFUSAL, 403)
 	})
 })
+
+describe("Space Settings of a joined Space", () => {
+	const JOINED_SPACE = { kind: "space", id: "garage" }
+	const JOINED_SERVER = { kind: "server", name: "linear", owner: JOINED_SPACE }
+
+	const relayedCommands = (fetch: ReturnType<typeof vi.fn>) =>
+		fetch.mock.calls.map(([url]) => String(url).split("/").at(-1))
+
+	const onGarage = async () => {
+		const seeded = joinedHostsOf()
+		await seeded.hosts.activate("garage")
+		seeded.fetch.mockClear()
+		seeded.local.invoke.mockClear()
+		return seeded
+	}
+
+	it.each([
+		["application_catalogue", undefined],
+		["plugin_mcp_servers", { scope: JOINED_SPACE }],
+		["plugin_skills", { scope: JOINED_SPACE }],
+		["plugin_history", { scope: JOINED_SPACE }],
+	])("relays %s to the host", async (command, args) => {
+		const { hosts, local, fetch } = await onGarage()
+
+		await hosts.invoke(command, args)
+
+		expect(relayedCommands(fetch)).toEqual([command])
+		expect(localCommands(local)).toEqual([])
+	})
+
+	it.each([
+		["env_list", { scope: JOINED_SPACE }],
+		["env_list", { scope: JOINED_SERVER }],
+		["mcp_application_status", { owner: JOINED_SPACE }],
+	])("fires %s nowhere and raises no notice", async (command, args) => {
+		const { hosts, local, fetch, reportFailure } = await onGarage()
+
+		await expect(hosts.invoke(command, args)).rejects.toThrow(
+			`${command} of a joined space stays on its host`,
+		)
+
+		expect(relayedCommands(fetch)).toEqual([])
+		expect(localCommands(local)).toEqual([])
+		expect(reportFailure).not.toHaveBeenCalled()
+	})
+
+	it.each([
+		["env_list", { scope: { kind: "space", id: "personal" } }],
+		["mcp_application_status", { owner: { kind: "space", id: "personal" } }],
+	])("serves %s of a local Space on this Mac", async (command, args) => {
+		const { hosts, local, fetch } = joinedHostsOf()
+
+		await hosts.invoke(command, args)
+
+		expect(local.invoke).toHaveBeenLastCalledWith(command, args)
+		expect(fetch).not.toHaveBeenCalled()
+	})
+})

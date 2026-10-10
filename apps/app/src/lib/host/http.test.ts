@@ -263,6 +263,16 @@ describe("the refusal notice", () => {
 		})
 	})
 
+	it("names the host as the one to ask when the host keeps the command", () => {
+		raiseRefusalNotice("this command belongs to the host", 403)
+
+		expect(failureNotice).toHaveBeenCalledExactlyOnceWith({
+			title: "Couldn’t send that request",
+			description:
+				"Only the host of this space can do that. Ask them to do it from their Kiroshi.",
+		})
+	})
+
 	it("shows the host text when the host answers another status", () => {
 		raiseRefusalNotice("the host broke", 500)
 
