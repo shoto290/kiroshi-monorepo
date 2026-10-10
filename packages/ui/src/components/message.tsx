@@ -10,6 +10,7 @@ import { BotTitleBadge } from "@workspace/ui/components/bot-badge"
 import { Icons } from "@workspace/ui/components/icons"
 import { MessageSideContext } from "@workspace/ui/components/message-side-context"
 import type { RosterBot } from "@workspace/ui/components/roster"
+import { formatDateTime, toRelativeTime } from "@workspace/ui/lib/time-format"
 import { cn } from "@workspace/ui/lib/utils"
 
 export type MessageFrom = "user" | "assistant"
@@ -40,6 +41,17 @@ interface MessageAuthorProps extends ComponentPropsWithRef<"div"> {
 export type MessageContentProps = ComponentPropsWithRef<"div">
 export type MessageHeaderProps = ComponentPropsWithRef<"div">
 export type MessageFooterProps = ComponentPropsWithRef<"div">
+
+interface MessageTimeProps {
+	at: number
+	now: number
+}
+
+const DATE_AND_TIME: Intl.DateTimeFormatOptions = {
+	dateStyle: "full",
+	timeStyle: "short",
+	hourCycle: "h23",
+}
 
 export function Message({ from, children, className, ...props }: MessageProps) {
 	const { t } = useTranslation("chat")
@@ -143,6 +155,21 @@ export function MessageAuthor({
 				</span>
 			) : null}
 		</MessageHeader>
+	)
+}
+
+export function MessageTime({ at, now }: MessageTimeProps) {
+	useTranslation()
+
+	return (
+		<time
+			data-slot="message-time"
+			dateTime={new Date(at).toISOString()}
+			title={formatDateTime(at, DATE_AND_TIME)}
+			className="whitespace-nowrap tabular-nums"
+		>
+			{toRelativeTime(at, now)}
+		</time>
 	)
 }
 

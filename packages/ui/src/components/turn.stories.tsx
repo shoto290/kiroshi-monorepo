@@ -17,6 +17,7 @@ import {
 	CompanionMenuProvider,
 } from "@workspace/ui/components/companion-menu"
 import { CompanionSelectProvider } from "@workspace/ui/components/companion-select"
+import { DaySeparator } from "@workspace/ui/components/day-separator"
 import { Icons } from "@workspace/ui/components/icons"
 import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { Markdown } from "@workspace/ui/components/markdown"
@@ -328,7 +329,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The two transcript rows, one per side. `UserTurn` is a bubble that can offer a retry when the prompt never reached Claude, and that holds the wait for a prompt written while another turn runs — `queued` draws it a step back from a sent prompt, with its own way out; `AssistantTurn` is a bubble on the other side with a gutter for the companion's avatar. Only the companions are named here — the reader's side carries no avatar at all. A long answer arrives as a run of rows, one per paragraph: wrap those in `TurnGroup` and it tells each row where it sits, so nothing counts rows by hand, and pass `identity` on the row that closes the run — a row with no `identity` falls back to the `author` it closes its run with, and both draw the same companion avatar. A block that already draws its own frame — a table — takes `bare`, which drops the bubble behind it rather than boxing the same grid twice. `copyText` is per bubble and holds that bubble's own words — a row handed an empty one, as a turn that stopped before writing is, offers no copy at all. Both take the transport's completion verbatim as `state`, so a screen maps nothing. A row given `onReply` reveals a second action ahead of copy, and a row given `repliedTo` is wrapped in the quote of the message it answers — both report to the screen and neither knows what is being quoted. `messageId` anchors the row so the scroller can be asked to bring it back, and it is set once per message: a message split into a run puts it on the group instead of on every paragraph. The gutter avatar never stops anything: the stop of a working companion rides its working row (`ActivityIndicator`) under the bubbles, so a wave is still ended one seat at a time and the avatar above stays the same companion control whether that companion is working or idle. `footer` puts a line of the screen's own under the bubble, in the very slot a completion label uses, so a row never carries two footers and the label wins whenever the state produces one. Neither scrolls or animates the list — that belongs to the scroller around them.",
+					"The two transcript rows, one per side. `sentAt` with `now` writes the send time on a muted line under the bubble as relative wording, the full date on hover; a row without `sentAt` draws no line at all. `UserTurn` is a bubble that can offer a retry when the prompt never reached Claude, and that holds the wait for a prompt written while another turn runs — `queued` draws it a step back from a sent prompt, with its own way out; `AssistantTurn` is a bubble on the other side with a gutter for the companion's avatar. Only the companions are named here — the reader's side carries no avatar at all. A long answer arrives as a run of rows, one per paragraph: wrap those in `TurnGroup` and it tells each row where it sits, so nothing counts rows by hand, and pass `identity` on the row that closes the run — a row with no `identity` falls back to the `author` it closes its run with, and both draw the same companion avatar. A block that already draws its own frame — a table — takes `bare`, which drops the bubble behind it rather than boxing the same grid twice. `copyText` is per bubble and holds that bubble's own words — a row handed an empty one, as a turn that stopped before writing is, offers no copy at all. Both take the transport's completion verbatim as `state`, so a screen maps nothing. A row given `onReply` reveals a second action ahead of copy, and a row given `repliedTo` is wrapped in the quote of the message it answers — both report to the screen and neither knows what is being quoted. `messageId` anchors the row so the scroller can be asked to bring it back, and it is set once per message: a message split into a run puts it on the group instead of on every paragraph. The gutter avatar never stops anything: the stop of a working companion rides its working row (`ActivityIndicator`) under the bubbles, so a wave is still ended one seat at a time and the avatar above stays the same companion control whether that companion is working or idle. `footer` puts a line of the screen's own under the bubble, in the very slot a completion label uses, so a row never carries two footers and the label wins whenever the state produces one. Neither scrolls or animates the list — that belongs to the scroller around them.",
 			},
 		},
 	},
@@ -1692,5 +1693,366 @@ export const WorkingCompanionStopsFromItsRow = meta.story({
 
 		await rightClickOn(avatar)
 		await shown(await screen.findByRole("menu", { name: COMPANION_MENU_LABEL }))
+	},
+})
+
+const sentOn = (day: number, hours: number, minutes: number) =>
+	new Date(2026, 9, day, hours, minutes).getTime()
+
+const READ_ON = sentOn(10, 9, 30)
+
+const TIME_EDGE_INSET = 4
+
+const timesIn = (root: HTMLElement) =>
+	Array.from(root.querySelectorAll<HTMLTimeElement>("time"))
+
+const expectTimeBelowBubble = async (
+	article: HTMLElement,
+	at: number,
+	wording: string,
+) => {
+	const [time] = timesIn(article)
+	const bubble = slotIn(article, "message-bubble-content")
+	const below = bubble.getBoundingClientRect()
+	const edge = time.getBoundingClientRect()
+	const inset =
+		article.dataset.from === "user"
+			? below.right - edge.right
+			: edge.left - below.left
+
+	await expect(time).toHaveTextContent(wording)
+	await expect(time).toHaveAttribute("datetime", new Date(at).toISOString())
+	await expect(time.title).toContain("2026")
+	await expect(
+		bubble.compareDocumentPosition(time) & Node.DOCUMENT_POSITION_FOLLOWING,
+	).toBeTruthy()
+	await expect(edge.top).toBeGreaterThanOrEqual(below.bottom)
+	await expect(inset).toBeGreaterThanOrEqual(0)
+	await expect(inset).toBeLessThanOrEqual(TIME_EDGE_INSET)
+	await expect(slotIn(article, "message-time-line")).toHaveClass(
+		"text-xs",
+		"text-muted-foreground",
+	)
+}
+
+export const BotTurnWithTime = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<AssistantTurn
+				author={SECOND}
+				copyText={ANSWER}
+				sentAt={sentOn(10, 9, 21)}
+				now={READ_ON}
+			>
+				{ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for a companion message with its send time. Check that the time reads as relative wording on a muted line under the bubble, on the bubble's leading edge, and that hovering it shows the full date and time.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expectTimeBelowBubble(
+			canvas.getByLabelText("assistant message"),
+			sentOn(10, 9, 21),
+			"9 minutes ago",
+		)
+	},
+})
+
+export const UserTurnWithTime = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<UserTurn copyText={QUESTION} sentAt={sentOn(10, 9, 28)} now={READ_ON}>
+				{QUESTION}
+			</UserTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for the reader's own message with its send time. Check that the time sits under the bubble on the bubble's trailing edge.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expectTimeBelowBubble(
+			canvas.getByLabelText("user message"),
+			sentOn(10, 9, 28),
+			"2 minutes ago",
+		)
+	},
+})
+
+export const PersonTurnWithTime = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<PersonTurn
+				name={PERSON}
+				copyText={QUESTION}
+				sentAt={sentOn(10, 9, 0)}
+				now={READ_ON}
+			>
+				{QUESTION}
+			</PersonTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for a message another person wrote, with its send time. Check that the time sits under the bubble on the bubble's leading edge.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expectTimeBelowBubble(
+			canvas.getByLabelText(`message from ${PERSON}`),
+			sentOn(10, 9, 0),
+			"30 minutes ago",
+		)
+	},
+})
+
+export const RunOfThreeTimedMessages = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<TurnGroup>
+				{RUN.map((paragraph, index) => (
+					<AssistantTurn
+						key={paragraph}
+						author={SECOND}
+						copyText={paragraph}
+						sentAt={sentOn(10, 9, 21 + index)}
+						now={READ_ON}
+					>
+						{paragraph}
+					</AssistantTurn>
+				))}
+			</TurnGroup>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for three messages a companion sent in a row. Check that the name opens the run once and that each bubble still carries its own time underneath.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const articles = canvas.getAllByLabelText("assistant message")
+		const wordings = ["9 minutes ago", "8 minutes ago", "7 minutes ago"]
+
+		await expect(canvas.getAllByText(SECOND.name)).toHaveLength(1)
+		for (const [index, article] of articles.entries()) {
+			await expectTimeBelowBubble(
+				article,
+				sentOn(10, 9, 21 + index),
+				wordings[index],
+			)
+		}
+	},
+})
+
+export const SentSecondsAgo = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<AssistantTurn
+				author={SECOND}
+				copyText={ANSWER}
+				sentAt={READ_ON - 20_000}
+				now={READ_ON}
+			>
+				{ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for a message that just landed. Check that its time reads now rather than a count of seconds.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expectTimeBelowBubble(
+			canvas.getByLabelText("assistant message"),
+			READ_ON - 20_000,
+			"now",
+		)
+	},
+})
+
+export const SentYesterday = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<AssistantTurn
+				author={SECOND}
+				copyText={ANSWER}
+				sentAt={sentOn(9, 7, 0)}
+				now={READ_ON}
+			>
+				{ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for a message sent the day before. Check that its time reads yesterday, with the full date on hover.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expectTimeBelowBubble(
+			canvas.getByLabelText("assistant message"),
+			sentOn(9, 7, 0),
+			"yesterday",
+		)
+	},
+})
+
+export const NoSendTime = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<UserTurn copyText={QUESTION} now={READ_ON}>
+				{QUESTION}
+			</UserTurn>
+			<AssistantTurn author={SECOND} copyText={ANSWER} now={READ_ON}>
+				{ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for messages that carry no send time. Check that no time line renders and that nothing is held open under either bubble.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expect(timesIn(canvasElement)).toHaveLength(0)
+		await expect(slotsIn(canvasElement, "message-time-line")).toHaveLength(0)
+		for (const content of slotsIn(canvasElement, "message-content")) {
+			const bubble = slotIn(content, "message-bubble-content")
+			await expect(content.getBoundingClientRect().bottom).toBeCloseTo(
+				bubble.getBoundingClientRect().bottom,
+				0,
+			)
+		}
+	},
+})
+
+const TimeFollowsNowHarness = () => {
+	const [now, setNow] = useState(READ_ON)
+
+	return (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<AssistantTurn
+				author={SECOND}
+				copyText={ANSWER}
+				sentAt={READ_ON}
+				now={now}
+			>
+				{ANSWER}
+			</AssistantTurn>
+			<Button onClick={() => setNow(now + 3_600_000)}>One hour later</Button>
+		</div>
+	)
+}
+
+export const TimeFollowsNow = meta.story({
+	tags: ["test-only"],
+	render: () => <TimeFollowsNowHarness />,
+	play: async ({ canvas, userEvent }) => {
+		const article = canvas.getByLabelText("assistant message")
+
+		await expect(timesIn(article)[0]).toHaveTextContent("now")
+		await userEvent.click(
+			canvas.getByRole("button", { name: "One hour later" }),
+		)
+		await expect(canvas.getByLabelText("assistant message")).toBe(article)
+		await expect(timesIn(article)[0]).toHaveTextContent("1 hour ago")
+	},
+})
+
+const LATE_QUESTION = "Can you check the migration before tomorrow?"
+
+const LATE_ANSWER = "On it. I will run it against a fresh database."
+
+const MORNING_ANSWER = "The migration is green on a fresh database."
+
+export const ThreadCrossingADay = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<DaySeparator at={sentOn(9, 23, 48)} now={READ_ON} />
+			<UserTurn
+				copyText={LATE_QUESTION}
+				sentAt={sentOn(9, 23, 48)}
+				now={READ_ON}
+			>
+				{LATE_QUESTION}
+			</UserTurn>
+			<AssistantTurn
+				author={SECOND}
+				copyText={LATE_ANSWER}
+				sentAt={sentOn(9, 23, 52)}
+				now={READ_ON}
+			>
+				{LATE_ANSWER}
+			</AssistantTurn>
+			<DaySeparator at={sentOn(10, 0, 3)} now={READ_ON} />
+			<AssistantTurn
+				author={SECOND}
+				copyText={MORNING_ANSWER}
+				sentAt={sentOn(10, 0, 3)}
+				now={READ_ON}
+			>
+				{MORNING_ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for a conversation that runs past midnight. Check that one day line opens the thread, that exactly one more sits where the calendar day changes, and that the companion who answered on both sides of it is named again after it, as a new run.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const separators = slotsIn(canvasElement, "day-separator")
+		const [yesterday, today] = separators
+		const late = canvas.getByText(LATE_ANSWER)
+		const morning = canvas.getByText(MORNING_ANSWER)
+
+		await expect(separators).toHaveLength(2)
+		await expect(yesterday).toHaveTextContent("Yesterday")
+		await expect(today).toHaveTextContent("Today")
+		await expect(
+			yesterday.compareDocumentPosition(late) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy()
+		await expect(
+			late.compareDocumentPosition(today) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy()
+		await expect(
+			today.compareDocumentPosition(morning) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy()
+		await expect(canvas.getAllByText(SECOND.name)).toHaveLength(2)
+		await expect(canvas.queryAllByRole("separator")).toHaveLength(0)
+		await expect(
+			timesIn(canvasElement).map((time) => time.textContent),
+		).toEqual(["10 hours ago", "10 hours ago", "9 hours ago"])
 	},
 })
