@@ -4,6 +4,7 @@ import {
 	BOT,
 	bootedHarness,
 	createHarness,
+	headed,
 	POISONED,
 	POISONED_REFUSAL,
 	reload,
@@ -139,7 +140,7 @@ describe("createChatController", () => {
 	})
 
 	it("resumes the id this launch learned under a run of its own", async () => {
-		const { driver, controller } = await bootedHarness()
+		const { driver, store, controller } = await bootedHarness()
 		await controller.send("hello")
 		await vi.runAllTimersAsync()
 		const sessionId = controller.getState().sessionId
@@ -155,10 +156,11 @@ describe("createChatController", () => {
 
 		const live = controller.getState().runtime
 		expect(startSpy).toHaveBeenCalledWith(live, sessionId)
-		expect(submitSpy).toHaveBeenCalledWith(live, "again", {
-			turnId: expect.any(String),
-			promptId: expect.any(String),
-		})
+		expect(submitSpy).toHaveBeenCalledWith(
+			live,
+			await headed({ store, controller }, "again"),
+			{ turnId: expect.any(String), promptId: expect.any(String) },
+		)
 		expect(live?.runtimeSessionId).not.toBe(replaced?.runtimeSessionId)
 	})
 })

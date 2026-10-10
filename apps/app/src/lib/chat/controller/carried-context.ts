@@ -22,11 +22,20 @@ export const createCarriedContext = ({
 		)
 	}
 
+	const headed = async (
+		conversationId: string,
+		promptId: string,
+		text: string,
+	) => `${await store.messageHeader(conversationId, promptId)}\n${text}`
+
 	const contextFor = async (bot: BotChat, promptId: string, text: string) => {
 		const conversationId = bot.state.conversationId
 		const runtime = bot.state.runtime
-		if (bot.run.carried || !conversationId || !runtime) {
+		if (!conversationId || !runtime) {
 			return text
+		}
+		if (bot.run.carried) {
+			return headed(conversationId, promptId, text)
 		}
 		await capture(bot).catch((refusal) => reportStore(bot, refusal))
 		return store.boundedContext(

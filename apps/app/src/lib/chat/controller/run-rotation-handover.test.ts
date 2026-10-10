@@ -6,6 +6,7 @@ import {
 	bootedHarness,
 	deferred,
 	ended,
+	headed,
 	REPLY,
 	ROUNDS,
 	recordingStore,
@@ -209,7 +210,10 @@ describe("a handover nothing may run twice", () => {
 		const state = harness.controller.getState()
 		expect(runOf(harness.controller)).toEqual(holding)
 		expect(watched.starts).toHaveLength(1)
-		expect(watched.submits.at(-1)).toEqual([holding, "second"])
+		expect(watched.submits.at(-1)).toEqual([
+			holding,
+			await headed(harness, "second"),
+		])
 		expect(spoken(state.messages).at(-1)).toEqual([
 			"assistant",
 			REPLY,

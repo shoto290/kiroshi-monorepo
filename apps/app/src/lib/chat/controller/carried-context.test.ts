@@ -5,6 +5,7 @@ import {
 	bootedHarness,
 	expectWholeChat,
 	HISTORY,
+	headed,
 	occurrences,
 	REFUSED_REFERENCE,
 	REPLY,
@@ -13,6 +14,7 @@ import {
 	runOf,
 	spoken,
 	told,
+	userPrompt,
 	withHistory,
 } from "./controller-fixtures"
 
@@ -113,7 +115,7 @@ describe("a run replaced under a conversation that carries on", () => {
 
 		expect(runOf(controller)).toEqual(holding)
 		expect(reasons(opened, "default")).toEqual([null])
-		expect(told(submitted)).toBe("second")
+		expect(told(submitted)).toBe(await headed({ store, controller }, "second"))
 		expect(controller.getState().errors.at(-1)?.error).toEqual({
 			kind: "writeFailed",
 			detail: "the transcript store refused it (storage, poisonedConnection)",
@@ -260,5 +262,105 @@ describe("a run replaced under a conversation that carries on", () => {
 		expect(told(submitted)).toContain("The new message:\nwhere were we?")
 		expect(occurrences(told(submitted), "where were we?")).toBe(1)
 		second.detach()
+	})
+})
+
+const headingFirstPrompt = (base: TranscriptStore): TranscriptStore => ({
+	...base,
+	boundedContext: async (
+		conversationId,
+		botId,
+		runtimeSessionId,
+		promptMessageId,
+	) => {
+		const header = await base.messageHeader(conversationId, promptMessageId)
+		const context = await base.boundedContext(
+			conversationId,
+			botId,
+			runtimeSessionId,
+			promptMessageId,
+		)
+		return `${header}\n${context}`
+	},
+})
+
+const refusingHeader = (): TranscriptStore & {
+	refuse: (on: boolean) => void
+} => {
+	const base = createFakeTranscriptStore()
+	let refusing = false
+	return {
+		...base,
+		refuse: (on: boolean) => {
+			refusing = on
+		},
+		messageHeader: (conversationId, messageId) =>
+			refusing
+				? Promise.reject(REFUSAL)
+				: base.messageHeader(conversationId, messageId),
+	}
+}
+
+describe("the later prompts of a solo run", () => {
+	beforeEach(() => {
+		vi.useFakeTimers()
+	})
+
+	afterEach(() => {
+		vi.useRealTimers()
+	})
+
+	it("opens every prompt of one run with the header of that prompt, once", async () => {
+		const store = headingFirstPrompt(createFakeTranscriptStore())
+		const harness = await bootedHarness({ store })
+		const submitted = vi.spyOn(harness.driver, "submitPrompt")
+		const asked = vi.spyOn(store, "messageHeader")
+
+		for (const text of ["first", "second", "third"]) {
+			await harness.controller.send(text)
+			await vi.runAllTimersAsync()
+		}
+
+		const askedFor = asked.mock.calls.map(([, messageId]) => messageId)
+		const runs = new Set(submitted.mock.calls.map(([runtime]) => runtime))
+		expect(runs.size).toBe(1)
+		expect(askedFor).toEqual([
+			userPrompt(harness.controller, "second").id,
+			userPrompt(harness.controller, "third").id,
+		])
+		expect(submitted.mock.calls.map(([, prompt]) => prompt)).toEqual([
+			await headed(harness, "first"),
+			await headed(harness, "second"),
+			await headed(harness, "third"),
+		])
+	})
+
+	it("rejects a later prompt whose header is refused, then retries it headed", async () => {
+		const store = refusingHeader()
+		const harness = await bootedHarness({ store })
+		const submitted = vi.spyOn(harness.driver, "submitPrompt")
+		await harness.controller.send("first")
+		await vi.runAllTimersAsync()
+		store.refuse(true)
+
+		await harness.controller.send("second")
+		await vi.runAllTimersAsync()
+
+		const refused = harness.controller.getState()
+		expect(submitted).toHaveBeenCalledTimes(1)
+		expect(refused.rejectedPromptId).toBe(
+			userPrompt(harness.controller, "second").id,
+		)
+		expect(refused.errors.at(-1)?.error).toEqual({
+			kind: "writeFailed",
+			detail: "the transcript store refused it (storage, poisonedConnection)",
+		})
+
+		store.refuse(false)
+		await harness.controller.retry(refused.rejectedPromptId ?? "")
+		await vi.runAllTimersAsync()
+
+		expect(submitted).toHaveBeenCalledTimes(2)
+		expect(told(submitted)).toBe(await headed(harness, "second"))
 	})
 })
