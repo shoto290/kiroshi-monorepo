@@ -42,7 +42,7 @@ const opener = () => vi.fn(() => Promise.resolve())
 const reloadable = () => ({ open: opener(), reload: opener() })
 
 const panelsOf = () => ({
-	applications: { open: opener(), reload: opener() },
+	applications: reloadable(),
 	environment: reloadable(),
 	servers: reloadable(),
 	connections: reloadable(),
