@@ -66,7 +66,7 @@ struct MissionStoresTests {
 
         #expect((call["args"] as? [String: Any])?["spaceId"] as? String == "s-1")
         #expect(store.sections.map(\.group) == [.needsYou, .working])
-        #expect(store.companionNames == ["bot-1": "Atlas"])
+        #expect(store.companions.mapValues(\.name) == ["bot-1": "Atlas"])
         following.cancel()
         await connection.stop()
     }

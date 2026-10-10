@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import UIKit
 
     @MainActor
     enum ConversationsFixture {
@@ -9,12 +10,13 @@
             UserDefaults.standard.string(forKey: "draft") ?? ""
         }
 
-        static let juniper = Companion(id: "juniper-6", name: "Juniper")
+        static let juniper = Companion(id: "juniper-6", name: "Juniper", tint: .green)
         static let companions = [
             juniper,
-            Companion(id: "atlas-3", name: "Atlas"),
-            Companion(id: "pico-6", name: "Pico"),
-            Companion(id: "mira-9", name: "Mira"),
+            Companion(id: "atlas-3", name: "Atlas", tint: .blue),
+            Companion(id: "pico-6", name: "Pico", tint: .orange),
+            Companion(id: "shoto-1", name: "Shoto", tint: .pink, picturePath: "/avatars/shoto.png"),
+            Companion(id: "mira-9", name: "Mira", tint: .purple),
             Companion(id: "otto-5", name: "Otto"),
         ]
 
@@ -36,6 +38,12 @@
                     id: "m-pico", isYours: false,
                     content: "All checks passed, the pull request is ready to merge.", daysAgo: 1,
                     hour: 18, minute: 20)
+            ],
+            "shoto-1": [
+                .init(
+                    id: "m-shoto", isYours: false,
+                    content: "The build is green on every simulator.", daysAgo: 2, hour: 16,
+                    minute: 40)
             ],
             "mira-9": [
                 .init(
@@ -140,6 +148,31 @@
         }
 
         static let spaceId = "space-studio"
+
+        static let picture: String = {
+            let side = CGSize(width: 192, height: 192)
+            let png = UIGraphicsImageRenderer(size: side).pngData { context in
+                let colours = [UIColor.kiroshi(.primary), .kiroshi(.ring)].map(\.cgColor)
+                if let gradient = CGGradient(
+                    colorsSpace: nil, colors: colours as CFArray, locations: nil)
+                {
+                    context.cgContext.drawLinearGradient(
+                        gradient, start: .zero, end: CGPoint(x: side.width, y: side.height),
+                        options: [])
+                }
+                let figure = UIImage(systemName: "person.fill")?.withTintColor(
+                    .kiroshi(.primaryForeground))
+                figure?.draw(in: CGRect(x: 48, y: 52, width: 96, height: 92))
+            }
+            return #"{"contentType":"image/png","base64":"\#(png.base64EncodedString())"}"#
+        }()
+
+        static func botJSON(_ companion: Companion) -> String {
+            let tint = companion.tint.map { #""\#($0.rawValue)""# } ?? "null"
+            let path = companion.picturePath.map { #""\#($0)""# } ?? "null"
+            return
+                #"{"id":"\#(companion.id)","name":"\#(companion.name)","avatarBlot":\#(tint),"avatarImagePath":\#(path)}"#
+        }
 
         static func chat(of companionId: Companion.ID) -> String {
             "chat-\(companionId)"
@@ -273,7 +306,7 @@
                 refuse(id)
             case "conversation_bots":
                 guard script.answersCompanions else { return }
-                let bots = script.companions.map { #"{"id":"\#($0.id)","name":"\#($0.name)"}"# }
+                let bots = script.companions.map(FixtureHost.botJSON)
                 reply(id, "[\(bots.joined(separator: ","))]")
                 if let working = script.workingCompanion {
                     push(
@@ -297,6 +330,8 @@
                 playTurn(after: message)
             case "agent_cancel_turn":
                 reply(id, "null")
+            case "relay_avatar" where args["file"] as? String == "shoto.png":
+                reply(id, FixtureHost.picture)
             default:
                 push(
                     .frame(#"{"id":\#(id),"status":403,"body":"this command belongs to the host"}"#)

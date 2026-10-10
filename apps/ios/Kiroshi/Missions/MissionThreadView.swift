@@ -42,9 +42,13 @@ struct MissionThreadView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
-                    Text(subtitle)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(Color.kiroshi(.mutedForeground))
+                    HStack(spacing: 4) {
+                        CompanionAvatar(
+                            companion, size: .inline, isWorking: thread.mission.isAgentRunning)
+                        Text(subtitle)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(Color.kiroshi(.mutedForeground))
+                    }
                     Text(thread.mission.objective)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.kiroshi(.foreground))
@@ -61,8 +65,12 @@ struct MissionThreadView: View {
         }
     }
 
+    private var companion: MissionCompanion? {
+        missions.companion(of: thread.mission)
+    }
+
     private var subtitle: String {
-        [thread.mission.ticket.externalId, missions.companionName(of: thread.mission)]
+        [thread.mission.ticket.externalId, companion?.name]
             .compactMap(\.self)
             .joined(separator: " · ")
     }

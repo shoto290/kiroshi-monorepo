@@ -12,6 +12,7 @@ final class SpaceStore {
     private(set) var spaces: [Space]
     private(set) var currentSpaceId: Space.ID
     private(set) var connection: RelayConnection?
+    private(set) var pictures: CompanionPictures?
     let email: String
 
     @ObservationIgnored private let cloud: KiroshiCloud
@@ -61,6 +62,7 @@ final class SpaceStore {
         let connection = RelayConnection(
             baseURL: cloud.baseURL, instanceId: spaceId, bearer: bearer, environment: relay)
         self.connection = connection
+        pictures = CompanionPictures(connection: connection)
         let updates = await connection.updates()
         if !hasLeft {
             await connection.start()
@@ -72,6 +74,7 @@ final class SpaceStore {
         await connection.stop()
         if self.connection === connection {
             self.connection = nil
+            pictures = nil
         }
     }
 
