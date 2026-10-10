@@ -75,6 +75,8 @@ pub enum TranscriptStoreError {
 	UnreadableHistory { detail: String },
 	#[serde(rename_all = "camelCase")]
 	UnreadableSources { path: String, reason: String },
+	#[serde(rename_all = "camelCase")]
+	TurnAlreadyRunning { conversation_id: String, turn_id: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]

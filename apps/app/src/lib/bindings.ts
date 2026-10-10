@@ -116,6 +116,7 @@ export const commands = {
 	conversationCompleteTurn: (id: string, completedAt: number) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_complete_turn", { id, completedAt })),
 	conversationAppendUserMessage: (message: NewUserMessage) => typedError<number, TranscriptStoreError>(__TAURI_INVOKE("conversation_append_user_message", { message })),
 	conversationSendUserMessage: (message: NewUserMessage, summoned: string[]) => typedError<number, TranscriptStoreError>(__TAURI_INVOKE("conversation_send_user_message", { message, summoned })),
+	conversationSendTurn: (message: SentMessage, summoned: string[]) => typedError<number, TranscriptStoreError>(__TAURI_INVOKE("conversation_send_turn", { message, summoned })),
 	conversationOpenAssistantMessage: (message: NewAssistantMessage) => typedError<number, TranscriptStoreError>(__TAURI_INVOKE("conversation_open_assistant_message", { message })),
 	conversationAppendText: (id: string, delta: string) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_append_text", { id, delta })),
 	conversationFinalizeMessage: (id: string, completion: TerminalCompletion, settledText: string | null) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_finalize_message", { id, completion, settledText })),
@@ -1158,6 +1159,15 @@ export type Section = {
 
 export type SectionError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "unknownSection"; id: string } | { kind: "unknownBot"; id: string } | { kind: "severalSpaces"; id: string } | { kind: "foreignSpace"; id: string } | { kind: "foreignSection"; id: string };
 
+export type SentMessage = {
+	id: string,
+	conversationId: string,
+	turnId: string,
+	content: string,
+	createdAt: number,
+	repliedToMessageId: string | null,
+};
+
 export type SessionHandle = {
 	resumed: boolean,
 };
@@ -1280,7 +1290,7 @@ export type TranscriptPage = {
 
 export type TranscriptRole = "user" | "assistant";
 
-export type TranscriptStoreError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "conflict"; id: string; field: string } | { kind: "invalidTransition"; id: string; from: string; to: string } | { kind: "unknownBot"; id: string } | { kind: "namelessBot" } | { kind: "unknownConversation"; id: string } | { kind: "foreignBot"; id: string } | { kind: "severalSpaces"; id: string } | { kind: "unknownParticipant"; conversationId: string; botId: string } | { kind: "unknownMessage"; id: string } | { kind: "unknownMessageSeq"; conversationId: string; seq: number } | { kind: "rejectedAvatarImage"; reason: AvatarRejection } | { kind: "unwritableBundle"; detail: string } | { kind: "unwritableEnvironment"; failure: EnvError } | { kind: "systemSkill"; id: string } | { kind: "unreadableHistory"; detail: string } | { kind: "unreadableSources"; path: string; reason: string };
+export type TranscriptStoreError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "conflict"; id: string; field: string } | { kind: "invalidTransition"; id: string; from: string; to: string } | { kind: "unknownBot"; id: string } | { kind: "namelessBot" } | { kind: "unknownConversation"; id: string } | { kind: "foreignBot"; id: string } | { kind: "severalSpaces"; id: string } | { kind: "unknownParticipant"; conversationId: string; botId: string } | { kind: "unknownMessage"; id: string } | { kind: "unknownMessageSeq"; conversationId: string; seq: number } | { kind: "rejectedAvatarImage"; reason: AvatarRejection } | { kind: "unwritableBundle"; detail: string } | { kind: "unwritableEnvironment"; failure: EnvError } | { kind: "systemSkill"; id: string } | { kind: "unreadableHistory"; detail: string } | { kind: "unreadableSources"; path: string; reason: string } | { kind: "turnAlreadyRunning"; conversationId: string; turnId: string };
 
 export type TranscriptWindow = {
 	conversationId: string,

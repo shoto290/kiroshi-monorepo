@@ -1,11 +1,15 @@
 
 use std::collections::HashMap;
 use std::io::{BufRead, Write};
+use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::{json, Value};
 
 const DEFAULT_SESSION: &str = "fake-session-0001";
+const ADA: &str = "b-ada";
+const GRACE: &str = "b-grace";
+const ROOM_REPLY: &str = "noted";
 
 fn emit_raw(line: &str) {
 	let stdout = std::io::stdout();
@@ -171,6 +175,10 @@ impl Run {
 		}
 	}
 
+	fn runs_as(&self, bot_id: &str) -> bool {
+		Path::new(&self.cwd).file_name().is_some_and(|name| name == bot_id)
+	}
+
 	fn setting(&self, key: &str) -> Option<String> {
 		read_setting(&self.settings, key)
 	}
@@ -327,6 +335,9 @@ fn on_open(key: &str, runs: &mut HashMap<String, Run>, command: &Value) {
 	match run.scenario.as_str() {
 		"startup_timeout" => return,
 		"startup_crash" => return emit_closed(key, "the agent exited during startup"),
+		"room_grace_cannot_start" if run.runs_as(GRACE) => {
+			return emit_closed(key, "the agent exited during startup")
+		}
 		"open_exit" => {
 			eprintln!("loading the providers");
 			eprintln!("the provider binary is missing");
@@ -414,6 +425,14 @@ fn on_prompt(key: &str, runs: &mut HashMap<String, Run>, text: &str) {
 			emit_result(key, run, "success", false);
 		}
 		"routine_failed" => emit_result(key, run, "error_during_execution", true),
+		"room_handover" if run.runs_as(ADA) => {
+			emit_text_turn(key, run, "@Grace Hopper over to you");
+			emit_result(key, run, "success", false);
+		}
+		"room_reply" | "room_handover" | "room_grace_cannot_start" => {
+			emit_text_turn(key, run, ROOM_REPLY);
+			emit_result(key, run, "success", false);
+		}
 		"identity" => {
 			let spoken = run.identity();
 			emit_text_turn(key, run, &spoken);

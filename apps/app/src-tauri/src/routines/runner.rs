@@ -42,9 +42,9 @@ const EVENTS_LOST_REASON: &str = "the run's session events stopped arriving";
 
 const UNKNOWN_KIND: &str = "unknownFailure";
 
-const NO_AGENT: &str = "the host holds no agent state";
+pub(crate) const NO_AGENT: &str = "the host holds no agent state";
 
-const NO_DATABASE: &str = "the host holds no database";
+pub(crate) const NO_DATABASE: &str = "the host holds no database";
 
 #[derive(Debug, Clone, Copy)]
 pub struct RunTiming {
@@ -83,7 +83,9 @@ async fn run<R: Runtime>(app: AppHandle<R>, timing: RunTiming, requested: RunReq
 		Err(detail) => return close(&app, &requested, could_not_start(&detail)).await,
 	};
 	let (events, mut arriving) = mpsc::unbounded_channel();
-	let listening = listen(&app, &requested.run_id, scope.clone(), events);
+	let label = format!("routine run {}", requested.run_id);
+	let held = scope.clone();
+	let listening = listen(&app, label, move |heard| heard == &held, events);
 	let closing = drive(&app, timing, &requested, &scope, &mut arriving).await;
 	app.unlisten(listening);
 	close(&app, &requested, closing).await;
@@ -95,7 +97,7 @@ async fn drive<R: Runtime>(
 	timing: RunTiming,
 	requested: &RunRequested,
 	scope: &RuntimeScope,
-	arriving: &mut mpsc::UnboundedReceiver<AgentEvent>,
+	arriving: &mut mpsc::UnboundedReceiver<ScopedEvent>,
 ) -> RunClosing {
 	let run_id = &requested.run_id;
 	let expiry = time::sleep(timing.deadline);
@@ -114,10 +116,10 @@ async fn drive<R: Runtime>(
 			() = &mut expiry => return refused(app, run_id, scope, DEADLINE_REASON).await,
 			_ = lease.tick() => renew(app, run_id).await,
 			arrived = arriving.recv() => {
-				let Some(event) = arrived else {
+				let Some(scoped) = arrived else {
 					return failed(EVENTS_LOST_REASON);
 				};
-				if let Some(closing) = settled_by(app, run_id, scope, event).await {
+				if let Some(closing) = settled_by(app, run_id, scope, scoped.event).await {
 					return closing;
 				}
 			}
@@ -348,32 +350,27 @@ async fn closed<R: Runtime>(
 	Ok(())
 }
 
-fn listen<R: Runtime>(
+pub(crate) fn listen<R: Runtime>(
 	app: &AppHandle<R>,
-	run_id: &str,
-	scope: RuntimeScope,
-	events: mpsc::UnboundedSender<AgentEvent>,
+	label: String,
+	keeps: impl Fn(&RuntimeScope) -> bool + Send + 'static,
+	events: mpsc::UnboundedSender<ScopedEvent>,
 ) -> EventId {
-	let run_id = run_id.to_owned();
 	app.listen(EVENT_CHANNEL, move |heard| {
 		let scoped = match serde_json::from_str::<ScopedEvent>(heard.payload()) {
 			Ok(scoped) => scoped,
-			Err(error) => {
-				return eprintln!("routine run {run_id} could not read an agent event: {error}")
-			}
+			Err(error) => return eprintln!("{label} could not read an agent event: {error}"),
 		};
-		if scoped.scope.as_ref() != Some(&scope) {
+		if !scoped.scope.as_ref().is_some_and(&keeps) {
 			return;
 		}
-		if events.send(scoped.event).is_err() {
-			eprintln!(
-				"routine run {run_id} has stopped, an agent event of its session was dropped"
-			);
+		if events.send(scoped).is_err() {
+			eprintln!("{label} has stopped, an agent event of its session was dropped");
 		}
 	})
 }
 
-fn ends_the_session(error: &TransportError) -> bool {
+pub(crate) fn ends_the_session(error: &TransportError) -> bool {
 	error.is_fatal()
 		|| matches!(error, TransportError::AuthCheckFailed { .. } | TransportError::NotStarted)
 }
@@ -404,18 +401,20 @@ fn failed(reason: &str) -> RunClosing {
 	RunClosing { reason: Some(reason.to_owned()), ..closing(RunOutcome::Failed) }
 }
 
-fn detail_of(error: &impl Serialize) -> String {
+pub(crate) fn detail_of(error: &impl Serialize) -> String {
 	serde_json::to_string(error).unwrap_or_else(|failure| failure.to_string())
 }
 
-fn managed<'a, R: Runtime, T: Send + Sync + 'static>(
+pub(crate) fn managed<'a, R: Runtime, T: Send + Sync + 'static>(
 	app: &'a AppHandle<R>,
 	missing: &str,
 ) -> Result<State<'a, T>, String> {
 	app.try_state::<T>().ok_or_else(|| missing.to_owned())
 }
 
-fn database<R: Runtime>(app: &AppHandle<R>) -> Result<&db::Database, TranscriptStoreError> {
+pub(crate) fn database<R: Runtime>(
+	app: &AppHandle<R>,
+) -> Result<&db::Database, TranscriptStoreError> {
 	match app.try_state::<db::DatabaseState>() {
 		Some(state) => ready(state.inner()),
 		None => Err(TranscriptStoreError::Unavailable {
