@@ -21,6 +21,7 @@ const STUDIO_HOST: OpenJoinedHost = {
 	spaceName: "Studio Nord",
 	hostEmail: "lea@example.com",
 	isOnline: true,
+	isDown: false,
 }
 
 type Access = Parameters<typeof useSpaceAccess>[0]

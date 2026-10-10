@@ -17,7 +17,11 @@ import {
 	remoteMarksOf,
 	switcherSpacesOf,
 } from "./joined-spaces-controller"
-import { isHostOnline, type OpenJoinedHost } from "./open-joined-host"
+import {
+	isHostDown,
+	isHostOnline,
+	type OpenJoinedHost,
+} from "./open-joined-host"
 import type { SpacesController, SpacesState } from "./spaces-controller"
 
 import { isDesktopHost, joinedHosts } from "../host"
@@ -124,6 +128,7 @@ export const useOpenJoinedHost = (
 					spaceName: open.name,
 					hostEmail: controller.hostEmailOf(open.id),
 					isOnline: isHostOnline(connections[open.id]),
+					isDown: isHostDown(connections[open.id]),
 				}
 			: null
 	}, [joinedSpaces, openId, selectedSpaceId, connections, controller])

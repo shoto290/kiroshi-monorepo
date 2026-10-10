@@ -8,15 +8,19 @@ export type OpenJoinedHost = {
 	spaceName: string
 	hostEmail: string
 	isOnline: boolean
+	isDown: boolean
 }
 
 export const isHostOnline = (connection: JoinedHostState | undefined) =>
-	connection?.status !== "down"
+	connection?.status === "up"
+
+export const isHostDown = (connection: JoinedHostState | undefined) =>
+	connection?.status === "down"
 
 export const composerOfflineOf = (
 	host: OpenJoinedHost | null,
 ): PromptInputOffline | undefined =>
-	host && !host.isOnline
+	host?.isDown
 		? { spaceName: host.spaceName, hostName: host.hostEmail }
 		: undefined
 
