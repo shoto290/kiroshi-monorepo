@@ -46,5 +46,8 @@
 	},
 	"lint-staged": {
 		"*.{js,jsx,ts,tsx,json,css,md}": "biome check --write --no-errors-on-unmatched"
+	},
+	"patchedDependencies": {
+		"@storybook/addon-vitest@10.5.9": "patches/@storybook%2Faddon-vitest@10.5.9.patch"
 	}
 }
