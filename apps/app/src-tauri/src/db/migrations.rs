@@ -3582,9 +3582,9 @@ mod tests {
 			.expect("rows")
 	}
 
-	fn rooms_of(
-		connection: &Connection,
-	) -> Vec<(String, String, Option<String>, String, String, Option<i64>)> {
+	type StoredRoom = (String, String, Option<String>, String, String, Option<i64>);
+
+	fn rooms_of(connection: &Connection) -> Vec<StoredRoom> {
 		let mut statement = connection
 			.prepare(
 				"SELECT id, kind, space_id, title, instructions, pin_position
