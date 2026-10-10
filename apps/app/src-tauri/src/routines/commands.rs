@@ -18,11 +18,9 @@ use crate::bundles;
 use crate::conversations::commands::{oldest_space, ready, space_of_the_conversation};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
-use crate::events::{self, Event};
+use crate::events::{self, ROUTINE_CHANGED};
 
 pub const CHANGED_EVENT: &str = "routine://changed";
-
-pub const ROUTINE_CHANGED: Event<RoutineChanged> = Event::new(CHANGED_EVENT);
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

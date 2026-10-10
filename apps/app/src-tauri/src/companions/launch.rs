@@ -4,10 +4,8 @@ use std::sync::{Mutex, PoisonError};
 use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime, State};
 
-use super::contract::{
-	CompanionCreated, CompanionSeedRefused, LaunchOutcome, COMPANION_CREATED, SEED_REFUSED,
-};
-use crate::events::{self, Event};
+use super::contract::{CompanionCreated, CompanionSeedRefused, LaunchOutcome};
+use crate::events::{self, Event, COMPANION_CREATED, SEED_REFUSED};
 
 const REASON_SEPARATOR: &str = "; ";
 

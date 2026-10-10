@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use super::contract::{
 	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, Install,
 	InstallCase, InstallOutcome, ApplicationSearch, ApplicationState, Destination, InstallDraft,
-	ApplicationsError, APPLICATION_INSTALLED,
+	ApplicationsError,
 };
 use super::directory::Directory;
 use super::runnable::{refusal, Runners};
@@ -18,7 +18,7 @@ use crate::conversations::commands::ready;
 use crate::bundles::ApplicationMark;
 use crate::conversations::contract::McpServer;
 use crate::environment::contract::EnvOwner;
-use crate::events;
+use crate::events::{self, APPLICATION_INSTALLED};
 use crate::mcp_oauth::commands::mcp_application_status;
 use crate::plugins::commands::{plugin_mcp_servers, plugin_set_mcp_server};
 

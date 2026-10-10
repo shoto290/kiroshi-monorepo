@@ -13,7 +13,7 @@ use super::core::{Clock, RunSink, SystemClock};
 use super::run::{read_run_report, run_output_schema, run_prompt_for, RunReport};
 use crate::agent::commands::{
 	agent_cancel_turn, agent_shutdown, agent_start_or_resume_session, agent_submit_prompt,
-	AGENT_EVENT, EVENT_CHANNEL,
+	EVENT_CHANNEL,
 };
 use crate::agent::contract::{
 	AgentEvent, ChatMessage, EventTurn, MessageCompletion, MessageRole, RuntimeScope, ScopedEvent,
@@ -24,7 +24,7 @@ use crate::conversations::commands::{conversation_open_runtime_session, ready};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
 use crate::db::repositories::messages::{NewAssistantMessage, NewTurn, TerminalState};
-use crate::events;
+use crate::events::{self, AGENT_EVENT};
 
 const CANCELLED_REASON: &str = "the run's turn was cancelled";
 

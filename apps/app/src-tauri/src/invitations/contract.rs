@@ -1,11 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::account::cloud::InvitationCallError;
-use crate::events::Event;
 
 pub const CHANGED_EVENT: &str = "invitation://changed";
-
-pub const INVITATION_CHANGED: Event<InvitationsChanged> = Event::new(CHANGED_EVENT);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

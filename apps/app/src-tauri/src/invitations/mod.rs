@@ -10,11 +10,11 @@ use tokio::time::{interval, MissedTickBehavior};
 
 use crate::account::cloud::{Cloud, InvitationCallError};
 use crate::account::session::AccountSession;
-use crate::events;
+use crate::events::{self, INVITATION_CHANGED};
 use crate::joined_spaces;
 use crate::joined_spaces::contract::JoinedSpace;
 use crate::joined_spaces::relay::RelayJoinError;
-use contract::{Invitation, InvitationError, InvitationsChanged, INVITATION_CHANGED};
+use contract::{Invitation, InvitationError, InvitationsChanged};
 
 const INVITATIONS_EVERY: Duration = Duration::from_secs(30);
 

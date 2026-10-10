@@ -20,14 +20,14 @@ use crate::account::cloud::Cloud;
 use crate::account::session::AccountSession;
 use crate::db::repositories::space_hosting::Registration;
 use crate::db::DatabaseState;
-use crate::events;
+use crate::events::{self, HOSTING_CHANGED};
 use crate::host_api::token;
 use crate::routines::webhook::Webhook;
 use crate::spaces::commands::ready;
 use crate::spaces::contract::SpaceError;
 use authorship::RelayedMembers;
 use bridge::LocalApi;
-use contract::{HostingChanged, HostingState, Member, HOSTING_CHANGED};
+use contract::{HostingChanged, HostingState, Member};
 use relay::Hosted;
 
 pub struct Hosting {

@@ -24,15 +24,10 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use super::pointer::{Pointer, PointerInput};
-use super::{
-	MaximizeButtonBounds, MaximizeButtonPointer, MaximizeButtonState, WindowFrameError,
-	MAXIMIZE_BUTTON_EVENT,
-};
-use crate::events::{self, Event};
+use super::{MaximizeButtonBounds, MaximizeButtonPointer, MaximizeButtonState, WindowFrameError};
+use crate::events::{self, MAXIMIZE_BUTTON};
 
 const OVERLAY_CLASS: PCWSTR = w!("KiroshiMaximizeButton");
-
-const MAXIMIZE_BUTTON: Event<MaximizeButtonPointer> = Event::new(MAXIMIZE_BUTTON_EVENT);
 
 #[derive(Default)]
 struct MaximizeButton(Mutex<Option<Overlay>>);

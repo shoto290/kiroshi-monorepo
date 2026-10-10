@@ -12,7 +12,7 @@ use specta_serde::{select_phase_datatype, Phase, PhasesFormat};
 use tauri_specta::{BuilderConfiguration, LanguageExt};
 
 use super::reach::{Audience, Reach, AUDIENCES, REACHES};
-use crate::events::Event;
+use crate::events::{self, Event};
 
 type Definition = fn(&mut Types) -> DataType;
 
@@ -21,20 +21,20 @@ const fn payload_of<P: Type>(event: Event<P>) -> (&'static str, Definition) {
 }
 
 const PAYLOADS: &[(&str, Definition)] = &[
-	payload_of(crate::agent::commands::AGENT_EVENT),
-	payload_of(crate::applications::contract::APPLICATION_INSTALLED),
-	payload_of(crate::companions::contract::COMPANION_CREATED),
-	payload_of(crate::companions::contract::COMPANION_DELETED),
-	payload_of(crate::companions::contract::COMPANION_UPDATED),
-	payload_of(crate::conversations::contract::COMPANION_ARRIVED),
-	payload_of(crate::conversations::contract::COMPANION_SPOKE),
-	payload_of(crate::conversations::contract::CONVERSATION_CREATED),
-	payload_of(crate::conversations::contract::CONVERSATION_DELETED),
-	payload_of(crate::conversations::contract::MESSAGE_STORED),
-	payload_of(crate::conversations::contract::CONVERSATION_UPDATED),
-	payload_of(crate::hosting::contract::HOSTING_CHANGED),
-	payload_of(crate::missions::commands::MISSION_CHANGED),
-	payload_of(crate::routines::commands::ROUTINE_CHANGED),
+	payload_of(events::AGENT_EVENT),
+	payload_of(events::APPLICATION_INSTALLED),
+	payload_of(events::COMPANION_CREATED),
+	payload_of(events::COMPANION_DELETED),
+	payload_of(events::COMPANION_UPDATED),
+	payload_of(events::COMPANION_ARRIVED),
+	payload_of(events::COMPANION_SPOKE),
+	payload_of(events::CONVERSATION_CREATED),
+	payload_of(events::CONVERSATION_DELETED),
+	payload_of(events::MESSAGE_STORED),
+	payload_of(events::CONVERSATION_UPDATED),
+	payload_of(events::HOSTING_CHANGED),
+	payload_of(events::MISSION_CHANGED),
+	payload_of(events::ROUTINE_CHANGED),
 ];
 
 const FRAME_NAMES: [&str; 3] = ["CallFrame", "AnswerFrame", "EventFrame"];

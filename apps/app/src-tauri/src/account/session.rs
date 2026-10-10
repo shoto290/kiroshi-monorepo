@@ -11,10 +11,10 @@ use tokio::net::TcpListener;
 
 use super::callback::{self, Delivered};
 use super::cloud::{Cloud, MagicLinkError, MeError};
-use super::contract::{AccountError, AccountFailure, AccountState, ACCOUNT_CHANGED};
+use super::contract::{AccountError, AccountFailure, AccountState};
 use crate::environment::contract::{EnvError, EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
-use crate::events;
+use crate::events::{self, ACCOUNT_CHANGED};
 use crate::hosting;
 use crate::invitations;
 use crate::joined_spaces;

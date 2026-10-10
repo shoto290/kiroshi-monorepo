@@ -3,7 +3,8 @@ use std::{env::current_exe, ffi::OsStr, fmt::Display, path::Path};
 use mac_usernotifications::{request_auth, Notification};
 use tauri::{AppHandle, Runtime};
 
-use super::commands::{NotificationTarget, NOTIFICATION_ACTIVATED};
+use super::commands::NotificationTarget;
+use crate::events::NOTIFICATION_ACTIVATED;
 
 pub fn show<R: Runtime>(
 	app: AppHandle<R>,

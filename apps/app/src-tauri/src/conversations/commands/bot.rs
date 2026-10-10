@@ -12,14 +12,14 @@ use crate::attachments;
 use crate::avatars;
 use crate::bundles;
 use crate::companions::contract::{
-	CompanionCreated, CompanionDeleted, CompanionUpdated, COMPANION_CREATED, COMPANION_DELETED,
-	COMPANION_UPDATED, CREATED_EVENT,
+	CompanionCreated, CompanionDeleted, CompanionUpdated, CREATED_EVENT,
 };
 use crate::companions::launch;
 use crate::db;
 use crate::db::repositories::conversations::{Bot as StoredBot, DEFAULT_BOT_MODEL};
 use crate::environment;
 use crate::environment::contract::EnvOwner;
+use crate::events::{COMPANION_CREATED, COMPANION_DELETED, COMPANION_UPDATED};
 use crate::file_store::FileStore;
 
 const DUPLICATE_SUFFIX: &str = " copy";

@@ -30,7 +30,7 @@ use crate::db::repositories::runtime_context::ParticipantKey;
 use crate::environment::connection;
 use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv, Values};
 use crate::environment::store as environment;
-use crate::events::{self, Event};
+use crate::events::{self, AGENT_EVENT};
 use crate::mcp_oauth::refresh;
 use crate::mcp_oauth::reports::StandingHost;
 use crate::missions::host::MissionHost;
@@ -38,8 +38,6 @@ use crate::private_files;
 use crate::routines::host::RoutineHost;
 
 pub const EVENT_CHANNEL: &str = "agent://event";
-
-pub const AGENT_EVENT: Event<ScopedEvent> = Event::new(EVENT_CHANNEL);
 
 const RUNS_DIR: &str = "runs";
 

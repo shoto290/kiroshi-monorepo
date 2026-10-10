@@ -4,12 +4,12 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
 use tokio::time::{interval, MissedTickBehavior};
 
-use super::contract::{Member, MemberStatus, MembersChanged, MembersError, MEMBERS_CHANGED};
+use super::contract::{Member, MemberStatus, MembersChanged, MembersError};
 use super::Hosting;
 use crate::account::contract::AccountState;
 use crate::account::session::AccountSession;
 use crate::db::DatabaseState;
-use crate::events;
+use crate::events::{self, MEMBERS_CHANGED};
 use crate::spaces::commands::ready;
 use crate::spaces::contract::SpaceError;
 

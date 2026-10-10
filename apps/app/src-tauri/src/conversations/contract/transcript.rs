@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::db::repositories::{arrivals, messages};
-use crate::events::Event;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -64,8 +63,6 @@ impl From<TerminalCompletion> for messages::TerminalState {
 }
 
 pub const MESSAGE_STORED_EVENT: &str = "conversation://message-stored";
-
-pub const MESSAGE_STORED: Event<TranscriptMessage> = Event::new(MESSAGE_STORED_EVENT);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -174,8 +171,6 @@ impl MessageReference {
 
 pub const COMPANION_ARRIVED_EVENT: &str = "conversation://companion-arrived";
 
-pub const COMPANION_ARRIVED: Event<CompanionArrival> = Event::new(COMPANION_ARRIVED_EVENT);
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionArrival {
@@ -188,8 +183,6 @@ pub struct CompanionArrival {
 }
 
 pub const COMPANION_SPOKE_EVENT: &str = "conversation://companion-spoke";
-
-pub const COMPANION_SPOKE: Event<CompanionSpoke> = Event::new(COMPANION_SPOKE_EVENT);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

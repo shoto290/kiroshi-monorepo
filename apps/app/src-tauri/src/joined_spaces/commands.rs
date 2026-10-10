@@ -4,19 +4,13 @@ use tauri::{AppHandle, Runtime, State};
 use super::contract::{JoinedSpace, JoinedSpaceConnection, JoinedSpaceError};
 use super::relay::{self, RelayGuests};
 use crate::db;
-use crate::events::{self, Event};
+use crate::events::{self, JOINED_SPACE_CHANGED, JOINED_SPACE_RECONNECTED, JOINED_SPACE_REMOVED};
 
 pub const CHANGED_EVENT: &str = "joined-space://changed";
 
 pub const REMOVED_EVENT: &str = "joined-space://removed";
 
 pub const RECONNECTED_EVENT: &str = "joined-space://reconnected";
-
-pub const JOINED_SPACE_CHANGED: Event<JoinedSpaceChanged> = Event::new(CHANGED_EVENT);
-
-pub const JOINED_SPACE_REMOVED: Event<JoinedSpaceRemoved> = Event::new(REMOVED_EVENT);
-
-pub const JOINED_SPACE_RECONNECTED: Event<JoinedSpaceReconnected> = Event::new(RECONNECTED_EVENT);
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

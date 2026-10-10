@@ -16,13 +16,11 @@ use crate::bundles;
 use crate::conversations::commands::{bot_row, ready};
 use crate::conversations::contract::Bot;
 use crate::db;
-use crate::events::{self, Event};
+use crate::events::{self, MISSION_CHANGED};
 use crate::file_store::FileStore;
 use crate::routines::webhook::{Webhook, HEADER};
 
 pub const CHANGED_EVENT: &str = "mission://changed";
-
-pub const MISSION_CHANGED: Event<MissionChanged> = Event::new(CHANGED_EVENT);
 
 const BOT: &str = "bot";
 

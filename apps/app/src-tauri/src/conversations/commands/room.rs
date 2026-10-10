@@ -3,14 +3,15 @@ use tauri::{AppHandle, Runtime, State};
 use super::super::context;
 use super::super::contract::{
 	Chat, CompanionArrival, ContextCheckpoint, Conversation, ConversationDeleted,
-	ConversationStored, RuntimeSession, TranscriptStoreError, COMPANION_ARRIVED,
-	CONVERSATION_CREATED, CONVERSATION_DELETED, CONVERSATION_UPDATED,
+	ConversationStored, RuntimeSession, TranscriptStoreError,
 };
 use super::bot::ready;
 use crate::avatars;
 use crate::companions::launch;
 use crate::db;
-use crate::events::Event;
+use crate::events::{
+	Event, COMPANION_ARRIVED, CONVERSATION_CREATED, CONVERSATION_DELETED, CONVERSATION_UPDATED,
+};
 use crate::db::repositories::conversations::{
 	Conversation as StoredConversation, ConversationDraft, ConversationEdit, Joined,
 };

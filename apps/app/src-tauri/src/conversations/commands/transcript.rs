@@ -3,7 +3,7 @@ use tauri::{AppHandle, Manager, Runtime, State};
 use super::super::contract::{
 	MessageReference, NewAssistantMessage, NewTurn, NewUserMessage, PinnedBubble, SentMessage,
 	TerminalCompletion, TranscriptMessage, TranscriptPage, TranscriptStoreError, TranscriptWindow,
-	MESSAGE_STORED, MESSAGE_STORED_EVENT,
+	MESSAGE_STORED_EVENT,
 };
 use super::super::{context, host_turn};
 use super::bot::ready;
@@ -11,7 +11,7 @@ use crate::agent::reply_writer::HostWrites;
 use crate::agent::AgentState;
 use crate::db;
 use crate::db::repositories::messages::{MessagePageQuery, MessagesAroundQuery};
-use crate::events;
+use crate::events::{self, MESSAGE_STORED};
 use crate::hosting::authorship::Caller;
 
 #[tauri::command]

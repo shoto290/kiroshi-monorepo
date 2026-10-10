@@ -9,7 +9,7 @@ use tauri::{AppHandle, Runtime};
 
 use super::contract::{
 	CompanionCreated, CompanionError, CompanionInvited, ConversationAttached, ConversationOpened,
-	ConversationSaid, SeatedCompanion, COMPANION_CREATED, FIRST_RUN_DONE,
+	ConversationSaid, SeatedCompanion,
 };
 use crate::agent::host::{Host, Refusal};
 use crate::agent::reply_writer::{shown_with_attachments, HeldAttachment, TurnAttachments};
@@ -20,12 +20,10 @@ use crate::attachments::{
 use crate::conversations::commands::{
 	conversation_create_bot_from_draft, conversation_suggested_bots, ready, seat_participant,
 };
-use crate::conversations::contract::{
-	BotDraft, CompanionSpoke, TranscriptStoreError, COMPANION_SPOKE,
-};
+use crate::conversations::contract::{BotDraft, CompanionSpoke, TranscriptStoreError};
 use crate::db;
 use crate::db::repositories::conversations::{Bot as StoredBot, ConversationDraft, TOPIC_KIND};
-use crate::events::{self, Event};
+use crate::events::{self, Event, COMPANION_CREATED, COMPANION_SPOKE, FIRST_RUN_DONE};
 use crate::file_store::FileStore;
 
 #[derive(Debug)]

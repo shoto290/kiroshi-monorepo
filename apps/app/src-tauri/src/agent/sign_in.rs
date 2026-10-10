@@ -6,12 +6,10 @@ use super::commands::AgentState;
 use super::contract::{SignInError, SignInStarted, TransportError};
 use super::protocol::{SignInFailure, SignInFailureKind, SignedIn};
 use super::sidecar::{OauthFlowError, Opening};
-use crate::events::{self, Event};
+use crate::events::{self, SIGN_IN_STARTED};
 use crate::mcp_oauth::commands::is_openable;
 
 pub const SIGN_IN_STARTED_CHANNEL: &str = "agent://sign-in-started";
-
-pub const SIGN_IN_STARTED: Event<SignInStarted> = Event::new(SIGN_IN_STARTED_CHANNEL);
 
 const NO_REASON: &str = "the sign-in settled with no reason";
 
