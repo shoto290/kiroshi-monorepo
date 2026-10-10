@@ -282,7 +282,11 @@ conversation-message-turn--reported-by-routine
 conversation-message-turn--reported-by-unnamed-trigger
 conversation-message-turn--run
 conversation-message-turn--run-of-three-timed-messages
+conversation-message-turn--send-time-tooltip
+conversation-message-turn--sent-in-the-future
+conversation-message-turn--sent-just-after-midnight
 conversation-message-turn--sent-seconds-ago
+conversation-message-turn--sent-twenty-six-hours-ago
 conversation-message-turn--sent-yesterday
 conversation-message-turn--summoned-by-mission
 conversation-message-turn--table

@@ -1722,7 +1722,7 @@ const expectTimeBelowBubble = async (
 
 	await expect(time).toHaveTextContent(wording)
 	await expect(time).toHaveAttribute("datetime", new Date(at).toISOString())
-	await expect(time.title).toContain("2026")
+	await expect(time).not.toHaveAttribute("title")
 	await expect(
 		bubble.compareDocumentPosition(time) & Node.DOCUMENT_POSITION_FOLLOWING,
 	).toBeTruthy()
@@ -1917,6 +1917,134 @@ export const SentYesterday = meta.story({
 			canvas.getByLabelText("assistant message"),
 			sentOn(9, 7, 0),
 			"yesterday",
+		)
+	},
+})
+
+const sentAt = (day: number, hours: number, minutes: number, now: number) => ({
+	sentAt: sentOn(day, hours, minutes),
+	now,
+})
+
+const AFTER_MIDNIGHT = sentAt(9, 0, 5, sentOn(10, 8, 0))
+
+export const SentJustAfterMidnight = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<DaySeparator at={AFTER_MIDNIGHT.sentAt} now={AFTER_MIDNIGHT.now} />
+			<AssistantTurn author={SECOND} copyText={ANSWER} {...AFTER_MIDNIGHT}>
+				{ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for a message sent just after midnight, read the next morning. Check that its time reads yesterday, the same day the separator above it names.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(slotIn(canvasElement, "day-separator")).toHaveTextContent(
+			"Yesterday",
+		)
+		await expectTimeBelowBubble(
+			canvas.getByLabelText("assistant message"),
+			AFTER_MIDNIGHT.sentAt,
+			"yesterday",
+		)
+	},
+})
+
+const ACROSS_TWO_DAYS = sentAt(8, 23, 0, sentOn(10, 1, 0))
+
+export const SentTwentySixHoursAgo = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<DaySeparator at={ACROSS_TWO_DAYS.sentAt} now={ACROSS_TWO_DAYS.now} />
+			<AssistantTurn author={SECOND} copyText={ANSWER} {...ACROSS_TWO_DAYS}>
+				{ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for a message sent 26 hours ago, late in the evening two calendar days back. Check that its time counts calendar days and reads 2 days ago under a dated separator, never yesterday.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(slotIn(canvasElement, "day-separator")).toHaveTextContent(
+			"October 8",
+		)
+		await expectTimeBelowBubble(
+			canvas.getByLabelText("assistant message"),
+			ACROSS_TWO_DAYS.sentAt,
+			"2 days ago",
+		)
+	},
+})
+
+export const SentInTheFuture = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<AssistantTurn
+				author={SECOND}
+				copyText={ANSWER}
+				sentAt={READ_ON + 120_000}
+				now={READ_ON}
+			>
+				{ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for a send time two minutes ahead of the reader's clock, as a skewed host clock produces. Check that it reads now rather than a future phrase.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expectTimeBelowBubble(
+			canvas.getByLabelText("assistant message"),
+			READ_ON + 120_000,
+			"now",
+		)
+	},
+})
+
+export const SendTimeTooltip = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<AssistantTurn
+				author={SECOND}
+				copyText={ANSWER}
+				sentAt={sentOn(9, 23, 48)}
+				now={READ_ON}
+			>
+				{ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this for the exact send time. Check that resting the pointer on the relative time opens the house tooltip with the full date and time in the reader's time zone.",
+			},
+		},
+	},
+	play: async ({ canvasElement, userEvent }) => {
+		const [time] = timesIn(canvasElement)
+
+		await userEvent.hover(time)
+		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
+			"Friday, October 9, 2026 at 23:48",
 		)
 	},
 })
