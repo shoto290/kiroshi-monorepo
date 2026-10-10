@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, renderHook } from "@testing-library/react"
+import { cleanup, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
@@ -9,6 +9,10 @@ import {
 	useSpaceSettingsReads,
 } from "./use-settings-reads"
 
+import { createConnectionsController } from "../applications/connections-controller"
+import { createFakeConnectionPort } from "../applications/fake-connection-port"
+import { createFakeTranscriptStore } from "../conversations/fake-transcript-store"
+import { createEnvironmentController } from "../environment/environment-controller"
 import {
 	joinFakeHost,
 	leaveFakeHost,
@@ -35,17 +39,21 @@ afterEach(async () => {
 
 const opener = () => vi.fn(() => Promise.resolve())
 
+const reloadable = () => ({ open: opener(), reload: opener() })
+
 const panelsOf = () => ({
-	applications: { open: opener() },
-	environment: { open: opener() },
-	servers: { open: opener() },
-	connections: { open: opener() },
+	applications: { open: opener(), reload: opener() },
+	environment: reloadable(),
+	servers: reloadable(),
+	connections: reloadable(),
 })
 
 type Panels = ReturnType<typeof panelsOf>
 
 const readCounts = (panels: Panels) =>
-	Object.values(panels).map((panel) => panel.open.mock.calls.length)
+	Object.values(panels).map(
+		(panel) => panel.open.mock.calls.length + panel.reload.mock.calls.length,
+	)
 
 const mounted = (panels: Panels, isOpen: boolean) =>
 	renderHook(
@@ -55,7 +63,7 @@ const mounted = (panels: Panels, isOpen: boolean) =>
 	)
 
 const serverEnvironmentShown = () => {
-	const environment = { open: opener() }
+	const environment = reloadable()
 	const rendered = renderHook(() =>
 		useServerEnvironmentReads({ environment, server: SERVER }),
 	)
@@ -115,6 +123,49 @@ describe("useSpaceSettingsReads", () => {
 	})
 })
 
+describe("useSpaceSettingsReads on live controllers", () => {
+	const SPACE = { kind: "space", id: "personal" } as const
+	const ATLAS = { name: "atlas", status: "needsAuthorization" } as const
+
+	const shownWithLiveControllers = async () => {
+		const port = createFakeConnectionPort()
+		port.rows.space = [ATLAS]
+		const connections = createConnectionsController(port)
+		const store = createFakeTranscriptStore()
+		await store.setEnvironmentVariable(SPACE, "TOKEN", "secret")
+		const environment = createEnvironmentController(store)
+		const panels = { ...panelsOf(), environment, connections }
+		await joinFakeHost(JOINED)
+		renderHook(() =>
+			useSpaceSettingsReads({ ...panels, spaceId: SPACE.id, isOpen: true }),
+		)
+		await waitFor(() => expect(connections.getState().rows).toEqual([ATLAS]))
+		await waitFor(() => expect(environment.getState().entries).toHaveLength(1))
+		return { connections, environment }
+	}
+
+	it("keeps a connect in flight when the relay of the joined Space reopens", async () => {
+		const { connections } = await shownWithLiveControllers()
+		void connections.connect("atlas", "https://mcp.atlas.test/mcp")
+
+		reopenFakeRelay(JOINED)
+
+		expect(connections.getState()).toMatchObject({
+			rows: [ATLAS],
+			connecting: "atlas",
+		})
+		void connections.cancel()
+	})
+
+	it("keeps the environment rows on screen while the fresh read is on its way", async () => {
+		const { environment } = await shownWithLiveControllers()
+
+		reopenFakeRelay(JOINED)
+
+		expect(environment.getState().entries).toHaveLength(1)
+	})
+})
+
 describe("useServerEnvironmentReads", () => {
 	it("reads the environment of the opened server", () => {
 		const { environment } = serverEnvironmentShown()
@@ -128,7 +179,7 @@ describe("useServerEnvironmentReads", () => {
 
 		reopenFakeRelay(JOINED)
 
-		expect(environment.open).toHaveBeenCalledTimes(2)
+		expect(environment.reload).toHaveBeenCalledOnce()
 	})
 
 	it("reads nothing more when the relay of another Space reopens", async () => {

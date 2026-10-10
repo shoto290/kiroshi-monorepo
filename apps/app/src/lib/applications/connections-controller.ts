@@ -22,6 +22,7 @@ export type ConnectionsController = {
 	getState: () => ConnectionsState
 	subscribe: (listener: () => void) => () => void
 	open: (owner: EnvOwner) => Promise<void>
+	reload: () => Promise<void>
 	connect: (name: string, url: string) => Promise<void>
 	cancel: () => Promise<void>
 	disconnect: (name: string, url: string) => Promise<void>
@@ -99,6 +100,11 @@ export const createConnectionsController = (
 		open: (owner) => {
 			set({ ...initialConnectionsState, owner })
 			return read(owner)
+		},
+
+		reload: () => {
+			const owner = current().owner
+			return owner ? read(owner) : Promise.resolve()
 		},
 
 		connect: async (name, url) => {

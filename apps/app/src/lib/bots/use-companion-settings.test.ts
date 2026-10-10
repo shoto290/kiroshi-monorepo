@@ -28,18 +28,22 @@ afterEach(async () => {
 
 const opener = () => vi.fn(() => Promise.resolve())
 
+const reloadable = () => ({ open: opener(), reload: opener() })
+
 const panelsOf = () => ({
-	applications: { open: opener() },
-	plugin: { open: opener() },
-	servers: { open: opener() },
-	environment: { open: opener() },
-	connections: { open: opener() },
+	applications: { open: opener(), reload: opener() },
+	plugin: reloadable(),
+	servers: reloadable(),
+	environment: reloadable(),
+	connections: reloadable(),
 })
 
 type Panels = ReturnType<typeof panelsOf>
 
 const readCounts = (panels: Panels) =>
-	Object.values(panels).map((panel) => panel.open.mock.calls.length)
+	Object.values(panels).map(
+		(panel) => panel.open.mock.calls.length + panel.reload.mock.calls.length,
+	)
 
 const mounted = (panels: Panels, isOpen: boolean) =>
 	renderHook(
