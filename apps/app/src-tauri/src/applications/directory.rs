@@ -26,11 +26,13 @@ const SEGMENTS: [&str; 3] = ["api", "directory", "servers"];
 
 const LIMIT: &str = "100";
 
-const SCHEMA: u32 = 2;
+const SCHEMA: u32 = 3;
 
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 
 const WEEK_MS: i64 = 7 * DAY_MS;
+
+const RETRY_MS: i64 = 60 * 1000;
 
 const TICK: Duration = Duration::from_secs(60 * 60);
 
@@ -146,6 +148,7 @@ struct Listing {
 struct Cached {
 	schema: u32,
 	read_at: i64,
+	listed_at: i64,
 	is_feed_stale: bool,
 	rows: Vec<Row>,
 }
@@ -153,8 +156,13 @@ struct Cached {
 #[derive(Default)]
 struct Held {
 	cached: Option<Cached>,
-	failure: Option<ApplicationsError>,
+	failure: Option<Failure>,
 	is_disk_read: bool,
+}
+
+struct Failure {
+	error: ApplicationsError,
+	at: i64,
 }
 
 pub struct Directory {
@@ -236,14 +244,15 @@ impl Directory {
 		&self,
 		answer: impl FnOnce(&Cached, Option<&ApplicationsError>) -> T,
 	) -> Result<T, ApplicationsError> {
-		if self.is_unread() {
+		if self.is_due() {
 			self.refreshed().await;
 		}
 		let held = self.kept();
+		let failure = held.failure.as_ref().map(|failure| &failure.error);
 		let Some(cached) = held.cached.as_ref() else {
-			return Err(held.failure.clone().unwrap_or_else(unread_directory));
+			return Err(failure.cloned().unwrap_or_else(unread_directory));
 		};
-		Ok(answer(cached, held.failure.as_ref()))
+		Ok(answer(cached, failure))
 	}
 
 	fn kept(&self) -> RwLockReadGuard<'_, Held> {
@@ -254,14 +263,18 @@ impl Directory {
 		self.held.write().unwrap_or_else(PoisonError::into_inner)
 	}
 
-	fn is_unread(&self) -> bool {
+	fn is_due(&self) -> bool {
+		let now = self.clock.now_ms();
 		let held = self.kept();
-		held.cached.is_none() && held.failure.is_none()
+		held.cached.is_none()
+			&& held.failure.as_ref().is_none_or(|failure| now - failure.at > RETRY_MS)
 	}
 
 	fn is_fresh(&self) -> bool {
 		let now = self.clock.now_ms();
-		self.kept().cached.as_ref().is_some_and(|cached| !is_stale(cached.read_at, now))
+		self.kept().cached.as_ref().is_some_and(|cached| {
+			!is_stale(cached.read_at, now) && !is_unlisted(cached.listed_at, now)
+		})
 	}
 
 	fn kept_file(&self) {
@@ -275,7 +288,8 @@ impl Directory {
 	}
 
 	fn mergeable(&self, now: i64) -> Option<(String, Cached)> {
-		let cached = self.kept().cached.clone().filter(|cached| now - cached.read_at <= WEEK_MS)?;
+		let cached =
+			self.kept().cached.clone().filter(|cached| !is_unlisted(cached.listed_at, now))?;
 		Some((instant(cached.read_at)?, cached))
 	}
 
@@ -298,7 +312,7 @@ impl Directory {
 			}
 			Err(failure) => {
 				eprintln!("the Kiroshi directory was not read: {failure:?}");
-				self.keeping().failure = Some(failure);
+				self.keeping().failure = Some(Failure { error: failure, at: now });
 			}
 		}
 	}
@@ -332,6 +346,10 @@ fn unread_directory() -> ApplicationsError {
 
 fn is_stale(read_at: i64, now: i64) -> bool {
 	now - read_at > DAY_MS
+}
+
+fn is_unlisted(listed_at: i64, now: i64) -> bool {
+	now - listed_at > WEEK_MS
 }
 
 fn instant(ms: i64) -> Option<String> {
@@ -428,6 +446,7 @@ fn replaced(listing: Listing, now: i64) -> Result<Cached, ApplicationsError> {
 	Ok(Cached {
 		schema: SCHEMA,
 		read_at: now,
+		listed_at: now,
 		is_feed_stale: listing.is_feed_stale,
 		rows: listing.rows,
 	})
@@ -447,7 +466,13 @@ fn merged(cached: Cached, listing: Listing, now: i64) -> Cached {
 		}
 	}
 	rows.sort_by(|one, other| position(one).cmp(&position(other)));
-	Cached { schema: SCHEMA, read_at: now, is_feed_stale: listing.is_feed_stale, rows }
+	Cached {
+		schema: SCHEMA,
+		read_at: now,
+		listed_at: cached.listed_at,
+		is_feed_stale: listing.is_feed_stale,
+		rows,
+	}
 }
 
 fn position(row: &Row) -> (Tier, bool, Option<i64>, &str) {
@@ -592,6 +617,7 @@ fn written(file: &Path, cached: &Cached) -> Result<(), String> {
 #[cfg(test)]
 pub(crate) mod tests {
 	use std::net::{Ipv4Addr, SocketAddr};
+	use std::sync::atomic::{AtomicI64, Ordering};
 	use std::sync::Mutex as Recorded;
 
 	use axum::extract::State as Extracted;
@@ -617,6 +643,25 @@ pub(crate) mod tests {
 		}
 	}
 
+	#[derive(Clone)]
+	struct Moving(Arc<AtomicI64>);
+
+	impl Moving {
+		fn at(now: i64) -> Self {
+			Self(Arc::new(AtomicI64::new(now)))
+		}
+
+		fn set(&self, now: i64) {
+			self.0.store(now, Ordering::SeqCst);
+		}
+	}
+
+	impl Clock for Moving {
+		fn now_ms(&self) -> i64 {
+			self.0.load(Ordering::SeqCst)
+		}
+	}
+
 	pub(crate) struct Served {
 		pages: Recorded<Vec<Value>>,
 		stale_feeds: Recorded<Vec<String>>,
@@ -633,6 +678,10 @@ pub(crate) mod tests {
 			let refuses = *refusals > 0;
 			*refusals = refusals.saturating_sub(1);
 			refuses
+		}
+
+		fn serves(&self, pages: Vec<Value>) {
+			*self.pages.lock().expect("the stub records") = pages;
 		}
 
 		fn asked(&self) -> Vec<String> {
@@ -794,7 +843,7 @@ pub(crate) mod tests {
 
 	async fn a_cache_read_at(read_at: i64, names: &[&str]) -> Cached {
 		let directory = a_directory_over(vec![a_page(names)]).await;
-		Cached { read_at, ..a_cache_of(&directory) }
+		Cached { read_at, listed_at: read_at, ..a_cache_of(&directory) }
 	}
 
 	pub(crate) fn applications(rows: Vec<Value>) -> Vec<Application> {
@@ -805,7 +854,9 @@ pub(crate) mod tests {
 		let directory = Directory::at("http://127.0.0.1:1".to_owned(), None);
 		let rows = rows.into_iter().filter_map(row).collect();
 		let read_at = SystemClock.now_ms();
-		planted(&directory, Cached { schema: SCHEMA, read_at, is_feed_stale: false, rows });
+		let cached =
+			Cached { schema: SCHEMA, read_at, listed_at: read_at, is_feed_stale: false, rows };
+		planted(&directory, cached);
 		directory
 	}
 
@@ -1196,6 +1247,80 @@ pub(crate) mod tests {
 	}
 
 	#[tokio::test]
+	async fn a_week_of_daily_merges_still_reads_the_whole_list_and_drops_what_it_left_out() {
+		let (base, held) = serving(vec![a_page(&["kept", "gone"])]).await;
+		let clock = Moving::at(NOON);
+		let directory = Directory::timed(base, None, Box::new(clock.clone()));
+		directory.refreshed().await;
+		held.serves(vec![a_page(&["kept"])]);
+
+		let hour = DAY_MS / 24;
+		let merges_at = [1, 2, 3, 4, 5].map(|day| NOON + day * (DAY_MS + 1));
+		for at in merges_at.into_iter().chain([NOON + 6 * DAY_MS + 23 * hour]) {
+			clock.set(at);
+			directory.refreshed().await;
+		}
+		let merges = held.queried();
+		let merged = directory.searched("").await.expect("the search answers");
+		held.forget();
+		let listed_again = NOON + 7 * DAY_MS + hour;
+		clock.set(listed_again);
+		directory.refreshed().await;
+		let listed = directory.searched("").await.expect("the search answers");
+
+		assert_eq!(merges.len(), 7, "got {merges:?}");
+		for merge in &merges[1..] {
+			assert!(asked_pair(merge, "updated_since").is_some(), "got {merge}");
+		}
+		assert_eq!(names(&merged.applications), ["kept", "gone"]);
+		assert_eq!(merged.is_stale, Some(false));
+		let queried = held.queried();
+		assert_eq!(queried.len(), 1, "got {queried:?}");
+		assert_eq!(asked_pair(&queried[0], "updated_since"), None);
+		assert_eq!(names(&listed.applications), ["kept"]);
+		assert_eq!(a_cache_of(&directory).listed_at, listed_again);
+	}
+
+	#[tokio::test]
+	async fn a_merge_keeps_the_moment_of_the_last_full_read() {
+		let (base, _) = serving(vec![a_page(&["one"])]).await;
+		let now = NOON + 2 * DAY_MS;
+		let directory = Directory::timed(base, None, Box::new(Stopped(now)));
+		planted(&directory, a_cache_read_at(NOON, &["one"]).await);
+
+		directory.refreshed().await;
+
+		let cached = a_cache_of(&directory);
+		assert_eq!(cached.read_at, now);
+		assert_eq!(cached.listed_at, NOON);
+	}
+
+	#[tokio::test]
+	async fn a_failed_first_read_is_held_for_a_minute_then_read_again_on_the_next_call() {
+		let (base, held) = serving(vec![a_page(&["one"])]).await;
+		*held.refusals.lock().expect("the stub records") = 1;
+		let clock = Moving::at(NOON);
+		let directory = Directory::timed(base, None, Box::new(clock.clone()));
+
+		let first = directory.searched("").await;
+		clock.set(NOON + 30 * 1000);
+		let held_back = directory.named("one").await;
+		let asked_within_the_minute = held.asked().len();
+		clock.set(NOON + 61 * 1000);
+		let retried = directory.searched("").await.expect("the search answers");
+
+		assert!(matches!(first, Err(ApplicationsError::RegistryRefused { .. })), "got {first:?}");
+		assert!(
+			matches!(held_back, Err(ApplicationsError::RegistryRefused { .. })),
+			"got {held_back:?}"
+		);
+		assert_eq!(asked_within_the_minute, 1);
+		assert_eq!(held.asked().len(), 2);
+		assert_eq!(names(&retried.applications), ["one"]);
+		assert_eq!(retried.registry_failure, None);
+	}
+
+	#[tokio::test]
 	async fn a_cloud_down_while_a_cache_is_held_answers_that_cache_as_stale_with_the_failure() {
 		let directory = Directory::timed(unreached().await, None, Box::new(Stopped(NOON + DAY_MS)));
 		planted(&directory, a_cache_read_at(NOON - 1, &["one"]).await);
@@ -1324,8 +1449,9 @@ pub(crate) mod tests {
 
 		let written: Value =
 			serde_json::from_slice(&fs::read(&file).expect("the cache reads")).expect("it is json");
-		assert_eq!(written["schema"], json!(2));
+		assert_eq!(written["schema"], json!(3));
 		assert_eq!(written["readAt"], json!(NOON));
+		assert_eq!(written["listedAt"], json!(NOON));
 		assert_eq!(written["rows"][0]["id"], json!("id-one"));
 		assert_eq!(written["rows"][0]["application"]["name"], json!("one"));
 
@@ -1356,8 +1482,7 @@ pub(crate) mod tests {
 	async fn a_file_carrying_another_schema_reads_as_no_cache() {
 		let file = temp_dir().join(CACHE_DIR).join(CACHE_FILE);
 		fs::create_dir_all(file.parent().expect("the cache has a home")).expect("the home is made");
-		let other =
-			json!({ "schema": SCHEMA + 1, "readAt": NOON, "isFeedStale": false, "rows": [] });
+		let other = json!({ "schema": SCHEMA + 1, "readAt": NOON, "listedAt": NOON, "isFeedStale": false, "rows": [] });
 		fs::write(&file, other.to_string()).expect("the cache is written");
 		let (base, _) = serving(vec![a_page(&["one"])]).await;
 
