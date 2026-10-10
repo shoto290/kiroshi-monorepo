@@ -190,6 +190,10 @@ export const ScrolledBack = meta.story({
 		const viewport = viewportIn(canvasElement)
 		const button = buttonIn(canvasElement)
 
+		await waitFor(async () => {
+			await expect(viewport).not.toHaveAttribute("data-autoscrolling")
+		}, FRAME_POLL)
+
 		viewport.focus()
 		await userEvent.keyboard("{Home}")
 		viewport.scrollTop = 0

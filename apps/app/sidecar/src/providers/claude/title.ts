@@ -28,6 +28,7 @@ const asked = (text: string) => `${INSTRUCTIONS}\n\n${text}`
 export const titleOptions = (connection?: Record<string, string>) => ({
 	cwd: tmpdir(),
 	allowedTools: [],
+	permissionMode: "default" as const,
 	settingSources: [],
 	persistSession: false,
 	pathToClaudeCodeExecutable: resolveExecutable(),

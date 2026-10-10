@@ -5,6 +5,7 @@ import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	FRAME_POLL,
 	glyphIn,
 	probedStyleOf,
 	slotIn,
@@ -213,6 +214,9 @@ export const Environment = meta.story({
 		const write = await screen.findByRole("dialog", {
 			name: "Add a secret",
 		})
+		await waitFor(async () => {
+			await expect(write.contains(document.activeElement)).toBe(true)
+		}, FRAME_POLL)
 
 		await userEvent.type(within(write).getByLabelText("Name"), "RELEASE_DESK")
 		await userEvent.type(within(write).getByLabelText("Value"), "sk-live")

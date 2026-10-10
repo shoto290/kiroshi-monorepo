@@ -26,14 +26,14 @@ pub const UPDATED_EVENT: &str = "conversation://updated";
 
 pub const DELETED_EVENT: &str = "conversation://deleted";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationStored {
 	pub space_id: Option<String>,
 	pub conversation: Conversation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationDeleted {
 	pub space_id: Option<String>,

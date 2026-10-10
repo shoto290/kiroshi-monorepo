@@ -22,7 +22,7 @@ use crate::events;
 
 pub const CHANGED_EVENT: &str = "routine://changed";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RoutineChanged {
 	pub conversation_id: String,

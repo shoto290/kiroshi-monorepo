@@ -17,7 +17,7 @@ import {
 import { onboardingSummonsFor } from "./onboarding-summons"
 
 import type { TransportError as HostTransportError } from "@/lib/bindings"
-import type { CheckReport } from "../agent/contract"
+import type { AccountReport } from "../agent/contract"
 import type { CompanionCreated } from "../companions/companions-transport"
 
 const SIGN_IN_URL = "https://claude.ai/oauth/authorize?code=true"
@@ -33,26 +33,28 @@ const CREATED_SCOUT: CompanionCreated = { id: "bot-scout", name: "Scout" }
 const authenticated = (account?: {
 	email: string | null
 	plan: string | null
-}): CheckReport => ({
+}): AccountReport => ({
 	connection: "ready",
 	binaryVersion: null,
 	authenticated: true,
 	error: null,
-	account,
+	account: account ?? null,
 })
 
-const NOT_AUTHENTICATED: CheckReport = {
+const NOT_AUTHENTICATED: AccountReport = {
 	connection: "ready",
 	binaryVersion: null,
 	authenticated: false,
 	error: { kind: "notAuthenticated" },
+	account: null,
 }
 
-const refusedRead = (error: HostTransportError): CheckReport => ({
+const refusedRead = (error: HostTransportError): AccountReport => ({
 	connection: "unavailable",
 	binaryVersion: null,
 	authenticated: false,
 	error,
+	account: null,
 })
 
 let port: FakeOnboardingPort
@@ -87,7 +89,7 @@ describe("the welcome step", () => {
 
 		await controller.start()
 
-		expect(commands()).toEqual(["check"])
+		expect(commands()).toEqual(["account"])
 	})
 
 	it("reads the account when the reader asks to hear more first", async () => {
@@ -95,16 +97,17 @@ describe("the welcome step", () => {
 
 		await controller.tellMore()
 
-		expect(commands()).toEqual(["check"])
+		expect(commands()).toEqual(["account"])
 	})
 })
 
 describe("reading the account", () => {
-	it("names the email and the plan of the detected account", async () => {
+	it("names the email and the plan of the detected account from one account read", async () => {
 		port.report = authenticated({ email: EMAIL, plan: "Max" })
 
 		await controller.start()
 
+		expect(commands()).toEqual(["account"])
 		expect(controller.getState().connection).toEqual({
 			state: "detected",
 			account: `${EMAIL} · Max`,
@@ -250,7 +253,7 @@ describe("signing in", () => {
 		await flushed()
 
 		expect(commands()).toEqual([
-			"check",
+			"account",
 			"signIn",
 			"cancelSignIn",
 			"signIn",
@@ -380,7 +383,7 @@ describe("the api key", () => {
 			command: "holdApiKey",
 			value: API_KEY,
 		})
-		expect(commands().at(-1)).toBe("check")
+		expect(commands().at(-1)).toBe("account")
 		expect(controller.getState().connection).toEqual({
 			state: "detected",
 			account: EMAIL,

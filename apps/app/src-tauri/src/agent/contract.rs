@@ -32,7 +32,7 @@ pub enum ConnectionState {
 	Crashed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum TurnState {
 	Idle,
@@ -42,14 +42,14 @@ pub enum TurnState {
 	Failed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum MessageRole {
 	User,
 	Assistant,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum MessageCompletion {
 	Streaming,
@@ -58,7 +58,7 @@ pub enum MessageCompletion {
 	Failed,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatMessage {
 	pub id: String,
@@ -68,14 +68,14 @@ pub struct ChatMessage {
 	pub timestamp: i64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ActivityKind {
 	Tool,
 	Permission,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ActivityStatus {
 	Pending,
@@ -84,7 +84,7 @@ pub enum ActivityStatus {
 	Failed,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ActivityEvent {
 	pub id: String,
@@ -93,7 +93,7 @@ pub struct ActivityEvent {
 	pub status: ActivityStatus,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PermissionRequest {
 	pub id: String,
@@ -102,7 +102,7 @@ pub struct PermissionRequest {
 	pub detail: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestionOption {
 	pub label: String,
@@ -110,7 +110,7 @@ pub struct QuestionOption {
 	pub preview: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AskedQuestion {
 	pub header: String,
@@ -119,14 +119,14 @@ pub struct AskedQuestion {
 	pub multi_select: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum QuestionSubject {
 	#[serde(rename_all = "camelCase")]
 	ApplicationScope { application: String },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestionRequest {
 	pub id: String,
@@ -142,7 +142,7 @@ pub enum PermissionDecision {
 	Deny,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum EvolvedBundle {
 	Bot,
@@ -150,20 +150,22 @@ pub enum EvolvedBundle {
 	Space,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TurnEnded {
 	pub session_id: Option<String>,
 	pub outcome: TurnOutcome,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = Option<crate::json::JsonValue>)]
 	pub structured_output: Option<Value>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub total_cost_usd: Option<f64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = Option<crate::json::JsonValue>)]
 	pub model_usage: Option<Value>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum TurnOutcome {
 	Completed,
@@ -304,7 +306,7 @@ pub struct LiveSession {
 	pub started_at: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ScopedEvent {
 	pub scope: Option<RuntimeScope>,
@@ -329,7 +331,13 @@ pub struct CheckReport {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub auth_method: Option<String>,
 	pub error: Option<TransportError>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountReport {
+	#[serde(flatten)]
+	pub report: CheckReport,
 	pub account: Option<Account>,
 }
 
@@ -419,7 +427,7 @@ impl<'de> Deserialize<'de> for AgentCommand {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum AgentEvent {
 	#[serde(rename_all = "camelCase")]

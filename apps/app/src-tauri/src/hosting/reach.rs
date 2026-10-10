@@ -112,6 +112,7 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 			optional_child(Bot, "/scope/botId"),
 		]),
 	),
+	("agent_account", Reach::HostOnly),
 	("agent_sign_in", Reach::HostOnly),
 	("agent_sign_in_code", Reach::HostOnly),
 	("agent_sign_in_cancel", Reach::HostOnly),

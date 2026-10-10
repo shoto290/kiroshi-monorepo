@@ -170,7 +170,7 @@ static COMMITS: LazyLock<Mutex<HashMap<PathBuf, &'static Mutex<()>>>> =
 
 fn commits(bundle: &Path) -> &'static Mutex<()> {
 	let mut held = COMMITS.lock().unwrap_or_else(PoisonError::into_inner);
-	*held.entry(bundle.to_path_buf()).or_insert_with(|| Box::leak(Box::new(Mutex::new(()))))
+	held.entry(bundle.to_path_buf()).or_insert_with(|| Box::leak(Box::new(Mutex::new(()))))
 }
 
 pub(super) fn serialised(bundle: &Path) -> MutexGuard<'static, ()> {

@@ -243,7 +243,7 @@ unsafe fn register_overlay_class(instance: HINSTANCE) -> Result<(), Failure> {
 	if RegisterClassExW(&class) != 0 {
 		return Ok(());
 	}
-	let error = Error::from_win32();
+	let error = Error::from_thread();
 	if error.code() == ERROR_CLASS_ALREADY_EXISTS.to_hresult() {
 		return Ok(());
 	}
