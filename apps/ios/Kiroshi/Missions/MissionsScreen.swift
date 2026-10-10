@@ -43,7 +43,7 @@ struct MissionsScreen: View {
                         NavigationLink(value: MissionsRoute.mission(mission)) {
                             MissionRow(
                                 mission: mission,
-                                companionName: missions.companionName(of: mission))
+                                companion: missions.companion(of: mission))
                         }
                         .listRowBackground(Color.kiroshi(.card))
                     }

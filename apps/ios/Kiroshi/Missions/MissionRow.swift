@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MissionRow: View {
     let mission: Mission
-    let companionName: String?
+    let companion: MissionCompanion?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
@@ -14,9 +14,7 @@ struct MissionRow: View {
                 .font(.headline)
                 .lineLimit(lineLimit)
             HStack(spacing: 6) {
-                Image(systemName: "hexagon.fill")
-                    .foregroundStyle(Color.kiroshi(.railAvatar))
-                    .accessibilityHidden(true)
+                CompanionAvatar(companion, size: .inline, isWorking: mission.isAgentRunning)
                 Text(detail)
                     .font(.subheadline)
                     .foregroundStyle(Color.kiroshi(.mutedForeground))
@@ -33,6 +31,6 @@ struct MissionRow: View {
     }
 
     private var detail: String {
-        [companionName, mission.statusLine].compactMap(\.self).joined(separator: " · ")
+        [companion?.name, mission.statusLine].compactMap(\.self).joined(separator: " · ")
     }
 }
