@@ -2,6 +2,8 @@ pub mod authorship;
 pub mod bridge;
 pub mod commands;
 pub mod contract;
+#[cfg(test)]
+mod member_socket;
 mod members;
 mod reach;
 pub(crate) mod relay;
