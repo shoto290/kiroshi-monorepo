@@ -265,24 +265,27 @@ describe("a run replaced under a conversation that carries on", () => {
 	})
 })
 
-const headingFirstPrompt = (base: TranscriptStore): TranscriptStore => ({
-	...base,
-	boundedContext: async (
-		conversationId,
-		botId,
-		runtimeSessionId,
-		promptMessageId,
-	) => {
-		const header = await base.messageHeader(conversationId, promptMessageId)
-		const context = await base.boundedContext(
+const headingFirstPrompt = (): TranscriptStore => {
+	const base = createFakeTranscriptStore()
+	return {
+		...base,
+		boundedContext: async (
 			conversationId,
 			botId,
 			runtimeSessionId,
 			promptMessageId,
-		)
-		return `${header}\n${context}`
-	},
-})
+		) => {
+			const header = await base.messageHeader(conversationId, promptMessageId)
+			const context = await base.boundedContext(
+				conversationId,
+				botId,
+				runtimeSessionId,
+				promptMessageId,
+			)
+			return `${header}\n${context}`
+		},
+	}
+}
 
 const refusingHeader = (): TranscriptStore & {
 	refuse: (on: boolean) => void
@@ -311,7 +314,7 @@ describe("the later prompts of a solo run", () => {
 	})
 
 	it("opens every prompt of one run with the header of that prompt, once", async () => {
-		const store = headingFirstPrompt(createFakeTranscriptStore())
+		const store = headingFirstPrompt()
 		const harness = await bootedHarness({ store })
 		const submitted = vi.spyOn(harness.driver, "submitPrompt")
 		const asked = vi.spyOn(store, "messageHeader")
