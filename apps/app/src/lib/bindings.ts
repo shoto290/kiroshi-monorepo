@@ -220,6 +220,8 @@ export const HOSTING_MEMBERS_CHANGED_EVENT = "hosting://members-changed" as cons
 
 export const INVITATION_CHANGED_EVENT = "invitation://changed" as const;
 
+export const JOINED_SPACE_RECONNECTED_EVENT = "joined-space://reconnected" as const;
+
 export const JOINED_SPACE_REMOVED_EVENT = "joined-space://removed" as const;
 
 export const MAXIMIZE_BUTTON_EVENT = "window-maximize-button" as const;
@@ -733,6 +735,10 @@ export type JoinedSpaceConnection = {
 };
 
 export type JoinedSpaceError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "unknownJoinedSpace"; id: string } | { kind: "undeliverable"; detail: string } | { kind: "hostOffline"; id: string } | { kind: "proxyUnavailable"; detail: string };
+
+export type JoinedSpaceReconnected = {
+	id: string,
+};
 
 export type JoinedSpaceRemoved = {
 	id: string,

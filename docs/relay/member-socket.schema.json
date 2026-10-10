@@ -1,34 +1,5 @@
 {
   "$defs": {
-    "Account": {
-      "properties": {
-        "email": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "plan": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "email",
-        "plan"
-      ],
-      "type": "object"
-    },
     "ActivityEvent": {
       "properties": {
         "id": {
@@ -1699,16 +1670,6 @@
     },
     "CheckReport_Serialize": {
       "properties": {
-        "account": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Account"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "authMethod": {
           "anyOf": [
             {

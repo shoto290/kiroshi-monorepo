@@ -11,7 +11,7 @@ use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 use tokio_tungstenite::tungstenite::Message;
 
-use super::commands::{announce_change, announce_removal, ready};
+use super::commands::{announce_change, announce_reconnection, announce_removal, ready};
 use super::contract::{JoinedSpace, JoinedSpaceConnection, JoinedSpaceError};
 use super::member_link::{MemberLink, Presence, LEARN_BOUND};
 use super::proxy;
@@ -412,7 +412,7 @@ async fn attempted<R: Runtime>(
 		None => Ended::Stopped,
 		Some(Opened::Socket(socket)) => {
 			backoff.reset();
-			online(*socket, &linked.link, stop).await
+			online(app, *socket, linked, stop).await
 		}
 		Some(Opened::Unknown) => Ended::Evicted,
 		Some(Opened::Revoked) => Ended::SignedOut("the relay refused the account (401)"),
@@ -423,10 +423,22 @@ async fn attempted<R: Runtime>(
 	}
 }
 
-async fn online(socket: Socket, link: &MemberLink, stop: &mut watch::Receiver<bool>) -> Ended {
+async fn online<R: Runtime>(
+	app: &AppHandle<R>,
+	socket: Socket,
+	linked: &Linked,
+	stop: &mut watch::Receiver<bool>,
+) -> Ended {
+	let link = &linked.link;
 	let (mut sink, mut stream) = socket.split();
 	let (calls_in, mut calls) = mpsc::channel(CALLS_IN_FLIGHT);
 	link.opened(calls_in);
+	if let Err(failure) = announce_reconnection(app, linked.id.clone()) {
+		eprintln!(
+			"joined space {} reopened its member relay and the front was not told: {failure:?}",
+			linked.id
+		);
+	}
 	let mut pings = interval_at(Instant::now() + PING_EVERY, PING_EVERY);
 	let silence = sleep(SILENCE_BOUND);
 	tokio::pin!(silence);
