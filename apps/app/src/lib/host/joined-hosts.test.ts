@@ -54,7 +54,7 @@ const answerJoined = () =>
 const joinedHostsOf = ({ join, answer = answerJoined }: Seed = {}) => {
 	const localUnlisten = vi.fn()
 	const local = {
-		invoke: vi.fn(async () => "local" as never),
+		invoke: vi.fn(async (_command: string) => "local" as never),
 		listen: vi.fn(async () => localUnlisten),
 		fileSrc: vi.fn((path: string) => `asset://${path}`),
 	}
@@ -96,6 +96,9 @@ const joinedHostsOf = ({ join, answer = answerJoined }: Seed = {}) => {
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+const localCommands = (local: ReturnType<typeof joinedHostsOf>["local"]) =>
+	local.invoke.mock.calls.map(([command]) => command)
 
 describe("the local command list", () => {
 	it("keeps the local app commands on the local host", () => {
@@ -290,7 +293,7 @@ describe("the active host", () => {
 		await activating
 
 		await expect(answer).resolves.toBe("joined")
-		expect(local.invoke).not.toHaveBeenCalled()
+		expect(localCommands(local)).not.toContain("mission_list")
 	})
 
 	it("names the joined Space id from the moment the joined host is selected", async () => {
@@ -316,7 +319,7 @@ describe("the active host", () => {
 		await activating
 
 		await expect(answer).rejects.toThrow("no route")
-		expect(local.invoke).not.toHaveBeenCalled()
+		expect(localCommands(local)).not.toContain("mission_list")
 	})
 
 	it("sends a call to the local host once it is selected again while the joined host opens", async () => {
@@ -769,7 +772,7 @@ describe("a conversation the active host does not hold", () => {
 			expect.anything(),
 		)
 		expect(fetch).toHaveBeenCalledOnce()
-		expect(local.invoke).not.toHaveBeenCalled()
+		expect(localCommands(local)).not.toContain("application_installs")
 		expect(reportFailure).not.toHaveBeenCalled()
 	})
 
@@ -795,7 +798,7 @@ describe("a conversation the active host does not hold", () => {
 		await hosts.invoke("application_installs", { conversationId: "attic-chat" })
 
 		expect(hosts.getState().connections.attic).toEqual({ status: "down" })
-		expect(local.invoke).toHaveBeenCalledOnce()
+		expect(localCommands(local)).toContain("application_installs")
 		expect(fetch).not.toHaveBeenCalled()
 	})
 
@@ -812,7 +815,7 @@ describe("a conversation the active host does not hold", () => {
 		await hosts.invoke("application_installs", { conversationId: "both" })
 
 		expect(invokedCommands(fetch)).toContain("application_installs")
-		expect(local.invoke).not.toHaveBeenCalled()
+		expect(localCommands(local)).not.toContain("application_installs")
 	})
 
 	it("relays a conversation no host has named yet, as before", async () => {
@@ -822,7 +825,7 @@ describe("a conversation the active host does not hold", () => {
 		await hosts.invoke("application_installs", { conversationId: "fresh" })
 
 		expect(invokedCommands(fetch)).toContain("application_installs")
-		expect(local.invoke).not.toHaveBeenCalled()
+		expect(localCommands(local)).not.toContain("application_installs")
 	})
 
 	it("learns a conversation named inside any answer, such as a mission thread", async () => {
@@ -841,5 +844,96 @@ describe("a conversation the active host does not hold", () => {
 		})
 
 		expect(invokedCommands(fetch)).not.toContain("conversation_message_page")
+	})
+})
+
+describe("a cold start on a joined space", () => {
+	const relayedBodies = (fetch: ReturnType<typeof vi.fn>) =>
+		fetch.mock.calls.map(([, init]) => String((init as RequestInit).body))
+
+	const coldStartOnGarage = async (ids: () => Promise<string[]>) => {
+		const seeded = joinedHostsOf()
+		seeded.local.invoke.mockImplementation(
+			async (command: string) =>
+				(command === "conversation_local_ids" ? ids() : "local") as never,
+		)
+		await seeded.hosts.activate("garage")
+		seeded.local.invoke.mockClear()
+		return seeded
+	}
+
+	it("serves a conversation of this Mac locally before any local answer named it", async () => {
+		const { hosts, local, fetch } = await coldStartOnGarage(async () => [
+			"solo",
+		])
+
+		await hosts.invoke("application_installs", { conversationId: "solo" })
+
+		expect(local.invoke).toHaveBeenCalledWith("conversation_local_ids")
+		expect(local.invoke).toHaveBeenLastCalledWith("application_installs", {
+			conversationId: "solo",
+		})
+		expect(relayedBodies(fetch).join()).not.toContain("solo")
+	})
+
+	it("asks this Mac for its conversation ids once", async () => {
+		const { hosts, local } = await coldStartOnGarage(async () => ["solo"])
+
+		await hosts.invoke("application_installs", { conversationId: "solo" })
+		await hosts.invoke("mission_list", { conversationId: "solo" })
+		await hosts.invoke("conversation_main_chat", { botId: "b1", spaceId: "g" })
+
+		expect(
+			localCommands(local).filter(
+				(command) => command === "conversation_local_ids",
+			),
+		).toHaveLength(1)
+	})
+
+	it("relays a conversation this Mac does not hold", async () => {
+		const { hosts, local, fetch } = await coldStartOnGarage(async () => [
+			"solo",
+		])
+
+		await hosts.invoke("application_installs", { conversationId: "fresh" })
+
+		expect(relayedBodies(fetch).join()).toContain("fresh")
+		expect(local.invoke).not.toHaveBeenCalledWith("application_installs", {
+			conversationId: "fresh",
+		})
+	})
+
+	it("never asks a joined host for the local conversation ids", async () => {
+		const { hosts, local, fetch } = joinedHostsOf()
+		await hosts.activate("garage")
+
+		await hosts.invoke("conversation_local_ids")
+
+		expect(local.invoke).toHaveBeenCalledWith("conversation_local_ids")
+		expect(fetch).not.toHaveBeenCalled()
+	})
+
+	it("serves an unknown conversation locally and says so when this Mac cannot list its ids, then asks again", async () => {
+		const { hosts, local, fetch, reportFailure } = await coldStartOnGarage(
+			async () => {
+				throw new Error("the transcript store refused it")
+			},
+		)
+
+		await hosts.invoke("application_installs", { conversationId: "fresh" })
+		await hosts.invoke("mission_list", { conversationId: "fresh" })
+
+		expect(reportFailure).toHaveBeenCalledWith(
+			"the transcript store refused it",
+		)
+		expect(fetch).not.toHaveBeenCalled()
+		expect(local.invoke).toHaveBeenCalledWith("application_installs", {
+			conversationId: "fresh",
+		})
+		expect(
+			localCommands(local).filter(
+				(command) => command === "conversation_local_ids",
+			),
+		).toHaveLength(2)
 	})
 })

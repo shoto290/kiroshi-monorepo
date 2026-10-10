@@ -8,6 +8,8 @@ const SCOPING_ID_KEYS = ["conversationId", "excludedConversationId"]
 
 const SCOPING_ENVELOPES = ["scope", "message", "turn", "draft"]
 
+export const LOCAL_IDS_COMMAND = "conversation_local_ids"
+
 const CONVERSATION_ANSWERS: ReadonlySet<string> = new Set([
 	"conversation_main_chat",
 	"conversation_create",
@@ -59,8 +61,12 @@ const ownIdsOf = (answer: unknown): string[] =>
 		)
 		.filter(isText)
 
+const listedIdsOf = (answer: unknown): string[] =>
+	[answer].flat().filter(isText)
+
 const conversationIdsAnswered = (command: string, answer: unknown) => [
 	...(CONVERSATION_ANSWERS.has(command) ? ownIdsOf(answer) : []),
+	...(command === LOCAL_IDS_COMMAND ? listedIdsOf(answer) : []),
 	...conversationIdsNamedIn(answer),
 ]
 
@@ -76,6 +82,9 @@ export const createConversationProvenance = () => {
 			sourcesById.set(id, sources)
 		}
 	}
+
+	const namesConversation = (args?: InvokeArgs): boolean =>
+		conversationIdsOf(args).length > 0
 
 	const sourcesNamedIn = (args?: InvokeArgs): Set<ConversationSource> =>
 		new Set(
@@ -94,5 +103,5 @@ export const createConversationProvenance = () => {
 		return answer
 	}
 
-	return { sourcesNamedIn, record }
+	return { namesConversation, sourcesNamedIn, record }
 }

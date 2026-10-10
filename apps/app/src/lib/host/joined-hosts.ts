@@ -4,6 +4,7 @@ import type { EventCallback, UnlistenFn } from "@tauri-apps/api/event"
 import {
 	type ConversationSource,
 	createConversationProvenance,
+	LOCAL_IDS_COMMAND,
 } from "./conversation-provenance"
 import { createHttpHost, type HostSocket, type HttpHost } from "./http"
 
@@ -42,6 +43,7 @@ export const LOCAL_COMMANDS: ReadonlySet<string> = new Set([
 	"invitations_list",
 	"invitation_accept",
 	"invitation_decline",
+	LOCAL_IDS_COMMAND,
 ])
 
 export const JOINED_SPACE_CHANGED_EVENT = "joined-space://changed"
@@ -138,6 +140,8 @@ export const createJoinedHosts = ({
 	const reconnectionListeners = new Set<() => void>()
 	const provenance = createConversationProvenance()
 	let requested: string | null = null
+	let localIdsRecall: Promise<void> | null = null
+	let hasLocalIds = false
 
 	const record = (id: string, state: JoinedHostState) => {
 		const current = store.getState()
@@ -357,9 +361,26 @@ export const createJoinedHosts = ({
 	const isOpenHost = (source: ConversationSource) =>
 		source !== null && hosts.has(source) && !isDown(source)
 
+	const forgetLocalIdsRecall = (reason: unknown) => {
+		localIdsRecall = null
+		reportFailure(describeRejection(reason))
+	}
+
+	const recallLocalIds = (): Promise<void> => {
+		localIdsRecall ??= provenance
+			.record(null, LOCAL_IDS_COMMAND, local.invoke(LOCAL_IDS_COMMAND))
+			.then(() => {
+				hasLocalIds = true
+			}, forgetLocalIdsRecall)
+		return localIdsRecall
+	}
+
 	const ownerOf = (active: string, args?: InvokeArgs): ConversationSource => {
 		const sources = provenance.sourcesNamedIn(args)
-		if (sources.size === 0 || sources.has(active)) {
+		if (sources.size === 0) {
+			return provenance.namesConversation(args) && !hasLocalIds ? null : active
+		}
+		if (sources.has(active)) {
 			return active
 		}
 		if (sources.has(null)) {
@@ -368,27 +389,34 @@ export const createJoinedHosts = ({
 		return [...sources].find(isOpenHost) ?? null
 	}
 
-	const targetOf = (command: string, args?: InvokeArgs) => {
-		const { active } = store.getState()
-		return isLocalCommand(command) || active === null
-			? null
-			: ownerOf(active, args)
-	}
-
-	const invoke: Invoke = (...call) => {
+	const sendTo = <T>(
+		target: ConversationSource,
+		call: Parameters<Invoke>,
+	): Promise<T> => {
 		const [command, args] = call
-		const target = targetOf(command, args)
 		if (target === null) {
-			return provenance.record(null, command, local.invoke(...call))
+			return provenance.record(null, command, local.invoke<T>(...call))
 		}
 		const joined = hosts.get(target)
 		return provenance.record(
 			target,
 			command,
 			joined
-				? joined.invoke(command, args)
-				: invokeOnceOpen(target, command, args),
+				? joined.invoke<T>(command, args)
+				: invokeOnceOpen<T>(target, command, args),
 		)
+	}
+
+	const invoke: Invoke = <T>(...call: Parameters<Invoke>): Promise<T> => {
+		const [command, args] = call
+		const { active } = store.getState()
+		if (isLocalCommand(command) || active === null) {
+			return sendTo<T>(null, call)
+		}
+		const route = () => sendTo<T>(ownerOf(active, args), call)
+		return provenance.namesConversation(args)
+			? recallLocalIds().then(route)
+			: route()
 	}
 
 	const routedListen =

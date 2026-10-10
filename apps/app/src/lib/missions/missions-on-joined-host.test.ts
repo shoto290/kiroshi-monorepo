@@ -158,7 +158,8 @@ describe("missions read on a joined host", () => {
 
 	it("shows the host's missions once the host of the selected space becomes active", async () => {
 		const localRead = deferred<unknown>()
-		wire.localAnswer = () => localRead.promise
+		wire.localAnswer = async (command) =>
+			command === "conversation_local_ids" ? [] : localRead.promise
 		const { result } = renderHook(() => ({
 			conversation: useMissions("c-1"),
 			space: useSpaceMissions("space-on-host"),
