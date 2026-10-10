@@ -133,7 +133,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           git fetch --depth=1 origin "$BASE"
-          if git diff --quiet "$BASE" HEAD -- apps/ios .swift-format .xcode-version .github/workflows/ci.yml; then
+          if git diff --quiet "$BASE" HEAD -- apps/ios .swift-format .xcode-version; then
             echo "ios=false" >> "$GITHUB_OUTPUT"
           else
             echo "ios=true" >> "$GITHUB_OUTPUT"
