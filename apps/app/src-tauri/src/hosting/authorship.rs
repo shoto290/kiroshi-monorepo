@@ -101,13 +101,15 @@ async fn host_author<R: Runtime>(
 	app: &AppHandle<R>,
 	database: &Database,
 ) -> Result<AccountAuthor, DatabaseError> {
-	let account_id =
-		app.try_state::<AccountSession>().and_then(|session| match session.current() {
-			AccountState::SignedIn(account) => Some(account.id),
-			_ => None,
-		});
+	let account = app.try_state::<AccountSession>().and_then(|session| match session.current() {
+		AccountState::SignedIn(account) => Some(account),
+		_ => None,
+	});
 	let display_name = database.user().preferences().await?.display_name;
-	Ok(AccountAuthor { account_id, name: Some(display_name).filter(|name| !name.is_empty()) })
+	let name = Some(display_name)
+		.filter(|name| !name.is_empty())
+		.or_else(|| account.as_ref().map(|account| account.email.clone()));
+	Ok(AccountAuthor { account_id: account.map(|account| account.id), name })
 }
 
 async fn member_author<R: Runtime>(app: &AppHandle<R>, member: RelayedMember) -> AccountAuthor {

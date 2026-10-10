@@ -60,6 +60,16 @@ pub async fn conversation_message_reference(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn conversation_message_header(
+	state: State<'_, db::DatabaseState>,
+	conversation_id: String,
+	message_id: String,
+) -> Result<String, TranscriptStoreError> {
+	context::message_header(ready(&state)?, conversation_id, message_id).await
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn conversation_pin_message(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,

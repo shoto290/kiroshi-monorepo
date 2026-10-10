@@ -110,6 +110,7 @@ export const commands = {
 	runtimeSessionId: string | null,
 	providerSessionId: string | null,
 } | null, TranscriptStoreError>(__TAURI_INVOKE("conversation_message_reference", { conversationId, messageId })),
+	conversationMessageHeader: (conversationId: string, messageId: string) => typedError<string, TranscriptStoreError>(__TAURI_INVOKE("conversation_message_header", { conversationId, messageId })),
 	conversationPinMessage: (conversationId: string, messageId: string, blockIndex: number, pinnedAt: number) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_pin_message", { conversationId, messageId, blockIndex, pinnedAt })),
 	conversationUnpinMessage: (conversationId: string, messageId: string, blockIndex: number) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_unpin_message", { conversationId, messageId, blockIndex })),
 	conversationPinnedMessages: (conversationId: string) => typedError<PinnedBubble[], TranscriptStoreError>(__TAURI_INVOKE("conversation_pinned_messages", { conversationId })),

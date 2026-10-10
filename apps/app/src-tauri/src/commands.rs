@@ -93,6 +93,7 @@ fn commands<R: Runtime>() -> Commands<R> {
 		conversations::commands::conversation_message_page,
 		conversations::commands::conversation_message_page_around,
 		conversations::commands::conversation_message_reference,
+		conversations::commands::conversation_message_header,
 		conversations::commands::conversation_pin_message,
 		conversations::commands::conversation_unpin_message,
 		conversations::commands::conversation_pinned_messages,

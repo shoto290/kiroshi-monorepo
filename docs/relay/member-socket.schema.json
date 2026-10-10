@@ -7198,6 +7198,29 @@
         "$ref": "#/$defs/Chat"
       }
     },
+    "conversation_message_header": {
+      "args": {
+        "properties": {
+          "conversationId": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversationId",
+          "messageId"
+        ],
+        "type": "object"
+      },
+      "error": {
+        "$ref": "#/$defs/TranscriptStoreError"
+      },
+      "ok": {
+        "type": "string"
+      }
+    },
     "conversation_message_page": {
       "args": {
         "properties": {
