@@ -143,6 +143,11 @@ const isPartedByCause = (
 	previous.turnId !== row.turnId &&
 	(causes.has(previous.turnId) || causes.has(row.turnId))
 
+const localDayOf = (timestamp: number) => new Date(timestamp).toDateString()
+
+const isSameLocalDay = (earlier: number, later: number) =>
+	localDayOf(earlier) === localDayOf(later)
+
 export function toRuns(
 	rows: TranscriptRow[],
 	causes: ReportedRunsByTurnId = NO_REPORTED_RUNS,
@@ -158,6 +163,7 @@ export function toRuns(
 			previous.authorBotId === row.authorBotId &&
 			previous.authorAccountId === row.authorAccountId &&
 			row.timestamp - previous.timestamp <= RUN_GAP_MS &&
+			isSameLocalDay(previous.timestamp, row.timestamp) &&
 			!isPartedByCause(previous, row, causes)
 		) {
 			current.push(row)
@@ -166,6 +172,18 @@ export function toRuns(
 		}
 	}
 	return runs
+}
+
+export const opensNewDay = (
+	runs: TranscriptRow[][],
+	runIndex: number,
+): boolean => {
+	const closingBefore = runs[runIndex - 1]?.at(-1)
+	const opening = runs[runIndex]?.[0]
+	if (!closingBefore || !opening) {
+		return false
+	}
+	return !isSameLocalDay(closingBefore.timestamp, opening.timestamp)
 }
 
 export type ReplyTarget = MessageAuthorship & {

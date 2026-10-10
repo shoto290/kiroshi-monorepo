@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 
 import { i18n } from "@workspace/ui/lib/i18n"
 
@@ -13,6 +13,7 @@ import {
 	markedRunsOf,
 	needsFreshSession,
 	noticeTitleFor,
+	opensNewDay,
 	quotedMessageIdsIn,
 	quotedTargetsIn,
 	replyTargetOfReference,
@@ -324,6 +325,59 @@ describe("toRuns", () => {
 
 	it("keeps an empty transcript empty", () => {
 		expect(toRuns([])).toEqual([])
+	})
+})
+
+describe("day changes in Tokyo", () => {
+	const TOKYO_MIDNIGHT = Date.UTC(2026, 9, 9, 15)
+	const A_MINUTE = 60_000
+
+	const daySeparatorsIn = (runs: ReturnType<typeof toRuns>) =>
+		runs.filter((_, runIndex) => opensNewDay(runs, runIndex)).length
+
+	beforeAll(() => {
+		vi.stubEnv("TZ", "Asia/Tokyo")
+	})
+
+	afterAll(() => {
+		vi.unstubAllEnvs()
+	})
+
+	it("splits a run at local midnight and opens one new day there", () => {
+		const runs = toRuns(
+			toTranscriptRows([
+				prompt({ id: "local-1", createdAt: TOKYO_MIDNIGHT - A_MINUTE }),
+				prompt({ id: "local-2", createdAt: TOKYO_MIDNIGHT + A_MINUTE }),
+			]),
+		)
+
+		expect(runs.map((run) => run.map((row) => row.messageId))).toEqual([
+			["local-1"],
+			["local-2"],
+		])
+		expect(daySeparatorsIn(runs)).toBe(1)
+		expect(opensNewDay(runs, 1)).toBe(true)
+	})
+
+	it("opens no new day between two messages of the same local day across UTC midnight", () => {
+		const utcMidnight = Date.UTC(2026, 9, 10)
+		const runs = toRuns(
+			toTranscriptRows([
+				prompt({ id: "local-1", createdAt: utcMidnight - A_MINUTE }),
+				prompt({ id: "local-2", createdAt: utcMidnight + A_MINUTE }),
+			]),
+		)
+
+		expect(runs.map((run) => run.length)).toEqual([2])
+		expect(daySeparatorsIn(runs)).toBe(0)
+	})
+
+	it("opens no new day above the first message", () => {
+		const runs = toRuns(
+			toTranscriptRows([prompt({ createdAt: TOKYO_MIDNIGHT + A_MINUTE })]),
+		)
+
+		expect(opensNewDay(runs, 0)).toBe(false)
 	})
 })
 

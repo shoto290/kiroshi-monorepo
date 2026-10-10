@@ -16,7 +16,9 @@ import {
 	useSyncExternalStore,
 } from "react"
 import {
+	afterAll,
 	afterEach,
+	beforeAll,
 	beforeEach,
 	describe,
 	expect,
@@ -4246,5 +4248,78 @@ describe("ThreadScreen selecting a companion from the transcript", () => {
 
 		expect(target.select).not.toHaveBeenCalled()
 		expect(target.missions.getState()).not.toBeNull()
+	})
+})
+
+describe("ThreadScreen dating its messages in Tokyo", () => {
+	const TOKYO_MIDNIGHT = Date.UTC(2026, 9, 9, 15)
+	let layout: FakeLayout
+
+	const spokenAt = (createdAt: number, index: number): SpokenTurn => ({
+		turnId: `t-ada-${index}`,
+		text: `said at ${createdAt}`,
+		createdAt,
+		author: "Ada",
+	})
+
+	const renderAdaSaying = async (...createdAts: number[]) => {
+		const room = await roomOf({
+			names: ["Ada"],
+			spoken: createdAts.map(spokenAt),
+		})
+		render(screenOf(room.thread))
+		await settle()
+	}
+
+	const daySeparators = () =>
+		document.querySelectorAll('[data-slot="day-separator"]')
+
+	beforeAll(() => {
+		vi.stubEnv("TZ", "Asia/Tokyo")
+	})
+
+	afterAll(() => {
+		vi.unstubAllEnvs()
+	})
+
+	beforeEach(() => {
+		layout = fakeLayout()
+		vi.clearAllMocks()
+		listRoutines.mockResolvedValue([])
+		listRuns.mockResolvedValue([])
+		listSources.mockResolvedValue([])
+		listMissions.mockResolvedValue({ open: [], done: [] })
+		listenToMissions.mockResolvedValue(() => undefined)
+	})
+
+	afterEach(() => {
+		cleanup()
+		layout.restore()
+	})
+
+	it("shows the send time under every message", async () => {
+		await renderAdaSaying(TOKYO_MIDNIGHT - A_MINUTE, TOKYO_MIDNIGHT)
+
+		expect(
+			document.querySelectorAll('[data-slot="message-time-line"]'),
+		).toHaveLength(2)
+	})
+
+	it("parts two messages across local midnight with one day separator between two runs", async () => {
+		await renderAdaSaying(TOKYO_MIDNIGHT - A_MINUTE, TOKYO_MIDNIGHT + A_MINUTE)
+
+		expect(daySeparators()).toHaveLength(1)
+		expect(
+			document.querySelectorAll('[data-slot="chat-turn-group"]'),
+		).toHaveLength(2)
+	})
+
+	it("shows no day separator between two messages of the same local day", async () => {
+		await renderAdaSaying(
+			TOKYO_MIDNIGHT + A_MINUTE,
+			TOKYO_MIDNIGHT + 2 * A_MINUTE,
+		)
+
+		expect(daySeparators()).toHaveLength(0)
 	})
 })

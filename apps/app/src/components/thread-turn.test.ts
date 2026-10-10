@@ -66,6 +66,7 @@ const renderTurn = (
 		state,
 		onRetry,
 		pinned: false,
+		now: 0,
 		toQuote: () => ({
 			author: "",
 			excerpt: "",

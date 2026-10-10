@@ -17,6 +17,7 @@ import {
 	ConversationArrivalRow,
 } from "@workspace/ui/components/conversation-arrival-row"
 import { ConversationEmptyState } from "@workspace/ui/components/conversation-empty-state"
+import { DaySeparator } from "@workspace/ui/components/day-separator"
 import { HeaderConversationButton } from "@workspace/ui/components/header-conversation-button"
 import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
@@ -95,6 +96,7 @@ import { isPostedAnswer } from "@/lib/chat/posted-question"
 import {
 	bubbleIdOf,
 	emptyStateStatusFor,
+	opensNewDay,
 	type ReplyTarget,
 	type RunPresentation,
 	runPresentationsOf,
@@ -607,6 +609,7 @@ type ThreadRunProps = {
 	authors: ThreadAuthors
 	quotes: ThreadQuotes
 	pins: PinnedBubbles
+	now: number
 	toQuote: ThreadNaming["toQuote"]
 	onReply: (target: ReplyTarget) => void
 	onRetry?: (messageId: string) => void
@@ -623,6 +626,7 @@ const ThreadRun = ({
 	authors,
 	quotes,
 	pins,
+	now,
 	toQuote,
 	onReply,
 	onRetry,
@@ -650,6 +654,7 @@ const ThreadRun = ({
 					botId={botFace?.id}
 					cause={causes.get(row.turnId)}
 					key={bubble}
+					now={now}
 					onPin={pins.toggle}
 					onReply={onReply}
 					onRetry={onRetry}
@@ -758,6 +763,22 @@ const toRunRows = ({
 	}))
 
 type RowsAfterRun = (runIndex: number) => TranscriptItem[]
+
+const daySeparatorRowsAfter =
+	(runs: TranscriptRow[][], now: number): RowsAfterRun =>
+	(runIndex) => {
+		const nextIndex = runIndex + 1
+		if (!opensNewDay(runs, nextIndex)) {
+			return []
+		}
+		const opening = runs[nextIndex][0]
+		return [
+			{
+				key: `day-${bubbleIdOf(opening.messageId, opening.blockIndex)}`,
+				render: () => <DaySeparator at={opening.timestamp} now={now} />,
+			},
+		]
+	}
 
 const rowsPlacedAfter =
 	<Placed extends { runIndex: number }>(
@@ -1499,6 +1520,7 @@ const threadRowsOf = (
 		botFace,
 		causes,
 		isSentInMount,
+		now: clock,
 		onReply: holdReply,
 		onRetry: botController ? retry : undefined,
 		personOf,
@@ -1555,10 +1577,12 @@ const threadRowsOf = (
 		}),
 		sessionApplications,
 	})
+	const daySeparatorsAfter = daySeparatorRowsAfter(runs, clock)
 	const transcriptRows = interleavedWithRuns(runRows, (runIndex) => [
 		...arrivalsAfter(runIndex),
 		...installsAfter(runIndex),
 		...missionRowsAfter(runIndex),
+		...daySeparatorsAfter(runIndex),
 	])
 	const refusedTarget = repliedToRefusal
 		? quotes.get(repliedToRefusal)
