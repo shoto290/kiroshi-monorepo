@@ -262,7 +262,12 @@ describe("SpaceSettingsHost on a joined space", () => {
 
 		await confirmLeave(dialog)
 
-		expect(await screen.findAllByText("disk full")).not.toHaveLength(0)
+		expect(
+			await screen.findAllByText(
+				i18n.t("chat:screen.notice.joinRefused.unexpected.title"),
+			),
+		).not.toHaveLength(0)
+		expect(screen.queryByText("disk full")).toBeNull()
 		expect(gear.joined.getState().joinedSpaces).toEqual([GARAGE])
 		expect(gear.spaces.getState().selectedSpaceId).toBe("garage")
 		expect(screen.getByRole("dialog", { hidden: true })).toBeTruthy()
