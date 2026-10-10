@@ -28,7 +28,6 @@ import type {
 	MissionChanged,
 	MissionEvent,
 	MissionInSpace,
-	MissionOnBoard,
 	MissionState,
 } from "./mission-contract"
 import { toMissionFace } from "./mission-thread-model"
@@ -481,6 +480,8 @@ type ShownMission = {
 	mission: Mission
 }
 
+type MissionEntry = Pick<ShownMission, "mission">
+
 const mostUrgentFirst = (one: ShownMission, other: ShownMission): number =>
 	MOST_URGENT_FIRST.indexOf(one.state) -
 		MOST_URGENT_FIRST.indexOf(other.state) ||
@@ -508,7 +509,7 @@ export const missionRowIdOf = (
 	listedConversationIds.has(conversationId) ? conversationId : botId
 
 export const missionsByRow = (
-	board: MissionOnBoard[],
+	entries: MissionEntry[],
 	listedConversations: { id: string }[],
 	waitingMissionIds: WaitingMissionIds = NO_WAITING_MISSIONS,
 ): MissionsByRow => {
@@ -516,7 +517,7 @@ export const missionsByRow = (
 		listedConversations.map((conversation) => conversation.id),
 	)
 	const open: Record<string, ShownMission[]> = {}
-	for (const { mission } of board) {
+	for (const { mission } of entries) {
 		if (mission.closedAt !== null) continue
 
 		const state = CHIP_STATE_OF[shownStateOf(mission, waitingMissionIds)]
@@ -557,24 +558,24 @@ const conversationSpaces = (
 }
 
 export type MissionSpaces = {
-	board: MissionOnBoard[]
+	entries: MissionEntry[]
 	conversationRosters: Record<string, { id: string }[]>
 	soloThreads: SoloThreads
 	waitingMissionIds?: WaitingMissionIds
 }
 
 export const missionsBySpaceId = ({
-	board,
+	entries,
 	conversationRosters,
 	soloThreads,
 	waitingMissionIds,
 }: MissionSpaces): Record<string, MissionsByRow> => {
 	const spaces = conversationSpaces(conversationRosters, soloThreads)
-	const listed: Record<string, MissionOnBoard[]> = {}
-	for (const onBoard of board) {
-		const spaceId = spaces.get(onBoard.mission.originConversationId)
+	const listed: Record<string, MissionEntry[]> = {}
+	for (const entry of entries) {
+		const spaceId = spaces.get(entry.mission.originConversationId)
 		if (!spaceId) continue
-		listed[spaceId] = [...(listed[spaceId] ?? []), onBoard]
+		listed[spaceId] = [...(listed[spaceId] ?? []), entry]
 	}
 
 	return Object.fromEntries(
