@@ -22,6 +22,7 @@ import { Icons } from "@workspace/ui/components/icons"
 import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { Markdown } from "@workspace/ui/components/markdown"
 import type { MessageAuthor } from "@workspace/ui/components/message"
+import { MESSAGE_BUBBLE_INLINE_PADDING } from "@workspace/ui/components/message-bubble"
 import { type RosterBot, RosterProvider } from "@workspace/ui/components/roster"
 import type { RosterMenuSection } from "@workspace/ui/components/roster-menu-items"
 import type { Space } from "@workspace/ui/components/space"
@@ -321,6 +322,14 @@ const expectPersonTurn = async (article: HTMLElement) => {
 	}
 }
 
+const sentOn = (day: number, hours: number, minutes: number) =>
+	new Date(2026, 9, day, hours, minutes).getTime()
+
+const READ_ON = sentOn(10, 9, 30)
+
+const timesIn = (root: HTMLElement) =>
+	Array.from(root.querySelectorAll<HTMLTimeElement>("time"))
+
 const meta = preview.meta({
 	title: "Conversation/Message/Turn",
 	component: AssistantTurn,
@@ -615,7 +624,13 @@ export const Table = meta.story({
 			</UserTurn>
 			<TurnGroup>
 				<AssistantTurn copyText={TABLE_INTRO}>{TABLE_INTRO}</AssistantTurn>
-				<AssistantTurn bare copyText={TABLE} identity={BOT}>
+				<AssistantTurn
+					bare
+					copyText={TABLE}
+					identity={BOT}
+					sentAt={sentOn(10, 9, 21)}
+					now={READ_ON}
+				>
 					<Markdown>{TABLE}</Markdown>
 				</AssistantTurn>
 			</TurnGroup>
@@ -625,12 +640,12 @@ export const Table = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for the row a table lands in. A table frames and fills itself, so the row is `bare`: no bubble behind it, no padding around it, and one box around the grid instead of two. Check that the sentence above it keeps its bubble, that the table sits flush against the gutter and still marks the run with its avatar, and that the row's copy stays beside the frame rather than out at the edge of the transcript. " +
+					"Reach for this for the row a table lands in. A table frames and fills itself, so the row is `bare`: no bubble behind it, no padding around it, and one box around the grid instead of two. Check that the sentence above it keeps its bubble, that the table sits flush against the gutter and still marks the run with its avatar, and that the row's copy stays beside the frame rather than out at the edge of the transcript, and that its send time drops the bubble padding as a bare row's name does. " +
 					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
-	play: async ({ canvas }) => {
+	play: async ({ canvas, canvasElement }) => {
 		const table = canvas.getByRole("group", { name: "Table" })
 
 		await expect(table).toBeVisible()
@@ -638,6 +653,11 @@ export const Table = meta.story({
 			bubbleStyleOf(canvas.getByText(TABLE_INTRO)).paddingLeft,
 		).not.toBe("0px")
 		await expect(bubbleStyleOf(table).paddingLeft).toBe("0px")
+		const timeLine = slotIn(canvasElement, "message-time-line")
+		await expect(timesIn(canvasElement)[0].getBoundingClientRect().left).toBe(
+			table.getBoundingClientRect().left +
+				Number.parseFloat(getComputedStyle(timeLine).paddingLeft),
+		)
 	},
 })
 
@@ -1696,15 +1716,14 @@ export const WorkingCompanionStopsFromItsRow = meta.story({
 	},
 })
 
-const sentOn = (day: number, hours: number, minutes: number) =>
-	new Date(2026, 9, day, hours, minutes).getTime()
+const expectTimeOnNameEdge = async (root: HTMLElement) => {
+	const name = slotIn(root, "message-author").firstElementChild as HTMLElement
+	const nameEdge = name.getBoundingClientRect().left
 
-const READ_ON = sentOn(10, 9, 30)
-
-const TIME_EDGE_INSET = 4
-
-const timesIn = (root: HTMLElement) =>
-	Array.from(root.querySelectorAll<HTMLTimeElement>("time"))
+	for (const time of timesIn(root)) {
+		await expect(time.getBoundingClientRect().left).toBeCloseTo(nameEdge, 0)
+	}
+}
 
 const expectTimeBelowBubble = async (
 	article: HTMLElement,
@@ -1715,10 +1734,11 @@ const expectTimeBelowBubble = async (
 	const bubble = slotIn(article, "message-bubble-content")
 	const below = bubble.getBoundingClientRect()
 	const edge = time.getBoundingClientRect()
-	const inset =
+	const padding = getComputedStyle(bubble)
+	const textEdgeGap =
 		article.dataset.from === "user"
-			? below.right - edge.right
-			: edge.left - below.left
+			? below.right - Number.parseFloat(padding.paddingRight) - edge.right
+			: edge.left - below.left - Number.parseFloat(padding.paddingLeft)
 
 	await expect(time).toHaveTextContent(wording)
 	await expect(time).toHaveAttribute("datetime", new Date(at).toISOString())
@@ -1727,9 +1747,9 @@ const expectTimeBelowBubble = async (
 		bubble.compareDocumentPosition(time) & Node.DOCUMENT_POSITION_FOLLOWING,
 	).toBeTruthy()
 	await expect(edge.top).toBeGreaterThanOrEqual(below.bottom)
-	await expect(inset).toBeGreaterThanOrEqual(0)
-	await expect(inset).toBeLessThanOrEqual(TIME_EDGE_INSET)
+	await expect(textEdgeGap).toBeCloseTo(0, 0)
 	await expect(slotIn(article, "message-time-line")).toHaveClass(
+		MESSAGE_BUBBLE_INLINE_PADDING,
 		"text-xs",
 		"text-muted-foreground",
 	)
@@ -1757,11 +1777,10 @@ export const BotTurnWithTime = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expectTimeBelowBubble(
-			canvas.getByLabelText("assistant message"),
-			sentOn(10, 9, 21),
-			"9 minutes ago",
-		)
+		const article = canvas.getByLabelText("assistant message")
+
+		await expectTimeBelowBubble(article, sentOn(10, 9, 21), "9 minutes ago")
+		await expectTimeOnNameEdge(article)
 	},
 })
 
@@ -1812,11 +1831,10 @@ export const PersonTurnWithTime = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expectTimeBelowBubble(
-			canvas.getByLabelText(`message from ${PERSON}`),
-			sentOn(10, 9, 0),
-			"30 minutes ago",
-		)
+		const article = canvas.getByLabelText(`message from ${PERSON}`)
+
+		await expectTimeBelowBubble(article, sentOn(10, 9, 0), "30 minutes ago")
+		await expectTimeOnNameEdge(article)
 	},
 })
 
@@ -1846,7 +1864,7 @@ export const RunOfThreeTimedMessages = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas }) => {
+	play: async ({ canvas, canvasElement }) => {
 		const articles = canvas.getAllByLabelText("assistant message")
 		const wordings = ["9 minutes ago", "8 minutes ago", "7 minutes ago"]
 
@@ -1858,6 +1876,7 @@ export const RunOfThreeTimedMessages = meta.story({
 				wordings[index],
 			)
 		}
+		await expectTimeOnNameEdge(canvasElement)
 	},
 })
 

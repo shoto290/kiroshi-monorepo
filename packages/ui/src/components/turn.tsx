@@ -408,7 +408,11 @@ function UserTurn({
 						</TurnBody>
 					</MessageActions>
 				</MessageBubble>
-				<TurnTimeLine sentAt={sentAt} now={now} />
+				<TurnTimeLine
+					sentAt={sentAt}
+					now={now}
+					className={MESSAGE_BUBBLE_INLINE_PADDING}
+				/>
 				{footerKey ? <MessageFooter>{t(footerKey)}</MessageFooter> : null}
 			</MessageContent>
 		</Message>
@@ -557,7 +561,10 @@ function AssistantTurn(props: AssistantTurnProps) {
 				<TurnTimeLine
 					sentAt={sentAt}
 					now={now}
-					className="col-start-2 row-start-3 pt-1.5"
+					className={cn(
+						"col-start-2 row-start-3 pt-1.5",
+						bare ? undefined : MESSAGE_BUBBLE_INLINE_PADDING,
+					)}
 				/>
 				{shownFooter ? (
 					<MessageFooter className="col-start-2 row-start-4 pt-1.5">
@@ -640,7 +647,10 @@ const PersonTurn = ({
 				<TurnTimeLine
 					sentAt={sentAt}
 					now={now}
-					className="col-start-2 row-start-3 pt-1.5"
+					className={cn(
+						"col-start-2 row-start-3 pt-1.5",
+						MESSAGE_BUBBLE_INLINE_PADDING,
+					)}
 				/>
 			</MessageContent>
 		</Message>
