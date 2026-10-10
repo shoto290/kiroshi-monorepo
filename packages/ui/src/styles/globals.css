@@ -138,8 +138,6 @@
 	:root,
 	.dark,
 	[data-theme] {
-		--user-bubble: #364f7c;
-		--user-bubble-foreground: #ffffff;
 		--color-foreground: var(--foreground);
 		--color-muted: var(--muted);
 		--color-muted-foreground: var(--muted-foreground);

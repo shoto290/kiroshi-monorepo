@@ -48,6 +48,8 @@
 	--sidebar-ring: #7490c2;
 	--scrollbar: oklch(0.72 0.013 285.938);
 	--scrollbar-hover: oklch(0.6 0.014 285.938);
+	--user-bubble: #364f7c;
+	--user-bubble-foreground: #ffffff;
 	--user-bubble-tint-ink: var(--bot-blot-ink);
 	--image-outline: oklch(0 0 0 / 8%);
 	--shell-border: oklch(0 0 0 / 6%);
@@ -96,6 +98,8 @@
 	--sidebar-ring: #7490c2;
 	--scrollbar: oklch(0.44 0.008 286.033);
 	--scrollbar-hover: oklch(0.55 0.01 286.033);
+	--user-bubble: #364f7c;
+	--user-bubble-foreground: #ffffff;
 	--user-bubble-tint-ink: var(--foreground);
 	--image-outline: oklch(1 0 0 / 8%);
 	--shell-border: oklch(1 0 0 / 6%);
