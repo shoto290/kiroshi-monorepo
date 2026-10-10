@@ -12,16 +12,14 @@ const NOTICE_KEYS = {
 	proxyUnavailable: "joinRefused.proxyUnavailable",
 } as const satisfies Record<JoinedSpaceError["kind"], string>
 
-const isRefusalKind = (kind: unknown): kind is JoinedSpaceError["kind"] =>
-	typeof kind === "string" && Object.hasOwn(NOTICE_KEYS, kind)
-
 export const isJoinedSpaceError = (
 	reason: unknown,
 ): reason is JoinedSpaceError =>
 	typeof reason === "object" &&
 	reason !== null &&
 	"kind" in reason &&
-	isRefusalKind(reason.kind)
+	typeof reason.kind === "string" &&
+	Object.hasOwn(NOTICE_KEYS, reason.kind)
 
 export const joinRefusalNoticeOf = ({
 	kind,
