@@ -5,6 +5,7 @@ import type { Mission, MissionChanged } from "./mission-contract"
 import { withMissionChange } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
 
+import { useHostReconnections } from "@/lib/host/use-host-reconnections"
 import { useReachableHost } from "@/lib/host/use-reachable-host"
 
 const NO_MISSIONS: Mission[] = []
@@ -64,6 +65,8 @@ export const useMissions = (
 	}, [conversationId, host])
 
 	useEffect(reload, [reload])
+
+	useHostReconnections(reload)
 
 	useEffect(() => {
 		const rereading = coalescedRead(reload)

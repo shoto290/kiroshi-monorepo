@@ -8,6 +8,7 @@ import type { MissionEntry } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
 
 import { isHostOffline } from "@/lib/host/host-offline"
+import { useHostReconnections } from "@/lib/host/use-host-reconnections"
 import { LOCAL_HOST, useReachableHost } from "@/lib/host/use-reachable-host"
 
 type HeldMarks = {
@@ -84,6 +85,8 @@ export const useMissionMarks = (
 	}, [host, shownSpaceId])
 
 	useEffect(reload, [reload])
+
+	useHostReconnections(reload)
 
 	useEffect(() => {
 		const rereading = coalescedRead(reload)

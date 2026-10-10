@@ -19,6 +19,7 @@ import type { ReopenedScope } from "./session-reopening"
 
 import type { Space } from "../conversations/store-contract"
 import { isHostOffline } from "../host/host-offline"
+import { useHostReconnections } from "../host/use-host-reconnections"
 
 export type ConversationApplications = {
 	port: ApplicationPort
@@ -80,6 +81,8 @@ export const useConversationInstalls = (
 	}, [port, conversationId])
 
 	useEffect(reload, [reload])
+
+	useHostReconnections(reload)
 
 	useEffect(() => {
 		if (!port) {

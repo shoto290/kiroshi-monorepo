@@ -2,6 +2,7 @@ import { useEffect } from "react"
 
 import type { McpServersController } from "./mcp-servers-controller"
 
+import { onHostReconnected } from "../host"
 import type { ApplicationsController } from "../applications/applications-controller"
 import type { ConnectionsController } from "../applications/connections-controller"
 import { botPlugin } from "../conversations/plugin-scope"
@@ -10,10 +11,10 @@ import type { PluginController } from "../plugins/plugin-controller"
 
 export type CompanionSettings = {
 	applications: Pick<ApplicationsController, "open">
-	plugin: Pick<PluginController, "open">
-	servers: Pick<McpServersController, "open">
-	environment: Pick<EnvironmentController, "open">
-	connections: Pick<ConnectionsController, "open">
+	plugin: Pick<PluginController, "open" | "reload">
+	servers: Pick<McpServersController, "open" | "reload">
+	environment: Pick<EnvironmentController, "open" | "reload">
+	connections: Pick<ConnectionsController, "open" | "reload">
 	companionId: string | null
 	spaceId: string | null
 	isOpen: boolean
@@ -39,6 +40,13 @@ export const useCompanionSettings = ({
 		void servers.open(owner)
 		void environment.open(owner)
 		void connections.open(owner)
+		return onHostReconnected(() => {
+			void applications.open()
+			plugin.reload()
+			void servers.reload()
+			void environment.reload()
+			void connections.reload()
+		})
 	}, [
 		applications,
 		plugin,

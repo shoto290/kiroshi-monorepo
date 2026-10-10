@@ -11,6 +11,7 @@ import type { TranscriptStore } from "./store-port"
 import type { TranscriptMessage } from "./transcript-contract"
 import { message, seatBots } from "./transcript-fixtures"
 
+import { JOINED_SPACE_RECONNECTED_EVENT } from "../bindings"
 import type {
 	AgentEvent,
 	EventTurn,
@@ -19,6 +20,7 @@ import type {
 	RuntimeScope,
 } from "../agent/contract"
 import { agentTransport } from "../agent/transport"
+import { createRosterController } from "../bots/roster-controller"
 import { useRosterReloads } from "../bots/use-roster-reloads"
 import { createChatController } from "../chat/chat-controller"
 import { sidebarActivityFor } from "../chat/screen-model"
@@ -142,6 +144,11 @@ const joinHost = async () => {
 const reconnectHost = async () => {
 	dropLastSocket()
 	await openLastSocket()
+	await settled()
+}
+
+const reopenRelay = async (id: string) => {
+	await emitLocally(JOINED_SPACE_RECONNECTED_EVENT, { id })
 	await settled()
 }
 
@@ -366,6 +373,43 @@ describe("a solo conversation fed by every writer", () => {
 		detach()
 	})
 
+	it("reloads the transcript when the relay of the joined Space reopens", async () => {
+		const { store, controller, detach, conversationId } = await openSoloChat()
+		await joinHost()
+		await writtenElsewhere(store, conversationId, "Missed during the cut")
+
+		await reopenRelay(JOINED)
+
+		expect(contentsOf(controller.getState())).toContain("Missed during the cut")
+		detach()
+	})
+
+	it("reads the transcript nothing more when the relay of another Space reopens", async () => {
+		const { store, controller, detach, conversationId } = await openSoloChat()
+		await joinHost()
+		await writtenElsewhere(store, conversationId, "Held by another Space")
+
+		await reopenRelay("attic")
+
+		expect(contentsOf(controller.getState())).not.toContain(
+			"Held by another Space",
+		)
+		detach()
+	})
+
+	it("reads the transcript nothing more once it is detached", async () => {
+		const { store, controller, detach, conversationId } = await openSoloChat()
+		await joinHost()
+		detach()
+		await writtenElsewhere(store, conversationId, "After the screen left")
+
+		await reopenRelay(JOINED)
+
+		expect(contentsOf(controller.getState())).not.toContain(
+			"After the screen left",
+		)
+	})
+
 	it("keeps a turn started in this window rendered once", async () => {
 		const { scripted, controller, detach, conversationId } =
 			await openSoloChat()
@@ -434,6 +478,43 @@ describe("a room fed by every writer", () => {
 		detach()
 	})
 
+	it("reloads the transcript when the relay of the joined Space reopens", async () => {
+		const { store, controller, detach, conversationId } = await openRoom()
+		await joinHost()
+		await writtenElsewhere(store, conversationId, "Missed during the cut")
+
+		await reopenRelay(JOINED)
+
+		expect(contentsOf(controller.getState())).toContain("Missed during the cut")
+		detach()
+	})
+
+	it("reads the transcript nothing more when the relay of another Space reopens", async () => {
+		const { store, controller, detach, conversationId } = await openRoom()
+		await joinHost()
+		await writtenElsewhere(store, conversationId, "Held by another Space")
+
+		await reopenRelay("attic")
+
+		expect(contentsOf(controller.getState())).not.toContain(
+			"Held by another Space",
+		)
+		detach()
+	})
+
+	it("reads the transcript nothing more once it is detached", async () => {
+		const { store, controller, detach, conversationId } = await openRoom()
+		await joinHost()
+		detach()
+		await writtenElsewhere(store, conversationId, "After the screen left")
+
+		await reopenRelay(JOINED)
+
+		expect(contentsOf(controller.getState())).not.toContain(
+			"After the screen left",
+		)
+	})
+
 	it("keeps a turn started in this window rendered once", async () => {
 		const { scripted, controller, detach, botId } = await openRoom()
 		await act(() => controller.send("@Ada hi"))
@@ -497,6 +578,85 @@ describe("the roster and the conversation list fed by every writer", () => {
 		await settled()
 
 		await reconnectHost()
+
+		expect(reload).toHaveBeenCalledOnce()
+	})
+
+	const rosterOnHost = async () => {
+		const store = createFakeTranscriptStore()
+		const roster = createRosterController(store)
+		await roster.load({
+			spaces: [{ spaceRowId: "personal", spaceId: "personal" }],
+			spaceRowId: "personal",
+			lastRowId: null,
+		})
+		const rendered = renderHook(() => useRosterReloads(roster.reload))
+		await joinHost()
+		await settled()
+		const writeConversation = (title: string) =>
+			store.createConversation({
+				spaceId: "personal",
+				sectionId: null,
+				title,
+				botIds: [BOT],
+			})
+		const titles = () =>
+			(roster.getState().conversationRosters.personal ?? []).map(
+				({ title }) => title,
+			)
+		return { rendered, writeConversation, titles }
+	}
+
+	it("lists a conversation written during the cut once the relay of the joined Space reopens", async () => {
+		const { writeConversation, titles } = await rosterOnHost()
+		await writeConversation("Opened during the cut")
+
+		await reopenRelay(JOINED)
+
+		expect(titles()).toContain("Opened during the cut")
+	})
+
+	it("lists nothing new when the relay of another Space reopens", async () => {
+		const { writeConversation, titles } = await rosterOnHost()
+		await writeConversation("Held by another Space")
+
+		await reopenRelay("attic")
+
+		expect(titles()).not.toContain("Held by another Space")
+	})
+
+	it("lists nothing new once the roster is gone", async () => {
+		const { rendered, writeConversation, titles } = await rosterOnHost()
+		rendered.unmount()
+		await writeConversation("After the roster left")
+
+		await reopenRelay(JOINED)
+
+		expect(titles()).not.toContain("After the roster left")
+	})
+
+	it("reloads once when the relay reopens before the socket", async () => {
+		const reload = vi.fn()
+		renderHook(() => useRosterReloads(reload))
+		await joinHost()
+		await settled()
+
+		dropLastSocket()
+		await reopenRelay(JOINED)
+		await openLastSocket()
+		await settled()
+
+		expect(reload).toHaveBeenCalledOnce()
+	})
+
+	it("reloads once when the socket reopens before the relay", async () => {
+		const reload = vi.fn()
+		renderHook(() => useRosterReloads(reload))
+		await joinHost()
+		await settled()
+
+		await reconnectHost()
+		await reopenRelay(JOINED)
 
 		expect(reload).toHaveBeenCalledOnce()
 	})

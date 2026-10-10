@@ -12,6 +12,7 @@ export type EnvironmentController = {
 	getState: () => EnvironmentState
 	subscribe: (listener: () => void) => () => void
 	open: (scope: EnvScope) => Promise<void>
+	reload: () => Promise<void>
 	set: (name: string, value: string) => Promise<void>
 	remove: (name: string) => Promise<void>
 }
@@ -62,6 +63,11 @@ export const createEnvironmentController = (
 		open: (scope: EnvScope) => {
 			set({ scope, entries: [], hasFailedToRead: false })
 			return read(scope)
+		},
+
+		reload: () => {
+			const scope = current().scope
+			return scope ? read(scope) : Promise.resolve()
 		},
 
 		set: (name: string, value: string) =>

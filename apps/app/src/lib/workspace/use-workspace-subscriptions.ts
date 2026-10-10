@@ -2,6 +2,10 @@ import { useEffect } from "react"
 
 import type { ApplicationScopes } from "./use-application-scopes"
 import type { RosterView } from "./use-roster-view"
+import {
+	useServerEnvironmentReads,
+	useSpaceSettingsReads,
+} from "./use-settings-reads"
 import type { WorkspaceCore } from "./use-workspace-core"
 import type { WorkspaceDrivers } from "./use-workspace-drivers"
 import { USER_OWNER } from "./user-owner"
@@ -87,28 +91,19 @@ export const useWorkspaceSubscriptions = ({
 		isOpen: isEditing,
 	})
 
-	useEffect(() => {
-		if (isSpaceEditing && selectedSpaceId) {
-			const owner = { kind: "space", id: selectedSpaceId } as const
-			void applications.controller.open()
-			void spaceEnvironment.controller.open(owner)
-			void spaceMcpServers.controller.open(owner)
-			void spaceConnections.controller.open(owner)
-		}
-	}, [
-		applications.controller,
-		spaceEnvironment.controller,
-		spaceMcpServers.controller,
-		spaceConnections.controller,
-		isSpaceEditing,
-		selectedSpaceId,
-	])
+	useSpaceSettingsReads({
+		applications: applications.controller,
+		environment: spaceEnvironment.controller,
+		servers: spaceMcpServers.controller,
+		connections: spaceConnections.controller,
+		spaceId: selectedSpaceId,
+		isOpen: isSpaceEditing,
+	})
 
-	useEffect(() => {
-		if (openedMcpServer) {
-			void serverEnvironment.controller.open(openedMcpServer)
-		}
-	}, [serverEnvironment.controller, openedMcpServer])
+	useServerEnvironmentReads({
+		environment: serverEnvironment.controller,
+		server: openedMcpServer,
+	})
 
 	useEffect(() => {
 		if (!user.state.isSettingsOpen) {

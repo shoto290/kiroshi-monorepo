@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import type { EventCallback } from "@tauri-apps/api/event"
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -9,6 +10,10 @@ import { useMissionMarks } from "./use-mission-marks"
 import { useMissions } from "./use-missions"
 import { useSpaceMissions } from "./use-space-missions"
 
+import {
+	JOINED_SPACE_RECONNECTED_EVENT,
+	type JoinedSpaceReconnected,
+} from "../bindings"
 import type { HostSocket } from "../host/http"
 import { createJoinedHosts, type JoinedHosts } from "../host/joined-hosts"
 
@@ -21,6 +26,8 @@ const wire = vi.hoisted(() => ({
 		command === "conversation_local_ids" ? [] : null) as Answer,
 	hostAnswer: (async () => null) as Answer,
 	sockets: [] as HostSocket[],
+	relays: new Set<EventCallback<JoinedSpaceReconnected>>(),
+	hostReads: [] as string[],
 	joinedHosts: null as JoinedHosts | null,
 }))
 
@@ -47,7 +54,12 @@ const buildJoinedHosts = (): JoinedHosts =>
 	createJoinedHosts({
 		local: {
 			invoke: ((command: string) => wire.localAnswer(command)) as never,
-			listen: async () => () => undefined,
+			listen: async (event, handler) => {
+				if (event === JOINED_SPACE_RECONNECTED_EVENT) {
+					wire.relays.add(handler as EventCallback<JoinedSpaceReconnected>)
+				}
+				return () => undefined
+			},
 			fileSrc: (path) => path,
 		},
 		join: async (id) => ({
@@ -62,6 +74,7 @@ const buildJoinedHosts = (): JoinedHosts =>
 		}),
 		fetch: async (input) => {
 			const command = decodeURIComponent(String(input).split("/").pop() ?? "")
+			wire.hostReads.push(command)
 			return new Response(JSON.stringify(await wire.hostAnswer(command)), {
 				headers: { "content-type": "application/json" },
 			})
@@ -151,6 +164,23 @@ const openLastSocket = () =>
 		socket?.onopen?.call(socket as WebSocket, new Event("open"))
 	})
 
+const reopenRelay = (id: string) =>
+	act(async () => {
+		for (const relay of wire.relays) {
+			relay({ event: JOINED_SPACE_RECONNECTED_EVENT, id: 0, payload: { id } })
+		}
+	})
+
+const readsOf = (command: string) =>
+	wire.hostReads.filter((read) => read === command).length
+
+const settled = () =>
+	act(async () => {
+		for (let round = 0; round < 20; round += 1) {
+			await Promise.resolve()
+		}
+	})
+
 const dropLastSocket = () => {
 	vi.useFakeTimers()
 	act(() => {
@@ -161,10 +191,29 @@ const dropLastSocket = () => {
 	vi.useRealTimers()
 }
 
+const joinGarage = async () => {
+	wire.localAnswer = answering({ mission_list: { open: [], done: [] } })
+	await joinedHosts.activate("garage")
+	await openLastSocket()
+}
+
+const activityPanelOnGarage = async () => {
+	await joinGarage()
+	const rendered = renderHook(() => useMissions("c-1"))
+	await waitFor(() =>
+		expect(objectivesOf(rendered.result.current.open)).toEqual([
+			HOST_MISSION.objective,
+		]),
+	)
+	return rendered
+}
+
 describe("missions read on a joined host", () => {
 	beforeEach(() => {
 		wire.joinedHosts = buildJoinedHosts()
 		wire.sockets.length = 0
+		wire.relays.clear()
+		wire.hostReads.length = 0
 		wire.hostAnswer = hostAnswers
 	})
 
@@ -299,5 +348,145 @@ describe("missions read on a joined host", () => {
 				LOCAL_MISSION.id,
 			]),
 		)
+	})
+
+	const markIdsOf = (marks: { mission: Mission }[]) =>
+		marks.map(({ mission }) => mission.id)
+
+	const marksOnGarage = async () => {
+		await joinGarage()
+		const rendered = renderHook(() => useMissionMarks("space-on-host"))
+		await waitFor(() =>
+			expect(markIdsOf(rendered.result.current)).toEqual([HOST_MISSION.id]),
+		)
+		const reopened = missionOf("m-reopened", "Ship the parser")
+		wire.hostAnswer = answering({
+			mission_space_feed: [
+				{
+					mission: reopened,
+					conversationId: "c-1",
+					conversationTitle: "Parser",
+				},
+			] satisfies MissionInSpace[],
+		})
+		return { ...rendered, reopened }
+	}
+
+	it("reads the conversation-row marks again when the relay of the joined Space reopens", async () => {
+		const { result, reopened } = await marksOnGarage()
+
+		await reopenRelay("garage")
+
+		await waitFor(() =>
+			expect(markIdsOf(result.current)).toEqual([reopened.id]),
+		)
+	})
+
+	it("reads no marks when the relay of another Space reopens", async () => {
+		const { result } = await marksOnGarage()
+		const before = readsOf("mission_space_feed")
+
+		await reopenRelay("attic")
+		await settled()
+
+		expect(readsOf("mission_space_feed")).toBe(before)
+		expect(markIdsOf(result.current)).toEqual([HOST_MISSION.id])
+	})
+
+	it.each([
+		["socket", "relay"],
+		["relay", "socket"],
+	])(
+		"reads the marks once when the %s reopens before the %s",
+		async (first) => {
+			const { result, reopened } = await marksOnGarage()
+			const before = readsOf("mission_space_feed")
+
+			dropLastSocket()
+			if (first === "relay") {
+				await reopenRelay("garage")
+				await openLastSocket()
+			} else {
+				await openLastSocket()
+				await reopenRelay("garage")
+			}
+			await settled()
+
+			expect(readsOf("mission_space_feed")).toBe(before + 1)
+			expect(markIdsOf(result.current)).toEqual([reopened.id])
+		},
+	)
+
+	it("reads the Activity panel again when the relay of the joined Space reopens", async () => {
+		const { result } = await activityPanelOnGarage()
+		const reopened = missionOf("m-reopened", "Ship the parser")
+		wire.hostAnswer = answering({
+			mission_list: { open: [reopened], done: [] },
+		})
+
+		await reopenRelay("garage")
+
+		await waitFor(() =>
+			expect(objectivesOf(result.current.open)).toEqual([reopened.objective]),
+		)
+	})
+
+	it("reads the Missions tab again when the relay of the joined Space reopens", async () => {
+		await joinGarage()
+		const { result } = renderHook(() => useSpaceMissions("space-on-host"))
+		await waitFor(() => expect(result.current.inProgress).toHaveLength(1))
+		const reopened = missionOf("m-reopened", "Ship the parser")
+		wire.hostAnswer = answering({
+			mission_space_feed: [{ mission: reopened, conversationId: "c-1" }],
+		})
+
+		await reopenRelay("garage")
+
+		await waitFor(() =>
+			expect(
+				result.current.inProgress.map(({ mission }) => mission.objective),
+			).toEqual([reopened.objective]),
+		)
+	})
+
+	it("reads no mission again when the relay of another Space reopens", async () => {
+		await activityPanelOnGarage()
+		renderHook(() => useSpaceMissions("space-on-host"))
+		await settled()
+		const before = [readsOf("mission_list"), readsOf("mission_space_feed")]
+
+		await reopenRelay("attic")
+		await settled()
+
+		expect([readsOf("mission_list"), readsOf("mission_space_feed")]).toEqual(
+			before,
+		)
+	})
+
+	it("reads the missions once when the socket and the relay reopen together", async () => {
+		await activityPanelOnGarage()
+		renderHook(() => useSpaceMissions("space-on-host"))
+		await settled()
+		const before = [readsOf("mission_list"), readsOf("mission_space_feed")]
+
+		dropLastSocket()
+		await openLastSocket()
+		await reopenRelay("garage")
+		await settled()
+
+		expect([readsOf("mission_list"), readsOf("mission_space_feed")]).toEqual(
+			before.map((count) => count + 1),
+		)
+	})
+
+	it("reads no mission again once the panels are gone", async () => {
+		const { unmount } = await activityPanelOnGarage()
+		unmount()
+		const before = readsOf("mission_list")
+
+		await reopenRelay("garage")
+		await settled()
+
+		expect(readsOf("mission_list")).toBe(before)
 	})
 })
