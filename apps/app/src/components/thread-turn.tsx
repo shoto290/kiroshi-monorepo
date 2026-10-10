@@ -36,6 +36,7 @@ type ThreadTurnProps = {
 	asking?: ReactNode
 	quoted?: ReplyTarget
 	pinned: boolean
+	now: number
 	toQuote: (target: ReplyTarget) => QuotedMessage
 	onPin: (messageId: string, blockIndex: number) => void
 	onReply: (target: ReplyTarget) => void
@@ -56,6 +57,7 @@ export const ThreadTurn = memo(function ThreadTurn({
 	asking,
 	quoted,
 	pinned,
+	now,
 	toQuote,
 	onPin,
 	onReply,
@@ -87,11 +89,13 @@ export const ThreadTurn = memo(function ThreadTurn({
 				copyText={text}
 				messageId={anchor}
 				name={person}
+				now={now}
 				onPin={pin}
 				onReply={reply}
 				pinned={pinned}
 				repliedTo={repliedTo}
 				run={run}
+				sentAt={row.timestamp}
 			>
 				{content}
 			</PersonTurn>
@@ -103,12 +107,14 @@ export const ThreadTurn = memo(function ThreadTurn({
 			<UserTurn
 				copyText={text}
 				messageId={anchor}
+				now={now}
 				onPin={pin}
 				onReply={reply}
 				onRetry={onRetry ? () => onRetry(row.messageId) : undefined}
 				pinned={pinned}
 				repliedTo={repliedTo}
 				run={run}
+				sentAt={row.timestamp}
 				state={state}
 			>
 				{content}
@@ -127,11 +133,13 @@ export const ThreadTurn = memo(function ThreadTurn({
 			copyText={text}
 			fills={asking !== undefined}
 			messageId={anchor}
+			now={now}
 			onPin={pin}
 			onReply={reply}
 			pinned={pinned}
 			repliedTo={repliedTo}
 			run={run}
+			sentAt={row.timestamp}
 			state={state}
 		>
 			{content}
