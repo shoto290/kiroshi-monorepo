@@ -3561,3 +3561,37 @@ fn a_duplicate_carries_the_effort_of_its_source() {
 	assert_eq!(duplicate["effort"], json!("max"));
 	assert_eq!(occurrences(&agent_text(&app, &duplicate_id), "\neffort: max\n"), 1);
 }
+
+#[test]
+fn the_local_ids_are_every_stored_conversation_once_and_sorted() {
+	let home = Home::new();
+	let app = home.app();
+	let window = window(&app);
+
+	let space = a_space(&window, "Nest");
+	let first = id_of(&a_room(&window, &space, "Standup", vec![]));
+	let second = id_of(&a_room(&window, &space, "Retro", vec![]));
+	let mut expected = vec![first, second];
+	expected.sort();
+
+	assert_eq!(call(&window, "conversation_local_ids", json!({})), Ok(json!(expected)));
+}
+
+#[test]
+fn an_empty_store_answers_no_local_ids() {
+	let home = Home::new();
+	let app = home.app();
+	let window = window(&app);
+
+	assert_eq!(call(&window, "conversation_local_ids", json!({})), Ok(json!([])));
+}
+
+#[test]
+fn a_host_without_a_database_answers_the_local_ids_with_why_there_is_none() {
+	let app = app_without_a_database();
+	let window = window(&app);
+	let unavailable = Err(json!({ "kind": "unavailable", "failure": { "kind": "appDataDir" } }));
+
+	assert_eq!(call(&window, "conversation_list", json!({ "spaceId": "any" })), unavailable);
+	assert_eq!(call(&window, "conversation_local_ids", json!({})), unavailable);
+}
