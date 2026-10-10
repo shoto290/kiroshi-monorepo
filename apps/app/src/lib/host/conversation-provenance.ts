@@ -61,8 +61,13 @@ const heldIdsAt = (holder: unknown): string[] =>
 		? HELD_ID_KEYS.flatMap((key) => [holder[key]].flat()).filter(isText)
 		: []
 
-const heldIdsOf = (args?: InvokeArgs): string[] =>
-	scopingHoldersOf(args).flatMap(heldIdsAt)
+const botIdsAt = (scope: unknown): string[] =>
+	isFields(scope) && scope.kind === "bot" && isText(scope.id) ? [scope.id] : []
+
+const heldIdsOf = (args?: InvokeArgs): string[] => [
+	...scopingHoldersOf(args).flatMap(heldIdsAt),
+	...botIdsAt(isFields(args) ? args.scope : undefined),
+]
 
 const conversationIdsNamedIn = (value: unknown): string[] => {
 	if (Array.isArray(value)) {
