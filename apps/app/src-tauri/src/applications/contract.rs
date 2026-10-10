@@ -1,4 +1,7 @@
-use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
 use crate::conversations::contract::TranscriptStoreError;
@@ -12,23 +15,30 @@ pub struct Application {
 	pub name: String,
 	pub title: String,
 	pub description: String,
-	#[specta(type = crate::json::JsonValue)]
+	#[specta(type = BTreeMap<String, specta_typescript::Unknown>)]
 	pub config: serde_json::Value,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[specta(type = Vec<String>)]
 	pub tools: Option<Vec<String>>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub logo: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub logo_url: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[specta(type = u64)]
 	pub use_count: Option<u64>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[specta(type = bool)]
 	pub verified: Option<bool>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub hosted_by: Option<String>,
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub categories: Vec<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[specta(type = AuthPosture)]
 	pub auth_posture: Option<AuthPosture>,
 	pub install: Install,
 }
@@ -52,15 +62,50 @@ pub enum Install {
 	Refused(InstallRefusal),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq, specta::Type)]
 pub struct InstallField {
 	pub name: String,
 	pub secret: String,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[specta(type = String, optional)]
 	pub description: Option<String>,
-	#[serde(default = "concealed_unless_said_otherwise")]
 	pub concealed: bool,
+}
+
+impl Serialize for InstallField {
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		let mut field = serializer
+			.serialize_struct("InstallField", 3 + usize::from(self.description.is_some()))?;
+		field.serialize_field("name", &self.name)?;
+		field.serialize_field("secret", &self.secret)?;
+		match &self.description {
+			Some(description) => field.serialize_field("description", description)?,
+			None => field.skip_field("description")?,
+		}
+		field.serialize_field("concealed", &self.concealed)?;
+		field.end()
+	}
+}
+
+#[derive(Deserialize)]
+struct InstallFieldEntry {
+	name: String,
+	secret: String,
+	#[serde(default)]
+	description: Option<String>,
+	#[serde(default = "concealed_unless_said_otherwise")]
+	concealed: bool,
+}
+
+impl<'de> Deserialize<'de> for InstallField {
+	fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+		let entry = InstallFieldEntry::deserialize(deserializer)?;
+		Ok(Self {
+			name: entry.name,
+			secret: entry.secret,
+			description: entry.description,
+			concealed: entry.concealed,
+		})
+	}
 }
 
 const fn concealed_unless_said_otherwise() -> bool {
@@ -206,40 +251,51 @@ pub struct ApplicationInstall {
 	pub application: String,
 	pub title: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub logo: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub logo_url: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub description: Option<String>,
 	pub scope: Destination,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub destination_id: Option<String>,
 	pub install: InstallCase,
 	pub last_message_seq: i64,
 	pub created_at: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInstalled {
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub id: Option<String>,
 	pub conversation_id: String,
 	pub application: String,
 	pub title: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub logo: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub logo_url: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub description: Option<String>,
 	pub scope: Destination,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = String)]
 	pub destination_id: Option<String>,
 	pub install: InstallCase,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = i64)]
 	pub last_message_seq: Option<i64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = i64)]
 	pub created_at: Option<i64>,
 }
 
@@ -286,10 +342,13 @@ impl From<InstallDraft> for ApplicationInstalled {
 pub struct ApplicationSearch {
 	pub applications: Vec<Application>,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = ApplicationsError)]
 	pub registry_failure: Option<ApplicationsError>,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = i64)]
 	pub read_at: Option<i64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	#[specta(type = bool)]
 	pub is_stale: Option<bool>,
 }
 
@@ -405,7 +464,7 @@ impl From<EnvError> for ApplicationCallError {
 
 #[cfg(test)]
 mod tests {
-	use serde_json::{json, to_value};
+	use serde_json::{from_value, json, to_string, to_value};
 
 	use super::*;
 
@@ -541,6 +600,81 @@ mod tests {
 				"scope": "user",
 				"install": { "kind": "nothing" },
 			})
+		);
+	}
+
+	#[test]
+	fn an_install_recorded_for_a_conversation_crosses_with_every_value_it_holds() {
+		let record = ApplicationInstall {
+			id: "i1".to_owned(),
+			conversation_id: "c1".to_owned(),
+			application: "superset".to_owned(),
+			title: "Superset".to_owned(),
+			logo: Some("superset.svg".to_owned()),
+			logo_url: Some("https://icons.test/superset.png".to_owned()),
+			description: Some("Run workspaces.".to_owned()),
+			scope: Destination::Companion,
+			destination_id: Some("b1".to_owned()),
+			install: InstallCase::Oauth,
+			last_message_seq: 12,
+			created_at: 1_700_000_000_000,
+		};
+
+		assert_eq!(
+			to_string(&ApplicationInstalled::from(record)).expect("it serialises"),
+			concat!(
+				r#"{"id":"i1","conversationId":"c1","application":"superset","title":"Superset","#,
+				r#""logo":"superset.svg","logoUrl":"https://icons.test/superset.png","#,
+				r#""description":"Run workspaces.","scope":"companion","destinationId":"b1","#,
+				r#""install":{"kind":"oauth"},"lastMessageSeq":12,"createdAt":1700000000000}"#,
+			)
+		);
+	}
+
+	#[test]
+	fn an_install_field_crosses_with_its_description_before_its_concealment() {
+		let field = InstallField {
+			name: "Authorization".to_owned(),
+			secret: "SUPERSET_API_KEY".to_owned(),
+			description: Some("The workspace key.".to_owned()),
+			concealed: false,
+		};
+
+		assert_eq!(
+			to_string(&field).expect("it serialises"),
+			r#"{"name":"Authorization","secret":"SUPERSET_API_KEY","description":"The workspace key.","concealed":false}"#
+		);
+	}
+
+	#[test]
+	fn an_install_field_holding_no_description_crosses_without_the_key() {
+		let field = InstallField {
+			name: "Authorization".to_owned(),
+			secret: "SUPERSET_API_KEY".to_owned(),
+			description: None,
+			concealed: true,
+		};
+
+		assert_eq!(
+			to_string(&field).expect("it serialises"),
+			r#"{"name":"Authorization","secret":"SUPERSET_API_KEY","concealed":true}"#
+		);
+	}
+
+	#[test]
+	fn an_install_field_read_without_a_concealment_is_concealed() {
+		let field: InstallField =
+			from_value(json!({ "name": "Authorization", "secret": "SUPERSET_API_KEY" }))
+				.expect("it reads");
+
+		assert_eq!(
+			field,
+			InstallField {
+				name: "Authorization".to_owned(),
+				secret: "SUPERSET_API_KEY".to_owned(),
+				description: None,
+				concealed: true,
+			}
 		);
 	}
 
