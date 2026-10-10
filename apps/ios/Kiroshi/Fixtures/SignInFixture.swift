@@ -21,6 +21,18 @@
             #"""
             [{"id":"9b1e0000-0000-4000-8000-000000000001","name":"Studio","role":"owner","createdAt":"2026-10-01T09:00:00.000Z","online":true},{"id":"9b1e0000-0000-4000-8000-000000000002","name":"Bench","role":"member","createdAt":"2026-10-02T09:00:00.000Z","online":false}]
             """#)
+        static let artboardSpaces = [
+            Space(id: "9b1e0000-0000-4000-8000-000000000001", name: "Studio"),
+            Space(id: "9b1e0000-0000-4000-8000-000000000003", name: "Home lab"),
+            Space(id: "9b1e0000-0000-4000-8000-000000000004", name: "Side project"),
+        ]
+        static let threeSpaces = ScriptedTransport.Answer.status(
+            200,
+            #"""
+            [{"id":"9b1e0000-0000-4000-8000-000000000001","name":"Studio","role":"owner","createdAt":"2026-10-01T09:00:00.000Z","online":true},{"id":"9b1e0000-0000-4000-8000-000000000003","name":"Home lab","role":"owner","createdAt":"2026-10-03T09:00:00.000Z","online":true},{"id":"9b1e0000-0000-4000-8000-000000000004","name":"Side project","role":"member","createdAt":"2026-10-04T09:00:00.000Z","online":false}]
+            """#)
+        static let signOutPath = "/api/auth/sign-out"
+        static let signedOut = ScriptedTransport.Answer.status(200, #"{"status":true}"#)
 
         static func error(_ status: Int, code: String, message: String) -> ScriptedTransport.Answer
         {
@@ -48,6 +60,8 @@
         case noSpace = "1.10"
         case spaces
         case spacesUnreachable = "spaces-unreachable"
+        case keychain
+        case seededKeychain = "keychain-seeded"
 
         static var launchArgument: SignInFixture? {
             UserDefaults.standard.string(forKey: "fixture").flatMap(SignInFixture.init(rawValue:))
@@ -73,6 +87,11 @@
             case .noSpace: [CloudFixture.spacesPath: CloudFixture.noSpaces]
             case .spaces: [CloudFixture.spacesPath: CloudFixture.twoSpaces]
             case .spacesUnreachable: [CloudFixture.spacesPath: .offline]
+            case .keychain, .seededKeychain:
+                [
+                    CloudFixture.spacesPath: CloudFixture.threeSpaces,
+                    CloudFixture.signOutPath: CloudFixture.signedOut,
+                ]
             case .opening, .email, .code: [:]
             }
         }
@@ -81,6 +100,19 @@
             switch self {
             case .loadingSpaces, .noSpace, .spaces, .spacesUnreachable: true
             default: false
+            }
+        }
+
+        fileprivate var sessions: any SessionStore {
+            switch self {
+            case .keychain:
+                return KeychainSessionStore()
+            case .seededKeychain:
+                let keychain = KeychainSessionStore()
+                try? keychain.save(CloudFixture.session)
+                return keychain
+            default:
+                return InMemorySessionStore(isSignedIn ? CloudFixture.session : nil)
             }
         }
 
@@ -101,8 +133,8 @@
                 cloud: KiroshiCloud(
                     baseURL: KiroshiCloud.productionURL,
                     transport: ScriptedTransport(fixture.answers)),
-                sessions: InMemorySessionStore(fixture.isSignedIn ? CloudFixture.session : nil))
-            if fixture != .opening {
+                sessions: fixture.sessions)
+            if ![.opening, .keychain, .seededKeychain].contains(fixture) {
                 model.email = CloudFixture.email
             }
             model.code = fixture.typedCode
@@ -120,7 +152,8 @@
             case .tooManyCodes:
                 model.path = [.email, .code]
                 model.sendNewCodeTapped()
-            case .opening, .loadingSpaces, .noSpace, .spaces, .spacesUnreachable:
+            case .opening, .loadingSpaces, .noSpace, .spaces, .spacesUnreachable, .keychain,
+                .seededKeychain:
                 break
             }
             return model

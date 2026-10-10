@@ -35,3 +35,14 @@ xcrun simctl launch --terminate-running-process booted com.kiroshi.app.ios -fixt
 ```
 
 The same fixtures feed the `#Preview`s.
+
+## Settings and Sign out without the network
+
+Page 5 "Settings" sits behind the gear of the Spaces list. Two Debug fixtures keep the real Keychain and script the cloud (three spaces, Sign out answered), so signing out really empties the Keychain:
+
+```bash
+xcrun simctl launch --terminate-running-process booted com.kiroshi.app.ios -fixture keychain-seeded  # Writes a fixture session to the Keychain, opens on the Spaces list
+xcrun simctl launch --terminate-running-process booted com.kiroshi.app.ios -fixture keychain         # Opens on whatever the Keychain holds
+```
+
+Tap the gear, then Sign out. Relaunched with `-fixture keychain` after confirming, the app opens on Sign in: no session is left on the device.

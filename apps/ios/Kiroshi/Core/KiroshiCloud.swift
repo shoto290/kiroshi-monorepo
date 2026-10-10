@@ -72,6 +72,13 @@ struct KiroshiCloud: Sendable {
         }
     }
 
+    func signOut(bearer: String) async {
+        var request = URLRequest(url: baseURL.appending(path: "api/auth/sign-out"))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+        _ = try? await send(request)
+    }
+
     private func refusal(of data: Data) -> CodeSignInAnswer {
         let message = try? JSONDecoder().decode(ErrorBody.self, from: data).error.message
         switch message {

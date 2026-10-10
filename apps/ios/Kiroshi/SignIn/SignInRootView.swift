@@ -20,7 +20,7 @@ struct SignInRootView: View {
         case .spaces(let spaces) where spaces.isEmpty:
             NoSpaceView(model: model)
         case .spaces(let spaces):
-            SpaceListView(spaces: spaces)
+            SpaceListView(model: model, spaces: spaces)
         case .spacesUnreachable:
             SpacesUnreachableView(model: model)
         }

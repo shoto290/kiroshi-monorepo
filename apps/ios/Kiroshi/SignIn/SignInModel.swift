@@ -45,6 +45,9 @@ final class SignInModel {
     private(set) var isSigningIn = false
     private(set) var emailProblem: EmailProblem?
     private(set) var codeProblem: CodeProblem?
+    var isConfirmingSignOut = false
+    @ObservationIgnored var onSignOut: () -> Void = {}
+    @ObservationIgnored private(set) var revocation: Task<Void, Never>?
 
     @ObservationIgnored private let cloud: KiroshiCloud
     @ObservationIgnored private let sessions: any SessionStore
@@ -162,12 +165,24 @@ final class SignInModel {
         guard let answer = try? await cloud.spaces(bearer: session.bearer) else { return }
         switch answer {
         case .spaces(let spaces): stage = .spaces(spaces)
-        case .unauthenticated: signOut()
+        case .unauthenticated: endSession()
         case .unreachable: stage = .spacesUnreachable
         }
     }
 
-    private func signOut() {
+    func signOutTapped() {
+        isConfirmingSignOut = true
+    }
+
+    func signOut() {
+        if let bearer = session?.bearer {
+            revocation = Task { [cloud] in await cloud.signOut(bearer: bearer) }
+        }
+        endSession()
+    }
+
+    private func endSession() {
+        onSignOut()
         work?.cancel()
         sessions.clear()
         session = nil
@@ -175,6 +190,7 @@ final class SignInModel {
         code = ""
         codeProblem = nil
         emailProblem = nil
+        isConfirmingSignOut = false
         path = []
         stage = .signedOut
     }
