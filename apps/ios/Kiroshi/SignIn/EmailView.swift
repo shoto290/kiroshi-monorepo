@@ -12,7 +12,7 @@ struct EmailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 Text("Enter your email and we’ll send you a code to sign in.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.kiroshi(.mutedForeground))
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("Email", text: $model.email)
                         .textContentType(.emailAddress)
@@ -24,15 +24,16 @@ struct EmailView: View {
                             if canContinue { model.continueWithEmail() }
                         }
                         .focused($isEmailFocused)
+                        .foregroundStyle(Color.kiroshi(.foreground))
                         .padding(.horizontal, 16)
                         .frame(minHeight: 52)
-                        .background(Color(.secondarySystemBackground), in: .capsule)
+                        .background(Color.kiroshi(.card), in: .capsule)
                     if let problem = model.emailProblem {
                         ProblemLabel(message: problem.message)
                     } else {
                         Text("No account yet? This creates one.")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.kiroshi(.mutedForeground))
                             .padding(.horizontal, 16)
                     }
                 }
@@ -41,6 +42,7 @@ struct EmailView: View {
             .padding(.top, 12)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .background(Color.kiroshi(.background))
         .navigationTitle("Sign in")
         .navigationBarTitleDisplayMode(.large)
         .safeAreaBar(edge: .bottom) {

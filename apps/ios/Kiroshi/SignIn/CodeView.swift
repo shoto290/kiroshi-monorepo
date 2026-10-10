@@ -8,7 +8,7 @@ struct CodeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 Text("Enter the six-digit code we sent to \(model.email).")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.kiroshi(.mutedForeground))
                 VStack(alignment: .leading, spacing: 16) {
                     CodeField(
                         code: $model.code,
@@ -26,11 +26,11 @@ struct CodeView: View {
                             .fontWeight(.semibold)
                             .frame(minHeight: 44)
                         Button("Use a different email", action: model.useDifferentEmail)
-                            .tint(.secondary)
+                            .tint(Color.kiroshi(.mutedForeground))
                             .frame(minHeight: 44)
                     }
                     .buttonStyle(.borderless)
-                    .tint(.primary)
+                    .tint(Color.kiroshi(.foreground))
                     .multilineTextAlignment(.leading)
                     .disabled(model.isSigningIn || model.isRequestingCode)
                 }
@@ -39,6 +39,7 @@ struct CodeView: View {
             .padding(.top, 12)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .background(Color.kiroshi(.background))
         .navigationTitle("Check your email")
         .navigationBarTitleDisplayMode(.large)
         .safeAreaBar(edge: .bottom) {
@@ -64,7 +65,7 @@ struct CodeView: View {
                 ProgressView()
                 Text("Signing in…")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.kiroshi(.mutedForeground))
             }
             .padding(.horizontal, 4)
         } else if let problem = model.codeProblem {
@@ -72,7 +73,7 @@ struct CodeView: View {
         } else {
             Text("The code works for 5 minutes.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.kiroshi(.mutedForeground))
                 .padding(.horizontal, 4)
         }
     }

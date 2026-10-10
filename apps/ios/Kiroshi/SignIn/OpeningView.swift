@@ -6,20 +6,22 @@ struct OpeningView: View {
     var body: some View {
         VStack(spacing: 24) {
             RoundedRectangle(cornerRadius: 22)
-                .fill(Color(.systemGray5))
+                .fill(Color.kiroshi(.card))
                 .frame(width: 96, height: 96)
                 .overlay {
                     Image(systemName: "hare.fill")
                         .font(.largeTitle)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.kiroshi(.mutedForeground))
                 }
                 .accessibilityHidden(true)
             Text("Your companions, away from your Mac.")
                 .font(.title2.weight(.semibold))
                 .multilineTextAlignment(.center)
+                .foregroundStyle(Color.kiroshi(.foreground))
         }
         .padding(.horizontal, 40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.kiroshi(.background))
         .safeAreaBar(edge: .bottom) {
             Button("Sign in", action: model.start)
                 .primaryAction()
