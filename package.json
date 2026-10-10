@@ -30,6 +30,7 @@
 		"format": "biome format",
 		"ci": "bun run format && bun run lint && bun run types && bun run --filter=website build && bun run test",
 		"release": "bun scripts/release.ts",
+		"tokens:build": "bun packages/ui/src/tokens/build-tokens.ts",
 		"ios:generate": "xcodegen generate --spec apps/ios/project.yml",
 		"ios:build": "bun run ios:generate && xcodebuild -project apps/ios/Kiroshi.xcodeproj -scheme Kiroshi -destination 'generic/platform=iOS Simulator' -derivedDataPath apps/ios/build build",
 		"ios:test": "bun run ios:generate && xcodebuild -project apps/ios/Kiroshi.xcodeproj -scheme Kiroshi -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' -derivedDataPath apps/ios/build test",
