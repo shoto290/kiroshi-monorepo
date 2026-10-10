@@ -247,7 +247,7 @@ fn handed_over(folder: &LiveFolder, bot: &Bot) -> Bundle {
 		system_path: Some(folder.system_plugin().display().to_string()),
 		user_path: Some(folder.user_plugin().display().to_string()),
 		space_path: Some(folder.space_plugin().display().to_string()),
-		agent: bundles::slug(&bot.name),
+		agent: bundles::agent_ref(bot),
 		identity: bundles::identity(bot),
 		output_style: bundles::output_style(&root, &bot.id),
 		settings_path: bundles::settings_file(&root, &bot.id)
