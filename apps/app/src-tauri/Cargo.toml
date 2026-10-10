@@ -63,7 +63,7 @@ git2 = { version = "0.21", default-features = false, features = ["vendored-libgi
 croner = "4"
 # Watches paths from the core rather than through `tauri-plugin-fs`, whose watch command only
 # answers a window: a routine fires whether or not one listens. Shows `notify` through.
-notify-debouncer-full = "0.6"
+notify-debouncer-full = "0.7"
 # Already in the tree under croner; named here so an instant in milliseconds becomes the wall
 # clock a cron expression is read against, and the moment a payload carries.
 chrono = "0.4"
@@ -126,7 +126,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
 # Already in the tree under `tao` and `tauri`; named here so a child window can answer the
 # hit-test Windows 11 opens Snap Layouts from over the front-rendered maximize button.
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = [
+windows = { version = "0.62", features = [
 	"Win32_Foundation",
 	"Win32_System_LibraryLoader",
 	"Win32_UI_Input_KeyboardAndMouse",

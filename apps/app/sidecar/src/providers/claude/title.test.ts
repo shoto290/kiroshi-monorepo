@@ -21,6 +21,10 @@ describe("titleOptions", () => {
 			expect(env).not.toHaveProperty(key)
 		}
 	})
+
+	it("asks before any tool rather than leaving the mode to Claude Code", () => {
+		expect(titleOptions().permissionMode).toBe("default")
+	})
 })
 
 describe("shortTitle", () => {
