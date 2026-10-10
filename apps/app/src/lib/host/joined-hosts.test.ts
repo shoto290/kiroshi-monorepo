@@ -688,3 +688,158 @@ describe("forgetting a joined host", () => {
 		expect(local.invoke).toHaveBeenCalledWith("bots")
 	})
 })
+
+describe("a conversation the active host does not hold", () => {
+	const answerChat = (id: string) =>
+		new Response(JSON.stringify({ id }), {
+			headers: { "content-type": "application/json" },
+		})
+
+	const invokedCommands = (fetch: ReturnType<typeof vi.fn>) =>
+		fetch.mock.calls.map(([url]) => String(url).split("/").at(-1))
+
+	const openLocalChat = (hosts: JoinedHosts) =>
+		hosts.invoke("conversation_main_chat", { botId: "b1", spaceId: "home" })
+
+	it.each([
+		["application_installs", { conversationId: "solo" }],
+		["mission_list", { conversationId: "solo" }],
+		["agent_cancel_turn", { scope: { conversationId: "solo", botId: "b1" } }],
+		[
+			"conversation_append_user_message",
+			{ message: { conversationId: "solo" } },
+		],
+		["conversation_start_turn", { turn: { conversationId: "solo" } }],
+		["routine_create", { draft: { conversationId: "solo", botId: "b1" } }],
+		[
+			"conversation_bots_by_presence",
+			{ spaceId: "personal", excludedConversationId: "solo" },
+		],
+	])(
+		"serves %s locally when it names a conversation only the local Mac answered with",
+		async (command, args) => {
+			const { hosts, local, fetch } = joinedHostsOf()
+			local.invoke.mockImplementation(async () => ({ id: "solo" }) as never)
+			await openLocalChat(hosts)
+			await hosts.activate("garage")
+
+			await hosts.invoke(command, args)
+
+			expect(local.invoke).toHaveBeenLastCalledWith(command, args)
+			expect(invokedCommands(fetch)).not.toContain(command)
+		},
+	)
+
+	const hostUrlOf = (id: string) => `http://${id}.local:45367`
+
+	const joinedAt = async (id: string) => ({
+		status: "ok" as const,
+		data: {
+			id,
+			hostUrl: hostUrlOf(id),
+			token: "joined",
+			remoteSpaceId: null,
+			name: id,
+		},
+	})
+
+	const atticChatKnownWhileOnGarage = async () => {
+		const seeded = joinedHostsOf({
+			join: joinedAt,
+			answer: () => answerChat("attic-chat"),
+		})
+		await seeded.hosts.activate("attic")
+		await seeded.hosts.invoke("conversation_main_chat", {
+			botId: "b1",
+			spaceId: "a",
+		})
+		await seeded.hosts.activate("garage")
+		seeded.fetch.mockClear()
+		return seeded
+	}
+
+	it("sends a conversation another joined host answered with to that host while it is open", async () => {
+		const { hosts, local, fetch, reportFailure } =
+			await atticChatKnownWhileOnGarage()
+
+		await hosts.invoke("application_installs", { conversationId: "attic-chat" })
+
+		expect(fetch).toHaveBeenCalledWith(
+			new URL(`${hostUrlOf("attic")}/api/invoke/application_installs`),
+			expect.anything(),
+		)
+		expect(fetch).toHaveBeenCalledOnce()
+		expect(local.invoke).not.toHaveBeenCalled()
+		expect(reportFailure).not.toHaveBeenCalled()
+	})
+
+	it("serves a conversation another joined host answered with on the local Mac once that host is closed", async () => {
+		const { hosts, local, fetch, reportFailure } =
+			await atticChatKnownWhileOnGarage()
+		hosts.forget("attic")
+
+		await hosts.invoke("application_installs", { conversationId: "attic-chat" })
+
+		expect(local.invoke).toHaveBeenCalledWith("application_installs", {
+			conversationId: "attic-chat",
+		})
+		expect(fetch).not.toHaveBeenCalled()
+		expect(reportFailure).not.toHaveBeenCalled()
+	})
+
+	it("serves a conversation another joined host answered with on the local Mac while that host is down", async () => {
+		const { hosts, local, fetch, sockets } = await atticChatKnownWhileOnGarage()
+		sockets[0]?.open()
+		sockets[0]?.drop()
+
+		await hosts.invoke("application_installs", { conversationId: "attic-chat" })
+
+		expect(hosts.getState().connections.attic).toEqual({ status: "down" })
+		expect(local.invoke).toHaveBeenCalledOnce()
+		expect(fetch).not.toHaveBeenCalled()
+	})
+
+	it("relays a conversation the active host answered with, even one the local Mac named too", async () => {
+		const { hosts, local, fetch } = joinedHostsOf({
+			answer: () => answerChat("both"),
+		})
+		local.invoke.mockImplementation(async () => ({ id: "both" }) as never)
+		await openLocalChat(hosts)
+		await hosts.activate("garage")
+		await hosts.invoke("conversation_main_chat", { botId: "b1", spaceId: "g" })
+		local.invoke.mockClear()
+
+		await hosts.invoke("application_installs", { conversationId: "both" })
+
+		expect(invokedCommands(fetch)).toContain("application_installs")
+		expect(local.invoke).not.toHaveBeenCalled()
+	})
+
+	it("relays a conversation no host has named yet, as before", async () => {
+		const { hosts, local, fetch } = joinedHostsOf()
+		await hosts.activate("garage")
+
+		await hosts.invoke("application_installs", { conversationId: "fresh" })
+
+		expect(invokedCommands(fetch)).toContain("application_installs")
+		expect(local.invoke).not.toHaveBeenCalled()
+	})
+
+	it("learns a conversation named inside any answer, such as a mission thread", async () => {
+		const { hosts, local, fetch } = joinedHostsOf()
+		local.invoke.mockImplementation(
+			async () =>
+				[{ mission: { id: "m1", conversationId: "thread" } }] as never,
+		)
+		await hosts.invoke("mission_board")
+		await hosts.activate("garage")
+
+		await hosts.invoke("conversation_message_page", {
+			conversationId: "thread",
+			beforeSeq: null,
+			limit: 50,
+		})
+
+		expect(invokedCommands(fetch)).not.toContain("conversation_message_page")
+	})
+})
