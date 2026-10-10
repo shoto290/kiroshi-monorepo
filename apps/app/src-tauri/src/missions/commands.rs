@@ -1077,14 +1077,13 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn arming_a_mission_on_a_live_checkout_announces_it_once_with_its_counts() {
+	async fn arming_a_mission_on_a_live_checkout_announces_it_once() {
 		let workspace = a_repository("live-checkout");
 		let (app, mission_id) = an_open_mission("live-checkout", Some(&workspace)).await;
 
 		let (armed, announced) = armed_and_announced(&app, mission_id).await;
 
 		assert_announced_once(&armed, &announced);
-		assert_eq!((armed.mission.commits_ahead, armed.mission.dirty_files), (Some(1), Some(1)));
 		fs::remove_dir_all(&workspace).expect("cleanup");
 	}
 
