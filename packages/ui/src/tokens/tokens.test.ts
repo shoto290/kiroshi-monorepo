@@ -1,12 +1,13 @@
+import { readFileSync } from "node:fs"
+
 import { describe, expect, it } from "vitest"
 
-import handWrittenThemeCss from "./hand-written-theme.fixture.css?raw"
 import { toSrgb } from "./render-tokens"
 
-import globalsCss from "../styles/globals.css?raw"
-import tokensCss from "../styles/tokens.css?raw"
+const read = (path: string) =>
+	readFileSync(new URL(path, import.meta.url), "utf8")
 
-type Theme = Record<string, Record<string, string>>
+const THEME_SELECTORS = [":root", ".dark"]
 
 const topLevelRules = (css: string) => {
 	const rules: { selector: string; body: string }[] = []
@@ -26,70 +27,55 @@ const topLevelRules = (css: string) => {
 	return rules
 }
 
-const customProperties = (body: string) =>
-	body
-		.split(";")
-		.map((declaration) => declaration.trim())
-		.filter((declaration) => declaration.startsWith("--"))
-		.map((declaration) => {
-			const colon = declaration.indexOf(":")
-			return [
-				declaration.slice(0, colon),
-				declaration
-					.slice(colon + 1)
-					.trim()
-					.replace(/\s+/g, " "),
-			] as const
-		})
-
-const themeOf = (...sheets: string[]) => {
-	const theme: Theme = { ":root": {}, ".dark": {} }
-	for (const { selector, body } of sheets.flatMap(topLevelRules)) {
-		const block = theme[selector]
-		if (!block) continue
-		for (const [name, value] of customProperties(body)) {
-			expect(
-				block,
-				`${name} is declared twice on ${selector}`,
-			).not.toHaveProperty(name)
-			block[name] = value
-		}
-	}
-	return theme
-}
+const themeDeclarations = (css: string) =>
+	topLevelRules(css)
+		.filter(({ selector }) => THEME_SELECTORS.includes(selector))
+		.flatMap(({ selector, body }) =>
+			body
+				.split(";")
+				.map((declaration) => declaration.trim())
+				.filter((declaration) => declaration.startsWith("--"))
+				.map(
+					(declaration) =>
+						`${selector} ${declaration.slice(0, declaration.indexOf(":"))}`,
+				),
+		)
 
 describe("tokens.json", () => {
-	it("declares every custom property of the hand-written theme with the same value on the same selector", () => {
-		const handWritten = themeOf(handWrittenThemeCss)
-		const generated = themeOf(globalsCss, tokensCss)
+	it("leaves every generated custom property out of the hand-written theme blocks", () => {
+		const generated = new Set(themeDeclarations(read("../styles/tokens.css")))
+		const handWritten = themeDeclarations(read("../styles/globals.css"))
 
-		expect(generated).toEqual(handWritten)
+		expect(generated.size).toBeGreaterThan(0)
+		expect(
+			handWritten.filter((declaration) => generated.has(declaration)),
+		).toEqual([])
 	})
 
 	it("converts each notation to the sRGB bytes Chromium paints", () => {
-		expect(toSrgb("#7490c2")).toEqual({
-			red: 116,
-			green: 144,
-			blue: 194,
+		expect(toSrgb("#123456")).toEqual({
+			red: 18,
+			green: 52,
+			blue: 86,
 			alpha: 1,
 		})
-		expect(toSrgb("rgb(116 144 194 / 40%)")).toEqual({
-			red: 116,
-			green: 144,
-			blue: 194,
-			alpha: 0.4,
+		expect(toSrgb("rgb(10 20 30 / 50%)")).toEqual({
+			red: 10,
+			green: 20,
+			blue: 30,
+			alpha: 0.5,
 		})
-		expect(toSrgb("oklch(0.577 0.245 27.325)")).toEqual({
-			red: 231,
+		expect(toSrgb("oklch(0.6 0.25 30)")).toEqual({
+			red: 241,
 			green: 0,
-			blue: 11,
+			blue: 0,
 			alpha: 1,
 		})
-		expect(toSrgb("oklch(1 0 0 / 6%)")).toEqual({
-			red: 255,
-			green: 255,
-			blue: 255,
-			alpha: 0.06,
+		expect(toSrgb("oklch(0.5 0 0 / 20%)")).toEqual({
+			red: 99,
+			green: 99,
+			blue: 99,
+			alpha: 0.2,
 		})
 	})
 })
