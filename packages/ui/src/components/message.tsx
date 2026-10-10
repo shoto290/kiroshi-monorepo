@@ -10,6 +10,8 @@ import { BotTitleBadge } from "@workspace/ui/components/bot-badge"
 import { Icons } from "@workspace/ui/components/icons"
 import { MessageSideContext } from "@workspace/ui/components/message-side-context"
 import type { RosterBot } from "@workspace/ui/components/roster"
+import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
+import { formatDateTime, toRelativeTime } from "@workspace/ui/lib/time-format"
 import { cn } from "@workspace/ui/lib/utils"
 
 export type MessageFrom = "user" | "assistant"
@@ -40,6 +42,29 @@ interface MessageAuthorProps extends ComponentPropsWithRef<"div"> {
 export type MessageContentProps = ComponentPropsWithRef<"div">
 export type MessageHeaderProps = ComponentPropsWithRef<"div">
 export type MessageFooterProps = ComponentPropsWithRef<"div">
+
+interface MessageTimeProps {
+	at: number
+	now: number
+}
+
+const DATE_AND_TIME: Intl.DateTimeFormatOptions = {
+	dateStyle: "full",
+	timeStyle: "short",
+	hourCycle: "h23",
+}
+
+const DAY_MS = 86_400_000
+
+const startOfLocalDay = (at: number) => new Date(at).setHours(0, 0, 0, 0)
+
+const calendarDaysBetween = (at: number, now: number) =>
+	Math.round((startOfLocalDay(now) - startOfLocalDay(at)) / DAY_MS)
+
+const sentAgo = (at: number, now: number) =>
+	now - at < DAY_MS
+		? toRelativeTime(Math.min(at, now), now)
+		: toRelativeTime(now - calendarDaysBetween(at, now) * DAY_MS, now)
 
 export function Message({ from, children, className, ...props }: MessageProps) {
 	const { t } = useTranslation("chat")
@@ -143,6 +168,22 @@ export function MessageAuthor({
 				</span>
 			) : null}
 		</MessageHeader>
+	)
+}
+
+export function MessageTime({ at, now }: MessageTimeProps) {
+	useTranslation()
+
+	return (
+		<TooltipHint content={formatDateTime(at, DATE_AND_TIME)}>
+			<time
+				data-slot="message-time"
+				dateTime={new Date(at).toISOString()}
+				className="whitespace-nowrap tabular-nums"
+			>
+				{sentAgo(at, now)}
+			</time>
+		</TooltipHint>
 	)
 }
 

@@ -25,6 +25,7 @@ import {
 	MessageContent,
 	MessageFooter,
 	MessageHeader,
+	MessageTime,
 } from "@workspace/ui/components/message"
 import {
 	MessageAction,
@@ -90,6 +91,8 @@ interface UserTurnProps {
 	children: ReactNode
 	state?: UserTurnState
 	run?: TurnRun
+	sentAt?: number
+	now?: number
 	copyText?: string
 	messageId?: string
 	repliedTo?: QuotedMessage
@@ -105,6 +108,8 @@ type AssistantTurnProps = {
 	children: ReactNode
 	state?: TurnState
 	run?: TurnRun
+	sentAt?: number
+	now?: number
 	copyText?: string
 	messageId?: string
 	repliedTo?: QuotedMessage
@@ -127,6 +132,8 @@ type PersonTurnProps = {
 	name: string
 	image?: string
 	run?: TurnRun
+	sentAt?: number
+	now?: number
 	copyText?: string
 	messageId?: string
 	repliedTo?: QuotedMessage
@@ -161,6 +168,19 @@ const RUN_RADIUS = {
 		last: "rounded-tl-md",
 	},
 } satisfies Record<"user" | "assistant", Record<TurnRun, string>>
+
+interface TurnTimeLineProps {
+	sentAt?: number
+	now?: number
+	className?: string
+}
+
+const TurnTimeLine = ({ sentAt, now, className }: TurnTimeLineProps) =>
+	sentAt === undefined || now === undefined ? null : (
+		<MessageFooter data-slot="message-time-line" className={className}>
+			<MessageTime at={sentAt} now={now} />
+		</MessageFooter>
+	)
 
 const opensRun = (run: TurnRun) => run === "single" || run === "first"
 
@@ -330,6 +350,8 @@ function UserTurn({
 	children,
 	state = "complete",
 	run = "single",
+	sentAt,
+	now,
 	copyText,
 	messageId,
 	repliedTo,
@@ -386,6 +408,11 @@ function UserTurn({
 						</TurnBody>
 					</MessageActions>
 				</MessageBubble>
+				<TurnTimeLine
+					sentAt={sentAt}
+					now={now}
+					className={MESSAGE_BUBBLE_INLINE_PADDING}
+				/>
 				{footerKey ? <MessageFooter>{t(footerKey)}</MessageFooter> : null}
 			</MessageContent>
 		</Message>
@@ -430,6 +457,8 @@ function AssistantTurn(props: AssistantTurnProps) {
 		children,
 		state = "complete",
 		run = "single",
+		sentAt,
+		now,
 		copyText,
 		messageId,
 		repliedTo,
@@ -529,8 +558,16 @@ function AssistantTurn(props: AssistantTurnProps) {
 						</TurnBody>
 					</MessageActions>
 				</MessageBubble>
+				<TurnTimeLine
+					sentAt={sentAt}
+					now={now}
+					className={cn(
+						"col-start-2 row-start-3 pt-1.5",
+						bare ? undefined : MESSAGE_BUBBLE_INLINE_PADDING,
+					)}
+				/>
 				{shownFooter ? (
-					<MessageFooter className="col-start-2 row-start-3 pt-1.5">
+					<MessageFooter className="col-start-2 row-start-4 pt-1.5">
 						{shownFooter}
 					</MessageFooter>
 				) : null}
@@ -544,6 +581,8 @@ const PersonTurn = ({
 	name,
 	image,
 	run = "single",
+	sentAt,
+	now,
 	copyText,
 	messageId,
 	repliedTo,
@@ -605,6 +644,14 @@ const PersonTurn = ({
 						</TurnBody>
 					</MessageActions>
 				</MessageBubble>
+				<TurnTimeLine
+					sentAt={sentAt}
+					now={now}
+					className={cn(
+						"col-start-2 row-start-3 pt-1.5",
+						MESSAGE_BUBBLE_INLINE_PADDING,
+					)}
+				/>
 			</MessageContent>
 		</Message>
 	)

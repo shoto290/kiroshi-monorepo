@@ -49,6 +49,10 @@ const chat = {
 		newCounted_one: "{{count}} new message",
 		newCounted_other: "{{count}} new messages",
 		startOfHistory: "Beginning of the conversation",
+		day: {
+			today: "Today",
+			yesterday: "Yesterday",
+		},
 		landing: {
 			unavailable: {
 				title: "Couldn’t open that message",
