@@ -34,7 +34,10 @@ export const joinRefusalNoticeOf = ({
 	kind,
 }: JoinedSpaceError): NoticeMessage => noticeOf(NOTICE_KEYS[kind])
 
+export const unexpectedJoinNotice = (): NoticeMessage =>
+	noticeOf("joinRefused.unexpected")
+
 export const joinRejectionNoticeOf = (reason: unknown): NoticeMessage =>
 	isJoinedSpaceError(reason)
 		? joinRefusalNoticeOf(reason)
-		: noticeOf("joinRefused.unexpected")
+		: unexpectedJoinNotice()

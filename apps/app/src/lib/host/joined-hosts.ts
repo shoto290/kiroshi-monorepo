@@ -15,7 +15,7 @@ import { createHttpHost, type HostSocket, type HttpHost } from "./http"
 import {
 	isJoinedSpaceError,
 	joinRefusalNoticeOf,
-	joinRejectionNoticeOf,
+	unexpectedJoinNotice,
 } from "./join-refusal"
 
 import {
@@ -223,7 +223,7 @@ export const createJoinedHosts = ({
 		if (isJoinedSpaceError(reason)) {
 			return refuseJoin(id, reason)
 		}
-		reportJoinRefusal(joinRejectionNoticeOf(reason))
+		reportJoinRefusal(unexpectedJoinNotice())
 		return refuse(id, describeRejection(reason))
 	}
 
