@@ -35,7 +35,11 @@ import {
 import "@workspace/ui/lib/i18n"
 
 import { ThreadScreen } from "@/components/thread-screen"
-import type { AgentEvent, CheckReport } from "@/lib/agent/contract"
+import type {
+	AccountReport,
+	AgentEvent,
+	CheckReport,
+} from "@/lib/agent/contract"
 import type {
 	Application,
 	ApplicationInstall,
@@ -2686,7 +2690,7 @@ const AUTHENTICATED_ANONYMOUSLY = {
 	authenticated: true,
 	error: null,
 	account: { email: null, plan: null },
-} satisfies CheckReport
+} satisfies AccountReport
 
 type OnboardingFixture = {
 	port: FakeOnboardingPort

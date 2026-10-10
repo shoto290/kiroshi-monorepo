@@ -20,7 +20,7 @@ import {
 } from "./onboarding-steps"
 import { onboardingSummonsFor, type SummonOutcome } from "./onboarding-summons"
 
-import type { CheckReport } from "../agent/contract"
+import type { AccountReport } from "../agent/contract"
 
 const SIGN_IN_URL = "https://claude.ai/oauth/authorize?code=true"
 
@@ -32,14 +32,15 @@ const PENDING: SummonOutcome = { kind: "pending" }
 
 const ANSWERED: SummonOutcome = { kind: "answered" }
 
-const NOT_AUTHENTICATED: CheckReport = {
+const NOT_AUTHENTICATED: AccountReport = {
 	connection: "ready",
 	binaryVersion: null,
 	authenticated: false,
 	error: { kind: "notAuthenticated" },
+	account: null,
 }
 
-const DETECTED: CheckReport = {
+const DETECTED: AccountReport = {
 	connection: "ready",
 	binaryVersion: null,
 	authenticated: true,
@@ -121,7 +122,7 @@ describe("the welcome step", () => {
 
 		await answer(stepOf(), "Start")
 
-		expect(commands()).toEqual(["check"])
+		expect(commands()).toEqual(["account"])
 		expect(controller.getState().connection).toEqual({ state: "offer" })
 	})
 

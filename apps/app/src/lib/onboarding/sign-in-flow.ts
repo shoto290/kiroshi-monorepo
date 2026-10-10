@@ -1,7 +1,7 @@
 import { exitDetailOf, isNotRunning } from "./onboarding-failure"
 import type { OnboardingPort } from "./onboarding-port"
 
-import type { CheckReport } from "../agent/contract"
+import type { AccountReport } from "../agent/contract"
 
 export type ConnectionStep =
 	| { state: "detected"; account: string }
@@ -50,7 +50,7 @@ export const createSignInFlow = (
 
 	const askApiKey = () => showConnection({ state: "apiKey" })
 
-	const show = async (report: CheckReport) => {
+	const show = async (report: AccountReport) => {
 		if (report.error && report.error.kind !== "notAuthenticated") {
 			showFailed(report.error)
 			return
@@ -73,7 +73,7 @@ export const createSignInFlow = (
 	const readAccount = async () => {
 		setBusy(true)
 		try {
-			await show(await port.check())
+			await show(await port.account())
 		} catch (reason) {
 			showFailed(reason)
 		} finally {

@@ -7,8 +7,9 @@ use tauri::{AppHandle, Manager, Runtime, State};
 use tokio::sync::Mutex;
 
 use super::contract::{
-	AgentEvent, CheckReport, ConnectionState, EventTurn, EvolvedBundle, LiveSession, OfferedModel,
-	PermissionDecision, RuntimeScope, ScopedEvent, SessionHandle, SubmittedTurn, TransportError,
+	AccountReport, AgentEvent, CheckReport, ConnectionState, EventTurn, EvolvedBundle, LiveSession,
+	OfferedModel, PermissionDecision, RuntimeScope, ScopedEvent, SessionHandle, SubmittedTurn,
+	TransportError,
 };
 use super::host::hosted;
 use super::protocol::{self, Checked};
@@ -530,29 +531,51 @@ pub async fn agent_check<R: Runtime>(
 	report
 }
 
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_account<R: Runtime>(app: AppHandle<R>) -> AccountReport {
+	announce(&app, None, AgentEvent::ConnectionChanged { state: ConnectionState::Checking });
+	let env_root = environment::root(&app);
+	let read = account(app.state::<AgentState>().inner(), env_root.as_deref()).await;
+	announce(&app, None, AgentEvent::ConnectionChanged { state: read.report.connection });
+	read
+}
+
 pub async fn check(state: &AgentState, env_root: Option<&Path>) -> CheckReport {
+	let (binary_version, probe) = probed(state, env_root).await;
+	reported(binary_version, probe)
+}
+
+pub async fn account(state: &AgentState, env_root: Option<&Path>) -> AccountReport {
+	let (binary_version, probe) = probed(state, env_root).await;
+	let account = probe.as_ref().ok().and_then(|checked| checked.account.clone());
+	AccountReport { report: reported(binary_version, probe), account }
+}
+
+async fn probed(
+	state: &AgentState,
+	env_root: Option<&Path>,
+) -> (Option<String>, Result<Checked, TransportError>) {
 	let sidecar = match state.sidecar().await {
 		Ok(sidecar) => sidecar,
-		Err(error) => return reported(None, Err(error)),
+		Err(error) => return (None, Err(error)),
 	};
 	let version = sidecar.version().to_owned();
 	let connection = match env_root.map(connection::held).transpose() {
 		Ok(held) => held.unwrap_or_default(),
 		Err(error) => {
 			let detail = format!("{ENV_UNREADABLE}: {error:?}");
-			return reported(Some(version), Err(TransportError::AuthCheckFailed { detail }));
+			return (Some(version), Err(TransportError::AuthCheckFailed { detail }));
 		}
 	};
-	reported(Some(version), sidecar.checked(&connection).await)
+	(Some(version), sidecar.checked(&connection).await)
 }
 
 fn reported(binary_version: Option<String>, probe: Result<Checked, TransportError>) -> CheckReport {
-	let (auth_method, account, error) = match probe {
-		Ok(checked) if checked.authenticated => (checked.auth_method, checked.account, None),
-		Ok(checked) => {
-			(checked.auth_method, checked.account, Some(TransportError::NotAuthenticated))
-		}
-		Err(error) => (None, None, Some(error)),
+	let (auth_method, error) = match probe {
+		Ok(checked) if checked.authenticated => (checked.auth_method, None),
+		Ok(checked) => (checked.auth_method, Some(TransportError::NotAuthenticated)),
+		Err(error) => (None, Some(error)),
 	};
 	CheckReport {
 		connection: match error {
@@ -563,7 +586,6 @@ fn reported(binary_version: Option<String>, probe: Result<Checked, TransportErro
 		authenticated: error.is_none(),
 		auth_method,
 		error,
-		account,
 	}
 }
 
