@@ -270,6 +270,13 @@ const referentialStore = (base: TranscriptStore) => {
 	return store
 }
 
+const POISONED = { kind: "storage", failure: { kind: "poisonedConnection" } }
+
+const POISONED_REFUSAL = {
+	kind: "writeFailed",
+	detail: "the transcript store refused it (storage, poisonedConnection)",
+}
+
 const deferred = () => {
 	let release: () => void = () => undefined
 	const promise = new Promise<void>((resolve) => {
@@ -1682,12 +1689,12 @@ describe("createChatController", () => {
 		expect(spoken(state.messages)).toEqual([["user", "hello", "complete"]])
 	})
 
-	it("says so instead of writing when the store never opened the conversation", async () => {
+	it("says once why it holds a prompt when the store never opened the conversation", async () => {
 		const store = createFakeTranscriptStore()
 		const { controller, driver } = createHarness({
 			store: {
 				...store,
-				mainChat: () => Promise.reject({ kind: "unavailable" }),
+				mainChat: () => Promise.reject(POISONED),
 			},
 		})
 		const submitSpy = vi.spyOn(driver, "submitPrompt")
@@ -1697,10 +1704,9 @@ describe("createChatController", () => {
 		await controller.send("hello")
 
 		expect(controller.getState().conversationId).toBeNull()
-		expect(controller.getState().errors.at(0)?.error).toEqual({
-			kind: "writeFailed",
-			detail: "the transcript store refused it (unavailable)",
-		})
+		expect(controller.getState().errors.map(({ error }) => error)).toEqual([
+			POISONED_REFUSAL,
+		])
 		expect(submitSpy).not.toHaveBeenCalled()
 	})
 
@@ -1728,7 +1734,7 @@ describe("createChatController", () => {
 		const { driver, controller } = createHarness({
 			store: {
 				...store,
-				mainChat: () => Promise.reject({ kind: "unavailable" }),
+				mainChat: () => Promise.reject(POISONED),
 			},
 		})
 		const startSpy = vi.spyOn(driver, "startOrResumeSession")
@@ -1740,10 +1746,98 @@ describe("createChatController", () => {
 		expect(startSpy).not.toHaveBeenCalled()
 		expect(state.runtime).toBeNull()
 		expect(state.sessionOpen).toBe(false)
-		expect(state.errors.at(-1)?.error).toEqual({
-			kind: "writeFailed",
-			detail: "the transcript store refused it (unavailable)",
-		})
+		expect(state.errors.map(({ error }) => error)).toEqual([POISONED_REFUSAL])
+	})
+
+	it("starts once on the Space it lands on when the Space changes while a restart waits", async () => {
+		const base = createFakeTranscriptStore()
+		const elsewhere = await base.createSpace("Vocca")
+		await base.addBotToSpace(BOT, elsewhere.id)
+		const reading = deferred()
+		const store: TranscriptStore = {
+			...base,
+			mainChat: (botId, spaceId) =>
+				reading.promise.then(() => base.mainChat(botId, spaceId)),
+		}
+		const { driver, controller } = createHarness({ store })
+		const startSpy = vi.spyOn(driver, "startOrResumeSession")
+		const runSpy = vi.spyOn(store, "openRuntimeSession")
+
+		const home = controller.open(BOT, null)
+		await vi.advanceTimersByTimeAsync(0)
+		const restarting = controller.restart()
+		const away = controller.open(BOT, elsewhere.id)
+		reading.release()
+		await Promise.all([home, restarting, away])
+		await vi.runAllTimersAsync()
+
+		const landedOn = (await base.mainChat(BOT, elsewhere.id)).id
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		expect(state.conversationId).toBe(landedOn)
+		expect(runSpy.mock.calls.map(([conversationId]) => conversationId)).toEqual(
+			[landedOn],
+		)
+		expect(startSpy.mock.calls.map(([scope]) => scope.conversationId)).toEqual([
+			landedOn,
+		])
+	})
+
+	it("writes a prompt sent while the Space changes into the conversation it lands on", async () => {
+		const base = createFakeTranscriptStore()
+		const elsewhere = await base.createSpace("Vocca")
+		await base.addBotToSpace(BOT, elsewhere.id)
+		const reading = deferred()
+		const store: TranscriptStore = {
+			...base,
+			mainChat: (botId, spaceId) =>
+				spaceId === elsewhere.id
+					? reading.promise.then(() => base.mainChat(botId, spaceId))
+					: base.mainChat(botId, spaceId),
+		}
+		const { controller } = await bootedHarness({ store })
+
+		const away = controller.open(BOT, elsewhere.id)
+		await vi.advanceTimersByTimeAsync(0)
+		const sending = controller.send("hello")
+		reading.release()
+		await Promise.all([away, sending])
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		const left = await base.loadPage((await base.mainChat(BOT)).id, null)
+		expect(state.errors).toEqual([])
+		expect(state.conversationId).toBe(
+			(await base.mainChat(BOT, elsewhere.id)).id,
+		)
+		expect(spoken(state.messages)).toEqual([
+			["user", "hello", "complete"],
+			["assistant", REPLY, "complete"],
+		])
+		expect(left.messages).toEqual([])
+	})
+
+	it("lands the run the store refuses while the conversation was still opening", async () => {
+		const base = createFakeTranscriptStore()
+		const reading = deferred()
+		const store: TranscriptStore = {
+			...base,
+			mainChat: (botId, spaceId) =>
+				reading.promise.then(() => base.mainChat(botId, spaceId)),
+			openRuntimeSession: () => Promise.reject(POISONED),
+		}
+		const { controller } = createHarness({ store })
+
+		const opening = controller.open(BOT, null)
+		await vi.advanceTimersByTimeAsync(0)
+		const restarting = controller.restart()
+		reading.release()
+		await Promise.all([opening, restarting])
+		await vi.runAllTimersAsync()
+
+		expect(controller.getState().errors.map(({ error }) => error)).toEqual([
+			POISONED_REFUSAL,
+		])
 	})
 
 	it("starts nothing when the store cannot open the run", async () => {
@@ -2125,17 +2219,20 @@ describe("createChatController", () => {
 		harness.detach()
 	})
 
-	it("shuts a companion down only once the session it was opening is up", async () => {
+	it("starts no session for a companion closed before its conversation lands", async () => {
 		const harness = createHarness()
-		const shutdownSpy = vi.spyOn(harness.driver, "shutdown")
+		const runSpy = vi.spyOn(harness.store, "openRuntimeSession")
+		const startSpy = vi.spyOn(harness.driver, "startOrResumeSession")
 
 		const opening = harness.controller.open(BOT, null)
 		const closing = harness.controller.close(BOT)
 		await Promise.all([opening, closing])
 		await vi.runAllTimersAsync()
 
-		expect(shutdownSpy).toHaveBeenCalledTimes(1)
+		expect(runSpy).not.toHaveBeenCalled()
+		expect(startSpy).not.toHaveBeenCalled()
 		expect(harness.controller.stateFor(BOT).runtime).toBeNull()
+		expect(harness.controller.stateFor(BOT).errors).toEqual([])
 		harness.detach()
 	})
 

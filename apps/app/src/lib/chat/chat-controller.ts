@@ -183,6 +183,7 @@ type BotChat = {
 	commands: { stored: AgentCommand[]; announced: boolean }
 	pendingPreflight: Promise<SessionHandle | null> | null
 	pendingRotation: Promise<SessionHandle | null> | null
+	opening: Opening | null
 	mutesResumeRefusal: boolean
 	sending: boolean
 	draining: Promise<void> | null
@@ -196,6 +197,13 @@ type BotTransition = {
 	kind: TransitionKind
 	settled: Promise<unknown>
 }
+
+type Opening = {
+	kind: TransitionKind
+	landed: Promise<void>
+}
+
+const openKind = (spaceId: string | null): TransitionKind => `open:${spaceId}`
 
 export function createChatController(
 	driver: ChatDriver,
@@ -247,6 +255,7 @@ export function createChatController(
 			commands: { stored: [], announced: false },
 			pendingPreflight: null,
 			pendingRotation: null,
+			opening: null,
 			mutesResumeRefusal: false,
 			sending: false,
 			draining: null,
@@ -719,15 +728,28 @@ export function createChatController(
 		return scope
 	}
 
+	const isSuperseded = (bot: BotChat) => {
+		const latest = transitions.get(bot.id)?.kind
+		return latest !== undefined && latest !== bot.opening?.kind
+	}
+
+	const landedConversationOf = async (bot: BotChat) => {
+		const opening = bot.opening
+		await opening?.landed
+		if (bot.opening !== opening || isSuperseded(bot)) {
+			return null
+		}
+		return bot.state.conversationId
+	}
+
 	const startFor = async (
 		bot: BotChat,
 		resume?: string,
 		rotatedFor: RotationReason | null = null,
 		origin: StartOrigin = "asked",
 	) => {
-		const conversationId = bot.state.conversationId
+		const conversationId = await landedConversationOf(bot)
 		if (!conversationId) {
-			reportStore(bot, { kind: "unavailable" })
 			return null
 		}
 		settleOpenReplies(bot, INTERRUPTED, conversationId)
@@ -894,7 +916,9 @@ export function createChatController(
 
 	const runOpen = async (nextBotId: string, spaceId: string | null) => {
 		const bot = botFor(nextBotId)
-		await openConversation(bot, spaceId)
+		const landed = openConversation(bot, spaceId)
+		bot.opening = { kind: openKind(spaceId), landed }
+		await landed
 		const handle = await openedFor(bot)
 		pump(bot)
 		return handle
@@ -979,7 +1003,7 @@ export function createChatController(
 	}
 
 	const openAside = (botId: string, spaceId: string | null) =>
-		transitionFor(botId, `open:${spaceId}`, () => runOpen(botId, spaceId))
+		transitionFor(botId, openKind(spaceId), () => runOpen(botId, spaceId))
 
 	const open = (botId: string, spaceId: string | null) => {
 		choose(botId)
@@ -1253,9 +1277,8 @@ export function createChatController(
 		trimmed: string,
 		repliedToMessageId?: string,
 	): Promise<PromptOutcome> => {
-		const conversationId = bot.state.conversationId
+		const conversationId = await landedConversationOf(bot)
 		if (!conversationId) {
-			reportStore(bot, { kind: "unavailable" })
 			return "unwritten"
 		}
 		const isWritable =
