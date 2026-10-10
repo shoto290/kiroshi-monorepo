@@ -276,10 +276,7 @@ impl<R: Runtime> HostTurn<R> {
 	}
 
 	async fn opened(&self, bot_id: &str) -> Result<RuntimeScope, TranscriptStoreError> {
-		let participant = ParticipantKey {
-			conversation_id: self.conversation_id.clone(),
-			bot_id: bot_id.to_owned(),
-		};
+		let participant = self.participant(bot_id);
 		let sessions = database(&self.app)?.runtime_context();
 		let handover = sessions
 			.active_session(participant.clone())
@@ -324,14 +321,9 @@ impl<R: Runtime> HostTurn<R> {
 		scope: &RuntimeScope,
 		prompt_id: &str,
 	) -> Result<String, TranscriptStoreError> {
-		let database = database(&self.app)?;
-		let participant = ParticipantKey {
-			conversation_id: scope.conversation_id.clone(),
-			bot_id: scope.bot_id.clone(),
-		};
 		bounded_context(
-			database,
-			participant,
+			database(&self.app)?,
+			self.participant(&scope.bot_id),
 			scope.runtime_session_id.clone(),
 			prompt_id.to_owned(),
 		)
@@ -409,6 +401,10 @@ impl<R: Runtime> HostTurn<R> {
 
 	async fn shut(&self, scope: RuntimeScope) -> Result<(), TransportError> {
 		agent_shutdown(self.app.clone(), self.agent()?, scope).await
+	}
+
+	fn participant(&self, bot_id: &str) -> ParticipantKey {
+		ParticipantKey { conversation_id: self.conversation_id.clone(), bot_id: bot_id.to_owned() }
 	}
 
 	fn agent(&self) -> Result<State<'_, AgentState>, TransportError> {
