@@ -16,6 +16,7 @@ struct ConversationsView: View {
 
     var body: some View {
         content
+            .background(Color.kiroshi(.background))
             .task(id: space.connection.map(ObjectIdentifier.init)) {
                 guard let connection = space.connection else { return }
                 await store.follow(connection)
@@ -28,13 +29,15 @@ struct ConversationsView: View {
     @ViewBuilder private var content: some View {
         switch store.phase {
         case .loading where space.offlineSpace != nil:
-            Color.clear
+            Color.kiroshi(.background)
         case .loading:
             List(CompanionSummary.placeholders) { summary in
                 CompanionRow(summary: summary)
                     .listRowSeparator(.hidden)
+                    .listRowBackground(Color.kiroshi(.background))
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .redacted(reason: .placeholder)
             .allowsHitTesting(false)
             .accessibilityLabel("Loading companions")
@@ -63,8 +66,11 @@ struct ConversationsView: View {
                     CompanionRow(summary: summary)
                 }
                 .listRowSeparator(.hidden, edges: .top)
+                .listRowSeparatorTint(Color.kiroshi(.border))
+                .listRowBackground(Color.kiroshi(.background))
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .refreshable {
                 await store.refresh()
             }

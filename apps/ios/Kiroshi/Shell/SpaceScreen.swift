@@ -91,8 +91,8 @@ extension Space {
 }
 
 extension UIImage {
-    fileprivate static let onlineDot = presenceDot(.systemGreen)
-    fileprivate static let offlineDot = presenceDot(.systemGray3)
+    fileprivate static let onlineDot = presenceDot(.kiroshi(.presenceOnline))
+    fileprivate static let offlineDot = presenceDot(.kiroshi(.presenceOffline))
 
     private static func presenceDot(_ color: UIColor) -> UIImage {
         let dot = UIImage(

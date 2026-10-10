@@ -31,6 +31,7 @@ struct ThreadView: View {
         }
         .defaultScrollAnchor(.bottom)
         .defaultScrollAnchor(.bottom, for: .sizeChanges)
+        .background(Color.kiroshi(.card))
         .overlay {
             if thread.phase == .failed {
                 ContentUnavailableView {
@@ -44,7 +45,7 @@ struct ThreadView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                .background(.background)
+                .background(Color.kiroshi(.card))
             } else if thread.phase == .loaded, thread.entries.isEmpty, !thread.isWorking {
                 ContentUnavailableView {
                     Label {
@@ -90,20 +91,22 @@ struct ThreadEntryView: View {
             if let dayLabel = message.dayLabel {
                 Text(dayLabel)
                     .font(.footnote.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.kiroshi(.mutedForeground))
                     .frame(maxWidth: .infinity)
             }
             if message.isYours {
                 Text(message.rendered)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(Color(.systemGray5), in: .rect(cornerRadius: 20))
+                    .background(Color.kiroshi(.muted), in: .rect(cornerRadius: 20))
+                    .foregroundStyle(Color.kiroshi(.foreground))
                     .padding(.leading, 64)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .textSelection(.enabled)
             } else {
                 Text(message.rendered)
                     .lineSpacing(2)
+                    .foregroundStyle(Color.kiroshi(.foreground))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
             }
@@ -123,7 +126,7 @@ struct ActivityGroupView: View {
                 ForEach(group.activities) { activity in
                     Text(activity.title)
                         .font(.footnote.monospaced())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.kiroshi(.mutedForeground))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -132,11 +135,11 @@ struct ActivityGroupView: View {
         } label: {
             Label(group.summary, systemImage: "wrench")
                 .font(.subheadline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.kiroshi(.foreground))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 16))
+        .background(Color.kiroshi(.muted), in: .rect(cornerRadius: 16))
     }
 }
 
@@ -158,6 +161,7 @@ struct ThreadComposer: View {
                 TextField(placeholder, text: $thread.draft, axis: .vertical)
                     .lineLimit(1...(dynamicTypeSize.isAccessibilitySize ? 3 : 6))
                     .padding(.vertical, 9)
+                    .foregroundStyle(Color.kiroshi(.foreground))
                     .disabled(isHostOffline)
                 if thread.isWorking {
                     Button {
@@ -184,7 +188,7 @@ struct ThreadComposer: View {
             .padding(.vertical, 2)
             .overlay {
                 RoundedRectangle(cornerRadius: 20)
-                    .strokeBorder(Color(.separator))
+                    .strokeBorder(Color.kiroshi(.border))
             }
         }
         .padding(.horizontal, 12)
