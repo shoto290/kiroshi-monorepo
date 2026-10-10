@@ -7,13 +7,12 @@ use tauri::{AppHandle, Manager, Runtime};
 use super::contract::{
 	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, Install,
 	InstallCase, InstallOutcome, ApplicationSearch, ApplicationState, Destination, InstallDraft,
-	INSTALLED_EVENT,
+	ApplicationsError, INSTALLED_EVENT,
 };
-use super::catalogue;
-use super::directory::{Directory, DIRECTORY};
-use super::registry::REGISTRY;
+use super::directory::Directory;
 use super::runnable::{refusal, Runners};
-use super::search::{named, search, terms};
+use super::search::terms;
+use crate::account::cloud::api_url;
 use crate::agent::host::{Host, Refusal};
 use crate::conversations::commands::ready;
 use crate::bundles::ApplicationMark;
@@ -30,7 +29,6 @@ pub struct ApplicationHost<R: Runtime> {
 	app: AppHandle<R>,
 	conversation_id: String,
 	bot_id: String,
-	registry: String,
 	runners: Runners,
 	directory: Arc<Directory>,
 }
@@ -38,7 +36,7 @@ pub struct ApplicationHost<R: Runtime> {
 fn held_directory<R: Runtime>(app: &AppHandle<R>) -> Arc<Directory> {
 	match app.try_state::<Arc<Directory>>() {
 		Some(state) => state.inner().clone(),
-		None => Arc::new(Directory::at(DIRECTORY.to_owned(), None)),
+		None => Arc::new(Directory::at(api_url(), None)),
 	}
 }
 
@@ -49,21 +47,22 @@ impl<R: Runtime> ApplicationHost<R> {
 			app,
 			conversation_id,
 			bot_id,
-			registry: REGISTRY.to_owned(),
 			runners: Runners::default(),
 			directory,
 		}
 	}
 
 	async fn search(&self, query: &str) -> Result<ApplicationSearch, ApplicationCallError> {
-		let curated = matching(catalogue::curated()?, query);
-		let (found, registry_failure) = match search(&self.registry, &self.directory, query).await {
-			Ok(answered) => (answered.applications, answered.registry_failure),
-			Err(failure) => (Vec::new(), Some(failure)),
+		let answered = match self.directory.searched(query).await {
+			Ok(answered) => answered,
+			Err(failure) => return Ok(unanswered(failure)),
 		};
+		let curated = self.directory.curated().await?;
+		let found =
+			offered(answered.applications.into_iter().filter(|held| !curated.contains(held)));
 		Ok(ApplicationSearch {
-			applications: curated.into_iter().chain(offered(found)).collect(),
-			registry_failure,
+			applications: matching(curated, query).into_iter().chain(found).collect(),
+			registry_failure: answered.registry_failure,
 			read_at: None,
 			is_stale: None,
 		})
@@ -136,7 +135,7 @@ impl<R: Runtime> ApplicationHost<R> {
 	}
 
 	async fn application(&self, name: &str) -> Result<Application, ApplicationCallError> {
-		named(&self.registry, &self.directory, name).await?.ok_or_else(|| {
+		self.directory.named(name).await?.ok_or_else(|| {
 			ApplicationCallError::UnknownApplication { application: name.to_owned() }
 		})
 	}
@@ -276,8 +275,17 @@ fn mark_of(application: &Application) -> ApplicationMark {
 	}
 }
 
-fn offered(found: Vec<Application>) -> Vec<Application> {
-	found.into_iter().filter(installable).take(OFFERS).collect()
+fn unanswered(failure: ApplicationsError) -> ApplicationSearch {
+	ApplicationSearch {
+		applications: Vec::new(),
+		registry_failure: Some(failure),
+		read_at: None,
+		is_stale: None,
+	}
+}
+
+fn offered(found: impl Iterator<Item = Application>) -> Vec<Application> {
+	found.filter(installable).take(OFFERS).collect()
 }
 
 fn installable(application: &Application) -> bool {
@@ -307,8 +315,7 @@ mod tests {
 
 	use super::*;
 	use crate::applications::contract::ApplicationInstall;
-	use crate::applications::directory::tests as directory_stub;
-	use crate::applications::registry::tests::{holding, serving, unreached};
+	use crate::applications::directory::tests::{self as directory_stub, a_page, a_row, carrying};
 	use crate::applications::runnable::tests::a_path_carrying;
 	use crate::applications::runnable::{NPX, UVX};
 	use crate::bundles;
@@ -334,8 +341,6 @@ mod tests {
 
 	const NO_PACKAGE_REGISTRY: &str = "http://127.0.0.1:1";
 
-	const NO_DIRECTORY: &str = "http://127.0.0.1:1";
-
 	async fn a_host(name: &str) -> AppOfItsOwn {
 		let app = an_app_of_its_own(&format!("application-host-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
@@ -360,19 +365,96 @@ mod tests {
 		bundles::space::path(app.handle(), "personal").expect("the space plugin has a home")
 	}
 
-	fn reading(
+	fn reading(app: &App<MockRuntime>, conversation_id: &str) -> ApplicationHost<MockRuntime> {
+		holding(app, conversation_id, the_catalogue().into_iter().chain(the_others()).collect())
+	}
+
+	fn holding(
 		app: &App<MockRuntime>,
 		conversation_id: &str,
-		registry: String,
+		rows: Vec<Value>,
 	) -> ApplicationHost<MockRuntime> {
 		ApplicationHost {
 			app: app.handle().clone(),
 			conversation_id: conversation_id.to_owned(),
 			bot_id: "b1".to_owned(),
-			registry,
 			runners: runners_carrying(&[NPX, UVX]),
-			directory: Arc::new(Directory::at(NO_DIRECTORY.to_owned(), None)),
+			directory: Arc::new(directory_stub::holding(rows)),
 		}
+	}
+
+	fn the_catalogue() -> Vec<Value> {
+		vec![
+			carrying(
+				a_row("superset", "curated", 1),
+				json!({
+					"display_name": "Superset",
+					"one_liner": "Run workspaces, terminals, agents and tasks.",
+					"config": {
+						"type": "http",
+						"url": "https://api.superset.sh/mcp",
+						"headers": { "Authorization": "Bearer ${SUPERSET_API_KEY}" },
+					},
+					"remote": {
+						"auth_posture": "auth_required",
+						"required_fields": [{ "field": "SUPERSET_API_KEY", "source_url": null }],
+					},
+				}),
+			),
+			carrying(
+				a_row("paper", "curated", 2),
+				json!({
+					"display_name": "Paper",
+					"one_liner": "Read and write designs in the Paper desktop app.",
+					"config": { "type": "http", "url": "http://127.0.0.1:29979/mcp" },
+					"remote": { "auth_posture": "no_auth", "required_fields": [] },
+				}),
+			),
+		]
+	}
+
+	fn the_others() -> Vec<Value> {
+		vec![
+			carrying(
+				a_row("com.notion/mcp", "partner", 1),
+				json!({ "config": { "type": "http", "url": "https://mcp.notion.test/mcp" } }),
+			),
+			carrying(
+				a_row("io.github.Digital-Defiance/mcp-filesystem", "community", 1),
+				json!({
+					"type": "local",
+					"remote": null,
+					"local": { "packages": [{ "environment_variables": [] }] },
+					"config": {
+						"type": "stdio",
+						"command": "npx",
+						"args": ["-y", "@digital-defiance/mcp-filesystem"],
+						"env": { "ALLOWED_ROOT": "/srv/data" },
+					},
+				}),
+			),
+			a_collapsed_row("io.test/collapsed"),
+		]
+	}
+
+	fn a_collapsed_row(name: &str) -> Value {
+		carrying(
+			a_row(name, "community", 2),
+			json!({
+				"config": {
+					"type": "http",
+					"url": "https://collapsed.test/mcp",
+					"headers": { "api-key": "${API_KEY}" },
+				},
+				"remote": {
+					"auth_posture": "auth_required",
+					"required_fields": [
+						{ "field": "api-key", "source_url": null },
+						{ "field": "api_key", "source_url": null },
+					],
+				},
+			}),
+		)
 	}
 
 	fn runners_carrying(commands: &[&str]) -> Runners {
@@ -381,20 +463,6 @@ mod tests {
 			npm: NO_PACKAGE_REGISTRY.to_owned(),
 			pypi: NO_PACKAGE_REGISTRY.to_owned(),
 		}
-	}
-
-	fn a_collapsed_header_server() -> Value {
-		json!({
-			"name": "io.test/collapsed",
-			"remotes": [{
-				"type": "streamable-http",
-				"url": "https://collapsed.test/mcp",
-				"headers": [
-					{ "name": "api-key", "isRequired": true, "isSecret": true },
-					{ "name": "api_key", "isRequired": true, "isSecret": true },
-				],
-			}],
-		})
 	}
 
 	fn asking(operation: &str, payload: Value) -> Value {
@@ -439,8 +507,7 @@ mod tests {
 	}
 
 	fn curated(name: &str) -> Application {
-		catalogue::curated()
-			.expect("the catalogue reads")
+		directory_stub::applications(the_catalogue())
 			.into_iter()
 			.find(|held| held.name == name)
 			.unwrap_or_else(|| panic!("{name} is curated"))
@@ -450,8 +517,8 @@ mod tests {
 		mark_of(&curated(name))
 	}
 
-	fn curated_logo(name: &str) -> Option<String> {
-		curated(name).logo
+	fn curated_logo_url(name: &str) -> Option<String> {
+		curated(name).logo_url
 	}
 
 	fn curated_config(name: &str) -> Value {
@@ -469,27 +536,16 @@ mod tests {
 	#[tokio::test]
 	async fn a_search_answers_the_curated_matches_before_the_directory_ones() {
 		let app = a_host("curated-first").await;
-		let (base, held) = serving(holding(vec!["com.notion/mcp"])).await;
-		let (served, _) =
-			directory_stub::serving(vec![directory_stub::a_page(&["superset-notes"])]).await;
-		let host = ApplicationHost {
-			directory: Arc::new(Directory::at(served, None)),
-			..reading(&app, "c1", base)
-		};
 
-		let answer = host
+		let answer = a_host_reading(&app, &["superset-notes"])
 			.answer(asking("search", json!({ "query": "superset" })))
 			.await
 			.expect("the search answers");
 
 		assert_eq!(names(&answer), ["superset", "superset-notes"]);
 		assert_eq!(answer["applications"][0]["install"]["kind"], "key");
-		assert!(
-			answer["applications"][0]["logo"].as_str().is_some_and(|logo| logo.starts_with("<svg")),
-			"got {answer}"
-		);
+		assert_eq!(answer["applications"][0]["logoUrl"], json!(curated_logo_url("superset")));
 		assert!(answer.get("registryFailure").is_none(), "got {answer}");
-		assert!(held.asked.lock().expect("the stub records").is_empty(), "the registry was read");
 	}
 
 	const A_DIRECTORY_PAGE: [&str; 12] = [
@@ -497,33 +553,9 @@ mod tests {
 		"zinc-10", "zinc-11", "zinc-12",
 	];
 
-	const TEN_REMOTES: [&str; 10] = [
-		"io.test/one",
-		"io.test/two",
-		"io.test/three",
-		"io.test/four",
-		"io.test/five",
-		"io.test/six",
-		"io.test/seven",
-		"io.test/eight",
-		"io.test/nine",
-		"io.test/collapsed",
-	];
-
-	fn a_remote_named(name: &str) -> Value {
-		json!({
-			"name": name,
-			"remotes": [{ "type": "streamable-http", "url": "https://mcp.io.test/mcp" }],
-		})
-	}
-
-	async fn a_host_reading(app: &App<MockRuntime>, page: &[&str]) -> ApplicationHost<MockRuntime> {
-		let (served, _) = directory_stub::serving(vec![directory_stub::a_page(page)]).await;
-		let (base, _) = serving(holding(Vec::new())).await;
-		ApplicationHost {
-			directory: Arc::new(Directory::at(served, None)),
-			..reading(app, "c1", base)
-		}
+	fn a_host_reading(app: &App<MockRuntime>, page: &[&str]) -> ApplicationHost<MockRuntime> {
+		let page = a_page(page).as_array().cloned().expect("a page is a list");
+		holding(app, "c1", the_catalogue().into_iter().chain(page).collect())
 	}
 
 	#[tokio::test]
@@ -531,7 +563,6 @@ mod tests {
 		let app = a_host("bounded-directory").await;
 
 		let answer = a_host_reading(&app, &A_DIRECTORY_PAGE)
-			.await
 			.answer(asking("search", json!({ "query": "zinc" })))
 			.await
 			.expect("the search answers");
@@ -552,7 +583,6 @@ mod tests {
 		let page: Vec<&str> = page.iter().map(String::as_str).collect();
 
 		let answer = a_host_reading(&app, &page)
-			.await
 			.answer(asking("search", json!({ "query": "superset" })))
 			.await
 			.expect("the search answers");
@@ -567,28 +597,23 @@ mod tests {
 	#[tokio::test]
 	async fn a_remote_row_whose_install_is_refused_is_left_out_and_takes_none_of_the_nine() {
 		let app = a_host("refused-row").await;
-		let held =
-			TEN_REMOTES.iter().fold(holding(TEN_REMOTES.to_vec()), |held, name| match *name {
-				"io.test/collapsed" => held.also(a_collapsed_header_server()),
-				held_name => held.also(a_remote_named(held_name)),
-			});
-		let (base, _) = serving(held).await;
+		let page = a_page(&A_DIRECTORY_PAGE).as_array().cloned().expect("a page is a list");
+		let rows = std::iter::once(a_collapsed_row("zinc-collapsed")).chain(page).collect();
 
-		let answer = reading(&app, "c1", base)
+		let answer = holding(&app, "c1", rows)
 			.answer(asking("search", json!({ "query": "zinc" })))
 			.await
 			.expect("the search answers");
 
 		assert_eq!(names(&answer).len(), 9, "got {answer}");
-		assert!(!names(&answer).contains(&"io.test/collapsed"), "got {answer}");
+		assert!(!names(&answer).contains(&"zinc-collapsed"), "got {answer}");
 	}
 
 	#[tokio::test]
-	async fn a_search_no_curated_application_matches_answers_the_registry_alone() {
-		let app = a_host("registry-alone").await;
-		let (base, _) = serving(holding(vec!["io.github.Digital-Defiance/mcp-filesystem"])).await;
+	async fn a_search_no_curated_application_matches_answers_the_directory_alone() {
+		let app = a_host("directory-alone").await;
 
-		let answer = reading(&app, "c1", base)
+		let answer = reading(&app, "c1")
 			.answer(asking("search", json!({ "query": "filesystem" })))
 			.await
 			.expect("the search answers");
@@ -597,10 +622,15 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_search_no_remote_source_answers_gives_the_curated_matches_and_names_the_failure() {
-		let app = a_host("registry-down").await;
+	async fn a_search_while_the_cloud_is_down_answers_the_cached_curated_matches_and_the_failure() {
+		let app = a_host("cloud-down").await;
+		let file = directory_stub::a_cache_file_read_long_ago(the_catalogue()).await;
+		let host = ApplicationHost {
+			directory: Arc::new(Directory::at(directory_stub::unreached().await, Some(file))),
+			..reading(&app, "c1")
+		};
 
-		let answer = reading(&app, "c1", unreached().await)
+		let answer = host
 			.answer(asking("search", json!({ "query": "superset" })))
 			.await
 			.expect("the search answers");
@@ -610,11 +640,28 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn a_search_while_the_cloud_is_down_and_nothing_is_cached_answers_only_the_failure() {
+		let app = a_host("cloud-down-uncached").await;
+		let host = ApplicationHost {
+			directory: Arc::new(Directory::at(directory_stub::unreached().await, None)),
+			..reading(&app, "c1")
+		};
+
+		let answer = host
+			.answer(asking("search", json!({ "query": "superset" })))
+			.await
+			.expect("the search answers");
+
+		assert_eq!(names(&answer), Vec::<&str>::new());
+		assert_eq!(answer["registryFailure"]["kind"], "registryUnreached");
+	}
+
+	#[tokio::test]
 	async fn an_install_lands_in_the_mcp_json_of_its_scope_and_of_no_other() {
 		for (at, scope) in SCOPES.iter().enumerate() {
 			let app = a_host(&format!("lands-{scope}")).await;
 
-			let answer = reading(&app, "c1", unreached().await)
+			let answer = reading(&app, "c1")
 				.answer(an_install("paper", scope))
 				.await
 				.expect("the install answers");
@@ -644,7 +691,7 @@ mod tests {
 		for scope in SCOPES {
 			let app = a_host(&format!("mark-{scope}")).await;
 
-			reading(&app, "c1", unreached().await)
+			reading(&app, "c1")
 				.answer(an_install("paper", scope))
 				.await
 				.expect("the install answers");
@@ -659,7 +706,7 @@ mod tests {
 	async fn a_key_install_answers_the_secret_still_needed_and_nothing_else_about_credentials() {
 		let app = a_host("key").await;
 
-		let answer = reading(&app, "c1", unreached().await)
+		let answer = reading(&app, "c1")
 			.answer(an_install("superset", "user"))
 			.await
 			.expect("the install answers");
@@ -687,7 +734,7 @@ mod tests {
 	async fn an_install_announces_the_row_it_wrote_and_the_conversation_it_came_from() {
 		let app = a_host("announced").await;
 		let arriving = heard(&app);
-		let host = reading(&app, "c1", unreached().await);
+		let host = reading(&app, "c1");
 
 		let mut announced = Vec::new();
 		for scope in SCOPES {
@@ -702,7 +749,7 @@ mod tests {
 				"conversationId": "c1",
 				"application": "superset",
 				"title": "Superset",
-				"logo": curated_logo("superset"),
+				"logoUrl": curated_logo_url("superset"),
 				"description": curated("superset").description,
 				"scope": scope,
 				"install": { "kind": "key", "secrets": ["SUPERSET_API_KEY"] },
@@ -743,7 +790,7 @@ mod tests {
 	) {
 		let app = a_host("recorded").await;
 
-		reading(&app, "c1", unreached().await)
+		reading(&app, "c1")
 			.answer(an_install("superset", "space"))
 			.await
 			.expect("the install answers");
@@ -757,7 +804,8 @@ mod tests {
 		assert_eq!(held.scope, Destination::Space);
 		assert_eq!(held.destination_id.as_deref(), Some("personal"));
 		assert_eq!(held.install, InstallCase::Key { secrets: vec!["SUPERSET_API_KEY".to_owned()] });
-		assert_eq!(held.logo, curated_logo("superset"));
+		assert_eq!(held.logo, None);
+		assert_eq!(held.logo_url, curated_logo_url("superset"));
 		assert_eq!(held.description.as_deref(), Some(curated("superset").description.as_str()));
 		assert_eq!(held.last_message_seq, 0);
 		assert!(held.created_at > 0, "the row holds no moment");
@@ -767,8 +815,7 @@ mod tests {
 	async fn a_directory_install_writes_its_readable_name_its_icon_url_and_its_description() {
 		let app = a_host("recorded-directory").await;
 
-		let host = a_host_reading(&app, &["zinc-1"]).await;
-		host.directory.refreshed().await;
+		let host = a_host_reading(&app, &["zinc-1"]);
 
 		host.answer(an_install("zinc-1", "user")).await.expect("the install answers");
 
@@ -792,7 +839,7 @@ mod tests {
 		)
 		.expect("the declaration lands");
 
-		reading(&app, "c1", unreached().await)
+		reading(&app, "c1")
 			.answer(an_install("superset", "space"))
 			.await
 			.expect("the install answers");
@@ -805,7 +852,7 @@ mod tests {
 		let app = a_host("unwritable-row").await;
 		let arriving = heard(&app);
 
-		let answer = reading(&app, "ghost", unreached().await)
+		let answer = reading(&app, "ghost")
 			.answer(an_install("paper", "user"))
 			.await
 			.expect("the install answers");
@@ -826,7 +873,7 @@ mod tests {
 	async fn every_install_of_a_conversation_is_recorded_and_a_conversation_with_none_reads_empty()
 	{
 		let app = a_host("read-installs").await;
-		let host = reading(&app, "c1", unreached().await);
+		let host = reading(&app, "c1");
 		for application in ["paper", "superset"] {
 			host.answer(an_install(application, "user")).await.expect("the install answers");
 		}
@@ -843,8 +890,7 @@ mod tests {
 	}
 
 	async fn searched(app: &App<MockRuntime>, query: &str) -> Value {
-		let (base, _) = serving(holding(Vec::new())).await;
-		reading(app, "c1", base)
+		a_host_reading(app, &[])
 			.answer(asking("search", json!({ "query": query })))
 			.await
 			.expect("the search answers")
@@ -870,8 +916,7 @@ mod tests {
 	#[tokio::test]
 	async fn a_query_whose_every_term_is_discarded_answers_the_whole_catalogue() {
 		let app = a_host("all-discarded").await;
-		let everything: Vec<String> = catalogue::curated()
-			.expect("the catalogue reads")
+		let everything: Vec<String> = directory_stub::applications(the_catalogue())
 			.into_iter()
 			.map(|held| held.name)
 			.collect();
@@ -881,11 +926,10 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_registry_install_reads_the_one_detail_and_runs_no_search() {
-		let app = a_host("registry-install").await;
-		let (base, held) = serving(holding(Vec::new())).await;
+	async fn a_directory_install_answers_the_install_of_its_row() {
+		let app = a_host("directory-install").await;
 
-		let answer = reading(&app, "c1", base)
+		let answer = reading(&app, "c1")
 			.answer(an_install("com.notion/mcp", "space"))
 			.await
 			.expect("the install answers");
@@ -893,8 +937,6 @@ mod tests {
 		assert_eq!(answer["outcome"], "installed");
 		assert_eq!(answer["install"], json!({ "kind": "oauth" }));
 		assert_eq!(declarations(&app)[1][0].0, "com.notion/mcp");
-		assert!(held.asked.lock().expect("the stub records").is_empty(), "a search ran");
-		assert_eq!(*held.detailed.lock().expect("the stub records"), ["com.notion/mcp"]);
 	}
 
 	#[tokio::test]
@@ -905,7 +947,7 @@ mod tests {
 			.expect("the declaration lands");
 		let arriving = heard(&app);
 
-		let answer = reading(&app, "c1", unreached().await)
+		let answer = reading(&app, "c1")
 			.answer(an_install("superset", "space"))
 			.await
 			.expect("the install answers");
@@ -922,7 +964,7 @@ mod tests {
 	async fn an_unknown_scope_is_refused_by_name_and_nothing_is_written() {
 		let app = a_host("unknown-scope").await;
 
-		let refusal = reading(&app, "c1", unreached().await)
+		let refusal = reading(&app, "c1")
 			.answer(an_install("paper", "team"))
 			.await
 			.expect_err("the scope is refused");
@@ -932,12 +974,11 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn an_application_neither_the_catalogue_nor_the_registry_answers_is_refused() {
+	async fn an_application_the_directory_does_not_hold_is_refused() {
 		let app = a_host("unknown-application").await;
-		let (base, held) = serving(holding(vec!["com.notion/mcp"])).await;
 
 		for scope in SCOPES {
-			let refusal = reading(&app, "c1", base.clone())
+			let refusal = reading(&app, "c1")
 				.answer(an_install("io.test/nowhere", scope))
 				.await
 				.expect_err("the application is refused");
@@ -948,16 +989,14 @@ mod tests {
 			);
 		}
 		assert_eq!(declarations(&app), [Vec::new(), Vec::new(), Vec::new()]);
-		assert!(held.asked.lock().expect("the stub records").is_empty(), "a search ran");
 	}
 
 	#[tokio::test]
 	async fn an_application_whose_install_refuses_it_is_named_and_neither_declared_nor_recorded() {
 		let app = a_host("refusing-install").await;
-		let (official, _) = serving(holding(Vec::new()).also(a_collapsed_header_server())).await;
 		let arriving = heard(&app);
 
-		let refusal = reading(&app, "c1", official)
+		let refusal = reading(&app, "c1")
 			.answer(an_install("io.test/collapsed", "space"))
 			.await
 			.expect_err("the application is refused");
@@ -974,12 +1013,8 @@ mod tests {
 	#[tokio::test]
 	async fn an_install_of_a_config_no_runner_of_this_machine_runs_is_refused_and_writes_nothing() {
 		let app = a_host("no-runner").await;
-		let (official, _) = serving(holding(Vec::new())).await;
 		let arriving = heard(&app);
-		let host = ApplicationHost {
-			runners: runners_carrying(&[UVX]),
-			..reading(&app, "c1", official)
-		};
+		let host = ApplicationHost { runners: runners_carrying(&[UVX]), ..reading(&app, "c1") };
 
 		let refusal = host
 			.answer(an_install("io.github.Digital-Defiance/mcp-filesystem", "space"))
@@ -1000,7 +1035,7 @@ mod tests {
 		let app = a_host("no-space").await;
 
 		for scope in ["companion", "space"] {
-			let refusal = reading(&app, "nowhere", unreached().await)
+			let refusal = reading(&app, "nowhere")
 				.answer(an_install("paper", scope))
 				.await
 				.expect_err("the conversation is refused");
@@ -1016,14 +1051,13 @@ mod tests {
 	#[tokio::test]
 	async fn the_status_tells_apart_not_installed_connected_needs_authorization_and_failed() {
 		let app = a_host("status").await;
-		let (official, _) = serving(holding(vec!["com.notion/mcp"])).await;
-		let host = reading(&app, "c1", official);
+		let host = reading(&app, "c1");
 		for application in ["superset", "paper"] {
 			host.answer(an_install(application, "companion")).await.expect("the install answers");
 		}
-		let from_the_registry =
+		let from_the_directory =
 			host.answer(an_install("com.notion/mcp", "user")).await.expect("the install answers");
-		assert_eq!(from_the_registry["install"], json!({ "kind": "oauth" }));
+		assert_eq!(from_the_directory["install"], json!({ "kind": "oauth" }));
 		let reports = app.state::<ApplicationReports>();
 		reports.record("b1", "superset", Standing::Holding);
 		reports.record("b1", "paper", Standing::LeftOut { reason: Some("refused".to_owned()) });
@@ -1047,7 +1081,7 @@ mod tests {
 	async fn a_status_in_an_unknown_scope_is_refused_by_name() {
 		let app = a_host("status-unknown-scope").await;
 
-		let refusal = reading(&app, "c1", unreached().await)
+		let refusal = reading(&app, "c1")
 			.answer(a_status("superset", "team"))
 			.await
 			.expect_err("the scope is refused");
