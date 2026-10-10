@@ -480,7 +480,7 @@ type ShownMission = {
 	mission: Mission
 }
 
-type MissionEntry = { mission: Mission }
+export type MissionEntry = { mission: Mission }
 
 const mostUrgentFirst = (one: ShownMission, other: ShownMission): number =>
 	MOST_URGENT_FIRST.indexOf(one.state) -

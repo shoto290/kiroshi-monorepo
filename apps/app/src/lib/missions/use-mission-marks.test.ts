@@ -12,9 +12,13 @@ import type {
 	MissionOnBoard,
 } from "./mission-contract"
 import { aMission } from "./mission-fixtures"
-import { missionRingBadges, missionsBySpaceId } from "./missions-model"
+import {
+	type MissionEntry,
+	missionRingBadges,
+	missionsBySpaceId,
+} from "./missions-model"
 import { missionsTransport } from "./missions-transport"
-import { type MissionMark, useMissionMarks } from "./use-mission-marks"
+import { useMissionMarks } from "./use-mission-marks"
 
 import { toSpaceBadges } from "@/lib/chat/sidebar-badges"
 import type { Bot } from "@/lib/conversations/store-contract"
@@ -86,7 +90,7 @@ const A_CLOSE: MissionChanged = {
 	lastActivityAt: null,
 }
 
-const idsOf = (entries: MissionMark[]) =>
+const idsOf = (entries: MissionEntry[]) =>
 	entries.map(({ mission }) => mission.id)
 
 const answerFeedOf = (spaceId: string) =>

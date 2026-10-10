@@ -4,25 +4,23 @@ import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import { coalescedRead } from "./coalesced-read"
-import type { MissionOnBoard } from "./mission-contract"
+import type { MissionEntry } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
 
 import { isHostOffline } from "@/lib/host/host-offline"
 import { LOCAL_HOST, useReachableHost } from "@/lib/host/use-reachable-host"
 
-export type MissionMark = Pick<MissionOnBoard, "mission">
-
 type HeldMarks = {
 	source: string
-	entries: MissionMark[]
+	entries: MissionEntry[]
 }
 
 type MarksRead = {
 	source: string
-	read: () => Promise<MissionMark[]>
+	read: () => Promise<MissionEntry[]>
 }
 
-const NO_MARKS: MissionMark[] = []
+const NO_MARKS: MissionEntry[] = []
 
 const marksReadOf = (
 	host: string | null,
@@ -46,7 +44,9 @@ const raiseUnavailableNotice = () =>
 		description: i18n.t("bots:roster.mission.unavailable.description"),
 	})
 
-export const useMissionMarks = (shownSpaceId: string | null): MissionMark[] => {
+export const useMissionMarks = (
+	shownSpaceId: string | null,
+): MissionEntry[] => {
 	const [held, setHeld] = useState<HeldMarks | null>(null)
 	const reads = useRef(0)
 	const isFailureReported = useRef(false)
