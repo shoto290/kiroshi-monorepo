@@ -79,6 +79,8 @@
         case conversationsHostOffline = "3.6"
         case workingList = "3.7"
         case workingThread = "3.8"
+        case conversationsFailed = "conversations-failed"
+        case threadFailed = "thread-failed"
         case missions = "4.1"
         case missionThread = "4.2"
         case noMissions = "4.3"
@@ -119,7 +121,8 @@
                 .missionsHostOffline:
                 [CloudFixture.spacesPath: CloudFixture.threeSpaces]
             case .conversations, .thread, .noCompanion, .loadingCompanions, .emptyThread,
-                .conversationsHostOffline, .workingList, .workingThread:
+                .conversationsHostOffline, .workingList, .workingThread, .conversationsFailed,
+                .threadFailed:
                 [CloudFixture.spacesPath: CloudFixture.threeSpaces]
             case .opening, .email, .code: [:]
             }
@@ -131,7 +134,8 @@
                 .hostOffline, .missions, .missionThread, .noMissions, .missionsHostOffline:
                 true
             case .conversations, .thread, .noCompanion, .loadingCompanions, .emptyThread,
-                .conversationsHostOffline, .workingList, .workingThread:
+                .conversationsHostOffline, .workingList, .workingThread, .conversationsFailed,
+                .threadFailed:
                 true
             default: false
             }
@@ -166,7 +170,8 @@
             let online: Set<Space.ID> = [CloudFixture.studioId, CloudFixture.homeLabId]
             switch self {
             case .conversations, .thread, .noCompanion, .loadingCompanions, .emptyThread,
-                .conversationsHostOffline, .workingList, .workingThread:
+                .conversationsHostOffline, .workingList, .workingThread, .conversationsFailed,
+                .threadFailed:
                 return ConversationsFixture.relay(ConversationsFixture.script(self))
             case .missions, .missionThread:
                 return RelayEnvironment(
@@ -232,8 +237,8 @@
             case .opening, .loadingSpaces, .noSpace, .spaces, .spacesUnreachable, .keychain,
                 .seededKeychain, .space, .spaceMenu, .hostOffline, .conversations, .thread,
                 .noCompanion, .loadingCompanions, .emptyThread, .conversationsHostOffline,
-                .workingList, .workingThread, .missions, .missionThread, .noMissions,
-                .missionsHostOffline:
+                .workingList, .workingThread, .conversationsFailed, .threadFailed, .missions,
+                .missionThread, .noMissions, .missionsHostOffline:
                 break
             }
             return model

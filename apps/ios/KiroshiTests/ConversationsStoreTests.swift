@@ -155,6 +155,86 @@ struct ConversationsStoreTests {
         await connection.stop()
     }
 
+    func start(_ host: TestHost) async -> (ConversationsStore, RelayConnection, Task<Void, Never>) {
+        let connection = makeConnection()
+        let store = ConversationsStore()
+        let following = Task { await store.follow(connection) }
+        await connection.start()
+        await transport.nextOpening().accept(host.socket)
+        return (store, connection, following)
+    }
+
+    @Test func aRefusedListFailsInsteadOfLoadingForever() async throws {
+        let host = TestHost(holding: ["conversation_bots"])
+        let (store, connection, following) = await start(host)
+
+        let call = try #require(await host.nextCall("conversation_bots"))
+        host.reply(TestHost.refused(call, status: 500, TestHost.unavailable))
+        await waitUntil { store.phase == .failed }
+
+        #expect(store.summaries.isEmpty)
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func aCompanionWhoseConversationIsRefusedFailsTheList() async throws {
+        let host = TestHost(companions: [juniper], holding: ["conversation_main_chat"])
+        let (store, connection, following) = await start(host)
+
+        let call = try #require(await host.nextCall("conversation_main_chat"))
+        host.reply(
+            TestHost.refused(call, status: 403, #""this command reaches outside the shared space""#)
+        )
+        await waitUntil { store.phase == .failed }
+
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func tryingAgainAfterAFailureLoadsTheList() async throws {
+        let host = TestHost(companions: [juniper], holding: ["conversation_bots"])
+        let (store, connection, following) = await start(host)
+        let refused = try #require(await host.nextCall("conversation_bots"))
+        host.reply(TestHost.refused(refused, status: 502, #""the host could not run the call""#))
+        await waitUntil { store.phase == .failed }
+
+        let retrying = store.reload()
+        #expect(store.phase == .loading)
+        let call = try #require(await host.nextCall("conversation_bots"))
+        host.reply(TestHost.ok(call, #"[{"id":"juniper","name":"Juniper"}]"#))
+        await retrying?.value
+
+        #expect(store.phase == .loaded)
+        #expect(store.summaries.map(\.companion.name) == ["Juniper"])
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func pullingToRefreshReadsTheListAgain() async throws {
+        let host = host
+        let (store, connection, following) = await follow(host)
+
+        await store.refresh()
+
+        #expect(store.phase == .loaded)
+        #expect(store.summaries.count == 3)
+        following.cancel()
+        await connection.stop()
+    }
+
+    @Test func eachRowCarriesItsTimeLabelAndNowWhileWorking() async {
+        let host = host
+        let (store, connection, following) = await follow(host)
+        #expect(store.summaries.allSatisfy { $0.timeLabel != nil || $0.lastMessage == nil })
+
+        host.pushAgent("chat-pico", #"{"type":"turnChanged","state":"running"}"#)
+        await waitUntil { store.summaries.first { $0.id == "pico" }?.isWorking == true }
+
+        #expect(store.summaries.first { $0.id == "pico" }?.timeLabel == "Now")
+        following.cancel()
+        await connection.stop()
+    }
+
     struct SpaceArgs: Decodable {
         let spaceId: String
     }
