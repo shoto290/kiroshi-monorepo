@@ -49,7 +49,7 @@ its answer both.
 
 | `type` | Answered with | Becomes |
 | --- | --- | --- |
-| `check` | `{"type":"check","authenticated":bool,"authMethod"?:string,"detail"?:string,"account"?:{"email"?:string,"plan"?:string}}` | the `CheckReport`, its `account` included |
+| `check` | `{"type":"check","authenticated":bool,"authMethod"?:string,"detail"?:string,"account"?:{"email"?:string,"plan"?:string}}` | the `CheckReport` for `agent_check`, and for `agent_account` the `CheckReport` plus its `account` |
 | `sign_in` | `{"type":"sign_in","signedIn":bool,"error"?:{"kind":"busy"\|"cancelled"\|"timedOut"\|"failed","detail"?:string}}` | the outcome `agent_sign_in` resolves on |
 | `sign_in_code` | nothing | the `text` it carries, written to the stdin of the running sign-in |
 | `sign_in_cancel` | nothing | the pending `sign_in`, its child killed and the ask settled `cancelled` |
@@ -557,8 +557,10 @@ it is the one channel that could carry an environment value. The sign-in probe
 returns an email, an org id, an org name and a subscription type; the provider
 module keeps the email and the subscription type, as the `email` and the `plan` of
 `account`, and drops the org id and the org name before it reaches the pipe. The host
-holds that email and that plan, on `CheckReport.account`, and nothing else of the
-account: no token, no credential, no org. The output of `auth login` reaches no frame
+hands that email and that plan to one command alone, `agent_account`, as the `account`
+of its `AccountReport`, `null` when the probe names none; `CheckReport`, which
+`agent_check` returns to every other caller, carries no account at all. Nothing else
+of the account crosses: no token, no credential, no org. The output of `auth login` reaches no frame
 but the url of `sign_in_started` and the reason a failed sign-in gave. Search locations are reported as labels
 (`$KIROSHI_AGENT_SIDECAR`, the app's own directory) rather than raw environment
 values, and `redact` collapses the home directory out of every path *and* every

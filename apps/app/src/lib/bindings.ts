@@ -39,6 +39,7 @@ export const commands = {
 	runtimeSessionId: string,
 	epoch: number,
 } | null) => __TAURI_INVOKE<CheckReport_Serialize>("agent_check", { scope }),
+	agentAccount: () => __TAURI_INVOKE<AccountReport_Serialize>("agent_account"),
 	agentSignIn: () => typedError<null, SignInError>(__TAURI_INVOKE("agent_sign_in")),
 	agentSignInCode: (text: string) => typedError<null, SignInError>(__TAURI_INVOKE("agent_sign_in_code", { text })),
 	agentSignInCancel: () => typedError<null, SignInError>(__TAURI_INVOKE("agent_sign_in_cancel")),
@@ -232,6 +233,16 @@ export type Account = {
 export type AccountError = { kind: "store"; detail: string } | { kind: "listener"; detail: string } | { kind: "rejected"; code: string } | { kind: "signedIn" };
 
 export type AccountFailure = "linkInvalid" | "serverError" | "timedOut";
+
+export type AccountReport = AccountReport_Serialize | AccountReport_Deserialize;
+
+export type AccountReport_Deserialize = {
+	account: Account | null,
+} & CheckReport_Deserialize;
+
+export type AccountReport_Serialize = {
+	account: Account | null,
+} & CheckReport_Serialize;
 
 export type AccountState = ({ kind: "signedOut" }) & { email?: never; failure?: never; reason?: never } | ({ kind: "waiting"; email: string }) & { failure?: never; reason?: never } | {
 	kind: "signedIn",
@@ -524,7 +535,6 @@ export type CheckReport_Deserialize = {
 	authenticated: boolean,
 	authMethod?: string | null,
 	error: TransportError | null,
-	account?: Account | null,
 };
 
 export type CheckReport_Serialize = {
@@ -533,7 +543,6 @@ export type CheckReport_Serialize = {
 	authenticated: boolean,
 	authMethod?: string | null,
 	error: TransportError | null,
-	account?: Account | null,
 };
 
 export type ColorScheme = "system" | "light" | "dark";

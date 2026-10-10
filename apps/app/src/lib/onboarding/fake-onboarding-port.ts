@@ -1,9 +1,9 @@
 import type { OnboardingPort } from "./onboarding-port"
 
-import type { CheckReport } from "../agent/contract"
+import type { AccountReport } from "../agent/contract"
 
 type OnboardingCommand =
-	| "check"
+	| "account"
 	| "signIn"
 	| "enterCode"
 	| "cancelSignIn"
@@ -22,18 +22,19 @@ type PendingSignIn = {
 
 export type FakeOnboardingPort = OnboardingPort & {
 	calls: OnboardingCall[]
-	report: CheckReport
+	report: AccountReport
 	refusals: Partial<Record<OnboardingCommand, unknown>>
 	announceStarted: (url: string) => void
 	completeSignIn: () => void
 	refuseSignIn: (reason: unknown) => void
 }
 
-const NOT_AUTHENTICATED: CheckReport = {
+const NOT_AUTHENTICATED: AccountReport = {
 	connection: "ready",
 	binaryVersion: null,
 	authenticated: false,
 	error: { kind: "notAuthenticated" },
+	account: null,
 }
 
 export const createFakeOnboardingPort = (): FakeOnboardingPort => {
@@ -60,8 +61,8 @@ export const createFakeOnboardingPort = (): FakeOnboardingPort => {
 		report: NOT_AUTHENTICATED,
 		refusals: {},
 
-		check: async () => {
-			answer({ command: "check" })
+		account: async () => {
+			answer({ command: "account" })
 			return fake.report
 		},
 

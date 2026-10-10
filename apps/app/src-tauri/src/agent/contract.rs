@@ -329,7 +329,13 @@ pub struct CheckReport {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub auth_method: Option<String>,
 	pub error: Option<TransportError>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountReport {
+	#[serde(flatten)]
+	pub report: CheckReport,
 	pub account: Option<Account>,
 }
 

@@ -3,7 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener"
 import type { OnboardingPort } from "./onboarding-port"
 
 import { invoke, listen } from "../host"
-import { agentTransport } from "../agent/transport"
+import type { AccountReport } from "../agent/contract"
 
 const SIGN_IN_STARTED_CHANNEL = "agent://sign-in-started"
 
@@ -12,7 +12,7 @@ const API_KEY_CONNECTION = "apiKey"
 type SignInStarted = { url: string }
 
 export const onboardingTransport: OnboardingPort = {
-	check: () => agentTransport.check(null),
+	account: () => invoke<AccountReport>("agent_account"),
 
 	signIn: () => invoke<void>("agent_sign_in"),
 

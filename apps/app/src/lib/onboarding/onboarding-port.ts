@@ -1,7 +1,7 @@
-import type { CheckReport } from "../agent/contract"
+import type { AccountReport } from "../agent/contract"
 
 export type OnboardingPort = {
-	check: () => Promise<CheckReport>
+	account: () => Promise<AccountReport>
 	signIn: () => Promise<void>
 	enterCode: (code: string) => Promise<void>
 	cancelSignIn: () => Promise<void>

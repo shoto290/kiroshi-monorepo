@@ -46,6 +46,7 @@ fn commands<R: Runtime>() -> Commands<R> {
 		applications::commands::application_runnable,
 		attachments::commands::chat_store_attachments::<tauri::Wry>,
 		agent::commands::agent_check::<tauri::Wry>,
+		agent::commands::agent_account::<tauri::Wry>,
 		agent::sign_in::agent_sign_in::<tauri::Wry>,
 		agent::sign_in::agent_sign_in_code::<tauri::Wry>,
 		agent::sign_in::agent_sign_in_cancel::<tauri::Wry>,

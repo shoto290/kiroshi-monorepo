@@ -1,5 +1,5 @@
 
-use kiroshi_app::agent::commands::{check, terminate_session, ENV_UNREADABLE};
+use kiroshi_app::agent::commands::{account, check, terminate_session, ENV_UNREADABLE};
 use kiroshi_app::agent::contract::{Account, CheckReport, ConnectionState, TransportError};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
@@ -23,17 +23,38 @@ fn not_a_sidecar() -> &'static str {
 }
 
 #[test]
-fn a_signed_in_install_reports_the_account_the_sidecar_named() {
+fn a_signed_in_check_crosses_no_identity() {
 	let _serial = serial();
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
 
 	let state = AgentState::default();
 	runtime().block_on(async {
 		let report = check(&state, None).await;
+		let crossed = serde_json::to_string(&report).expect("the report serializes");
 
 		assert_eq!(report.connection, ConnectionState::Ready);
+		assert!(report.authenticated);
+		assert!(!crossed.contains('@'), "an email reached the check report: {crossed}");
+		assert!(!crossed.contains("account"), "an account reached the check report: {crossed}");
+
+		terminate_session(&state).await;
+	});
+
+	std::env::remove_var(SIDECAR_OVERRIDE_ENV);
+}
+
+#[test]
+fn a_signed_in_account_read_names_the_account_the_sidecar_named() {
+	let _serial = serial();
+	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
+
+	let state = AgentState::default();
+	runtime().block_on(async {
+		let read = account(&state, None).await;
+
+		assert_eq!(read.report, check(&state, None).await);
 		assert_eq!(
-			report.account,
+			read.account,
 			Some(Account {
 				email: Some("bean@example.test".to_owned()),
 				plan: Some("max".to_owned()),
@@ -47,18 +68,20 @@ fn a_signed_in_install_reports_the_account_the_sidecar_named() {
 }
 
 #[test]
-fn a_report_naming_no_account_carries_no_account_field_at_all() {
+fn an_account_read_naming_no_account_crosses_a_null_account() {
 	let _serial = serial();
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
 	std::env::set_var("FAKE_AGENT_SIGNED_OUT", "1");
 
 	let state = AgentState::default();
 	runtime().block_on(async {
-		let report = check(&state, None).await;
-		let crossed = serde_json::to_value(&report).expect("the report serializes");
+		let read = account(&state, None).await;
+		let crossed = serde_json::to_value(&read).expect("the account read serializes");
 
-		assert_eq!(report.account, None);
-		assert!(crossed.get("account").is_none(), "an absent account crossed as a field");
+		assert_eq!(read.account, None);
+		assert_eq!(read.report.error, Some(TransportError::NotAuthenticated));
+		assert_eq!(crossed.get("account"), Some(&serde_json::Value::Null));
+		assert_eq!(crossed.get("authenticated"), Some(&serde_json::Value::Bool(false)));
 
 		terminate_session(&state).await;
 	});

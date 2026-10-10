@@ -10,6 +10,7 @@ import type {
 import type { HostOffline } from "@/lib/host/host-offline"
 
 export type {
+	AccountReport_Serialize as AccountReport,
 	AgentCommand_Serialize as AgentCommand,
 	CheckReport_Serialize as CheckReport,
 	ConnectionState,
