@@ -127,7 +127,7 @@ Only **technical composition** — it places things, it does not draw them:
 |-----------|------|---------|-------|
 | `app` | `apps/app` | Desktop application — technical composition only | Tauri + React + Vite |
 | `@workspace/ui` | `packages/ui` | Every desktop visual: components, foundations, tokens | React + Storybook + Tailwind + Base UI |
-| `ios` | `apps/ios` | Native iPhone app, owned by Yon | Swift 6 + SwiftUI + XcodeGen |
+| — | `apps/ios` | Native iPhone app, owned by Yon | Swift 6 + SwiftUI + XcodeGen |
 
 ## Stack
 
