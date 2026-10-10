@@ -850,15 +850,10 @@ export const RestsWithoutABand = meta.story({
 		await atLiveEdge(viewport)
 
 		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
-		await waitFor(() => expect(canvas.getByText("Working")).toBeInTheDocument())
-		await waitFor(() => expect(canvas.queryByText("Working")).toBeNull(), {
-			timeout: 5000,
-		})
+		const answer = await canvas.findByText(SHORT_ANSWER_WORDS.join(" "))
+		expect(canvas.queryByText("Working")).toBeNull()
 
-		await expectRestingPadding(
-			viewport,
-			canvas.getByText(SHORT_ANSWER_WORDS.join(" ")),
-		)
+		await expectRestingPadding(viewport, answer)
 	},
 })
 
@@ -881,15 +876,10 @@ export const ConversationRestsWithoutABand = meta.story({
 		await atLiveEdge(viewport)
 
 		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
-		await waitFor(() => expect(canvas.getByText("Working")).toBeInTheDocument())
-		await waitFor(() => expect(canvas.queryByText("Working")).toBeNull(), {
-			timeout: 5000,
-		})
+		const answer = await canvas.findByText(SHORT_ANSWER_WORDS.join(" "))
+		expect(canvas.queryByText("Working")).toBeNull()
 
-		await expectRestingPadding(
-			viewport,
-			canvas.getByText(SHORT_ANSWER_WORDS.join(" ")),
-		)
+		await expectRestingPadding(viewport, answer)
 	},
 })
 
@@ -912,12 +902,8 @@ export const RestsAfterAResize = meta.story({
 		await atLiveEdge(viewport)
 
 		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
-		await waitFor(() => expect(canvas.getByText("Working")).toBeInTheDocument())
-		await waitFor(() => expect(canvas.queryByText("Working")).toBeNull(), {
-			timeout: 5000,
-		})
-
-		const answer = canvas.getByText(SHORT_ANSWER_WORDS.join(" "))
+		const answer = await canvas.findByText(SHORT_ANSWER_WORDS.join(" "))
+		expect(canvas.queryByText("Working")).toBeNull()
 		await expectRestingPadding(viewport, answer)
 
 		await userEvent.click(canvas.getByRole("button", { name: "Resize frame" }))
