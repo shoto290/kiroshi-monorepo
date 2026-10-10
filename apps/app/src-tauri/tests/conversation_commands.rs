@@ -3425,14 +3425,13 @@ fn a_question_line_the_host_wrote_answers_its_seq_and_refuses_every_front_write(
 
 	let deadline = std::time::Instant::now() + Duration::from_secs(10);
 	let stored = loop {
-		if let Some(stored) = a_question_row(&app) {
+		if let Some(stored) = a_question_row(&app).filter(|(_, _, _, state)| state == "complete") {
 			break stored;
 		}
-		assert!(std::time::Instant::now() < deadline, "the host never wrote the question line");
+		assert!(std::time::Instant::now() < deadline, "the host never settled the question line");
 		std::thread::sleep(Duration::from_millis(20));
 	};
-	let (id, seq, content, state) = stored.clone();
-	assert_eq!(state, "complete");
+	let (id, seq, content, _) = stored.clone();
 
 	let opened = call(
 		&window,
