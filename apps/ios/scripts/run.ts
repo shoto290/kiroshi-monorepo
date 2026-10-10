@@ -21,9 +21,10 @@ const fail = (step: string, reason: string, exitCode = 1): never => {
 
 const run = (step: string, command: string[]) => {
 	console.log(`\n▶ ${step}`)
-	const { exitCode } = Bun.spawnSync(command, {
-		stdio: ["inherit", "inherit", "inherit"],
-	})
+	const exitCode =
+		Bun.spawnSync(command, {
+			stdio: ["inherit", "inherit", "inherit"],
+		}).exitCode ?? 1
 	if (exitCode !== 0) {
 		fail(
 			step,
