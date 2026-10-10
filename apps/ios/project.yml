@@ -20,7 +20,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
     scheme:
-      testTargets: [KiroshiTests]
+      testTargets: [KiroshiTests, KiroshiUITests]
   KiroshiTests:
     type: bundle.unit-test
     platform: iOS
@@ -31,3 +31,14 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kiroshi.app.ios.tests
         GENERATE_INFOPLIST_FILE: YES
+  KiroshiUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [KiroshiUITests]
+    dependencies:
+      - target: Kiroshi
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kiroshi.app.ios.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Kiroshi
