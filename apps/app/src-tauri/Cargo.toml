@@ -140,3 +140,6 @@ tauri = { version = "2", features = ["test"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 tokio = { version = "1", features = ["macros", "process", "io-util", "sync", "time", "rt-multi-thread"] }
 libc = "0.2"
+# Already in the tree through tauri-specta; named so the member socket schema applies the
+# same serde rewrites bindings.ts gets.
+specta-serde = "=0.0.12"

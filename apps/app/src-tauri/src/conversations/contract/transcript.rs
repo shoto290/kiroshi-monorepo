@@ -184,7 +184,7 @@ pub struct CompanionArrival {
 
 pub const COMPANION_SPOKE_EVENT: &str = "conversation://companion-spoke";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionSpoke {
 	pub conversation_id: String,

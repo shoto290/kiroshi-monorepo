@@ -39,7 +39,7 @@ const ACKNOWLEDGE: &str = "end the turn you are answering in with a single line 
 const UNHEARD: &str = "no agent reaches this mission, it moves only on the lines, the escalations \
 	and the closing its bot writes";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MissionChanged {
 	pub mission_id: String,
