@@ -152,9 +152,7 @@
         static let picture: String = {
             let side = CGSize(width: 192, height: 192)
             let png = UIGraphicsImageRenderer(size: side).pngData { context in
-                let colours = ["bot-blot-orange", "bot-blot-pink"].compactMap {
-                    UIColor(named: $0)?.cgColor
-                }
+                let colours = [UIColor.kiroshi(.primary), .kiroshi(.ring)].map(\.cgColor)
                 if let gradient = CGGradient(
                     colorsSpace: nil, colors: colours as CFArray, locations: nil)
                 {
@@ -163,7 +161,7 @@
                         options: [])
                 }
                 let figure = UIImage(systemName: "person.fill")?.withTintColor(
-                    UIColor(named: "foreground") ?? .label)
+                    .kiroshi(.primaryForeground))
                 figure?.draw(in: CGRect(x: 48, y: 52, width: 96, height: 92))
             }
             return #"{"contentType":"image/png","base64":"\#(png.base64EncodedString())"}"#
