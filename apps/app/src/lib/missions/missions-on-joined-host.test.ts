@@ -350,6 +350,75 @@ describe("missions read on a joined host", () => {
 		)
 	})
 
+	const marksOnGarage = async () => {
+		await joinGarage()
+		const rendered = renderHook(() => useMissionMarks("space-on-host"))
+		await waitFor(() =>
+			expect(rendered.result.current.map(({ mission }) => mission.id)).toEqual([
+				HOST_MISSION.id,
+			]),
+		)
+		const reopened = missionOf("m-reopened", "Ship the parser")
+		wire.hostAnswer = answering({
+			mission_space_feed: [
+				{
+					mission: reopened,
+					conversationId: "c-1",
+					conversationTitle: "Parser",
+				},
+			] satisfies MissionInSpace[],
+		})
+		return { ...rendered, reopened }
+	}
+
+	const markIdsOf = (marks: { mission: Mission }[]) =>
+		marks.map(({ mission }) => mission.id)
+
+	it("reads the conversation-row marks again when the relay of the joined Space reopens", async () => {
+		const { result, reopened } = await marksOnGarage()
+
+		await reopenRelay("garage")
+
+		await waitFor(() =>
+			expect(markIdsOf(result.current)).toEqual([reopened.id]),
+		)
+	})
+
+	it("reads no marks when the relay of another Space reopens", async () => {
+		const { result } = await marksOnGarage()
+		const before = readsOf("mission_space_feed")
+
+		await reopenRelay("attic")
+		await settled()
+
+		expect(readsOf("mission_space_feed")).toBe(before)
+		expect(markIdsOf(result.current)).toEqual([HOST_MISSION.id])
+	})
+
+	it.each([
+		["socket", "relay"],
+		["relay", "socket"],
+	])(
+		"reads the marks once when the %s reopens before the %s",
+		async (first) => {
+			const { result, reopened } = await marksOnGarage()
+			const before = readsOf("mission_space_feed")
+
+			dropLastSocket()
+			if (first === "relay") {
+				await reopenRelay("garage")
+				await openLastSocket()
+			} else {
+				await openLastSocket()
+				await reopenRelay("garage")
+			}
+			await settled()
+
+			expect(readsOf("mission_space_feed")).toBe(before + 1)
+			expect(markIdsOf(result.current)).toEqual([reopened.id])
+		},
+	)
+
 	it("reads the Activity panel again when the relay of the joined Space reopens", async () => {
 		const { result } = await activityPanelOnGarage()
 		const reopened = missionOf("m-reopened", "Ship the parser")
