@@ -8,7 +8,7 @@ final class MissionsStore {
         didSet { sections = MissionSection.sections(of: entries) }
     }
     private(set) var sections: [MissionSection] = []
-    private(set) var companionNames: [String: String] = [:]
+    private(set) var companions: [String: MissionCompanion] = [:]
     private(set) var hasLoaded = false
     private(set) var hasFailed = false
 
@@ -21,15 +21,15 @@ final class MissionsStore {
         self.now = now
     }
 
-    func companionName(of mission: Mission) -> String? {
-        companionNames[mission.botId]
+    func companion(of mission: Mission) -> MissionCompanion? {
+        companions[mission.botId]
     }
 
     func follow(_ connection: RelayConnection) async {
         if instanceId != connection.instanceId {
             instanceId = connection.instanceId
             entries = []
-            companionNames = [:]
+            companions = [:]
             hasLoaded = false
         }
         hasFailed = false
@@ -77,8 +77,8 @@ final class MissionsStore {
     private func reread(_ spaceIds: AsyncStream<String>, through relay: MissionsRelay) async {
         for await spaceId in spaceIds {
             if let companions = try? await relay.companions(spaceId: spaceId) {
-                companionNames = Dictionary(
-                    companions.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+                self.companions = Dictionary(
+                    companions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             }
             let closedSince = Int(now().timeIntervalSince1970 * 1000)
             do {
