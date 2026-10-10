@@ -78,7 +78,7 @@ final class SpaceStore {
         case .spaces(let fresh):
             spaces = fresh
             if currentSpace == nil, let first = fresh.first {
-                currentSpaceId = first.id
+                select(first.id)
             }
         case .unauthenticated:
             exit(.signedOut)

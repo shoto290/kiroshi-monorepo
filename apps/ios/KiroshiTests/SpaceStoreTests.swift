@@ -125,6 +125,17 @@ struct SpaceStoreTests {
         following.cancel()
     }
 
+    @Test func aSpaceGoneFromTheRefreshMovesToTheFirstAndRemembersIt() async {
+        await http.answer(CloudFixture.spacesPath, with: CloudFixture.threeSpaces)
+        let store = makeStore(lastSpace: lastSpace)
+        store.select("home-lab")
+
+        await store.refreshSpaces()
+
+        #expect(store.currentSpaceId == CloudFixture.studioId)
+        #expect(lastSpace.saved == CloudFixture.studioId)
+    }
+
     @Test func refreshingReadsEveryHostPresence() async {
         await http.answer(CloudFixture.spacesPath, with: CloudFixture.threeSpaces)
         let store = makeStore()
