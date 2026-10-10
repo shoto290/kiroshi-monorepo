@@ -86,20 +86,21 @@ mod tests {
 	use std::sync::mpsc::{channel, Receiver};
 
 	use serde_json::{json, Value};
-	use tauri::test::{mock_app, MockRuntime};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::{App, Listener, Manager};
 
 	use super::*;
 	use crate::account::session::AccountSession;
 	use crate::db::connection::temp_dir;
 	use crate::db::repositories::joined_spaces::{self, JoinedReach};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const API_URL: &str = "http://127.0.0.1:9";
 
 	const INSTANCE: &str = "instance-1";
 
-	fn app_over(dir: &Path) -> App<MockRuntime> {
-		let app = mock_app();
+	fn app_over(dir: &Path) -> AppOfItsOwn {
+		let app = an_app_of_its_own("joined-spaces", mock_builder());
 		app.manage::<db::DatabaseState>(Ok(db::open(dir)));
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(dir.join("account")), API_URL));
 		app.manage(RelayGuests::new(API_URL));

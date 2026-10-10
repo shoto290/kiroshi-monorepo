@@ -1,3 +1,5 @@
+mod common;
+
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -8,14 +10,15 @@ use axum::extract::State;
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use axum::Router;
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::account::session::AccountSession;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::environment::contract::{EnvError, EnvScope, ACCOUNT_BEARER};
 use kiroshi_app::environment::store;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, WebviewWindow, WebviewWindowBuilder};
+use tauri::{WebviewWindow, WebviewWindowBuilder};
 use tokio::net::TcpListener;
 
 const BEARER: &str = "integration-bearer";
@@ -71,7 +74,7 @@ async fn closed_port() -> String {
 }
 
 struct Host {
-	_app: App<MockRuntime>,
+	_app: AppOfItsOwn,
 	window: WebviewWindow<MockRuntime>,
 	root: PathBuf,
 }
@@ -95,12 +98,13 @@ impl Host {
 	}
 
 	fn holding(root: Result<PathBuf, EnvError>, api_url: &str) -> Self {
-		let app = mock_builder()
-			.invoke_handler(invoke_handler())
-			.manage(AccountSession::new(root.clone(), api_url))
-			.build(mock_context(noop_assets()))
-			.expect("app builds");
-		let window = WebviewWindowBuilder::new(&app, "main", Default::default())
+		let app = an_app_of_its_own(
+			"account",
+			mock_builder()
+				.invoke_handler(invoke_handler())
+				.manage(AccountSession::new(root.clone(), api_url)),
+		);
+		let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
 			.build()
 			.expect("window builds");
 		Self { _app: app, window, root: root.unwrap_or_default() }

@@ -173,13 +173,12 @@ fn text(held: &Map<String, Value>, name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use std::fs;
 	use std::net::SocketAddr;
 	use std::sync::atomic::{AtomicI64, Ordering};
 	use std::sync::mpsc::{channel, Receiver};
 	use std::sync::Arc;
 
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::test::{mock_builder, MockRuntime};
 	use tauri::{App, Listener as _};
 	use tokio::io::{AsyncReadExt, AsyncWriteExt};
 	use tokio::net::TcpStream;
@@ -193,6 +192,7 @@ mod tests {
 	use crate::routines::rate_limit::{CALLS_PER_WINDOW, WINDOW_MS};
 	use crate::routines::runner::Runner;
 	use crate::routines::webhook::{started, Webhook, DELIVERY_ID_HEADER, HEADER};
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const NOON: i64 = 1_800_000_000_000;
 
@@ -229,12 +229,8 @@ mod tests {
 		}
 	}
 
-	async fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.mission-call-{name}-{}", std::process::id());
-		let app = mock_builder().build(context).expect("the app builds");
-		cleaned(&app);
+	async fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("mission-call-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		{
 			let state = app.state::<db::DatabaseState>();
@@ -245,12 +241,6 @@ mod tests {
 				.expect("the participant is planted");
 		}
 		app
-	}
-
-	fn cleaned(app: &App<MockRuntime>) {
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
 	}
 
 	async fn an_armed_mission(app: &App<MockRuntime>, key: &str) -> Mission {
@@ -383,7 +373,6 @@ mod tests {
 		);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	fn heard(app: &App<MockRuntime>) -> Receiver<String> {
@@ -437,7 +426,6 @@ mod tests {
 		);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -460,7 +448,6 @@ mod tests {
 		assert!(announced(&received).is_empty(), "a refused call told the front");
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	async fn kinds_of(app: &App<MockRuntime>, mission_id: &str) -> Vec<MissionEventKind> {
@@ -514,7 +501,6 @@ mod tests {
 		);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -534,7 +520,6 @@ mod tests {
 		);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -568,7 +553,6 @@ mod tests {
 		assert_eq!(state_of(&app, &mission.id).await, stood);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -587,7 +571,6 @@ mod tests {
 		);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -606,7 +589,6 @@ mod tests {
 		assert!(hook_events_of(&app, &mission.id).await.is_empty());
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -622,7 +604,6 @@ mod tests {
 		assert!(hook_events_of(&app, &mission.id).await.is_empty());
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -643,7 +624,6 @@ mod tests {
 		assert_eq!(hook_events_of(&app, &mission.id).await.len(), 2);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -672,7 +652,6 @@ mod tests {
 		assert_eq!(hook_events_of(&app, &mission.id).await.len(), CALLS_PER_WINDOW + 1);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	fn a_tool_body(tool: &str, target: &str) -> String {
@@ -722,7 +701,6 @@ mod tests {
 		assert_eq!(announced[0]["isAgentRunning"], json!(true));
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -745,7 +723,6 @@ mod tests {
 		assert_eq!(state_of(&app, &mission.id).await, stood, "a nameless tool call moved it");
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -773,7 +750,6 @@ mod tests {
 		assert_eq!((written.last_activity_at, written.last_activity), (None, None));
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -804,7 +780,6 @@ mod tests {
 		);
 
 		webhook.stop();
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -825,6 +800,5 @@ mod tests {
 		assert!(hook_events_of(&app, &mission.id).await.is_empty());
 
 		webhook.stop();
-		cleaned(&app);
 	}
 }

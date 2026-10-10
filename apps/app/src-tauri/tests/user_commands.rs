@@ -1,7 +1,9 @@
 
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+mod common;
 
+use std::path::{Path, PathBuf};
+
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use serde_json::{json, Value};
@@ -11,33 +13,17 @@ use tauri::{App, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const BOT: &str = "default";
 
-struct Home {
-	identifier: String,
-	dir: PathBuf,
-}
+struct Home(AppOfItsOwn);
 
 impl Home {
 	fn new() -> Self {
-		static CLAIMED: AtomicUsize = AtomicUsize::new(0);
-		let identifier = format!(
-			"com.kiroshi.user-commands-{}-{}",
-			std::process::id(),
-			CLAIMED.fetch_add(1, Ordering::Relaxed)
-		);
-		let dir = host(&identifier).path().app_data_dir().expect("data dir");
-		Self { identifier, dir }
+		Self(an_app_of_its_own("user-commands", mock_builder()))
 	}
 
 	fn app(&self) -> App<MockRuntime> {
-		let app = host(&self.identifier);
+		let app = host(&self.0.config().identifier);
 		app.manage(db::bootstrap(app.handle()));
 		app
-	}
-}
-
-impl Drop for Home {
-	fn drop(&mut self) {
-		let _ = std::fs::remove_dir_all(&self.dir);
 	}
 }
 
@@ -47,12 +33,13 @@ fn host(identifier: &str) -> App<MockRuntime> {
 	mock_builder().invoke_handler(invoke_handler()).build(context).expect("app builds")
 }
 
-fn app_without_a_database() -> App<MockRuntime> {
-	mock_builder()
-		.invoke_handler(invoke_handler())
-		.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
-		.build(mock_context(noop_assets()))
-		.expect("app builds")
+fn app_without_a_database() -> AppOfItsOwn {
+	an_app_of_its_own(
+		"user-commands-no-database",
+		mock_builder()
+			.invoke_handler(invoke_handler())
+			.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir)),
+	)
 }
 
 fn window(app: &App<MockRuntime>) -> WebviewWindow<MockRuntime> {

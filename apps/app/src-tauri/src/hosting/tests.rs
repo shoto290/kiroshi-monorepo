@@ -1,7 +1,5 @@
 use std::collections::HashSet;
-use std::io::ErrorKind;
 use std::net::Ipv4Addr;
-use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -14,9 +12,9 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::Router;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
@@ -65,6 +63,7 @@ use crate::joined_spaces::contract::JoinedSpaceConnection;
 use crate::joined_spaces::relay::RelayGuests;
 use crate::mcp_oauth::credentials;
 use crate::routines::webhook::{self, Webhook};
+use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 const BEARER: &str = "bearer-that-never-leaves";
 const LOCAL_TOKEN: &str = "host-token-of-the-loopback";
@@ -301,37 +300,6 @@ struct Harness {
 	heard_members: Arc<Mutex<Vec<Value>>>,
 }
 
-struct AppOfItsOwn(App<MockRuntime>);
-
-impl Deref for AppOfItsOwn {
-	type Target = App<MockRuntime>;
-
-	fn deref(&self) -> &Self::Target {
-		&self.0
-	}
-}
-
-impl Drop for AppOfItsOwn {
-	fn drop(&mut self) {
-		let Ok(dir) = self.0.path().app_data_dir() else {
-			return;
-		};
-		match std::fs::remove_dir_all(&dir) {
-			Err(failure) if failure.kind() != ErrorKind::NotFound => {
-				eprintln!("the test data dir was not removed: {failure}");
-			}
-			_ => {}
-		}
-	}
-}
-
-fn an_app_of_its_own(name: &str) -> AppOfItsOwn {
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier =
-		format!("com.kiroshi.hosting-{name}-{}", uuid::Uuid::new_v4());
-	AppOfItsOwn(mock_builder().build(context).expect("the app builds"))
-}
-
 impl Harness {
 	async fn new(name: &str, refusal: Option<StatusCode>, bearer: Option<&str>) -> Self {
 		Self::polling_members(name, refusal, bearer, super::members::MEMBERS_EVERY).await
@@ -415,7 +383,7 @@ impl Harness {
 			store::set(&root, &EnvScope::Account, ACCOUNT_BEARER, bearer)
 				.expect("the bearer is kept");
 		}
-		let app = an_app_of_its_own(name);
+		let app = an_app_of_its_own(&format!("hosting-{name}"), mock_builder());
 		app.manage::<DatabaseState>(Ok(db::open(&database)));
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
 		app.manage(RelayGuests::new(&cloud));
@@ -1596,7 +1564,7 @@ fn an_unreachable_cloud_is_unreachable_with_its_cause() {
 			std::env::temp_dir().join(format!("kiroshi-hosting-down-{}", uuid::Uuid::new_v4()));
 		store::set(&root, &EnvScope::Account, ACCOUNT_BEARER, BEARER).expect("the bearer is kept");
 		let cloud = format!("http://{address}");
-		let app = an_app_of_its_own("down");
+		let app = an_app_of_its_own("hosting-down", mock_builder());
 		app.manage::<DatabaseState>(Ok(db::open(&temp_dir())));
 		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
 		app.manage(Hosting::new(&cloud, None));
@@ -2799,7 +2767,7 @@ fn guest_sender() -> Value {
 }
 
 struct Authoring {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	window: WebviewWindow<MockRuntime>,
 	local: LocalApi,
 	conversation_id: String,
@@ -2808,13 +2776,10 @@ struct Authoring {
 impl Authoring {
 	async fn new(bearer: Option<&str>) -> Self {
 		let cloud = served(Router::new().route("/me", get(me))).await;
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.hosting-authorship-{}", uuid::Uuid::new_v4());
-		let app = mock_builder()
-			.invoke_handler(crate::commands::invoke_handler())
-			.build(context)
-			.expect("the app builds");
+		let app = an_app_of_its_own(
+			"hosting-authorship",
+			mock_builder().invoke_handler(crate::commands::invoke_handler()),
+		);
 		app.manage(db::bootstrap(app.handle()));
 		let root = std::env::temp_dir()
 			.join(format!("kiroshi-hosting-authorship-{}", uuid::Uuid::new_v4()));
@@ -2834,7 +2799,7 @@ impl Authoring {
 				email: GUEST_EMAIL.to_owned(),
 				status: MemberStatus::Joined,
 			}]);
-		let window = WebviewWindowBuilder::new(&app, "main", Default::default())
+		let window = WebviewWindowBuilder::new(app.handle(), "main", Default::default())
 			.build()
 			.expect("the window builds");
 		let mut preferences = direct(&window, "user_preferences", json!({}));
@@ -2945,11 +2910,6 @@ impl Authoring {
 impl Drop for Authoring {
 	fn drop(&mut self) {
 		self.app.state::<Webhook>().stop();
-		if let Ok(dir) = self.app.path().app_data_dir() {
-			if let Err(failure) = std::fs::remove_dir_all(&dir) {
-				eprintln!("the test data dir was not removed: {failure}");
-			}
-		}
 	}
 }
 

@@ -1,6 +1,9 @@
+mod common;
+
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::commands::terminate_session;
 use kiroshi_app::agent::contract::SignInError;
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
@@ -9,7 +12,7 @@ use kiroshi_app::agent::sign_in::{
 };
 use kiroshi_app::agent::AgentState;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+use tauri::test::{mock_builder, MockRuntime};
 use tauri::{App, Listener, Manager};
 use tokio::sync::mpsc;
 use tokio::time::timeout;
@@ -54,12 +57,11 @@ impl Drop for ScopedEnv {
 	}
 }
 
-fn an_app() -> App<MockRuntime> {
-	mock_builder()
-		.manage(AgentState::default())
-		.manage(SignInState::default())
-		.build(mock_context(noop_assets()))
-		.expect("the app builds")
+fn an_app() -> AppOfItsOwn {
+	an_app_of_its_own(
+		"sign-in",
+		mock_builder().manage(AgentState::default()).manage(SignInState::default()),
+	)
 }
 
 fn started_urls(app: &App<MockRuntime>) -> mpsc::UnboundedReceiver<Value> {

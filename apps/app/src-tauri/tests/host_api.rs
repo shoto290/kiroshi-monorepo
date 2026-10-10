@@ -1,10 +1,12 @@
+mod common;
+
 use std::io::ErrorKind;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::contract::TransportError;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
@@ -14,9 +16,9 @@ use kiroshi_app::host_api::events::SEND_PATIENCE;
 use kiroshi_app::host_api::invoke::MAX_BODY_BYTES;
 use kiroshi_app::routines::webhook::{self, Webhook};
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpSocket, TcpStream};
 use tokio::time::timeout;
@@ -36,28 +38,20 @@ const TRY_AGAIN_LATER: u16 = 1013;
 const CHANGED: &str = "mission://changed";
 
 struct Host {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	dir: PathBuf,
 }
 
 impl Host {
 	fn new() -> Self {
-		static CLAIMED: AtomicUsize = AtomicUsize::new(0);
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier = format!(
-			"com.kiroshi.host-api-{}-{}",
-			std::process::id(),
-			CLAIMED.fetch_add(1, Ordering::Relaxed)
-		);
-		let app =
-			mock_builder().invoke_handler(invoke_handler()).build(context).expect("app builds");
+		let app = an_app_of_its_own("host-api", mock_builder().invoke_handler(invoke_handler()));
 		let dir = app.path().app_data_dir().expect("data dir");
 		app.manage(db::bootstrap(app.handle()));
 		Self { app, dir }
 	}
 
 	fn window(&self) -> WebviewWindow<MockRuntime> {
-		WebviewWindowBuilder::new(&self.app, "main", Default::default())
+		WebviewWindowBuilder::new(self.app.handle(), "main", Default::default())
 			.build()
 			.expect("window builds")
 	}
@@ -96,12 +90,6 @@ impl Host {
 			told.send(heard.payload().to_owned()).expect("the test listens");
 		});
 		hearing
-	}
-}
-
-impl Drop for Host {
-	fn drop(&mut self) {
-		let _ = std::fs::remove_dir_all(&self.dir);
 	}
 }
 

@@ -242,13 +242,14 @@ mod tests {
 
 	use serde_json::json;
 	use std::sync::mpsc::channel;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::test::{mock_builder, MockRuntime};
 
 	use tauri::{App, Listener as _, Manager as _};
 
 	use super::super::commands::{mission_detail, mission_open as opened};
 	use super::super::contract::{MissionEvent, MissionState};
 	use super::*;
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const A_SPACE: &str = "
 		INSERT INTO bots (id, name, model, created_at)
@@ -263,14 +264,8 @@ mod tests {
 				('c2', 'b1', 'assistant', 1, 0);
 	";
 
-	async fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.mission-host-{name}-{}", std::process::id());
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	async fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("mission-host-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		ready(&app.state::<db::DatabaseState>())
 			.expect("the database opens")
@@ -278,12 +273,6 @@ mod tests {
 			.await
 			.expect("the space is planted");
 		app
-	}
-
-	fn cleaned(app: &App<MockRuntime>) {
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
 	}
 
 	fn serving(app: &App<MockRuntime>, conversation_id: &str) -> MissionHost<MockRuntime> {
@@ -444,8 +433,6 @@ mod tests {
 				),
 			]
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -481,8 +468,6 @@ mod tests {
 				MissionEventKind::Closed,
 			]
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -508,8 +493,6 @@ mod tests {
 			vec![MissionEventKind::Opened]
 		);
 		assert!(armed_missions(&app).await.is_empty());
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -535,8 +518,6 @@ mod tests {
 			vec![MissionEventKind::Opened]
 		);
 		assert!(armed_missions(&app).await.is_empty());
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -562,8 +543,6 @@ mod tests {
 		assert_eq!(row["state"], json!("working"));
 		assert!(row["openedAt"].is_number(), "got {row}");
 		assert_eq!(row["status"], Value::Null, "got {row}");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -589,7 +568,6 @@ mod tests {
 		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
 			webhook.stop();
 		}
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -614,7 +592,6 @@ mod tests {
 			webhook.stop();
 		}
 		fs::remove_dir_all(&workspace).expect("cleanup");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -634,8 +611,6 @@ mod tests {
 			opened["acknowledge"].as_str().is_some_and(|line| line.contains("single line")),
 			"got {opened}"
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -666,8 +641,6 @@ mod tests {
 			refused["detail"].as_str().is_some_and(|detail| detail.contains("botId")),
 			"got {refused}"
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -687,8 +660,6 @@ mod tests {
 		let mission = mission_detail(app.state(), id).await.expect("the mission reads").mission;
 		assert_eq!(mission.state, MissionState::Failed);
 		assert!(mission.closed_at.is_some(), "the failed close left the mission open");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -733,8 +704,6 @@ mod tests {
 				),
 			]
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -765,7 +734,5 @@ mod tests {
 			events(&app, &opened.id).await.into_iter().map(|event| event.kind).collect::<Vec<_>>(),
 			vec![MissionEventKind::Opened, MissionEventKind::Closed]
 		);
-
-		cleaned(&app);
 	}
 }

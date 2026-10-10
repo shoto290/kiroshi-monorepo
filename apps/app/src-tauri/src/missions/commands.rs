@@ -456,11 +456,12 @@ mod tests {
 	use std::sync::mpsc::channel;
 
 	use serde_json::json;
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
-	use tauri::{App, Listener as _, Manager as _};
+	use tauri::test::{mock_builder, MockRuntime};
+	use tauri::{App, Listener as _};
 
 	use super::super::contract::{MissionOutcome, Ticket};
 	use super::*;
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
 	const TWO_SPACES: &str = "
 		INSERT INTO spaces (id, name, colour, position, created_at)
@@ -476,14 +477,8 @@ mod tests {
 			VALUES ('c1', 'b1', 'lead', 1, 0), ('c2', 'b2', 'lead', 1, 0);
 	";
 
-	async fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.mission-commands-{name}-{}", std::process::id()).into();
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	async fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("mission-commands-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		ready(&app.state::<db::DatabaseState>())
 			.expect("the database opens")
@@ -529,12 +524,6 @@ mod tests {
 		}
 	}
 
-	fn cleaned(app: &App<MockRuntime>) {
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
-	}
-
 	#[tokio::test]
 	async fn the_board_holds_every_open_mission_of_every_space_with_its_bot_and_its_state() {
 		let app = a_host("board").await;
@@ -562,8 +551,6 @@ mod tests {
 			],
 			"the board lost an open mission, its bot or its state"
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -615,8 +602,6 @@ mod tests {
 			vec![open.id],
 			"the board stopped answering open missions only"
 		);
-
-		cleaned(&app);
 	}
 
 	async fn a_turn_in(app: &App<MockRuntime>, id: &str, conversation_id: &str) {
@@ -668,8 +653,6 @@ mod tests {
 		.await
 		.expect_err("the closed mission refuses an event");
 		assert_eq!(refused, MissionError::MissionAlreadyClosed { id: opened.id });
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -697,8 +680,6 @@ mod tests {
 			json!({ "outcome": "done", "summary": "The objective is settled" }),
 			"the done close lost its outcome or its summary"
 		);
-
-		cleaned(&app);
 	}
 
 	async fn an_agent_question(app: &App<MockRuntime>, mission_id: &str) -> Mission {
@@ -771,8 +752,6 @@ mod tests {
 			],
 			"the front was not told the mission waited, worked, then waited again"
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -804,8 +783,6 @@ mod tests {
 			"the stale answer moved the mission"
 		);
 		assert!(received.try_recv().is_err(), "the stale answer told the front the mission moved");
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -851,8 +828,6 @@ mod tests {
 			received.try_recv().is_err(),
 			"the answer of a closed mission told the front it moved"
 		);
-
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -892,8 +867,6 @@ mod tests {
 			],
 			"the front was not told which mission moved and where it stands"
 		);
-
-		cleaned(&app);
 	}
 
 	fn a_workspace(name: &str) -> std::path::PathBuf {
@@ -976,7 +949,6 @@ mod tests {
 			webhook.stop();
 		}
 		fs::remove_dir_all(&workspace).expect("cleanup");
-		cleaned(&app);
 	}
 
 	fn a_repository(name: &str) -> std::path::PathBuf {
@@ -1033,7 +1005,6 @@ mod tests {
 			webhook.stop();
 		}
 		fs::remove_dir_all(&workspace).expect("cleanup");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1058,7 +1029,6 @@ mod tests {
 		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
 			webhook.stop();
 		}
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1078,7 +1048,6 @@ mod tests {
 		assert!(!workspace.join(".claude").exists(), "a hook landed without an address");
 
 		fs::remove_dir_all(&workspace).expect("cleanup");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1102,7 +1071,6 @@ mod tests {
 			webhook.stop();
 		}
 		fs::remove_dir_all(&workspace).expect("cleanup");
-		cleaned(&app);
 	}
 
 	async fn read_first(app: &App<MockRuntime>, mission_id: &str) {
@@ -1141,7 +1109,6 @@ mod tests {
 			webhook.stop();
 		}
 		fs::remove_dir_all(&here).expect("cleanup");
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1191,7 +1158,6 @@ mod tests {
 		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
 			webhook.stop();
 		}
-		cleaned(&app);
 	}
 
 	#[tokio::test]
@@ -1211,7 +1177,5 @@ mod tests {
 		let board =
 			mission_board(app.handle().clone(), app.state()).await.expect("the board reads");
 		assert!(board.is_empty(), "got {board:?}");
-
-		cleaned(&app);
 	}
 }

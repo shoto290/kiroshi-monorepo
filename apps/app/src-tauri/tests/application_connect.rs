@@ -1,6 +1,9 @@
+mod common;
+
 use std::fs;
 use std::sync::Mutex;
 
+use common::an_app_of_its_own;
 use kiroshi_app::agent::commands::terminate_session;
 use kiroshi_app::agent::protocol::OauthCredentials;
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
@@ -14,7 +17,7 @@ use kiroshi_app::mcp_oauth::commands::{mcp_oauth_connect, McpOauthState};
 use kiroshi_app::mcp_oauth::contract::OauthError;
 use kiroshi_app::mcp_oauth::credentials;
 use kiroshi_app::mcp_oauth::reports::ApplicationReports;
-use tauri::test::{mock_builder, mock_context, noop_assets};
+use tauri::test::mock_builder;
 use tauri::Manager;
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
@@ -78,17 +81,13 @@ fn connected_holding(
 		Some(settles) => std::env::set_var(REGISTRATION_SETTLES, settles),
 		None => std::env::remove_var(REGISTRATION_SETTLES),
 	}
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier =
-		format!("com.kiroshi.application-connect-{case}-{}", std::process::id());
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.manage(McpOauthState::default())
-		.manage(ApplicationReports::default())
-		.build(context)
-		.expect("the app builds");
-	let data = app.path().app_data_dir().expect("the app data directory is named");
-	let _ = fs::remove_dir_all(&data);
+	let app = an_app_of_its_own(
+		&format!("application-connect-{case}"),
+		mock_builder()
+			.manage(AgentState::default())
+			.manage(McpOauthState::default())
+			.manage(ApplicationReports::default()),
+	);
 	let root = store::root(app.handle()).expect("the store root is named");
 	let owner = EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() };
 	let scope = EnvScope::Server { name: "granola".to_owned(), owner: owner.clone() };
@@ -106,7 +105,6 @@ fn connected_holding(
 	tauri::async_runtime::block_on(terminate_session(app.state::<AgentState>().inner()));
 	let flows = fs::read_to_string(&log).unwrap_or_default().lines().map(str::to_owned).collect();
 	let _ = fs::remove_file(&log);
-	let _ = fs::remove_dir_all(&data);
 	Connected { settled, kept, flows }
 }
 

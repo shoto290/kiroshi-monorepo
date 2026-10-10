@@ -1,10 +1,13 @@
 
+mod common;
+
+use common::an_app_of_its_own;
 use kiroshi_app::agent::commands::terminate_session;
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
 use tauri::{Manager, WebviewWindow, WebviewWindowBuilder};
 
@@ -40,11 +43,10 @@ fn the_catalogue_crosses_as_the_sidecar_offers_it() {
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
 	std::env::set_var("FAKE_AGENT_MODELS", OFFERED);
 
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.invoke_handler(invoke_handler())
-		.build(mock_context(noop_assets()))
-		.expect("app builds");
+	let app = an_app_of_its_own(
+		"model-catalogue",
+		mock_builder().manage(AgentState::default()).invoke_handler(invoke_handler()),
+	);
 	let window = window(&app);
 
 	let offered = call(&window, "agent_models").expect("the catalogue crosses");

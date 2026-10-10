@@ -259,20 +259,14 @@ fn report(routine_id: &str, failure: &RoutineError) {
 mod tests {
 	use std::fs;
 
-	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
-	use tauri::{App, Manager as _};
+	use tauri::test::mock_builder;
 
 	use super::*;
 	use crate::db::connection::temp_dir;
+	use crate::test_app::{an_app_of_its_own, AppOfItsOwn};
 
-	fn a_host(name: &str) -> App<MockRuntime> {
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier =
-			format!("com.kiroshi.sentinel-{name}-{}", std::process::id()).into();
-		let app = mock_builder().build(context).expect("the app builds");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
+	fn a_host(name: &str) -> AppOfItsOwn {
+		let app = an_app_of_its_own(&format!("sentinel-{name}"), mock_builder());
 		app.manage(db::bootstrap(app.handle()));
 		app
 	}
@@ -288,9 +282,6 @@ mod tests {
 		let ended = tokio::time::timeout(Duration::from_secs(5), task).await;
 
 		assert!(ended.is_ok(), "the task outlived its stop signal");
-		if let Ok(dir) = app.path().app_data_dir() {
-			let _ = fs::remove_dir_all(&dir);
-		}
 	}
 
 	#[test]

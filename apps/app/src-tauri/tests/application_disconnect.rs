@@ -1,5 +1,7 @@
-use std::fs;
+mod common;
 
+
+use common::an_app_of_its_own;
 use kiroshi_app::agent::commands::terminate_session;
 use kiroshi_app::agent::protocol::OauthCredentials;
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
@@ -10,7 +12,7 @@ use kiroshi_app::mcp_oauth::commands::{mcp_oauth_disconnect, McpOauthState};
 use kiroshi_app::mcp_oauth::contract::Disconnected;
 use kiroshi_app::mcp_oauth::credentials;
 use kiroshi_app::mcp_oauth::reports::ApplicationReports;
-use tauri::test::{mock_builder, mock_context, noop_assets};
+use tauri::test::mock_builder;
 use tauri::Manager;
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
@@ -31,17 +33,13 @@ fn a_space_grant() -> OauthCredentials {
 #[test]
 fn a_bot_disconnect_revokes_and_deletes_the_grant_its_space_holds() {
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier =
-		format!("com.kiroshi.application-disconnect-{}", std::process::id());
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.manage(McpOauthState::default())
-		.manage(ApplicationReports::default())
-		.build(context)
-		.expect("the app builds");
-	let data = app.path().app_data_dir().expect("the app data directory is named");
-	let _ = fs::remove_dir_all(&data);
+	let app = an_app_of_its_own(
+		"application-disconnect",
+		mock_builder()
+			.manage(AgentState::default())
+			.manage(McpOauthState::default())
+			.manage(ApplicationReports::default()),
+	);
 	let root = store::root(app.handle()).expect("the store root is named");
 	let space = EnvScope::Server {
 		name: "granola".to_owned(),
@@ -58,7 +56,6 @@ fn a_bot_disconnect_revokes_and_deletes_the_grant_its_space_holds() {
 	let kept = store::values(&root, &space).expect("the space scope is readable");
 	tauri::async_runtime::block_on(terminate_session(app.state::<AgentState>().inner()));
 	std::env::remove_var(SIDECAR_OVERRIDE_ENV);
-	let _ = fs::remove_dir_all(&data);
 
 	assert_eq!(settled, Ok(Disconnected { revoked: true, detail: None }));
 	assert!(RESERVED_NAMES.iter().all(|name| !kept.contains_key(*name)));
@@ -66,17 +63,13 @@ fn a_bot_disconnect_revokes_and_deletes_the_grant_its_space_holds() {
 
 #[test]
 fn a_disconnect_of_a_scope_holding_a_client_and_no_token_deletes_every_reserved_name() {
-	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier =
-		format!("com.kiroshi.application-disconnect-client-{}", std::process::id());
-	let app = mock_builder()
-		.manage(AgentState::default())
-		.manage(McpOauthState::default())
-		.manage(ApplicationReports::default())
-		.build(context)
-		.expect("the app builds");
-	let data = app.path().app_data_dir().expect("the app data directory is named");
-	let _ = fs::remove_dir_all(&data);
+	let app = an_app_of_its_own(
+		"application-disconnect-client",
+		mock_builder()
+			.manage(AgentState::default())
+			.manage(McpOauthState::default())
+			.manage(ApplicationReports::default()),
+	);
 	let root = store::root(app.handle()).expect("the store root is named");
 	let space = EnvScope::Server {
 		name: "granola".to_owned(),
@@ -93,7 +86,6 @@ fn a_disconnect_of_a_scope_holding_a_client_and_no_token_deletes_every_reserved_
 		URL.to_owned(),
 	));
 	let kept = store::values(&root, &space).expect("the space scope is readable");
-	let _ = fs::remove_dir_all(&data);
 
 	assert!(settled.is_ok());
 	assert!(kept.is_empty());

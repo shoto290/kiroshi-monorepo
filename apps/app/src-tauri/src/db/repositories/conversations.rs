@@ -1478,6 +1478,7 @@ mod tests {
 			.create_bot(an_identity("Nyx"), Some(home.clone()), None)
 			.await
 			.expect("the bot");
+		tokio::time::sleep(std::time::Duration::from_millis(2)).await;
 		database
 			.spaces()
 			.add_bot(bot.id.clone(), joined.id.clone(), None)

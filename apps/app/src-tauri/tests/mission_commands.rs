@@ -1,7 +1,8 @@
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
+mod common;
+
 use std::sync::mpsc;
 
+use common::{an_app_of_its_own, AppOfItsOwn};
 use kiroshi_app::agent::host::Host;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
@@ -9,37 +10,22 @@ use kiroshi_app::missions::commands::CHANGED_EVENT;
 use kiroshi_app::missions::contract::{MissionDraft, Ticket};
 use kiroshi_app::missions::host::MissionHost;
 use serde_json::{json, Value};
-use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
+use tauri::test::{mock_builder, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
 use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const BOT: &str = "default";
 
 struct Home {
-	dir: PathBuf,
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 }
 
 impl Home {
 	fn new() -> Self {
-		static CLAIMED: AtomicUsize = AtomicUsize::new(0);
-		let mut context = mock_context(noop_assets());
-		context.config_mut().identifier = format!(
-			"com.kiroshi.mission-commands-{}-{}",
-			std::process::id(),
-			CLAIMED.fetch_add(1, Ordering::Relaxed)
-		);
 		let app =
-			mock_builder().invoke_handler(invoke_handler()).build(context).expect("app builds");
+			an_app_of_its_own("mission-commands", mock_builder().invoke_handler(invoke_handler()));
 		app.manage(db::bootstrap(app.handle()));
-		let dir = app.path().app_data_dir().expect("data dir");
-		Self { dir, app }
-	}
-}
-
-impl Drop for Home {
-	fn drop(&mut self) {
-		let _ = std::fs::remove_dir_all(&self.dir);
+		Self { app }
 	}
 }
 
