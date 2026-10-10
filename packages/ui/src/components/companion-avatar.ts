@@ -85,6 +85,7 @@ const TONE_OPACITIES: ToneOpacity[] = [
 	{ tone: 1, opacity: 1 },
 ]
 const RADIANS_PER_DEGREE = Math.PI / 180
+const CHANNEL_RESOLUTION = 1e6
 
 const BLOT_COLOURS: Record<BotAvatarBlot, string> = {
 	red: "#f4a98c",
@@ -122,6 +123,9 @@ const COMPANION_OUTLINE: AvatarOutline = {
 }
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
+
+const engineStable = (channel: number) =>
+	Math.round(channel * CHANNEL_RESOLUTION) / CHANNEL_RESOLUTION
 
 const fieldLattice = (seed: number) =>
 	Float32Array.from({ length: LATTICE * LATTICE }, seededRandom(seed))
@@ -236,7 +240,7 @@ const srgbOf = ({ lightness, a, b }: Oklab): Srgb => {
 	const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3
 	const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3
 	const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3
-	const gamma = (linear: number) => clamp01(toGamma(linear))
+	const gamma = (linear: number) => engineStable(clamp01(toGamma(linear)))
 	return {
 		red: gamma(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
 		green: gamma(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),

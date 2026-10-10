@@ -239,6 +239,7 @@
     { tone: 1, opacity: 1 }
   ];
   var RADIANS_PER_DEGREE = Math.PI / 180;
+  var CHANNEL_RESOLUTION = 1e6;
   var BLOT_COLOURS = {
     red: "#f4a98c",
     yellow: "#f2c879",
@@ -270,6 +271,7 @@
     path: roundedHexagonPath(OUTER)
   };
   var clamp01 = (value) => Math.min(1, Math.max(0, value));
+  var engineStable = (channel) => Math.round(channel * CHANNEL_RESOLUTION) / CHANNEL_RESOLUTION;
   var fieldLattice = (seed) => Float32Array.from({ length: LATTICE * LATTICE }, seededRandom(seed));
   var densityField = (seed, grid) => {
     const glyph = silhouetteCells(pickSilhouette(seed, COMPANION_SILHOUETTE_SPACE)).map(({ column, row }) => ({
@@ -346,7 +348,7 @@
     const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3;
     const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3;
     const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3;
-    const gamma = (linear) => clamp01(toGamma(linear));
+    const gamma = (linear) => engineStable(clamp01(toGamma(linear)));
     return {
       red: gamma(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
       green: gamma(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
