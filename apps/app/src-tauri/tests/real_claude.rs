@@ -146,6 +146,7 @@ impl LiveFolder {
 
 impl Drop for LiveFolder {
 	fn drop(&mut self) {
+		sidecar::sweep_live_groups();
 		for project in self.projects() {
 			removed(&project);
 		}
