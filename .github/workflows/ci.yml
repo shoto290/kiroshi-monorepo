@@ -35,6 +35,15 @@ jobs:
       - name: Types
         run: bun run types
 
+      - name: Regenerate the colour tokens
+        run: bun run tokens:build
+
+      - name: Colour CSS matches tokens.json
+        run: git diff --exit-code packages/ui/src/styles/tokens.css
+
+      - name: Colour asset catalogue matches tokens.json
+        run: git add --intent-to-add apps/ios/Kiroshi/Colors.xcassets && git diff --exit-code apps/ios/Kiroshi/Colors.xcassets
+
       - name: Build website
         run: bun run --filter=website build
 

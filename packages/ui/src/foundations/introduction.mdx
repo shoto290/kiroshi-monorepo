@@ -8,9 +8,10 @@ import { Meta } from "@storybook/addon-docs/blocks"
 
 ## Token pipeline
 
-All design decisions live in one CSS file:
+All design decisions live in two files:
 
-- `src/styles/globals.css` — semantic tokens on `:root`, dark overrides on `.dark`, plus the `@theme inline` block that maps them to Tailwind utilities.
+- `tokens.json`: every theme colour, a light value and an optional dark one. `bun run tokens:build` writes it to `src/styles/tokens.css` and to the iOS `Colors.xcassets`; never edit either by hand.
+- `src/styles/globals.css`: non-colour values on `:root` and `.dark`, plus the `@theme inline` block that maps the tokens to Tailwind utilities.
 
 Components never read a raw colour. They use Tailwind utilities backed by semantic tokens (`bg-background`, `text-muted-foreground`, `border-border`), so a theme swap needs no component change.
 
