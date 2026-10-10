@@ -404,6 +404,40 @@ struct ThreadStoreTests {
         await connection.stop()
     }
 
+    @Test func aReloadAfterAReconnectDropsTheToolsHeardBefore() async throws {
+        let reply = TestHost.message(
+            "r1", in: "chat-juniper", seq: 2, isYours: false, "Done.", at: 1_790_900_060_000)
+        let host = TestHost(messages: ["chat-juniper": [twoDays[0]]])
+        let store = makeStore()
+        let (connection, following) = await follow(host, store)
+        host.pushAgent("chat-juniper", #"{"type":"turnChanged","state":"running"}"#)
+        host.pushAgent(
+            "chat-juniper",
+            #"{"type":"activity","activity":{"id":"t1","title":"Read · a.md","kind":"tool","status":"succeeded"}}"#
+        )
+        host.pushAgent(
+            "chat-juniper",
+            #"{"type":"messageCompleted","message":{"id":"r1","role":"assistant","text":"Done.","completion":"complete","timestamp":1790900060000}}"#
+        )
+        host.pushAgent(
+            "chat-juniper", #"{"type":"turnEnded","ended":{"sessionId":null,"outcome":"success"}}"#)
+        await waitUntil { !store.isWorking && store.entries.count == 3 }
+        #expect(
+            texts(store) == ["you: Can you draft the notes?", "[The agent read 1 file]", "Done."])
+
+        host.socket.push(.close(RelayClosure.hostOffline))
+        await waitUntil { !store.isReachable }
+        await clock.wakeNextSleep(of: Backoff.first)
+        let back = TestHost(messages: ["chat-juniper": [twoDays[0], reply]])
+        await transport.nextOpening().accept(back.socket)
+        _ = await back.nextCall("conversation_message_page")
+        await waitUntil { store.isReachable && store.entries.count == 2 }
+
+        #expect(texts(store) == ["you: Can you draft the notes?", "Done."])
+        following.cancel()
+        await connection.stop()
+    }
+
     @Test func aTurnUnderwayAtLoadShowsStopOnceTheHostNamesItsScope() async {
         let unfinished =
             #"{"id":"m1","conversationId":"chat-juniper","turnId":"t","seq":1,"role":"assistant","content":"Draft","completion":"streaming","createdAt":1,"authorBotId":null,"authorAccountId":null,"authorName":null,"repliedToMessageId":null,"runtimeSessionId":"session-1"}"#

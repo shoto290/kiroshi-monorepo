@@ -139,6 +139,7 @@ final class ThreadStore {
 
     private func load(in spaceId: String, through relay: ConversationRelay) async {
         heardTurnWhileLoading = false
+        let shownBeforeLoad = Set(entries.map(\.id))
         do {
             let conversationId = try await relay.mainChat(of: companion.id, in: spaceId)
             guard !Task.isCancelled else { return }
@@ -146,7 +147,7 @@ final class ThreadStore {
             let messages = try await relay.latestMessages(
                 in: conversationId, limit: Self.pageSize)
             guard !Task.isCancelled else { return }
-            merge(messages)
+            merge(messages, droppingAnyOf: shownBeforeLoad)
             if !heardTurnWhileLoading {
                 isWorking = messages.last?.completion.isUnderway ?? false
             }
@@ -159,15 +160,18 @@ final class ThreadStore {
         }
     }
 
-    private func merge(_ messages: [TranscriptMessage]) {
+    private func merge(_ messages: [TranscriptMessage], droppingAnyOf shownBeforeLoad: Set<String>)
+    {
         let paged = messages.map { message in
             ThreadMessage(
                 id: message.id, isYours: message.role == .user, text: message.content,
                 sentAt: Date(milliseconds: message.createdAt))
         }
         let pagedIds = Set(paged.map(\.id))
-        let live = entries.filter { !pagedIds.contains($0.id) }
-        entries = paged.map(ThreadEntry.message) + live
+        let heardDuringLoad = entries.filter {
+            !pagedIds.contains($0.id) && !shownBeforeLoad.contains($0.id)
+        }
+        entries = paged.map(ThreadEntry.message) + heardDuringLoad
         markDays()
     }
 
