@@ -19,6 +19,7 @@ import {
 	replyTargetOfReference,
 	runPresentationsOf,
 	sidebarActivityFor,
+	type TranscriptRow,
 	toRuns,
 	toTranscriptRows,
 	workingStateFor,
@@ -332,7 +333,7 @@ describe("day changes in Tokyo", () => {
 	const TOKYO_MIDNIGHT = Date.UTC(2026, 9, 9, 15)
 	const A_MINUTE = 60_000
 
-	const daySeparatorsIn = (runs: ReturnType<typeof toRuns>) =>
+	const daySeparatorsIn = (runs: TranscriptRow[][]) =>
 		runs.filter((_, runIndex) => opensNewDay(runs, runIndex)).length
 
 	beforeAll(() => {
