@@ -375,13 +375,10 @@ export const createJoinedHosts = ({
 		return localIdsRecall
 	}
 
-	const unknownOwner = (active: string, args?: InvokeArgs) =>
-		provenance.namesConversation(args) && !hasLocalIds ? null : active
-
 	const ownerOf = (active: string, args?: InvokeArgs): ConversationSource => {
 		const sources = provenance.sourcesNamedIn(args)
 		if (sources.size === 0) {
-			return unknownOwner(active, args)
+			return provenance.namesConversation(args) && !hasLocalIds ? null : active
 		}
 		if (sources.has(active)) {
 			return active
