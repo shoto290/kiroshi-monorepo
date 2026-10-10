@@ -18,11 +18,13 @@ pub fn builder() -> Builder<tauri::Wry> {
 		.constant("HOSTING_MEMBERS_CHANGED_EVENT", hosting::contract::MEMBERS_CHANGED_EVENT)
 		.constant("INVITATION_CHANGED_EVENT", invitations::contract::CHANGED_EVENT)
 		.constant("JOINED_SPACE_REMOVED_EVENT", joined_spaces::commands::REMOVED_EVENT)
+		.constant("JOINED_SPACE_RECONNECTED_EVENT", joined_spaces::commands::RECONNECTED_EVENT)
 		.typ::<window_controls::MaximizeButtonPointer>()
 		.typ::<hosting::contract::HostingChanged>()
 		.typ::<hosting::contract::MembersChanged>()
 		.typ::<invitations::contract::InvitationsChanged>()
 		.typ::<joined_spaces::commands::JoinedSpaceRemoved>()
+		.typ::<joined_spaces::commands::JoinedSpaceReconnected>()
 		.typ::<agent::contract::EventTurn>()
 		.typ::<applications::contract::ApplicationInstalled>()
 }

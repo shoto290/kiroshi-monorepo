@@ -301,17 +301,16 @@ async fn recounted_once<R: Runtime>(
 	database: &db::Database,
 	armed: Mission,
 ) -> Mission {
-	match counted_in_its_checkout(database, &armed.id).await {
-		Ok(Some(written)) => {
-			checkout::told(app, &written);
-			written
-		}
+	let mission = match counted_in_its_checkout(database, &armed.id).await {
+		Ok(Some(written)) => written,
 		Ok(None) => armed,
 		Err(failure) => {
 			eprintln!("mission {} was armed and its checkout not counted: {failure:?}", armed.id);
 			armed
 		}
-	}
+	};
+	checkout::told(app, &mission);
+	mission
 }
 
 async fn counted_in_its_checkout(
@@ -1004,6 +1003,88 @@ mod tests {
 		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
 			webhook.stop();
 		}
+		fs::remove_dir_all(&workspace).expect("cleanup");
+	}
+
+	async fn an_open_mission(
+		name: &str,
+		workspace: Option<&std::path::Path>,
+	) -> (AppOfItsOwn, String) {
+		let app = a_host(name).await;
+		app.manage(crate::routines::webhook::start(app.handle().clone()));
+		let opened =
+			mission_open(app.handle().clone(), app.state(), drafted_in("Fix it", workspace))
+				.await
+				.expect("the mission opens");
+		(app, opened.mission.id)
+	}
+
+	async fn armed_and_announced(
+		app: &AppOfItsOwn,
+		mission_id: String,
+	) -> (MissionWatching, Vec<serde_json::Value>) {
+		let (sender, received) = channel();
+		app.handle().listen(CHANGED_EVENT, move |event| {
+			sender.send(event.payload().to_owned()).expect("the test hears the changes");
+		});
+
+		let armed = mission_watch(
+			app.handle().clone(),
+			app.state(),
+			mission_id,
+			a_watch("feature/ope-602"),
+		)
+		.await
+		.expect("the mission is armed");
+
+		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
+			webhook.stop();
+		}
+		let announced = received
+			.try_iter()
+			.map(|payload| serde_json::from_str(&payload).expect("the payload is JSON"))
+			.collect();
+		(armed, announced)
+	}
+
+	fn assert_announced_once(armed: &MissionWatching, announced: &[serde_json::Value]) {
+		assert_eq!(armed.mission.branch.as_deref(), Some("feature/ope-602"));
+		assert_eq!(
+			announced.iter().map(|change| change["missionId"].clone()).collect::<Vec<_>>(),
+			vec![json!(armed.mission.id)],
+			"arming did not announce the mission exactly once"
+		);
+	}
+
+	#[tokio::test]
+	async fn arming_a_mission_whose_checkout_is_gone_announces_it_once() {
+		let workspace = a_repository("gone-checkout");
+		let (app, mission_id) = an_open_mission("gone-checkout", Some(&workspace)).await;
+		fs::remove_dir_all(&workspace).expect("the checkout is deleted");
+
+		let (armed, announced) = armed_and_announced(&app, mission_id).await;
+
+		assert_announced_once(&armed, &announced);
+	}
+
+	#[tokio::test]
+	async fn arming_a_mission_opened_without_a_workspace_announces_it_once() {
+		let (app, mission_id) = an_open_mission("bare-watch", None).await;
+
+		let (armed, announced) = armed_and_announced(&app, mission_id).await;
+
+		assert_announced_once(&armed, &announced);
+	}
+
+	#[tokio::test]
+	async fn arming_a_mission_on_a_live_checkout_announces_it_once_with_its_counts() {
+		let workspace = a_repository("live-checkout");
+		let (app, mission_id) = an_open_mission("live-checkout", Some(&workspace)).await;
+
+		let (armed, announced) = armed_and_announced(&app, mission_id).await;
+
+		assert_announced_once(&armed, &announced);
+		assert_eq!((armed.mission.commits_ahead, armed.mission.dirty_files), (Some(1), Some(1)));
 		fs::remove_dir_all(&workspace).expect("cleanup");
 	}
 

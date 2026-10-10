@@ -342,6 +342,7 @@ pub(super) const AUDIENCES: &[(&str, Audience)] = &[
 	("hosting://members-changed", Audience::HostOnly),
 	("invitation://changed", Audience::HostOnly),
 	("joined-space://changed", Audience::HostOnly),
+	("joined-space://reconnected", Audience::HostOnly),
 	("joined-space://removed", Audience::HostOnly),
 	("mission://changed", Audience::Scoped(child(Mission, "/missionId"))),
 	("notification://activated", Audience::HostOnly),

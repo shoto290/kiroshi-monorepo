@@ -26,7 +26,7 @@ use crate::db::{self, DatabaseError, DatabaseState};
 use crate::environment::contract::{EnvScope, ACCOUNT_BEARER};
 use crate::environment::store;
 use crate::joined_spaces::commands::{
-	joined_space_connect, CHANGED_EVENT as JOINED_CHANGED, REMOVED_EVENT,
+	joined_space_connect, CHANGED_EVENT as JOINED_CHANGED, RECONNECTED_EVENT, REMOVED_EVENT,
 };
 use crate::joined_spaces::contract::{JoinedSpaceConnection, JoinedSpaceError};
 use crate::joined_spaces::relay::{reconciled, RelayGuests};
@@ -231,7 +231,7 @@ impl Harness {
 		app.manage(Invitations::new(&api_url).polling_every(every));
 		app.manage(RelayGuests::new(&api_url));
 		let heard = Arc::new(Mutex::new(Vec::new()));
-		for event in [CHANGED_EVENT, JOINED_CHANGED, REMOVED_EVENT] {
+		for event in [CHANGED_EVENT, JOINED_CHANGED, REMOVED_EVENT, RECONNECTED_EVENT] {
 			let hearing = Arc::clone(&heard);
 			app.listen(event, move |heard| {
 				let payload = heard.payload().to_owned();
@@ -657,6 +657,80 @@ fn a_live_relay_closed_4002_answers_503_reopens_and_keeps_the_entry() {
 		assert_eq!(answered.status(), StatusCode::OK);
 		assert_eq!(harness.stored().await.len(), 1);
 		assert!(harness.heard(REMOVED_EVENT).is_empty());
+	});
+}
+
+async fn offline_until_503(connection: &JoinedSpaceConnection) {
+	for _ in 0..100 {
+		if proxied(connection, "conversation_list").await.status()
+			== StatusCode::SERVICE_UNAVAILABLE
+		{
+			return;
+		}
+		tokio::time::sleep(Duration::from_millis(10)).await;
+	}
+	panic!("the proxy never answered 503 after the relay dropped");
+}
+
+#[test]
+fn every_open_of_the_member_relay_announces_one_reconnection_and_none_while_down() {
+	run(async {
+		let mut harness = Harness::new(Some(BEARER)).await;
+		let id = harness.accepted().await;
+		let (connection, mut member) = connected(&mut harness, &id).await;
+		assert_eq!(harness.heard_until(RECONNECTED_EVENT, 1).await, vec![json!({ "id": id })]);
+
+		*harness.cloud.member_delay.lock().expect("the cloud") = Duration::from_secs(1);
+		closed_with(&mut member, 4002).await;
+		offline_until_503(&connection).await;
+		assert_eq!(harness.heard(RECONNECTED_EVENT).len(), 1, "announced while down");
+		tokio::time::sleep(Duration::from_millis(1400)).await;
+		assert_eq!(harness.heard(RECONNECTED_EVENT).len(), 1, "announced while reconnecting");
+
+		let _reopened = harness.member().await;
+		harness.heard_until(RECONNECTED_EVENT, 2).await;
+		tokio::time::sleep(Duration::from_millis(200)).await;
+
+		assert_eq!(harness.heard(RECONNECTED_EVENT), vec![json!({ "id": id }); 2]);
+	});
+}
+
+#[test]
+fn a_row_the_host_wrote_while_the_link_was_down_answers_a_call_made_on_the_reconnection() {
+	run(async {
+		let mut harness = Harness::new(Some(BEARER)).await;
+		let (reconnected_in, mut reconnected) = mpsc::unbounded_channel();
+		harness.app.listen(RECONNECTED_EVENT, move |_| {
+			reconnected_in.send(()).expect("the test hears the reconnections");
+		});
+		let id = harness.accepted().await;
+		let (connection, mut member) = connected(&mut harness, &id).await;
+		reconnected.recv().await.expect("the first open is announced");
+
+		closed_with(&mut member, 4002).await;
+		offline_until_503(&connection).await;
+		let host_rows = json!([{ "id": "c1" }, { "id": "written-while-down" }]);
+
+		let reading = async {
+			tokio::time::timeout(PATIENCE, reconnected.recv())
+				.await
+				.expect("the reopen is announced in time")
+				.expect("the reopen is announced");
+			proxied(&connection, "conversation_list").await
+		};
+		let answering = async {
+			let mut reopened = harness.member().await;
+			let invoked = call(&mut reopened).await;
+			send(&mut reopened, json!({ "id": invoked["id"], "status": 200, "body": host_rows }))
+				.await;
+		};
+		let (answered, ()) = tokio::join!(reading, answering);
+
+		assert_eq!(answered.status(), StatusCode::OK);
+		assert_eq!(
+			answered.json::<Value>().await.expect("a json answer"),
+			json!([{ "id": "c1" }, { "id": "written-while-down" }])
+		);
 	});
 }
 
