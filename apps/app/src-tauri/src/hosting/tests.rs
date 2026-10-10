@@ -1,5 +1,7 @@
 use std::collections::HashSet;
+use std::io::ErrorKind;
 use std::net::Ipv4Addr;
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -292,18 +294,42 @@ async fn served(router: Router) -> String {
 }
 
 struct Harness {
-	app: App<MockRuntime>,
+	app: AppOfItsOwn,
 	relay: Relay,
 	sockets: mpsc::UnboundedReceiver<WebSocket>,
 	heard: Arc<Mutex<Vec<Value>>>,
 	heard_members: Arc<Mutex<Vec<Value>>>,
 }
 
-fn an_app_of_its_own(name: &str) -> App<MockRuntime> {
+struct AppOfItsOwn(App<MockRuntime>);
+
+impl Deref for AppOfItsOwn {
+	type Target = App<MockRuntime>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl Drop for AppOfItsOwn {
+	fn drop(&mut self) {
+		let Ok(dir) = self.0.path().app_data_dir() else {
+			return;
+		};
+		match std::fs::remove_dir_all(&dir) {
+			Err(failure) if failure.kind() != ErrorKind::NotFound => {
+				eprintln!("the test data dir was not removed: {failure}");
+			}
+			_ => {}
+		}
+	}
+}
+
+fn an_app_of_its_own(name: &str) -> AppOfItsOwn {
 	let mut context = mock_context(noop_assets());
 	context.config_mut().identifier =
 		format!("com.kiroshi.hosting-{name}-{}", uuid::Uuid::new_v4());
-	mock_builder().build(context).expect("the app builds")
+	AppOfItsOwn(mock_builder().build(context).expect("the app builds"))
 }
 
 impl Harness {
