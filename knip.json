@@ -3,6 +3,7 @@
 	"ignoreWorkspaces": ["apps/app/sidecar"],
 	"ignore": ["apps/app/src/lib/bindings.ts"],
 	"ignoreDependencies": ["babel-plugin-react-compiler"],
+	"ignoreBinaries": ["xcodegen"],
 	"workspaces": {
 		"apps/app": {
 			"entry": ["src/main.tsx", "src/styles.css"]

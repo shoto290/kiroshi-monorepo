@@ -1,0 +1,33 @@
+name: Kiroshi
+options:
+  deploymentTarget:
+    iOS: "27.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+targets:
+  Kiroshi:
+    type: application
+    platform: iOS
+    sources: [Kiroshi]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kiroshi.app.ios
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Kiroshi
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+    scheme:
+      testTargets: [KiroshiTests]
+  KiroshiTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [KiroshiTests]
+    dependencies:
+      - target: Kiroshi
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kiroshi.app.ios.tests
+        GENERATE_INFOPLIST_FILE: YES
