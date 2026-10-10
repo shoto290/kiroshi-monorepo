@@ -120,11 +120,64 @@ jobs:
       - name: Tests and stories against the baseline
         run: bun run baseline vitest
 
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Detect iOS changes
+        id: filter
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          git fetch --depth=1 origin "$BASE"
+          if git diff --quiet "$BASE" HEAD -- apps/ios .swift-format .xcode-version .github/workflows/ci.yml; then
+            echo "ios=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  ios:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select the Xcode pinned in .xcode-version
+        run: sudo xcode-select --switch "/Applications/Xcode_$(cat .xcode-version).app"
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate
+        run: bun run ios:generate
+
+      - name: Build
+        run: bun run ios:build
+
+      - name: Test on the simulator
+        run: bun run ios:test
+
+      - name: Swift format
+        run: swift format lint --recursive --strict apps/ios
+
   verify:
-    needs: [lint, rust, vitest]
+    needs: [changes, lint, rust, vitest, ios]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Require every job to succeed
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+      - name: Require changes, lint, rust and vitest to succeed
+        if: needs.changes.result != 'success' || needs.lint.result != 'success' || needs.rust.result != 'success' || needs.vitest.result != 'success'
+        run: exit 1
+
+      - name: Require ios to succeed when an iOS file changed, a skipped ios passes when none did
+        if: needs.ios.result != (needs.changes.outputs.ios == 'true' && 'success' || 'skipped')
         run: exit 1
