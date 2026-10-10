@@ -19,6 +19,8 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Kiroshi
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS: NO
     scheme:
       testTargets: [KiroshiTests, KiroshiUITests]
   KiroshiTests:
