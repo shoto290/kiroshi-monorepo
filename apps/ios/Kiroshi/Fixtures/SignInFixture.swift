@@ -21,18 +21,24 @@
             #"""
             [{"id":"9b1e0000-0000-4000-8000-000000000001","name":"Studio","role":"owner","createdAt":"2026-10-01T09:00:00.000Z","online":true},{"id":"9b1e0000-0000-4000-8000-000000000002","name":"Bench","role":"member","createdAt":"2026-10-02T09:00:00.000Z","online":false}]
             """#)
+        static let studioId = "9b1e0000-0000-4000-8000-000000000001"
+        static let homeLabId = "9b1e0000-0000-4000-8000-000000000003"
+        static let sideProjectId = "9b1e0000-0000-4000-8000-000000000004"
         static let artboardSpaces = [
-            Space(id: "9b1e0000-0000-4000-8000-000000000001", name: "Studio"),
-            Space(id: "9b1e0000-0000-4000-8000-000000000003", name: "Home lab"),
-            Space(id: "9b1e0000-0000-4000-8000-000000000004", name: "Side project"),
+            Space(id: studioId, name: "Studio", role: .owner, isHostOnline: true),
+            Space(id: homeLabId, name: "Home lab", role: .member, isHostOnline: true),
+            Space(id: sideProjectId, name: "Side project", role: .owner, isHostOnline: false),
         ]
         static let threeSpaces = ScriptedTransport.Answer.status(
             200,
             #"""
-            [{"id":"9b1e0000-0000-4000-8000-000000000001","name":"Studio","role":"owner","createdAt":"2026-10-01T09:00:00.000Z","online":true},{"id":"9b1e0000-0000-4000-8000-000000000003","name":"Home lab","role":"owner","createdAt":"2026-10-03T09:00:00.000Z","online":true},{"id":"9b1e0000-0000-4000-8000-000000000004","name":"Side project","role":"member","createdAt":"2026-10-04T09:00:00.000Z","online":false}]
+            [{"id":"\#(studioId)","name":"Studio","role":"owner","createdAt":"2026-10-01T09:00:00.000Z","online":true},{"id":"\#(homeLabId)","name":"Home lab","role":"member","createdAt":"2026-10-03T09:00:00.000Z","online":true},{"id":"\#(sideProjectId)","name":"Side project","role":"owner","createdAt":"2026-10-04T09:00:00.000Z","online":false}]
             """#)
         static let signOutPath = "/api/auth/sign-out"
         static let signedOut = ScriptedTransport.Answer.status(200, #"{"status":true}"#)
+        static let relay = RelayEnvironment(
+            transport: FixtureRelayTransport(onlineSpaceIds: [studioId, homeLabId]),
+            clock: ContinuousRelayClock())
 
         static func error(_ status: Int, code: String, message: String) -> ScriptedTransport.Answer
         {
@@ -62,6 +68,9 @@
         case spacesUnreachable = "spaces-unreachable"
         case keychain
         case seededKeychain = "keychain-seeded"
+        case space = "2.1"
+        case spaceMenu = "2.2"
+        case hostOffline = "2.3"
 
         static var launchArgument: SignInFixture? {
             UserDefaults.standard.string(forKey: "fixture").flatMap(SignInFixture.init(rawValue:))
@@ -92,13 +101,17 @@
                     CloudFixture.spacesPath: CloudFixture.threeSpaces,
                     CloudFixture.signOutPath: CloudFixture.signedOut,
                 ]
+            case .space, .spaceMenu, .hostOffline:
+                [CloudFixture.spacesPath: CloudFixture.threeSpaces]
             case .opening, .email, .code: [:]
             }
         }
 
         fileprivate var isSignedIn: Bool {
             switch self {
-            case .loadingSpaces, .noSpace, .spaces, .spacesUnreachable: true
+            case .loadingSpaces, .noSpace, .spaces, .spacesUnreachable, .space, .spaceMenu,
+                .hostOffline:
+                true
             default: false
             }
         }
@@ -113,6 +126,13 @@
                 return keychain
             default:
                 return InMemorySessionStore(isSignedIn ? CloudFixture.session : nil)
+            }
+        }
+
+        fileprivate var lastSpaceId: Space.ID? {
+            switch self {
+            case .hostOffline: CloudFixture.sideProjectId
+            default: nil
             }
         }
 
@@ -133,7 +153,9 @@
                 cloud: KiroshiCloud(
                     baseURL: KiroshiCloud.productionURL,
                     transport: ScriptedTransport(fixture.answers)),
-                sessions: fixture.sessions)
+                sessions: fixture.sessions,
+                lastSpace: InMemoryLastSpaceStore(fixture.lastSpaceId),
+                relay: CloudFixture.relay)
             if ![.opening, .keychain, .seededKeychain].contains(fixture) {
                 model.email = CloudFixture.email
             }
@@ -153,7 +175,7 @@
                 model.path = [.email, .code]
                 model.sendNewCodeTapped()
             case .opening, .loadingSpaces, .noSpace, .spaces, .spacesUnreachable, .keychain,
-                .seededKeychain:
+                .seededKeychain, .space, .spaceMenu, .hostOffline:
                 break
             }
             return model

@@ -1,0 +1,118 @@
+import Foundation
+import Observation
+
+enum ShellExit: Equatable {
+    case signedOut
+    case noSpaceLeft
+}
+
+@MainActor
+@Observable
+final class SpaceStore {
+    private(set) var spaces: [Space]
+    private(set) var currentSpaceId: Space.ID
+    private(set) var connection: RelayConnection?
+    let email: String
+
+    @ObservationIgnored private let cloud: KiroshiCloud
+    @ObservationIgnored private let bearer: String
+    @ObservationIgnored private let lastSpace: any LastSpaceStore
+    @ObservationIgnored private let relay: RelayEnvironment
+    @ObservationIgnored private let exit: (ShellExit) -> Void
+
+    init(
+        spaces: [Space],
+        session: Session,
+        cloud: KiroshiCloud,
+        lastSpace: any LastSpaceStore,
+        relay: RelayEnvironment,
+        exit: @escaping (ShellExit) -> Void
+    ) {
+        self.spaces = spaces
+        email = session.email
+        bearer = session.bearer
+        self.cloud = cloud
+        self.lastSpace = lastSpace
+        self.relay = relay
+        self.exit = exit
+        let last = lastSpace.load()
+        currentSpaceId = spaces.first { $0.id == last }?.id ?? spaces.first?.id ?? ""
+    }
+
+    var currentSpace: Space? {
+        spaces.first { $0.id == currentSpaceId }
+    }
+
+    var offlineSpace: Space? {
+        currentSpace.flatMap { $0.isHostOnline ? nil : $0 }
+    }
+
+    func select(_ id: Space.ID) {
+        guard spaces.contains(where: { $0.id == id }) else { return }
+        currentSpaceId = id
+        lastSpace.save(id)
+    }
+
+    func follow() async {
+        let spaceId = currentSpaceId
+        let connection = RelayConnection(
+            baseURL: cloud.baseURL, instanceId: spaceId, bearer: bearer, environment: relay)
+        self.connection = connection
+        let updates = await connection.updates()
+        await connection.start()
+        for await update in updates {
+            guard case .state(let state) = update else { continue }
+            apply(state, to: spaceId)
+        }
+        await connection.stop()
+        if self.connection === connection {
+            self.connection = nil
+        }
+    }
+
+    func refreshSpaces() async {
+        guard let answer = try? await cloud.spaces(bearer: bearer) else { return }
+        switch answer {
+        case .spaces(let fresh) where fresh.isEmpty:
+            exit(.noSpaceLeft)
+        case .spaces(let fresh):
+            spaces = fresh
+            if currentSpace == nil, let first = fresh.first {
+                currentSpaceId = first.id
+            }
+        case .unauthenticated:
+            exit(.signedOut)
+        case .unreachable:
+            break
+        }
+    }
+
+    private func apply(_ state: RelayState, to spaceId: Space.ID) {
+        switch state {
+        case .online: setHost(of: spaceId, online: true)
+        case .hostOffline: setHost(of: spaceId, online: false)
+        case .signedOut: exit(.signedOut)
+        case .membershipEnded: forget(spaceId)
+        case .paused, .connecting, .invitationPending, .unreachable: break
+        }
+    }
+
+    private func setHost(of spaceId: Space.ID, online: Bool) {
+        guard let index = spaces.firstIndex(where: { $0.id == spaceId }) else { return }
+        spaces[index].isHostOnline = online
+    }
+
+    private func forget(_ spaceId: Space.ID) {
+        spaces.removeAll { $0.id == spaceId }
+        if lastSpace.load() == spaceId {
+            lastSpace.clear()
+        }
+        guard let first = spaces.first else {
+            exit(.noSpaceLeft)
+            return
+        }
+        if currentSpaceId == spaceId {
+            currentSpaceId = first.id
+        }
+    }
+}

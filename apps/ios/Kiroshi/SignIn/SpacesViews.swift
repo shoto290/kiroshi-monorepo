@@ -67,29 +67,6 @@ struct SpacesUnreachableView: View {
     }
 }
 
-struct SpaceListView: View {
-    let model: SignInModel
-    let spaces: [Space]
-
-    var body: some View {
-        NavigationStack {
-            List(spaces) { space in
-                Text(space.name)
-            }
-            .navigationTitle("Spaces")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView(model: model, spaces: spaces)
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                }
-            }
-        }
-    }
-}
-
 #if DEBUG
     #Preview("1.5 Signed in · loading spaces") {
         SignInRootView(model: .fixture(.loadingSpaces))
@@ -97,10 +74,6 @@ struct SpaceListView: View {
 
     #Preview("1.10 No remote space") {
         SignInRootView(model: .fixture(.noSpace))
-    }
-
-    #Preview("Spaces") {
-        SignInRootView(model: .fixture(.spaces))
     }
 
     #Preview("Spaces unreachable") {

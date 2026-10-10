@@ -19,8 +19,10 @@ struct SignInRootView: View {
             LoadingSpacesView(model: model)
         case .spaces(let spaces) where spaces.isEmpty:
             NoSpaceView(model: model)
-        case .spaces(let spaces):
-            SpaceListView(model: model, spaces: spaces)
+        case .spaces:
+            if let shell = model.shell {
+                ShellView(store: shell, account: model)
+            }
         case .spacesUnreachable:
             SpacesUnreachableView(model: model)
         }

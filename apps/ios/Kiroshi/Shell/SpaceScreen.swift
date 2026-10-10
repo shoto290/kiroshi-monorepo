@@ -1,0 +1,94 @@
+import SwiftUI
+import UIKit
+
+enum SpaceSection {
+    case conversations
+    case missions
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .conversations: "Conversations"
+        case .missions: "Missions"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .conversations: "bubble.left.and.bubble.right"
+        case .missions: "target"
+        }
+    }
+}
+
+struct SpaceScreen: View {
+    let store: SpaceStore
+    let account: SignInModel
+    let section: SpaceSection
+
+    var body: some View {
+        NavigationStack {
+            ContentUnavailableView(section.title, systemImage: section.systemImage)
+                .safeAreaInset(edge: .top) {
+                    if let offlineSpace = store.offlineSpace {
+                        HostOfflineLine(space: offlineSpace, email: store.email)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                    }
+                }
+                .navigationTitle(store.currentSpace?.name ?? "")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarTitleMenu {
+                    SpaceMenu(store: store)
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink {
+                            SettingsView(model: account, spaces: store.spaces)
+                        } label: {
+                            Label("Settings", systemImage: "gearshape")
+                        }
+                    }
+                }
+        }
+    }
+}
+
+struct SpaceMenu: View {
+    let store: SpaceStore
+
+    var body: some View {
+        Picker(
+            "Space",
+            selection: Binding(get: { store.currentSpaceId }, set: { store.select($0) })
+        ) {
+            ForEach(store.spaces) { space in
+                Label {
+                    Text(space.name)
+                        .accessibilityLabel(Text(space.accessibilityName))
+                } icon: {
+                    Image(uiImage: space.isHostOnline ? .onlineDot : .offlineDot)
+                }
+                .tag(space.id)
+            }
+        }
+        .pickerStyle(.inline)
+    }
+}
+
+extension Space {
+    fileprivate var accessibilityName: String {
+        "\(name), \(isHostOnline ? "online" : "offline")"
+    }
+}
+
+extension UIImage {
+    fileprivate static let onlineDot = presenceDot(.systemGreen)
+    fileprivate static let offlineDot = presenceDot(.systemGray3)
+
+    private static func presenceDot(_ color: UIColor) -> UIImage {
+        let dot = UIImage(
+            systemName: "circle.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .small)
+        )
+        return dot?.withTintColor(color, renderingMode: .alwaysOriginal) ?? UIImage()
+    }
+}

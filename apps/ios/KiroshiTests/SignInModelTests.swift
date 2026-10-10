@@ -11,7 +11,8 @@ struct SignInModelTests {
     func makeModel() -> SignInModel {
         SignInModel(
             cloud: KiroshiCloud(baseURL: KiroshiCloud.productionURL, transport: transport),
-            sessions: sessions)
+            sessions: sessions,
+            lastSpace: InMemoryLastSpaceStore(), relay: CloudFixture.relay)
     }
 
     func modelOnCodeScreen(code: String = "482913") -> SignInModel {
@@ -38,7 +39,8 @@ struct SignInModelTests {
         let sessions = InMemorySessionStore(CloudFixture.session)
         let model = SignInModel(
             cloud: KiroshiCloud(baseURL: KiroshiCloud.productionURL, transport: transport),
-            sessions: sessions)
+            sessions: sessions,
+            lastSpace: InMemoryLastSpaceStore(), relay: CloudFixture.relay)
 
         #expect(model.stage == .loadingSpaces)
         #expect(model.signedInEmail == CloudFixture.email)
@@ -252,15 +254,20 @@ struct SignInModelTests {
         let sessions = InMemorySessionStore(CloudFixture.session)
         let model = SignInModel(
             cloud: KiroshiCloud(baseURL: KiroshiCloud.productionURL, transport: transport),
-            sessions: sessions)
+            sessions: sessions,
+            lastSpace: InMemoryLastSpaceStore(), relay: CloudFixture.relay)
 
         await model.loadSpaces()
 
         #expect(
             model.stage
                 == .spaces([
-                    Space(id: "9b1e0000-0000-4000-8000-000000000001", name: "Studio"),
-                    Space(id: "9b1e0000-0000-4000-8000-000000000002", name: "Bench"),
+                    Space(
+                        id: "9b1e0000-0000-4000-8000-000000000001", name: "Studio", role: .owner,
+                        isHostOnline: true),
+                    Space(
+                        id: "9b1e0000-0000-4000-8000-000000000002", name: "Bench", role: .member,
+                        isHostOnline: false),
                 ]))
         let request = await transport.requests.last
         #expect(request?.url?.absoluteString == "https://api.kiroshi.app/instances")
@@ -271,7 +278,8 @@ struct SignInModelTests {
         await transport.answer(CloudFixture.spacesPath, with: CloudFixture.noSpaces)
         let model = SignInModel(
             cloud: KiroshiCloud(baseURL: KiroshiCloud.productionURL, transport: transport),
-            sessions: InMemorySessionStore(CloudFixture.session))
+            sessions: InMemorySessionStore(CloudFixture.session),
+            lastSpace: InMemoryLastSpaceStore(), relay: CloudFixture.relay)
 
         await model.loadSpaces()
 
@@ -285,7 +293,8 @@ struct SignInModelTests {
         let sessions = InMemorySessionStore(CloudFixture.session)
         let model = SignInModel(
             cloud: KiroshiCloud(baseURL: KiroshiCloud.productionURL, transport: transport),
-            sessions: sessions)
+            sessions: sessions,
+            lastSpace: InMemoryLastSpaceStore(), relay: CloudFixture.relay)
 
         await model.loadSpaces()
 
@@ -299,7 +308,8 @@ struct SignInModelTests {
         let sessions = InMemorySessionStore(CloudFixture.session)
         let model = SignInModel(
             cloud: KiroshiCloud(baseURL: KiroshiCloud.productionURL, transport: transport),
-            sessions: sessions)
+            sessions: sessions,
+            lastSpace: InMemoryLastSpaceStore(), relay: CloudFixture.relay)
 
         await model.loadSpaces()
 
@@ -311,7 +321,8 @@ struct SignInModelTests {
         await transport.answer(CloudFixture.spacesPath, with: CloudFixture.noSpaces)
         let model = SignInModel(
             cloud: KiroshiCloud(baseURL: KiroshiCloud.productionURL, transport: transport),
-            sessions: InMemorySessionStore(CloudFixture.session))
+            sessions: InMemorySessionStore(CloudFixture.session),
+            lastSpace: InMemoryLastSpaceStore(), relay: CloudFixture.relay)
         await model.loadSpaces()
 
         model.checkAgain()
@@ -323,7 +334,8 @@ struct SignInModelTests {
         let sessions = InMemorySessionStore(CloudFixture.session)
         let model = SignInModel(
             cloud: KiroshiCloud(baseURL: KiroshiCloud.productionURL, transport: transport),
-            sessions: sessions)
+            sessions: sessions,
+            lastSpace: InMemoryLastSpaceStore(), relay: CloudFixture.relay)
 
         model.useAnotherAccount()
 
