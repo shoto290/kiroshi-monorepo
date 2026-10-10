@@ -68,6 +68,7 @@ struct SpacesUnreachableView: View {
 }
 
 struct SpaceListView: View {
+    let model: SignInModel
     let spaces: [Space]
 
     var body: some View {
@@ -76,6 +77,15 @@ struct SpaceListView: View {
                 Text(space.name)
             }
             .navigationTitle("Spaces")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SettingsView(model: model, spaces: spaces)
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
+            }
         }
     }
 }
