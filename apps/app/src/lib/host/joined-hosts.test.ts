@@ -1,5 +1,5 @@
 import type { EventCallback } from "@tauri-apps/api/event"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { NoticeMessage } from "@workspace/ui/components/notice-surface"
 import { activateLanguage, type Language } from "@workspace/ui/lib/i18n"
@@ -872,6 +872,52 @@ describe("a reopened member relay", () => {
 		reopen("garage")
 
 		expect(reread).toHaveBeenCalledOnce()
+	})
+
+	describe("ten seconds apart", () => {
+		const later = (milliseconds: number) =>
+			vi.setSystemTime(Date.now() + milliseconds)
+
+		beforeEach(() => {
+			vi.useFakeTimers({ toFake: ["Date"] })
+		})
+
+		afterEach(() => {
+			vi.useRealTimers()
+		})
+
+		it("re-reads on the next relay reopen once a socket reopen went unpaired for 10 seconds", async () => {
+			const { sockets, reread, reopen } = await followingGarage()
+			sockets[0]?.drop()
+			sockets[0]?.open()
+
+			later(10_001)
+			reopen("garage")
+
+			expect(reread).toHaveBeenCalledTimes(2)
+		})
+
+		it("re-reads once when the relay follows the socket within 10 seconds", async () => {
+			const { sockets, reread, reopen } = await followingGarage()
+			sockets[0]?.drop()
+			sockets[0]?.open()
+
+			later(9_000)
+			reopen("garage")
+
+			expect(reread).toHaveBeenCalledOnce()
+		})
+
+		it("re-reads once when the socket follows the relay within 10 seconds", async () => {
+			const { sockets, reread, reopen } = await followingGarage()
+			sockets[0]?.drop()
+			reopen("garage")
+
+			later(9_000)
+			sockets[0]?.open()
+
+			expect(reread).toHaveBeenCalledOnce()
+		})
 	})
 
 	it("re-reads again on the next reopen of the relay", async () => {

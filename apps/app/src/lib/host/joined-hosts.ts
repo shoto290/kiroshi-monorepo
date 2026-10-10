@@ -130,6 +130,10 @@ type Route = (event: string) => Listen
 
 type ReopenSignal = "relay" | "socket"
 
+type UnpairedReopen = { signal: ReopenSignal; heardAt: number }
+
+const REOPEN_PAIRING_MS = 10_000
+
 type Subscription = {
 	event: string
 	handler: EventCallback<unknown>
@@ -184,7 +188,7 @@ export const createJoinedHosts = ({
 	const subscriptions = new Set<Subscription>()
 	const downNotices = new Map<string, string>()
 	const reconnectionListeners = new Set<() => void>()
-	const unpairedReopens = new Map<string, ReopenSignal>()
+	const unpairedReopens = new Map<string, UnpairedReopen>()
 	let isHearingRelayReopens = false
 	const provenance = createConversationProvenance()
 	let requested: string | null = null
@@ -243,11 +247,22 @@ export const createJoinedHosts = ({
 		}
 	}
 
+	const leaveUnpaired = (id: string, signal: ReopenSignal) => {
+		unpairedReopens.set(id, { signal, heardAt: Date.now() })
+	}
+
+	const pairsWith = (id: string, signal: ReopenSignal) => {
+		const unpaired = unpairedReopens.get(id)
+		unpairedReopens.delete(id)
+		return (
+			unpaired?.signal === signal &&
+			Date.now() - unpaired.heardAt <= REOPEN_PAIRING_MS
+		)
+	}
+
 	const catchUpOnSocketReopen = (id: string) => {
-		if (unpairedReopens.get(id) === "relay") {
-			unpairedReopens.delete(id)
-		} else {
-			unpairedReopens.set(id, "socket")
+		if (!pairsWith(id, "relay")) {
+			leaveUnpaired(id, "socket")
 		}
 		announceReconnectionOf(id)
 	}
@@ -257,17 +272,12 @@ export const createJoinedHosts = ({
 	}) => {
 		const status = store.getState().connections[id]?.status
 		if (status === "down") {
-			unpairedReopens.set(id, "relay")
+			leaveUnpaired(id, "relay")
 			return
 		}
-		if (status !== "up") {
-			return
+		if (status === "up" && !pairsWith(id, "socket")) {
+			announceReconnectionOf(id)
 		}
-		if (unpairedReopens.get(id) === "socket") {
-			unpairedReopens.delete(id)
-			return
-		}
-		announceReconnectionOf(id)
 	}
 
 	const markUp = (id: string) => {
