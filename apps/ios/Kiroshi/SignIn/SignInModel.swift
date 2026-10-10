@@ -195,11 +195,13 @@ final class SignInModel {
     }
 
     private func makeShell(spaces: [Space], session: Session) -> SpaceStore {
-        SpaceStore(
+        let shell = SpaceStore(
             spaces: spaces, session: session, cloud: cloud, lastSpace: lastSpace, relay: relay
         ) { [weak self] exit in
             self?.leaveShell(exit)
         }
+        onSignOut = { [weak shell] in shell?.leave() }
+        return shell
     }
 
     private func leaveShell(_ exit: ShellExit) {

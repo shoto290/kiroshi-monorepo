@@ -19,6 +19,8 @@ final class SpaceStore {
     @ObservationIgnored private let lastSpace: any LastSpaceStore
     @ObservationIgnored private let relay: RelayEnvironment
     @ObservationIgnored private let exit: (ShellExit) -> Void
+    @ObservationIgnored private var hasLeft = false
+    @ObservationIgnored private var leaving: Task<Void, Never>?
 
     init(
         spaces: [Space],
@@ -54,20 +56,29 @@ final class SpaceStore {
     }
 
     func follow() async {
+        guard !hasLeft else { return }
         let spaceId = currentSpaceId
         let connection = RelayConnection(
             baseURL: cloud.baseURL, instanceId: spaceId, bearer: bearer, environment: relay)
         self.connection = connection
         let updates = await connection.updates()
-        await connection.start()
-        for await update in updates {
-            guard case .state(let state) = update else { continue }
-            apply(state, to: spaceId)
+        if !hasLeft {
+            await connection.start()
+            for await update in updates {
+                guard case .state(let state) = update else { continue }
+                apply(state, to: spaceId)
+            }
         }
         await connection.stop()
         if self.connection === connection {
             self.connection = nil
         }
+    }
+
+    func leave() {
+        hasLeft = true
+        guard let connection else { return }
+        leaving = Task { await connection.stop() }
     }
 
     func refreshSpaces() async {

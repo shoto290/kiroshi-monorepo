@@ -82,6 +82,23 @@ struct SpaceStoreTests {
         #expect(store.connection == nil)
     }
 
+    @Test func leavingClosesTheRelaySocketForGood() async throws {
+        let store = makeStore()
+        let following = Task { await store.follow() }
+        await relay.nextOpening().accept(ScriptedRelaySocket(sharedSpaceId: "s-1"))
+        await waitUntil { store.currentSpace?.isHostOnline == true }
+        let connection = try #require(store.connection)
+
+        store.leave()
+        await following.value
+
+        #expect(await connection.state == .paused)
+        #expect(await connection.isRunning == false)
+        #expect(store.connection == nil)
+        await store.follow()
+        #expect(store.connection == nil)
+    }
+
     @Test func aRefusedAccountSignsOut() async {
         let (exits, exit) = AsyncStream<ShellExit>.makeStream()
         let store = makeStore { exit.yield($0) }

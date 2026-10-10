@@ -96,6 +96,34 @@ struct SignOutTests {
         model.revocation?.cancel()
     }
 
+    @Test(.timeLimit(.minutes(1))) func signingOutFromSettingsDisconnectsTheRelay() async throws {
+        await transport.answer(CloudFixture.spacesPath, with: CloudFixture.threeSpaces)
+        await transport.answer(CloudFixture.signOutPath, with: CloudFixture.signedOut)
+        let relay = TestRelayTransport()
+        let model = SignInModel(
+            cloud: KiroshiCloud(baseURL: KiroshiCloud.productionURL, transport: transport),
+            sessions: sessions, lastSpace: InMemoryLastSpaceStore(),
+            relay: RelayEnvironment(transport: relay, clock: TestRelayClock()))
+        await model.loadSpaces()
+        let shell = try #require(model.shell)
+        let following = Task { await shell.follow() }
+        await relay.nextOpening().accept(ScriptedRelaySocket(sharedSpaceId: "s-1"))
+        let connection = try #require(shell.connection)
+        for await update in await connection.updates() {
+            if case .state(.online) = update { break }
+        }
+
+        model.signOutTapped()
+        model.signOut()
+        await following.value
+        await model.revocation?.value
+
+        #expect(await connection.state == .paused)
+        #expect(await connection.isRunning == false)
+        #expect(model.shell == nil)
+        #expect(model.stage == .signedOut)
+    }
+
     @Test func relaunchAfterSignOutOpensSignIn() async {
         let keychain = KeychainSessionStore(service: "com.kiroshi.app.ios.tests.sign-out")
         keychain.clear()
