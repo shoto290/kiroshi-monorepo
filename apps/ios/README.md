@@ -38,6 +38,8 @@ Page 3 "Conversations" (`3.1` to `3.8`) is fed by a scripted host on the relay: 
 
 The same fixtures feed the `#Preview`s.
 
+Page 4 "Missions" opens on the Missions tab: `4.1` (the grouped list of Studio), `4.2` (the thread of OPE-212, with the composer), `4.3` (no missions) and `4.4` (Side project answers its list, then its host leaves). The scripted socket answers `mission_space_feed`, `conversation_bots`, `conversation_message_page`, `chat_store_attachments` and `conversation_send_turn`, so sending in `4.2` goes through the real store and relay connection.
+
 ## Settings and Sign out without the network
 
 Page 5 "Settings" sits behind the gear of the Space screen. Two Debug fixtures keep the real Keychain and script the cloud (three spaces, Sign out answered), so signing out really empties the Keychain:
@@ -52,3 +54,7 @@ Tap the gear, then Sign out. Relaunched with `-fixture keychain` after confirmin
 ## The relay
 
 `RelayConnection` is the one place the app talks to the relay member socket of the current Space (`docs/relay/member-socket.md`). Read its state and events with `updates()`, and send a call with `call(_:args:)`: the answer bearing the call's id comes back as a `RelayAnswer`. `SpaceStore.connection` is the connection of the Space shown.
+
+## Missions
+
+The Missions tab reads `mission_space_feed` for the shared Space and places each mission by its `state`: Needs you (`waiting_human`), Working (`working`, `waiting_bot`), Review (`ready_to_merge`). `failed`, `done` and `closed` have no group on page 4 and are not shown. A mission's thread is its thread conversation (`conversation_message_page`), read again when the companion speaks there, when the agent finishes a message or a turn there, and on every reconnection; an answer goes out with `conversation_send_turn`, files first through `chat_store_attachments`.
