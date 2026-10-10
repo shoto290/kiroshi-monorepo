@@ -8,20 +8,42 @@ import { useMissions } from "./use-missions"
 import { useSpaceMissions } from "./use-space-missions"
 
 import type { HostSocket } from "../host/http"
+import { createJoinedHosts, type JoinedHosts } from "../host/joined-hosts"
 
 const HOST = "http://192.168.1.20:45367"
 
 type Answer = (command: string) => Promise<unknown>
 
 const wire = vi.hoisted(() => ({
-	localAnswer: (async () => null) as Answer,
+	localAnswer: (async (command) =>
+		command === "conversation_local_ids" ? [] : null) as Answer,
 	hostAnswer: (async () => null) as Answer,
 	sockets: [] as HostSocket[],
+	joinedHosts: null as JoinedHosts | null,
 }))
 
-vi.mock("../host", async () => {
-	const { createJoinedHosts } = await import("../host/joined-hosts")
-	const joinedHosts = createJoinedHosts({
+const currentJoinedHosts = (): JoinedHosts => {
+	if (!wire.joinedHosts) {
+		throw new Error("no joined-hosts router built for this test")
+	}
+	return wire.joinedHosts
+}
+
+vi.mock("../host", () => {
+	const joinedHosts = new Proxy({} as JoinedHosts, {
+		get: (_, key) => Reflect.get(currentJoinedHosts(), key),
+	})
+	return {
+		joinedHosts,
+		invoke: ((...args: Parameters<JoinedHosts["invoke"]>) =>
+			joinedHosts.invoke(...args)) as JoinedHosts["invoke"],
+		listen: ((...args: Parameters<JoinedHosts["listen"]>) =>
+			joinedHosts.listen(...args)) as JoinedHosts["listen"],
+	}
+})
+
+const buildJoinedHosts = (): JoinedHosts =>
+	createJoinedHosts({
 		local: {
 			invoke: ((command: string) => wire.localAnswer(command)) as never,
 			listen: async () => () => undefined,
@@ -57,12 +79,6 @@ vi.mock("../host", async () => {
 		reportHostDown: () => "notice",
 		endHostDown: () => undefined,
 	})
-	return {
-		joinedHosts,
-		invoke: joinedHosts.invoke,
-		listen: joinedHosts.listen,
-	}
-})
 
 const { joinedHosts } = await import("../host")
 
@@ -145,8 +161,8 @@ const dropLastSocket = () => {
 }
 
 describe("missions read on a joined host", () => {
-	beforeEach(async () => {
-		await joinedHosts.activate(null)
+	beforeEach(() => {
+		wire.joinedHosts = buildJoinedHosts()
 		wire.sockets.length = 0
 		wire.hostAnswer = hostAnswers
 	})
@@ -185,7 +201,10 @@ describe("missions read on a joined host", () => {
 	})
 
 	it("reads the missions again when the active host reconnects", async () => {
-		wire.localAnswer = answering({ mission_list: { open: [], done: [] } })
+		wire.localAnswer = answering({
+			conversation_local_ids: [],
+			mission_list: { open: [], done: [] },
+		})
 		await joinedHosts.activate("garage")
 		await openLastSocket()
 		const { result } = renderHook(() => useMissions("c-1"))
