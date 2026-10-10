@@ -42,7 +42,7 @@ Four rules that govern HOW you work. SIMPLE defines WHAT to build; these define 
 
 ## UI / App Boundary (Absolute Rule)
 
-**No visual code in `apps/app`. Every visual belongs to `packages/ui`.** No exception.
+**No visual code in `apps/app`. Every desktop visual belongs to `packages/ui`.** No exception.
 
 ### The test
 
@@ -77,6 +77,37 @@ Only **technical composition** — it places things, it does not draw them:
 - A component in the app that is not pure composition of UI components is a bug: move it to `packages/ui`.
 - Reference: `apps/app/src/components/thread-screen.tsx` — composition only, zero markup.
 
+## iOS App
+
+**`apps/ios` is the native iPhone app. No desktop rule reaches it, no desktop code enters it.**
+
+### Boundary
+
+- Owned by Yon alone. Ichi, Ni and San never edit `apps/ios`.
+- Never imports from `apps/app` or `packages/ui`.
+- Talks to the desktop host only through the relay member contract: the Rust `hosting` and `joined_spaces` modules, owned by Ni, schema in `docs/relay/member-socket.schema.json`.
+- `packages/ui`, Biome, React, Storybook, the i18n catalogue and kebab-case files stop at `apps/ios`. Swift is formatted by `swift format` with the root `.swift-format`.
+
+### Native
+
+- iOS 27, SwiftUI, system components only: tab bar, navigation bars, sheets, grouped inset lists, alerts.
+- SF Pro, SF Symbols, Apple's gestures and density. No custom chrome, no third-party UI kit.
+- Two tabs: Conversations, then Missions.
+- Sign in happens inside the app (email, then a code by mail), never in a browser. The session bearer lives only in the Keychain.
+
+### Vocabulary
+
+- Carried over from the desktop app: Companion, Conversation (never Chat), Message, Send, "the agent" (never "Claude Code" on screen), Applications, Secrets, Approvals, the Space name shown.
+- Contractions everywhere: `You're signed in.`, `Couldn't send.`
+- An error says what failed plus the gesture to fix it.
+- A deletion says `This can't be undone.`
+
+### Tooling
+
+- XcodeGen `apps/ios/project.yml` is the only source of truth. The `.xcodeproj` is generated: never edited, never committed.
+- `swift format lint --recursive apps/ios` reports nothing. Xcode is pinned in `.xcode-version`.
+- `ios:run` and `ios:test` share the iPhone 17 simulator: never run them at once.
+
 ## House Rules
 
 - **No new dependencies without approval** — Ask before adding any package.
@@ -95,7 +126,8 @@ Only **technical composition** — it places things, it does not draw them:
 | Workspace | Path | Purpose | Stack |
 |-----------|------|---------|-------|
 | `app` | `apps/app` | Desktop application — technical composition only | Tauri + React + Vite |
-| `@workspace/ui` | `packages/ui` | Every visual: components, foundations, tokens | React + Storybook + Tailwind + Base UI |
+| `@workspace/ui` | `packages/ui` | Every desktop visual: components, foundations, tokens | React + Storybook + Tailwind + Base UI |
+| `ios` | `apps/ios` | Native iPhone app, owned by Yon | Swift 6 + SwiftUI + XcodeGen |
 
 ## Stack
 
@@ -106,6 +138,7 @@ Only **technical composition** — it places things, it does not draw them:
 - Desktop: Tauri (Rust)
 - UI development: Storybook
 - Tests: Vitest (+ `cargo test` for the Tauri host)
+- iOS: Swift 6, SwiftUI, XcodeGen
 
 ## Commands
 
@@ -122,6 +155,10 @@ bun run snapshots    # Rewrite every back-end contract snapshot in apps/app/cont
 bun run baseline     # Check the three vitest suites, biome, knip and the story counts against baselines/
 bun run baseline:update  # Record the newly reported items and the live story counts, keeping every entry already there
 bun run baseline:prune   # Drop the baseline entries no longer reported
+bun run ios:generate # Generate apps/ios/Kiroshi.xcodeproj from project.yml
+bun run ios:build    # Generate, then build the iOS app for the Simulator
+bun run ios:test     # Generate, then run the iOS tests on the iPhone 17 simulator
+bun run ios:run      # Generate, build and launch the iOS app on the simulator
 ```
 
 ## Naming
