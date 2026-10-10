@@ -16,16 +16,16 @@ export const commands = {
 	name: string,
 	title: string,
 	description: string,
-	config: Json,
-	tools?: string[] | null,
-	logo?: string | null,
-	logoUrl?: string | null,
-	useCount?: number | null,
-	verified?: boolean | null,
-	hostedBy?: string | null,
+	config: { [key in string]: unknown },
+	tools?: string[],
+	logo?: string,
+	logoUrl?: string,
+	useCount?: number,
+	verified?: boolean,
+	hostedBy?: string,
 	categories?: string[],
-	authPosture?: AuthPosture | null,
-	install: Install_Serialize,
+	authPosture?: AuthPosture,
+	install: Install,
 } | null, ApplicationsError>(__TAURI_INVOKE("application_named", { name })),
 	applicationInstalls: (conversationId: string) => typedError<ApplicationInstall_Serialize[], ApplicationCallError>(__TAURI_INVOKE("application_installs", { conversationId })),
 	applicationRunnable: (config: Json) => __TAURI_INVOKE<{
@@ -259,11 +259,11 @@ export type ApplicationInstall_Deserialize = {
 	conversationId: string,
 	application: string,
 	title: string,
-	logo: string | null,
-	logoUrl: string | null,
-	description: string | null,
+	logo?: string,
+	logoUrl?: string,
+	description?: string,
 	scope: Destination,
-	destinationId: string | null,
+	destinationId?: string,
 	install: InstallCase,
 	lastMessageSeq: number,
 	createdAt: number,
@@ -274,14 +274,46 @@ export type ApplicationInstall_Serialize = {
 	conversationId: string,
 	application: string,
 	title: string,
-	logo?: string | null,
-	logoUrl?: string | null,
-	description?: string | null,
+	logo?: string,
+	logoUrl?: string,
+	description?: string,
 	scope: Destination,
-	destinationId?: string | null,
+	destinationId?: string,
 	install: InstallCase,
 	lastMessageSeq: number,
 	createdAt: number,
+};
+
+export type ApplicationInstalled = ApplicationInstalled_Serialize | ApplicationInstalled_Deserialize;
+
+export type ApplicationInstalled_Deserialize = {
+	id?: string,
+	conversationId: string,
+	application: string,
+	title: string,
+	logo?: string,
+	logoUrl?: string,
+	description?: string,
+	scope: Destination,
+	destinationId?: string,
+	install: InstallCase,
+	lastMessageSeq?: number,
+	createdAt?: number,
+};
+
+export type ApplicationInstalled_Serialize = {
+	id?: string,
+	conversationId: string,
+	application: string,
+	title: string,
+	logo?: string,
+	logoUrl?: string,
+	description?: string,
+	scope: Destination,
+	destinationId?: string,
+	install: InstallCase,
+	lastMessageSeq?: number,
+	createdAt?: number,
 };
 
 export type ApplicationMark = ApplicationMark_Serialize | ApplicationMark_Deserialize;
@@ -314,16 +346,16 @@ export type ApplicationSearch = ApplicationSearch_Serialize | ApplicationSearch_
 
 export type ApplicationSearch_Deserialize = {
 	applications: Application_Deserialize[],
-	registryFailure: ApplicationsError | null,
-	readAt: number | null,
-	isStale: boolean | null,
+	registryFailure?: ApplicationsError,
+	readAt?: number,
+	isStale?: boolean,
 };
 
 export type ApplicationSearch_Serialize = {
 	applications: Application_Serialize[],
-	registryFailure?: ApplicationsError | null,
-	readAt?: number | null,
-	isStale?: boolean | null,
+	registryFailure?: ApplicationsError,
+	readAt?: number,
+	isStale?: boolean,
 };
 
 export type ApplicationStatus = ApplicationStatus_Serialize | ApplicationStatus_Deserialize;
@@ -336,32 +368,32 @@ export type Application_Deserialize = {
 	name: string,
 	title: string,
 	description: string,
-	config: Json,
-	tools?: string[] | null,
-	logo?: string | null,
-	logoUrl?: string | null,
-	useCount?: number | null,
-	verified?: boolean | null,
-	hostedBy?: string | null,
+	config: { [key in string]: unknown },
+	tools?: string[],
+	logo?: string,
+	logoUrl?: string,
+	useCount?: number,
+	verified?: boolean,
+	hostedBy?: string,
 	categories?: string[],
-	authPosture?: AuthPosture | null,
-	install: Install_Deserialize,
+	authPosture?: AuthPosture,
+	install: Install,
 };
 
 export type Application_Serialize = {
 	name: string,
 	title: string,
 	description: string,
-	config: Json,
-	tools?: string[] | null,
-	logo?: string | null,
-	logoUrl?: string | null,
-	useCount?: number | null,
-	verified?: boolean | null,
-	hostedBy?: string | null,
+	config: { [key in string]: unknown },
+	tools?: string[],
+	logo?: string,
+	logoUrl?: string,
+	useCount?: number,
+	verified?: boolean,
+	hostedBy?: string,
 	categories?: string[],
-	authPosture?: AuthPosture | null,
-	install: Install_Serialize,
+	authPosture?: AuthPosture,
+	install: Install,
 };
 
 export type ApplicationsError = { kind: "catalogueUnreadable"; detail: string } | { kind: "registryUnreached"; detail: string } | { kind: "registryTimedOut" } | { kind: "registryRefused"; status: number } | { kind: "registryUnreadable"; detail: string };
@@ -644,23 +676,16 @@ export type HostingChanged = {
 
 export type HostingState = { kind: "off" } | { kind: "connecting" } | { kind: "online" } | { kind: "failed"; reason: string } | { kind: "needsSignIn" };
 
-export type Install = Install_Serialize | Install_Deserialize;
+export type Install = ({ kind: "nothing" }) & { fields?: never } | { kind: "key"; fields: InstallField[] } | ({ kind: "oauth" }) & { fields?: never } | {
+	kind: "refused",
+} & InstallRefusal;
 
 export type InstallCase = { kind: "nothing" } | { kind: "key"; secrets: string[] } | { kind: "oauth" };
 
-export type InstallField = InstallField_Serialize | InstallField_Deserialize;
-
-export type InstallField_Deserialize = {
+export type InstallField = {
 	name: string,
 	secret: string,
-	description?: string | null,
-	concealed?: boolean,
-};
-
-export type InstallField_Serialize = {
-	name: string,
-	secret: string,
-	description?: string | null,
+	description?: string,
 	concealed: boolean,
 };
 
@@ -668,28 +693,6 @@ export type InstallRefusal = {
 	field: string,
 	reason: string,
 };
-
-export type Install_Deserialize = ({ nothing: {
-	kind: "nothing",
-} }) & { key?: never; oauth?: never; refused?: never } | ({ key: {
-	kind: "key",
-	fields: InstallField_Deserialize[],
-} }) & { nothing?: never; oauth?: never; refused?: never } | ({ oauth: {
-	kind: "oauth",
-} }) & { key?: never; nothing?: never; refused?: never } | ({ refused: {
-	kind: "refused",
-} & InstallRefusal }) & { key?: never; nothing?: never; oauth?: never };
-
-export type Install_Serialize = ({ nothing: {
-	kind: "nothing",
-} }) & { key?: never; oauth?: never; refused?: never } | ({ key: {
-	kind: "key",
-	fields: InstallField_Serialize[],
-} }) & { nothing?: never; oauth?: never; refused?: never } | ({ oauth: {
-	kind: "oauth",
-} }) & { key?: never; nothing?: never; refused?: never } | ({ refused: {
-	kind: "refused",
-} & InstallRefusal }) & { key?: never; nothing?: never; oauth?: never };
 
 export type Invitation = {
 	instanceId: string,
@@ -931,8 +934,10 @@ export type NewUserMessage = {
 	createdAt: number,
 };
 
+export type NotificationKind = "bot" | "conversation" | "mission";
+
 export type NotificationTarget = {
-	kind: string,
+	kind: NotificationKind,
 	id: string,
 };
 
