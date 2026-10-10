@@ -48,15 +48,25 @@ final class SignInModel {
     var isConfirmingSignOut = false
     @ObservationIgnored var onSignOut: () -> Void = {}
     @ObservationIgnored private(set) var revocation: Task<Void, Never>?
+    private(set) var shell: SpaceStore?
 
     @ObservationIgnored private let cloud: KiroshiCloud
     @ObservationIgnored private let sessions: any SessionStore
+    @ObservationIgnored private let lastSpace: any LastSpaceStore
+    @ObservationIgnored private let relay: RelayEnvironment
     @ObservationIgnored private var session: Session?
     @ObservationIgnored private var work: Task<Void, Never>?
 
-    init(cloud: KiroshiCloud, sessions: any SessionStore) {
+    init(
+        cloud: KiroshiCloud,
+        sessions: any SessionStore,
+        lastSpace: any LastSpaceStore,
+        relay: RelayEnvironment
+    ) {
         self.cloud = cloud
         self.sessions = sessions
+        self.lastSpace = lastSpace
+        self.relay = relay
         session = sessions.load()
         stage = session == nil ? .signedOut : .loadingSpaces
         signedInEmail = session?.email ?? ""
@@ -100,6 +110,7 @@ final class SignInModel {
     }
 
     func checkAgain() {
+        shell = nil
         stage = .loadingSpaces
     }
 
@@ -164,7 +175,9 @@ final class SignInModel {
         guard let session else { return }
         guard let answer = try? await cloud.spaces(bearer: session.bearer) else { return }
         switch answer {
-        case .spaces(let spaces): stage = .spaces(spaces)
+        case .spaces(let spaces):
+            shell = spaces.isEmpty ? nil : makeShell(spaces: spaces, session: session)
+            stage = .spaces(spaces)
         case .unauthenticated: endSession()
         case .unreachable: stage = .spacesUnreachable
         }
@@ -181,11 +194,31 @@ final class SignInModel {
         endSession()
     }
 
+    private func makeShell(spaces: [Space], session: Session) -> SpaceStore {
+        let shell = SpaceStore(
+            spaces: spaces, session: session, cloud: cloud, lastSpace: lastSpace, relay: relay
+        ) { [weak self] exit in
+            self?.leaveShell(exit)
+        }
+        onSignOut = { [weak shell] in shell?.leave() }
+        return shell
+    }
+
+    private func leaveShell(_ exit: ShellExit) {
+        switch exit {
+        case .signedOut: endSession()
+        case .noSpaceLeft:
+            shell = nil
+            stage = .spaces([])
+        }
+    }
+
     private func endSession() {
         onSignOut()
         work?.cancel()
         sessions.clear()
         session = nil
+        shell = nil
         signedInEmail = ""
         code = ""
         codeProblem = nil

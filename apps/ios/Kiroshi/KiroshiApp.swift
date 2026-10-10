@@ -19,6 +19,8 @@ struct KiroshiApp: App {
         return SignInModel(
             cloud: KiroshiCloud(
                 baseURL: KiroshiCloud.productionURL, transport: URLSessionTransport()),
-            sessions: KeychainSessionStore())
+            sessions: KeychainSessionStore(),
+            lastSpace: UserDefaultsLastSpaceStore(),
+            relay: .live)
     }
 }
