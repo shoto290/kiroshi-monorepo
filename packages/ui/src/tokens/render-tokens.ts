@@ -19,8 +19,8 @@ type Theme = "light" | "dark"
 
 const REFERENCE = /^\{([a-z0-9-]+)\}$/
 const HEX = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i
-const RGB = /^rgb\(\s*(\S+)\s+(\S+)\s+(\S+)\s*(?:\/\s*(\S+)\s*)?\)$/
-const OKLCH = /^oklch\(\s*(\S+)\s+(\S+)\s+(\S+)\s*(?:\/\s*(\S+)\s*)?\)$/
+const RGB = /^rgb\((\d+) (\d+) (\d+)(?: \/ ([\d.]+%?))?\)$/
+const OKLCH = /^oklch\(([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+%?))?\)$/
 
 const referenceOf = (value: string) => REFERENCE.exec(value)?.[1]
 
@@ -80,11 +80,6 @@ const oklchToSrgb = (lightness: number, chroma: number, hue: number) => {
 const toByte = (unit: number) =>
 	Math.round(Math.min(1, Math.max(0, unit)) * 255)
 
-const toRgbChannel = (channel: string) =>
-	channel.endsWith("%")
-		? toByte(Number.parseFloat(channel) / 100)
-		: Math.round(Number(channel))
-
 export const toSrgb = (value: string): Srgb => {
 	const hex = HEX.exec(value)
 	if (hex) {
@@ -95,7 +90,7 @@ export const toSrgb = (value: string): Srgb => {
 	}
 	const rgb = RGB.exec(value)
 	if (rgb) {
-		const [red, green, blue] = rgb.slice(1, 4).map(toRgbChannel)
+		const [red, green, blue] = rgb.slice(1, 4).map(Number)
 		return { red, green, blue, alpha: parseAlpha(rgb[4]) }
 	}
 	const oklch = OKLCH.exec(value)
