@@ -63,7 +63,7 @@ git2 = { version = "0.21", default-features = false, features = ["vendored-libgi
 croner = "4"
 # Watches paths from the core rather than through `tauri-plugin-fs`, whose watch command only
 # answers a window: a routine fires whether or not one listens. Shows `notify` through.
-notify-debouncer-full = "0.6"
+notify-debouncer-full = "0.7"
 # Already in the tree under croner; named here so an instant in milliseconds becomes the wall
 # clock a cron expression is read against, and the moment a payload carries.
 chrono = "0.4"
