@@ -19,7 +19,10 @@ final class MissionThreadStore {
     let mission: Mission
     var draft = ""
     var attachments: [PickedAttachment] = []
-    private(set) var messages: [MissionThreadMessage] = []
+    private(set) var messages: [MissionThreadMessage] = [] {
+        didSet { rows = MissionTranscript.rows(of: messages, calendar: calendar) }
+    }
+    private(set) var rows: [MissionThreadRow] = []
     private(set) var hasLoaded = false
     private(set) var hasFailed = false
     private(set) var isOnline = false
@@ -43,10 +46,6 @@ final class MissionThreadStore {
         self.now = now
         self.newId = newId
         self.calendar = calendar
-    }
-
-    var rows: [MissionThreadRow] {
-        MissionTranscript.rows(of: messages, calendar: calendar)
     }
 
     var canSend: Bool {
@@ -75,18 +74,13 @@ final class MissionThreadStore {
 
     func send() {
         guard canSend, let relay else { return }
-        sending?.cancel()
+        isSending = true
         sending = Task { await deliver(through: relay) }
     }
 
-    func leave() {
-        sending?.cancel()
-    }
-
-    func deliver(through relay: MissionsRelay) async {
+    private func deliver(through relay: MissionsRelay) async {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         let picked = attachments
-        isSending = true
         sendProblem = nil
         defer { isSending = false }
         do {

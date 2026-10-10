@@ -138,7 +138,10 @@ struct MissionStoresTests {
         await transport.nextOpening().accept(socket)
         await waitUntil { store.hasLoaded && store.isOnline }
 
-        #expect(store.rows.dropFirst() == [.companion(id: "q", text: "Which one first?")])
+        #expect(
+            store.rows.dropFirst() == [
+                .companion(id: "q", text: MissionTranscript.markdown("Which one first?"))
+            ])
 
         store.draft = " The account step. "
         store.send()
@@ -152,8 +155,41 @@ struct MissionStoresTests {
         #expect(message?["content"] as? String == "The account step.")
         #expect(message?["createdAt"] as? Int == 100_000)
         #expect(message?.keys.contains("repliedToMessageId") == true)
-        #expect(store.rows.last == .person(id: "id-1", text: "The account step.", attachments: []))
+        #expect(
+            store.rows.last
+                == .person(
+                    id: "id-1", text: MissionTranscript.markdown("The account step."),
+                    attachments: []))
         following.cancel()
+        await connection.stop()
+    }
+
+    @Test func anAnswerSentJustBeforeLeavingTheThreadStillReachesTheHost() async {
+        let connection = makeConnection()
+        let store = MissionThreadStore(mission: MissionTesting.mission(), newId: { "id-1" })
+        let socket = ScriptedRelaySocket(
+            sharedSpaceId: "s-1",
+            answers: [
+                "conversation_message_page":
+                    #"{"conversationId":"thread-mission-1","hasMore":false,"arrivals":[],"messages":[]}"#
+            ])
+        let following = Task { await store.follow(connection) }
+        await connection.start()
+        await transport.nextOpening().accept(socket)
+        await waitUntil { store.isOnline && store.hasLoaded }
+
+        store.draft = "Go ahead"
+        store.send()
+        following.cancel()
+        await following.value
+        let call = await nextCall("conversation_send_turn", on: socket)
+        socket.push(.frame(#"{"id":\#(call["id"] as? Int ?? 0),"status":200,"body":1}"#))
+        await waitUntil { !store.isSending }
+
+        let message = (call["args"] as? [String: Any])?["message"] as? [String: Any]
+        #expect(message?["content"] as? String == "Go ahead")
+        #expect(store.sendProblem == nil)
+        #expect(store.draft.isEmpty)
         await connection.stop()
     }
 

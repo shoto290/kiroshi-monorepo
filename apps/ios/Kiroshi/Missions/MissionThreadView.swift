@@ -57,7 +57,6 @@ struct MissionThreadView: View {
             guard let connection = space.connection else { return }
             await thread.follow(connection)
         }
-        .onDisappear { thread.leave() }
     }
 
     private var subtitle: String {
@@ -79,8 +78,8 @@ struct MissionThreadRowView: View {
                 .frame(maxWidth: .infinity)
         case .person(_, let text, let attachments):
             VStack(alignment: .leading, spacing: 6) {
-                if !text.isEmpty {
-                    Text(Self.markdown(text))
+                if !text.characters.isEmpty {
+                    Text(text)
                 }
                 ForEach(attachments, id: \.self) { name in
                     Label(name, systemImage: "paperclip")
@@ -94,7 +93,7 @@ struct MissionThreadRowView: View {
             .padding(.leading, 56)
             .frame(maxWidth: .infinity, alignment: .trailing)
         case .companion(_, let text):
-            Text(Self.markdown(text))
+            Text(text)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .textSelection(.enabled)
         }
@@ -105,12 +104,5 @@ struct MissionThreadRowView: View {
         if calendar.isDateInToday(at) { return "Today \(time)" }
         if calendar.isDateInYesterday(at) { return "Yesterday \(time)" }
         return "\(at.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))) \(time)"
-    }
-
-    private static func markdown(_ text: String) -> AttributedString {
-        (try? AttributedString(
-            markdown: text,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
-            ?? AttributedString(text)
     }
 }
