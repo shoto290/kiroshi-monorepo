@@ -53,13 +53,13 @@ private struct ScaledHexagon: View {
         Image(systemName: "hexagon.fill")
             .resizable()
             .scaledToFit()
-            .foregroundStyle(companion == nil ? Color(.systemGray6) : Color(.systemGray5))
+            .foregroundStyle(Color.kiroshi(companion == nil ? .muted : .railAvatar))
             .overlay {
                 if let companion {
                     Canvas { context, canvas in
                         let glyph = Text(companion.glyph)
                             .font(.system(size.glyphFont, design: .monospaced, weight: .bold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Color.kiroshi(.foreground))
                         context.draw(glyph, at: CGPoint(x: canvas.width / 2, y: canvas.height / 2))
                     }
                 }

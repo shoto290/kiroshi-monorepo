@@ -17,7 +17,7 @@ struct CompanionRow: View {
                     if let label = summary.timeLabel {
                         Text(label)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.kiroshi(.mutedForeground))
                     }
                 }
                 if summary.isWorking {
@@ -25,12 +25,13 @@ struct CompanionRow: View {
                 } else if let lastMessage = summary.lastMessage {
                     Text(lastMessage.line)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.kiroshi(.mutedForeground))
                         .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
                 }
             }
         }
         .padding(.vertical, 6)
+        .foregroundStyle(Color.kiroshi(.foreground))
         .accessibilityElement(children: .combine)
     }
 
@@ -54,6 +55,6 @@ struct WorkingLabel: View {
             Text("\(name) is working…")
         }
         .font(font)
-        .foregroundStyle(.primary)
+        .foregroundStyle(Color.kiroshi(.foreground))
     }
 }

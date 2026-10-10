@@ -14,7 +14,7 @@ struct MissionComposer: View {
             if let problem {
                 Label(problem, systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.kiroshi(.destructive))
             }
             if !thread.attachments.isEmpty {
                 ScrollView(.horizontal) {
@@ -49,12 +49,13 @@ struct MissionComposer: View {
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
-                .tint(.secondary)
-                .foregroundStyle(.primary)
+                .tint(Color.kiroshi(.mutedForeground))
+                .foregroundStyle(Color.kiroshi(.foreground))
                 HStack(alignment: .bottom, spacing: 8) {
                     TextField("Answer this mission…", text: $thread.draft, axis: .vertical)
                         .lineLimit(1...6)
                         .padding(.vertical, 8)
+                        .foregroundStyle(Color.kiroshi(.foreground))
                     if thread.isSending {
                         ProgressView()
                             .padding(.vertical, 8)
@@ -68,13 +69,13 @@ struct MissionComposer: View {
                 .padding(.leading, 14)
                 .padding(.trailing, 4)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 20).strokeBorder(Color(.separator))
+                    RoundedRectangle(cornerRadius: 20).strokeBorder(Color.kiroshi(.border))
                 }
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.background)
+        .background(Color.kiroshi(.card))
         .photosPicker(isPresented: $isPickingPhotos, selection: $photos, matching: .images)
         .fileImporter(
             isPresented: $isPickingFiles, allowedContentTypes: [.item],

@@ -7,7 +7,8 @@ extension View {
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
             .controlSize(.large)
-            .tint(.primary)
+            .tint(Color.kiroshi(.primary))
+            .foregroundStyle(Color.kiroshi(.primaryForeground))
     }
 
     func secondaryAction() -> some View {
@@ -16,14 +17,14 @@ extension View {
             .buttonStyle(.bordered)
             .buttonBorderShape(.capsule)
             .controlSize(.large)
-            .tint(.primary)
+            .tint(Color.kiroshi(.secondaryForeground))
     }
 
     func plainAction() -> some View {
         buttonSizing(.flexible)
             .frame(minHeight: 48)
             .buttonStyle(.borderless)
-            .tint(.primary)
+            .tint(Color.kiroshi(.foreground))
     }
 
     func bottomActions() -> some View {

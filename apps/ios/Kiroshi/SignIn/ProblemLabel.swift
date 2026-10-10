@@ -6,7 +6,7 @@ struct ProblemLabel: View {
     var body: some View {
         Label(message, systemImage: "exclamationmark.circle.fill")
             .font(.footnote)
-            .foregroundStyle(.red)
+            .foregroundStyle(Color.kiroshi(.destructive))
             .padding(.horizontal, 4)
     }
 }

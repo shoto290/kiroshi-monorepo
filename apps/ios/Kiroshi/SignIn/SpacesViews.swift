@@ -6,10 +6,11 @@ struct LoadingSpacesView: View {
     var body: some View {
         ProgressView {
             Text("Loading your spaces…")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.kiroshi(.mutedForeground))
         }
         .controlSize(.large)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.kiroshi(.background))
         .task { await model.loadSpaces() }
     }
 }
@@ -22,6 +23,7 @@ struct NoSpaceView: View {
             noSpaces
             ScrollView { noSpaces }
         }
+        .background(Color.kiroshi(.background))
         .safeAreaBar(edge: .bottom) {
             VStack(spacing: 4) {
                 Button("Check again", action: model.checkAgain)
@@ -44,7 +46,7 @@ struct NoSpaceView: View {
                 )
                 Text("Signed in as \(model.signedInEmail)")
                     .font(.subheadline)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.kiroshi(.mutedForeground))
             }
         }
     }
@@ -59,6 +61,7 @@ struct SpacesUnreachableView: View {
         } description: {
             Text("Couldn’t reach Kiroshi. Check your connection and try again.")
         }
+        .background(Color.kiroshi(.background))
         .safeAreaBar(edge: .bottom) {
             Button("Check again", action: model.checkAgain)
                 .secondaryAction()

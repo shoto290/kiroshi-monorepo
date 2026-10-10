@@ -9,21 +9,22 @@ struct MissionRow: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(mission.ticket.externalId)
                 .font(.footnote.monospaced())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.kiroshi(.mutedForeground))
             Text(mission.objective)
                 .font(.headline)
                 .lineLimit(lineLimit)
             HStack(spacing: 6) {
                 Image(systemName: "hexagon.fill")
-                    .foregroundStyle(.quaternary)
+                    .foregroundStyle(Color.kiroshi(.railAvatar))
                     .accessibilityHidden(true)
                 Text(detail)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.kiroshi(.mutedForeground))
                     .lineLimit(lineLimit)
             }
         }
         .padding(.vertical, 4)
+        .foregroundStyle(Color.kiroshi(.foreground))
         .accessibilityElement(children: .combine)
     }
 

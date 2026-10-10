@@ -19,7 +19,7 @@ targets:
       properties:
         UILaunchScreen:
           UIImageName: Hexagon
-          UIColorName: LaunchBackground
+          UIColorName: background
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kiroshi.app.ios
@@ -28,7 +28,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Kiroshi
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: primary
         ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS: NO
       configs:
         Debug:
