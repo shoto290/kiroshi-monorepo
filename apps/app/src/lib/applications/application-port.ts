@@ -1,89 +1,22 @@
-export type InstallField = {
-	name: string
-	secret: string
-	description?: string
-	concealed: boolean
-}
+import type {
+	Application_Serialize as Application,
+	ApplicationInstall_Serialize as ApplicationInstall,
+	ApplicationInstalled_Serialize as ApplicationInstalled,
+	ApplicationSearch_Serialize as ApplicationSearch,
+	InstallRefusal,
+} from "@/lib/bindings"
 
-export type InstallRefusal = {
-	field: string
-	reason: string
-}
-
-export type Install =
-	| { kind: "nothing" }
-	| { kind: "key"; fields: InstallField[] }
-	| { kind: "oauth" }
-	| ({ kind: "refused" } & InstallRefusal)
-
-type AuthPosture = "authRequired" | "noAuth"
-
-export type Application = {
-	name: string
-	title: string
-	description: string
-	config: Record<string, unknown>
-	tools?: string[]
-	logo?: string
-	logoUrl?: string
-	useCount?: number
-	verified?: boolean
-	hostedBy?: string
-	categories?: string[]
-	authPosture?: AuthPosture
-	install: Install
-}
-
-export type ApplicationsError =
-	| { kind: "catalogueUnreadable"; detail: string }
-	| { kind: "registryUnreached"; detail: string }
-	| { kind: "registryTimedOut" }
-	| { kind: "registryRefused"; status: number }
-	| { kind: "registryUnreadable"; detail: string }
-
-export type ApplicationSearch = {
-	applications: Application[]
-	registryFailure?: ApplicationsError
-	readAt?: number
-	isStale?: boolean
-}
-
-type ApplicationDestination = "companion" | "space" | "user"
-
-export type InstallCase =
-	| { kind: "nothing" }
-	| { kind: "key"; secrets: string[] }
-	| { kind: "oauth" }
-
-export type ApplicationInstall = {
-	id: string
-	conversationId: string
-	application: string
-	title: string
-	logo?: string
-	logoUrl?: string
-	description?: string
-	scope: ApplicationDestination
-	destinationId?: string
-	install: InstallCase
-	lastMessageSeq: number
-	createdAt: number
-}
-
-export type ApplicationInstalled = {
-	id?: string
-	conversationId: string
-	application: string
-	title: string
-	logo?: string
-	logoUrl?: string
-	description?: string
-	scope: ApplicationDestination
-	destinationId?: string
-	install: InstallCase
-	lastMessageSeq?: number
-	createdAt?: number
-}
+export type {
+	Application_Serialize as Application,
+	ApplicationInstall_Serialize as ApplicationInstall,
+	ApplicationInstalled_Serialize as ApplicationInstalled,
+	ApplicationSearch_Serialize as ApplicationSearch,
+	ApplicationsError,
+	Install,
+	InstallCase,
+	InstallField,
+	InstallRefusal,
+} from "@/lib/bindings"
 
 export type ApplicationPort = {
 	catalogue: () => Promise<Application[]>

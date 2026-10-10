@@ -1,24 +1,21 @@
 import { invoke, listen, listenToActiveHost } from "../host"
+import type {
+	CompanionCreated,
+	CompanionSeedRefused,
+	LaunchOutcome,
+} from "@/lib/bindings"
+
+export type {
+	CompanionCreated,
+	CompanionSeedRefused,
+	LaunchOutcome,
+} from "@/lib/bindings"
 
 export const CREATED_EVENT = "companion://created"
 
 export const FIRST_RUN_DONE_EVENT = "user://first-run-done"
 
 export const SEED_REFUSED_EVENT = "companion://seed-refused"
-
-export type CompanionCreated = {
-	id: string
-	name: string
-}
-
-export type CompanionSeedRefused = {
-	reason: string
-}
-
-export type LaunchOutcome = {
-	created: CompanionCreated | null
-	refused: CompanionSeedRefused | null
-}
 
 export const companionsTransport = {
 	onCreated: (listener: (created: CompanionCreated) => void) =>

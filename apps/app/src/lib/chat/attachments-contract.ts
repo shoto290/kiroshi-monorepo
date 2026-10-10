@@ -1,7 +1,8 @@
+import type { SubmittedAttachment as SubmittedAttachmentBinding } from "@/lib/bindings"
+
 export type { AttachmentStoreError } from "@/lib/bindings"
 
-export type SubmittedAttachment = {
-	name: string
+export type SubmittedAttachment = Omit<SubmittedAttachmentBinding, "bytes"> & {
 	bytes: Uint8Array
 }
 
