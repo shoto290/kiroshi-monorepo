@@ -1425,6 +1425,46 @@ describe("a bot or a Space only this Mac holds", () => {
 		},
 	)
 
+	const botOwned = (botId: string) => {
+		const owner = { kind: "bot", id: botId, spaceId: "personal" }
+		return [
+			["mcp_application_status", { owner }],
+			["mcp_oauth_connect", { owner, name: "linear" }],
+			[
+				"env_set",
+				{
+					scope: { kind: "server", name: "linear", owner },
+					name: "TOKEN",
+					value: "v",
+				},
+			],
+		] as const
+	}
+
+	it.each(botOwned("own-bot"))(
+		"serves %s locally when its owner is a companion only this Mac holds",
+		async (command, args) => {
+			const { hosts, local, fetch } = await onGarageAfterLocalReads()
+
+			await hosts.invoke(command, args)
+
+			expect(local.invoke).toHaveBeenLastCalledWith(command, args)
+			expect(relayedCommands(fetch)).toEqual([])
+		},
+	)
+
+	it.each(botOwned("shared-bot"))(
+		"relays %s when its owner is a companion the active host holds",
+		async (command, args) => {
+			const { hosts, local, fetch } = await onGarageAfterLocalReads()
+
+			await hosts.invoke(command, args)
+
+			expect(relayedCommands(fetch)).toEqual([command])
+			expect(local.invoke).not.toHaveBeenCalled()
+		},
+	)
+
 	it("raises one notice for a relayed call the host refuses", async () => {
 		const { hosts, fetch, reportFailure } = await onGarageAfterLocalReads()
 		fetch.mockImplementation(
