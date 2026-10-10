@@ -10,7 +10,6 @@ const result = await Bun.build({
 	entrypoints: [GLOBAL_ENTRY],
 	root: ROOT,
 	format: "iife",
-	target: "browser",
 	plugins: [
 		{
 			name: GLOBAL_ENTRY,
