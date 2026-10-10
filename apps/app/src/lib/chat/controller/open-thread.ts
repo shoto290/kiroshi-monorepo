@@ -5,6 +5,8 @@ import type { MessagePin } from "../../conversations/store-contract"
 
 export const NO_PINS: MessagePin[] = []
 
+export type OpenThread = ReturnType<typeof createOpenThread>
+
 export const createOpenThread = ({
 	store,
 	transcript,

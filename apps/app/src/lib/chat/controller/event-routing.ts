@@ -5,17 +5,15 @@ import {
 	noteFailure,
 } from "./bot-chat"
 import type { ChatContext } from "./chat-context"
+import type { EventPersistence } from "./event-persistence"
+import type { OpenThread } from "./open-thread"
 
 import { isSameRuntimeScope } from "../chat-state"
-import type {
-	AgentEvent,
-	RuntimeScope,
-	ScopedEvent,
-} from "../../agent/contract"
+import type { ScopedEvent } from "../../agent/contract"
 
 type EventRoutingParts = {
-	persist: (bot: BotChat, scope: RuntimeScope | null, event: AgentEvent) => void
-	reloadPage: (bot: BotChat) => void
+	persist: EventPersistence["persist"]
+	reloadPage: OpenThread["reloadPage"]
 	pump: (bot: BotChat) => void
 }
 

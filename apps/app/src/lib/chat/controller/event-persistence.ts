@@ -16,6 +16,8 @@ import type {
 	TranscriptDraft,
 } from "../../conversations/transcript-contract"
 
+export type EventPersistence = ReturnType<typeof createEventPersistence>
+
 export const createEventPersistence = (
 	{ store, transcript, now, write }: ChatContext,
 	{ streamReply, holdReply, settleCompleted, settleOpenReplies }: ReplyWriter,
