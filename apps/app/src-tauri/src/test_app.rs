@@ -6,16 +6,16 @@ use std::time::Duration;
 use tauri::test::{mock_context, noop_assets, MockRuntime};
 use tauri::{App, Builder, Manager};
 
+const REMOVALS_WHILE_A_LATE_WRITE_LANDS: usize = 10;
+
+const PAUSE_FOR_A_LATE_WRITE: Duration = Duration::from_millis(50);
+
 pub(crate) struct AppOfItsOwn {
 	app: App<MockRuntime>,
 	_folder: FolderOfItsOwn,
 }
 
 struct FolderOfItsOwn(PathBuf);
-
-const REMOVALS_WHILE_A_LATE_WRITE_LANDS: usize = 10;
-
-const PAUSE_FOR_A_LATE_WRITE: Duration = Duration::from_millis(50);
 
 impl Deref for AppOfItsOwn {
 	type Target = App<MockRuntime>;
@@ -27,24 +27,21 @@ impl Deref for AppOfItsOwn {
 
 impl Drop for FolderOfItsOwn {
 	fn drop(&mut self) {
+		let mut removal = std::fs::remove_dir_all(&self.0);
 		for _ in 1..REMOVALS_WHILE_A_LATE_WRITE_LANDS {
-			match std::fs::remove_dir_all(&self.0) {
+			match &removal {
 				Err(failure) if failure.kind() == ErrorKind::DirectoryNotEmpty => {
 					std::thread::sleep(PAUSE_FOR_A_LATE_WRITE);
+					removal = std::fs::remove_dir_all(&self.0);
 				}
-				outcome => return reported(outcome),
+				_ => break,
 			}
 		}
-		reported(std::fs::remove_dir_all(&self.0));
-	}
-}
-
-fn reported(removal: std::io::Result<()>) {
-	match removal {
-		Err(failure) if failure.kind() != ErrorKind::NotFound => {
-			eprintln!("the test data folder was not removed: {failure}");
+		if let Err(failure) = removal {
+			if failure.kind() != ErrorKind::NotFound {
+				eprintln!("the test data folder was not removed: {failure}");
+			}
 		}
-		_ => {}
 	}
 }
 
