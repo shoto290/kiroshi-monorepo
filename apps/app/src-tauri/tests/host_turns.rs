@@ -1,0 +1,478 @@
+use std::path::PathBuf;
+use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::Duration;
+
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::State as Served;
+use axum::http::{header, StatusCode};
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::Router;
+use kiroshi_app::account::session::{restore, AccountSession};
+use kiroshi_app::agent::commands::terminate_session;
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use kiroshi_app::agent::AgentState;
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
+use kiroshi_app::db::repositories::messages::{MessagePageQuery, MessageRole, StoredMessage};
+use kiroshi_app::environment::contract::{EnvScope, ACCOUNT_BEARER};
+use kiroshi_app::environment::store;
+use kiroshi_app::hosting::commands::hosting_start;
+use kiroshi_app::hosting::{local_api, Hosting};
+use kiroshi_app::routines::webhook::{self, Webhook};
+use serde_json::{json, Value};
+use tauri::async_runtime::block_on;
+use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+use tauri::{App, Manager, WebviewWindow, WebviewWindowBuilder};
+use tokio::net::TcpListener;
+use tokio::sync::mpsc;
+use tokio::time::timeout;
+
+const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
+const SCENARIO_ENV: &str = "FAKE_AGENT_SCENARIO_FILE";
+const BEARER: &str = "bearer-of-the-host";
+const PERSONAL: &str = "personal";
+const INSTANCE: &str = "6f1d2c3b-4a5e-4f60-8a7b-9c0d1e2f3a4b";
+const GUEST: &str = "guest";
+const ROOM: &str = "room-1";
+const ADA: &str = "b-ada";
+const GRACE: &str = "b-grace";
+const NYX: &str = "b-nyx";
+const AGENT_EVENT: &str = "agent://event";
+const MESSAGE_STORED: &str = "conversation://message-stored";
+const PATIENCE: Duration = Duration::from_secs(15);
+
+const A_ROOM: &str = "
+	INSERT INTO bots (id, name, model, created_at) VALUES
+		('b-ada', 'Ada', 'sonnet', 1),
+		('b-grace', 'Grace Hopper', 'sonnet', 1),
+		('b-nyx', 'Nyx', 'sonnet', 1);
+	INSERT INTO bot_spaces (bot_id, space_id, joined_at) VALUES
+		('b-ada', 'personal', 1),
+		('b-grace', 'personal', 1);
+	INSERT INTO conversations (id, kind, title, created_at, updated_at, space_id)
+		VALUES ('room-1', 'topic', 'Shift room', 1, 1, 'personal');
+	INSERT INTO conversation_participants (conversation_id, bot_id, role, joined_at, join_seq)
+		VALUES ('room-1', 'b-ada', 'lead', 1, 0),
+			('room-1', 'b-grace', 'assistant', 1, 1),
+			('room-1', 'b-nyx', 'assistant', 1, 2);
+";
+
+#[derive(Clone)]
+struct Cloud {
+	sockets: mpsc::UnboundedSender<WebSocket>,
+}
+
+async fn registered(body: String) -> Response {
+	let body: Value = serde_json::from_str(&body).expect("a json body");
+	answered_json(
+		StatusCode::CREATED,
+		json!({ "id": INSTANCE, "name": body["name"], "role": "owner" }),
+	)
+}
+
+async fn relay_opened(Served(cloud): Served<Cloud>, upgrade: WebSocketUpgrade) -> Response {
+	upgrade.on_upgrade(move |socket| async move {
+		cloud.sockets.send(socket).expect("the test holds the sockets");
+	})
+}
+
+async fn members() -> Response {
+	answered_json(
+		StatusCode::OK,
+		json!([
+			{ "userId": "owner", "email": "owner@example.com", "name": null, "role": "owner", "state": "joined" },
+			{ "userId": GUEST, "email": "guest@example.com", "name": "Guest", "role": "member", "state": "joined" },
+		]),
+	)
+}
+
+async fn me() -> Response {
+	answered_json(
+		StatusCode::OK,
+		json!({ "id": "owner", "email": "owner@example.com", "createdAt": "2026-10-01T00:00:00.000Z" }),
+	)
+}
+
+fn answered_json(status: StatusCode, body: Value) -> Response {
+	(status, [(header::CONTENT_TYPE, "application/json")], body.to_string()).into_response()
+}
+
+async fn served(router: Router) -> String {
+	let listener = TcpListener::bind(("127.0.0.1", 0)).await.expect("the fake binds");
+	let address = listener.local_addr().expect("the fake is named");
+	tauri::async_runtime::spawn(async move {
+		axum::serve(listener, router).await.expect("the fake serves");
+	});
+	format!("http://{address}")
+}
+
+fn serial() -> MutexGuard<'static, ()> {
+	static SIDECAR_SETTINGS: Mutex<()> = Mutex::new(());
+	SIDECAR_SETTINGS.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+fn scenario(name: &str) {
+	let path =
+		std::env::temp_dir().join(format!("kiroshi-host-turn-scenario-{}.txt", std::process::id()));
+	std::fs::write(&path, name).expect("the scenario is written");
+	std::env::set_var(SCENARIO_ENV, path);
+}
+
+fn sent(id: &str, turn_id: &str, content: &str) -> Value {
+	json!({
+		"id": id,
+		"conversationId": ROOM,
+		"turnId": turn_id,
+		"content": content,
+		"createdAt": 1,
+		"repliedToMessageId": null,
+	})
+}
+
+struct Host {
+	app: App<MockRuntime>,
+	_window: WebviewWindow<MockRuntime>,
+	member: WebSocket,
+	frames: Vec<Value>,
+	calls: u64,
+}
+
+impl Host {
+	async fn hosting(name: &str, played: &str) -> Self {
+		std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
+		scenario(played);
+		let (sockets_in, mut sockets) = mpsc::unbounded_channel();
+		let cloud = served(
+			Router::new()
+				.route("/instances", post(registered))
+				.route("/instances/{id}/relay/host", get(relay_opened))
+				.route("/instances/{id}/members", get(members))
+				.route("/me", get(me))
+				.with_state(Cloud { sockets: sockets_in }),
+		)
+		.await;
+		let mut context = mock_context(noop_assets());
+		context.config_mut().identifier =
+			format!("com.kiroshi.host-turns-{name}-{}", std::process::id());
+		let app = mock_builder()
+			.manage(AgentState::default())
+			.invoke_handler(invoke_handler())
+			.build(context)
+			.expect("the app builds");
+		let data_dir = app.path().app_data_dir().expect("a data dir");
+		if data_dir.exists() {
+			std::fs::remove_dir_all(&data_dir).expect("the previous data dir is cleared");
+		}
+		app.manage(db::bootstrap(app.handle()));
+		let root = data_dir.join("environment");
+		store::set(&root, &EnvScope::Account, ACCOUNT_BEARER, BEARER).expect("the bearer is kept");
+		app.manage(AccountSession::new(Ok::<PathBuf, _>(root), &cloud));
+		restore(app.handle().clone()).await;
+		app.manage(webhook::start(app.handle().clone()));
+		let local = local_api(app.handle()).expect("the local host api listens");
+		app.manage(Hosting::new(&cloud, Some(local)));
+		let window = WebviewWindowBuilder::new(&app, "main", Default::default())
+			.build()
+			.expect("the window builds");
+		database_of(&app)
+			.call_mut(|connection| Ok(connection.execute_batch(A_ROOM)?))
+			.await
+			.expect("the room is planted");
+		hosting_start(app.handle().clone(), PERSONAL.to_owned()).await.expect("the hosting starts");
+		let member = timeout(PATIENCE, sockets.recv())
+			.await
+			.expect("the host reached the relay in time")
+			.expect("the relay is up");
+		Self { app, _window: window, member, frames: Vec::new(), calls: 0 }
+	}
+
+	async fn send_turn(&mut self, message: Value, summoned: &[&str]) -> Value {
+		self.calls += 1;
+		let id = self.calls;
+		let frame = json!({
+			"id": id,
+			"command": "conversation_send_turn",
+			"sender": { "accountId": GUEST },
+			"args": { "message": message, "summoned": summoned },
+		});
+		self.member.send(Message::Text(frame.to_string().into())).await.expect("the frame leaves");
+		self.heard_until(|frames| frames.iter().any(|frame| frame["id"] == id)).await;
+		self.frames.iter().find(|frame| frame["id"] == id).cloned().expect("the call is answered")
+	}
+
+	async fn heard_until(&mut self, is_heard: impl Fn(&[Value]) -> bool) {
+		while !is_heard(&self.frames) {
+			let frame = timeout(PATIENCE, self.member.recv())
+				.await
+				.unwrap_or_else(|_| panic!("waited {PATIENCE:?}, heard {:#?}", self.frames))
+				.expect("the socket is open")
+				.expect("a readable frame");
+			if let Message::Text(text) = frame {
+				self.frames.push(serde_json::from_str(text.as_str()).expect("a json frame"));
+			}
+		}
+	}
+
+	async fn turn_ended_for(&mut self, bot_id: &str) {
+		self.heard_until(|frames| {
+			agent_events_in(frames, bot_id).any(|event| event["type"] == "turnEnded")
+		})
+		.await;
+	}
+
+	async fn turns_closed_for(&mut self, bot_id: &str, closed: usize) {
+		self.heard_until(|frames| turns_closed_in(frames, bot_id) >= closed).await;
+	}
+
+	async fn active_sessions_of(&self, bot_id: &'static str) -> i64 {
+		database_of(&self.app)
+			.call(move |connection| {
+				Ok(connection.query_row(
+					"SELECT count(*) FROM runtime_sessions
+						WHERE conversation_id = ?1 AND bot_id = ?2 AND status = 'active'",
+					[ROOM, bot_id],
+					|row| row.get(0),
+				)?)
+			})
+			.await
+			.expect("the sessions count")
+	}
+
+	fn agent_events(&self, bot_id: &str) -> Vec<Value> {
+		agent_events_in(&self.frames, bot_id).cloned().collect()
+	}
+
+	fn stored_ids(&self) -> Vec<Value> {
+		published(&self.frames, MESSAGE_STORED).map(|payload| payload["id"].clone()).collect()
+	}
+
+	async fn transcript(&self) -> Vec<StoredMessage> {
+		let query =
+			MessagePageQuery { conversation_id: ROOM.to_owned(), before_seq: None, limit: 50 };
+		database_of(&self.app)
+			.messages()
+			.page_messages(query)
+			.await
+			.expect("the transcript reads")
+			.messages
+	}
+
+	async fn turn_rows(&self) -> i64 {
+		database_of(&self.app)
+			.call(|connection| {
+				Ok(connection.query_row("SELECT count(*) FROM turns", [], |row| row.get(0))?)
+			})
+			.await
+			.expect("the turns count")
+	}
+
+	async fn completed_at(&self, turn_id: &'static str) -> Option<i64> {
+		database_of(&self.app)
+			.call(move |connection| {
+				Ok(connection.query_row(
+					"SELECT completed_at FROM turns WHERE id = ?1",
+					[turn_id],
+					|row| row.get(0),
+				)?)
+			})
+			.await
+			.expect("the turn reads")
+	}
+
+	async fn quit(self) {
+		terminate_session(&self.app.state::<AgentState>()).await;
+		self.app.state::<Webhook>().stop();
+		if let Ok(dir) = self.app.path().app_data_dir() {
+			if let Err(failure) = std::fs::remove_dir_all(&dir) {
+				eprintln!("the test data dir was not removed: {failure}");
+			}
+		}
+	}
+}
+
+fn published<'a>(frames: &'a [Value], name: &'a str) -> impl Iterator<Item = &'a Value> + 'a {
+	frames
+		.iter()
+		.filter(move |frame| frame["event"]["event"] == name)
+		.map(|frame| &frame["event"]["payload"])
+}
+
+fn agent_events_in<'a>(
+	frames: &'a [Value],
+	bot_id: &'a str,
+) -> impl Iterator<Item = &'a Value> + 'a {
+	published(frames, AGENT_EVENT)
+		.filter(move |payload| payload["scope"]["botId"] == bot_id)
+		.map(|payload| &payload["event"])
+}
+
+fn turns_closed_in(frames: &[Value], bot_id: &str) -> usize {
+	let mut closed = 0;
+	let mut has_ended = false;
+	for event in agent_events_in(frames, bot_id) {
+		if event["type"] == "turnEnded" {
+			has_ended = true;
+		}
+		if has_ended && event["type"] == "connectionChanged" && event["state"] == "checking" {
+			closed += 1;
+			has_ended = false;
+		}
+	}
+	closed
+}
+
+fn database_of(app: &App<MockRuntime>) -> &db::Database {
+	app.state::<db::DatabaseState>().inner().as_ref().expect("the database is open")
+}
+
+fn replies_of<'a>(transcript: &'a [StoredMessage], bot_id: &str) -> Vec<&'a StoredMessage> {
+	transcript.iter().filter(|message| message.author_bot_id.as_deref() == Some(bot_id)).collect()
+}
+
+fn completed_texts(events: &[Value]) -> Vec<&str> {
+	events
+		.iter()
+		.filter(|event| event["type"] == "messageCompleted")
+		.filter_map(|event| event["message"]["text"].as_str())
+		.collect()
+}
+
+#[test]
+fn one_member_call_stores_the_guest_message_and_the_lead_reply_with_their_live_events() {
+	let _serial = serial();
+	block_on(async {
+		let mut host = Host::hosting("lead", "room_reply").await;
+
+		let answer = host.send_turn(sent("p1", "t1", "what changed tonight?"), &[]).await;
+		host.turn_ended_for(ADA).await;
+
+		assert_eq!(answer["status"], json!(200), "{answer}");
+		let transcript = host.transcript().await;
+		let prompt =
+			transcript.iter().find(|message| message.id == "p1").expect("the prompt is stored");
+		assert_eq!(prompt.role, MessageRole::User);
+		assert_eq!(prompt.author.account_id.as_deref(), Some(GUEST));
+		assert_eq!(prompt.content, "what changed tonight?");
+		let replies = replies_of(&transcript, ADA);
+		assert_eq!(replies.len(), 1, "the room holds {transcript:#?}");
+		assert_eq!(replies[0].content, "noted");
+		assert_eq!(replies[0].turn_id, "t1");
+		assert_eq!(replies[0].replied_to_message_id.as_deref(), Some("p1"));
+		assert!(replies_of(&transcript, GRACE).is_empty(), "a companion nobody named answered");
+		assert!(host.stored_ids().contains(&json!("p1")), "the guest heard no stored message");
+		assert_eq!(completed_texts(&host.agent_events(ADA)), vec!["noted"]);
+		assert!(host.agent_events(GRACE).is_empty(), "the guest heard a session nobody summoned");
+		assert_eq!(host.calls, 1);
+		host.quit().await;
+	});
+}
+
+#[test]
+fn a_reply_naming_a_seated_companion_starts_it_in_the_next_wave() {
+	let _serial = serial();
+	block_on(async {
+		let mut host = Host::hosting("handover", "room_handover").await;
+
+		let answer = host.send_turn(sent("p1", "t1", "<@b-ada> who takes the walls?"), &[]).await;
+		host.turn_ended_for(GRACE).await;
+
+		assert_eq!(answer["status"], json!(200), "{answer}");
+		let transcript = host.transcript().await;
+		let handed = replies_of(&transcript, ADA);
+		assert_eq!(handed.len(), 1, "the room holds {transcript:#?}");
+		assert_eq!(handed[0].content, "<@b-grace> over to you");
+		let answered = replies_of(&transcript, GRACE);
+		assert_eq!(answered.len(), 1, "the room holds {transcript:#?}");
+		assert_eq!(answered[0].content, "noted");
+		assert_eq!(answered[0].turn_id, "t1");
+		assert_eq!(answered[0].replied_to_message_id.as_deref(), Some("p1"));
+		assert!(handed[0].seq < answered[0].seq, "the handed companion spoke first");
+		host.quit().await;
+	});
+}
+
+#[test]
+fn a_bot_outside_the_shared_space_is_refused_and_nothing_is_stored() {
+	let _serial = serial();
+	block_on(async {
+		let mut host = Host::hosting("outside", "room_reply").await;
+
+		let answer = host.send_turn(sent("p1", "t1", "<@b-nyx> are you there?"), &[NYX]).await;
+
+		assert_eq!(answer["status"], json!(403), "{answer}");
+		assert!(host.transcript().await.is_empty(), "a refused call stored a message");
+		assert_eq!(host.turn_rows().await, 0, "a refused call opened a turn");
+		host.quit().await;
+	});
+}
+
+#[test]
+fn a_second_call_while_a_turn_runs_is_refused_naming_the_running_turn() {
+	let _serial = serial();
+	block_on(async {
+		let mut host = Host::hosting("running", "slow").await;
+
+		let first = host.send_turn(sent("p1", "t1", "take your time"), &[ADA]).await;
+		let second = host.send_turn(sent("p2", "t2", "and now?"), &[ADA]).await;
+
+		assert_eq!(first["status"], json!(200), "{first}");
+		assert_eq!(second["status"], json!(500), "{second}");
+		assert_eq!(
+			second["body"],
+			json!({ "kind": "turnAlreadyRunning", "conversationId": ROOM, "turnId": "t1" })
+		);
+		let ids: Vec<String> =
+			host.transcript().await.into_iter().map(|message| message.id).collect();
+		assert_eq!(ids, vec!["p1"], "the refused call stored a message");
+		host.quit().await;
+	});
+}
+
+#[test]
+fn a_companion_that_cannot_start_fails_its_turn_and_leaves_the_others_to_reply() {
+	let _serial = serial();
+	block_on(async {
+		let mut host = Host::hosting("one-fails", "room_grace_cannot_start").await;
+
+		let answer = host.send_turn(sent("p1", "t1", "both of you, please"), &[ADA, GRACE]).await;
+		host.turn_ended_for(ADA).await;
+		host.heard_until(|frames| {
+			agent_events_in(frames, GRACE).any(|event| event["type"] == "failed")
+		})
+		.await;
+
+		assert_eq!(answer["status"], json!(200), "{answer}");
+		let transcript = host.transcript().await;
+		assert!(transcript.iter().any(|message| message.id == "p1"), "the prompt was dropped");
+		assert_eq!(replies_of(&transcript, ADA).len(), 1, "the room holds {transcript:#?}");
+		assert!(
+			replies_of(&transcript, GRACE).is_empty(),
+			"a companion that never started replied"
+		);
+		assert!(host.completed_at("t1").await.is_some(), "the failed turn was left open");
+		host.quit().await;
+	});
+}
+
+#[test]
+fn a_turn_that_ended_for_its_companion_lets_the_next_send_in_and_hands_its_session_over() {
+	let _serial = serial();
+	block_on(async {
+		let mut host = Host::hosting("in-a-row", "room_reply").await;
+
+		let first = host.send_turn(sent("p1", "t1", "first round"), &[ADA]).await;
+		host.turns_closed_for(ADA, 1).await;
+		let second = host.send_turn(sent("p2", "t2", "second round"), &[ADA]).await;
+		host.turns_closed_for(ADA, 2).await;
+
+		assert_eq!(first["status"], json!(200), "{first}");
+		assert_eq!(second["status"], json!(200), "{second}");
+		let transcript = host.transcript().await;
+		let turns: Vec<&str> =
+			replies_of(&transcript, ADA).iter().map(|reply| reply.turn_id.as_str()).collect();
+		assert_eq!(turns, vec!["t1", "t2"], "the room holds {transcript:#?}");
+		assert_eq!(host.active_sessions_of(ADA).await, 1, "a host turn left a session active");
+		host.quit().await;
+	});
+}

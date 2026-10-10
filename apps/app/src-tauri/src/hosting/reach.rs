@@ -203,6 +203,14 @@ pub(super) const REACHES: &[(&str, Reach)] = &[
 	("conversation_complete_turn", Reach::Scoped(&[child(Turn, "/id")])),
 	("conversation_append_user_message", Reach::Scoped(NEW_MESSAGE)),
 	("conversation_send_user_message", Reach::Scoped(OPENING_MESSAGE)),
+	(
+		"conversation_send_turn",
+		Reach::Scoped(&[
+			child(Conversation, "/message/conversationId"),
+			optional_child(Message, "/message/repliedToMessageId"),
+			child(Bot, "/summoned"),
+		]),
+	),
 	("conversation_open_assistant_message", Reach::Scoped(NEW_MESSAGE)),
 	("conversation_append_text", Reach::Scoped(MESSAGE_AS_ID)),
 	("conversation_finalize_message", Reach::Scoped(MESSAGE_AS_ID)),

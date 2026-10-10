@@ -21,6 +21,7 @@ use crate::bundles;
 use crate::companions::host::CompanionHost;
 use crate::json::JsonValue;
 use crate::conversations::commands::{ready, space_of_the_conversation};
+use crate::conversations::host_turn::HostTurns;
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
 use crate::db::repositories::conversations::{Bot as StoredBot, MISSION_KIND};
@@ -39,7 +40,11 @@ pub const EVENT_CHANNEL: &str = "agent://event";
 
 const RUNS_DIR: &str = "runs";
 
-fn announce<R: Runtime>(app: &AppHandle<R>, scope: Option<RuntimeScope>, event: AgentEvent) {
+pub(crate) fn announce<R: Runtime>(
+	app: &AppHandle<R>,
+	scope: Option<RuntimeScope>,
+	event: AgentEvent,
+) {
 	announce_in_turn(app, scope, None, event);
 }
 
@@ -330,6 +335,7 @@ pub struct AgentState {
 	models: Catalogue<OfferedModel>,
 	tools: Catalogue<String>,
 	host_writes: Arc<HostWrites>,
+	host_turns: HostTurns,
 }
 
 struct Catalogue<Item> {
@@ -351,6 +357,7 @@ impl Default for AgentState {
 			models: Catalogue::of(protocol::MODELS),
 			tools: Catalogue::of(protocol::TOOLS),
 			host_writes: Arc::default(),
+			host_turns: HostTurns::default(),
 		}
 	}
 }
@@ -389,6 +396,10 @@ impl<Item: Clone> Catalogue<Item> {
 impl AgentState {
 	pub fn host_writes(&self) -> &HostWrites {
 		&self.host_writes
+	}
+
+	pub(crate) fn host_turns(&self) -> &HostTurns {
+		&self.host_turns
 	}
 
 	fn claim(&self, scope: &RuntimeScope) -> Result<Claim<'_>, TransportError> {

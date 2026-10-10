@@ -301,6 +301,31 @@ impl NewUserMessage {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub struct SentMessage {
+	pub id: String,
+	pub conversation_id: String,
+	pub turn_id: String,
+	pub content: String,
+	pub created_at: i64,
+	pub replied_to_message_id: Option<String>,
+}
+
+impl From<SentMessage> for NewUserMessage {
+	fn from(sent: SentMessage) -> Self {
+		Self {
+			id: sent.id,
+			conversation_id: sent.conversation_id,
+			turn_id: sent.turn_id,
+			author_bot_id: None,
+			replied_to_message_id: sent.replied_to_message_id,
+			content: sent.content,
+			created_at: sent.created_at,
+		}
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct NewAssistantMessage {
 	pub id: String,
 	pub conversation_id: String,

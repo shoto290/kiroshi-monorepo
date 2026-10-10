@@ -1,11 +1,11 @@
 use tauri::{AppHandle, Manager, Runtime, State};
 
-use super::super::context;
 use super::super::contract::{
-	MessageReference, NewAssistantMessage, NewTurn, NewUserMessage, PinnedBubble,
+	MessageReference, NewAssistantMessage, NewTurn, NewUserMessage, PinnedBubble, SentMessage,
 	TerminalCompletion, TranscriptMessage, TranscriptPage, TranscriptStoreError, TranscriptWindow,
 	MESSAGE_STORED_EVENT,
 };
+use super::super::{context, host_turn};
 use super::bot::ready;
 use crate::agent::reply_writer::HostWrites;
 use crate::agent::AgentState;
@@ -148,17 +148,44 @@ pub async fn conversation_send_user_message<R: Runtime>(
 	message: NewUserMessage,
 	summoned: Vec<String>,
 ) -> Result<i64, TranscriptStoreError> {
+	store_sent(&app, ready(&state)?, caller, message, &summoned).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn conversation_send_turn<R: Runtime>(
+	app: AppHandle<R>,
+	state: State<'_, db::DatabaseState>,
+	agent: State<'_, AgentState>,
+	caller: Caller,
+	message: SentMessage,
+	summoned: Vec<String>,
+) -> Result<i64, TranscriptStoreError> {
+	let database = ready(&state)?;
+	let held = agent.host_turns().hold(&message.conversation_id, &message.turn_id)?;
+	let summoned = host_turn::summoned_for(database, &message, summoned).await?;
+	let seq = store_sent(&app, database, caller, message.clone().into(), &summoned).await?;
+	host_turn::run(app, held, message, summoned).await;
+	Ok(seq)
+}
+
+async fn store_sent<R: Runtime>(
+	app: &AppHandle<R>,
+	database: &db::Database,
+	caller: Caller,
+	message: NewUserMessage,
+	summoned: &[String],
+) -> Result<i64, TranscriptStoreError> {
 	let turn_id = message.turn_id.clone();
 	let completed_at = summoned.is_empty().then_some(message.created_at);
-	let database = ready(&state)?;
-	let author = caller.author(&app, database).await?;
+	let author = caller.author(app, database).await?;
 	let (conversation_id, id) = (message.conversation_id.clone(), message.id.clone());
 	let seq =
 		database.messages().send_user_message(message.written_by(author), completed_at).await?;
 	if let Some(agent) = app.try_state::<AgentState>() {
 		agent.host_writes().claim_turn(&turn_id);
 	}
-	announce_stored(&app, database, conversation_id, id).await;
+	announce_stored(app, database, conversation_id, id).await;
 	Ok(seq)
 }
 

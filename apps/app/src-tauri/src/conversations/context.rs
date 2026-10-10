@@ -381,6 +381,18 @@ fn mention_of(bot_id: &str) -> String {
 	format!("{MENTION_OPEN}{bot_id}{MENTION_CLOSE}")
 }
 
+pub(crate) fn mentioned_bot_ids(text: &str) -> Vec<&str> {
+	let mut mentioned = Vec::new();
+	let mut rest = text;
+	while let Some((_, bot_id, after)) = mention_at(rest) {
+		if !mentioned.contains(&bot_id) {
+			mentioned.push(bot_id);
+		}
+		rest = after;
+	}
+	mentioned
+}
+
 fn mention_at(text: &str) -> Option<(&str, &str, &str)> {
 	let opened = text.find(MENTION_OPEN)?;
 	let body = &text[opened + MENTION_OPEN.len()..];
