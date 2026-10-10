@@ -25,3 +25,13 @@ Format Swift with the toolchain's `swift format`, configured by the root `.swift
 ```bash
 swift format lint --recursive apps/ios
 ```
+
+## Sign-in states without the network
+
+A Debug build opens straight on one state of page 1 "Sign in" of the Paper file "Kiroshi, iOS", fed by fixtures instead of the cloud, when launched with `-fixture` and the artboard number (`1.1` to `1.10`, `1.7b`, plus `spaces` and `spaces-unreachable`):
+
+```bash
+xcrun simctl launch --terminate-running-process booted com.kiroshi.app.ios -fixture 1.7
+```
+
+The same fixtures feed the `#Preview`s.
