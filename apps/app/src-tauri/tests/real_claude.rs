@@ -1,3 +1,5 @@
+use std::ffi::OsString;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -24,21 +26,28 @@ struct Live {
 	events: mpsc::UnboundedReceiver<AgentEvent>,
 }
 
-async fn live(resume: Option<String>) -> Live {
-	started(resume, None, std::env::temp_dir()).await
+async fn live(folder: &LiveFolder, resume: Option<String>) -> Live {
+	started(folder, resume, None, folder.cwd()).await
 }
 
-async fn started(resume: Option<String>, instructions: Option<&str>, cwd: PathBuf) -> Live {
-	started_on(resume, instructions, SONNET, cwd).await
+async fn started(
+	folder: &LiveFolder,
+	resume: Option<String>,
+	instructions: Option<&str>,
+	cwd: PathBuf,
+) -> Live {
+	started_on(folder, resume, instructions, SONNET, cwd).await
 }
 
 async fn started_on(
+	folder: &LiveFolder,
 	resume: Option<String>,
 	instructions: Option<&str>,
 	model: &str,
 	cwd: PathBuf,
 ) -> Live {
-	started_with(resume, instructions.map(|told| bundle_carrying(told, model)), cwd).await
+	let bundle = instructions.map(|told| bundle_carrying(folder, told, model));
+	started_with(resume, bundle, cwd).await
 }
 
 async fn started_with(resume: Option<String>, bundle: Option<Bundle>, cwd: PathBuf) -> Live {
@@ -63,8 +72,114 @@ async fn opened(
 	Live { session, sidecar, events }
 }
 
-fn bundles_root() -> PathBuf {
-	std::env::temp_dir().join("kiroshi-real-claude-bundles")
+struct LiveFolder {
+	root: PathBuf,
+}
+
+impl LiveFolder {
+	fn of(test: &str) -> Self {
+		let root =
+			std::env::temp_dir().join(format!("kiroshi-real-{test}-{}", uuid::Uuid::new_v4()));
+		std::fs::create_dir_all(&root).expect("the test folder is created");
+		Self { root: root.canonicalize().expect("the test folder resolves") }
+	}
+
+	fn directory(&self, name: &str) -> PathBuf {
+		let dir = self.root.join(name);
+		std::fs::create_dir_all(&dir).expect("the directory is created");
+		dir
+	}
+
+	fn cwd(&self) -> PathBuf {
+		self.directory("cwd")
+	}
+
+	fn bundles(&self) -> PathBuf {
+		self.root.join("bundles")
+	}
+
+	fn system_plugin(&self) -> PathBuf {
+		let path = self.root.join("system");
+		bundles::system::write(&path).expect("the app's plugin is written");
+		path
+	}
+
+	fn user_plugin(&self) -> PathBuf {
+		let path = self.root.join("user");
+		bundles::user::lay_down(&path).expect("the person's plugin is laid down");
+		path
+	}
+
+	fn space_plugin(&self) -> PathBuf {
+		let path = self.root.join("space");
+		bundles::space::lay_down_at(&path).expect("the space's plugin is laid down");
+		path
+	}
+
+	fn projects(&self) -> Vec<PathBuf> {
+		let own = project_slug(&self.root);
+		let listing = match std::fs::read_dir(projects_dir()) {
+			Ok(listing) => listing,
+			Err(failure) if failure.kind() == ErrorKind::NotFound => return Vec::new(),
+			Err(failure) => {
+				eprintln!("the claude projects folder was not listed: {failure}");
+				return Vec::new();
+			}
+		};
+		listing
+			.filter_map(|entry| match entry {
+				Ok(entry) => Some(entry.path()),
+				Err(failure) => {
+					eprintln!("a claude project entry was not read: {failure}");
+					None
+				}
+			})
+			.filter(|project| {
+				project.file_name().and_then(|name| name.to_str()).is_some_and(|name| {
+					name == own || name.strip_prefix(&own).is_some_and(|rest| rest.starts_with('-'))
+				})
+			})
+			.collect()
+	}
+}
+
+impl Drop for LiveFolder {
+	fn drop(&mut self) {
+		for project in self.projects() {
+			removed(&project);
+		}
+		removed(&self.root);
+	}
+}
+
+fn removed(dir: &Path) {
+	if let Err(failure) = std::fs::remove_dir_all(dir) {
+		if failure.kind() != ErrorKind::NotFound {
+			eprintln!("a live test folder was not removed: {failure}");
+		}
+	}
+}
+
+struct EnvForThisTest {
+	key: &'static str,
+	prior: Option<OsString>,
+}
+
+impl EnvForThisTest {
+	fn set(key: &'static str, value: &Path) -> Self {
+		let prior = std::env::var_os(key);
+		std::env::set_var(key, value);
+		Self { key, prior }
+	}
+}
+
+impl Drop for EnvForThisTest {
+	fn drop(&mut self) {
+		match &self.prior {
+			Some(value) => std::env::set_var(self.key, value),
+			None => std::env::remove_var(self.key),
+		}
+	}
 }
 
 const PROBE_NAME: &str = "Probe";
@@ -88,14 +203,14 @@ fn probe_bot(id: &str, instructions: &str, model: &str) -> Bot {
 	}
 }
 
-fn bundle_carrying(instructions: &str, model: &str) -> Bundle {
-	written(&probe_bot("live-bot", instructions, model))
+fn bundle_carrying(folder: &LiveFolder, instructions: &str, model: &str) -> Bundle {
+	written(folder, &probe_bot("live-bot", instructions, model))
 }
 
-fn styled_bundle(bot: &Bot, output_style: &str) -> Bundle {
-	let root = bundles_root();
-	bundles::write_styled(&root, bot, output_style, None).expect("the bundle is written");
-	handed_over(&root, bot)
+fn styled_bundle(folder: &LiveFolder, bot: &Bot, output_style: &str) -> Bundle {
+	bundles::write_styled(&folder.bundles(), bot, output_style, None)
+		.expect("the bundle is written");
+	handed_over(folder, bot)
 }
 
 fn changing_rules() -> String {
@@ -110,49 +225,32 @@ fn denying(rules: &str) -> String {
 	format!(r#"{{"permissions":{{"deny":[{rules}]}}}}"#)
 }
 
-fn ruled(bot: &Bot, settings: &str) -> Bundle {
-	let root = bundles_root();
+fn ruled(folder: &LiveFolder, bot: &Bot, settings: &str) -> Bundle {
+	let root = folder.bundles();
 	bundles::write(&root, bot).expect("the bundle is written");
 	std::fs::write(bundles::dir(&root, &bot.id).join("settings.json"), settings)
 		.expect("the settings file is written");
-	handed_over(&root, bot)
+	handed_over(folder, bot)
 }
 
-fn written(bot: &Bot) -> Bundle {
-	let root = bundles_root();
-	bundles::write(&root, bot).expect("the bundle is written");
-	handed_over(&root, bot)
+fn written(folder: &LiveFolder, bot: &Bot) -> Bundle {
+	bundles::write(&folder.bundles(), bot).expect("the bundle is written");
+	handed_over(folder, bot)
 }
 
-fn handed_over(root: &Path, bot: &Bot) -> Bundle {
+fn handed_over(folder: &LiveFolder, bot: &Bot) -> Bundle {
+	let root = folder.bundles();
 	Bundle {
-		path: bundles::dir(root, &bot.id).display().to_string(),
-		system_path: Some(system_plugin().display().to_string()),
-		user_path: Some(user_plugin().display().to_string()),
-		space_path: Some(space_plugin().display().to_string()),
+		path: bundles::dir(&root, &bot.id).display().to_string(),
+		system_path: Some(folder.system_plugin().display().to_string()),
+		user_path: Some(folder.user_plugin().display().to_string()),
+		space_path: Some(folder.space_plugin().display().to_string()),
 		agent: bundles::slug(&bot.name),
 		identity: bundles::identity(bot),
-		output_style: bundles::output_style(root, &bot.id),
-		settings_path: bundles::settings_file(root, &bot.id).map(|path| path.display().to_string()),
+		output_style: bundles::output_style(&root, &bot.id),
+		settings_path: bundles::settings_file(&root, &bot.id)
+			.map(|path| path.display().to_string()),
 	}
-}
-
-fn system_plugin() -> PathBuf {
-	let path = std::env::temp_dir().join("kiroshi-real-claude-system");
-	bundles::system::write(&path).expect("the app's plugin is written");
-	path
-}
-
-fn user_plugin() -> PathBuf {
-	let path = std::env::temp_dir().join("kiroshi-real-claude-user");
-	bundles::user::lay_down(&path).expect("the person's plugin is laid down");
-	path
-}
-
-fn space_plugin() -> PathBuf {
-	let path = std::env::temp_dir().join("kiroshi-real-claude-space");
-	bundles::space::lay_down_at(&path).expect("the space's plugin is laid down");
-	path
 }
 
 impl Live {
@@ -300,12 +398,6 @@ fn a_clean_file(dir: &Path) -> PathBuf {
 	file
 }
 
-fn a_directory(name: &str) -> PathBuf {
-	let dir = std::env::temp_dir().join(format!("kiroshi-real-{name}"));
-	std::fs::create_dir_all(&dir).expect("the directory is created");
-	dir.canonicalize().expect("the directory resolves")
-}
-
 fn seen_as(dir: &Path) -> String {
 	dir.display().to_string()
 }
@@ -313,8 +405,9 @@ fn seen_as(dir: &Path) -> String {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_rotation_starts_a_second_process_under_the_identity_the_bot_holds_now() {
-	let workshop = a_directory("workshop");
-	let mut first = started(None, Some(BANANA), workshop.clone()).await;
+	let folder = LiveFolder::of("rotation");
+	let workshop = folder.directory("workshop");
+	let mut first = started(&folder, None, Some(BANANA), workshop.clone()).await;
 	let opening = first.run_turn(WHERE_AND_WHO).await;
 	let retired = first.sidecar.pid();
 
@@ -330,8 +423,8 @@ async fn a_rotation_starts_a_second_process_under_the_identity_the_bot_holds_now
 	);
 	first.sidecar.shutdown().await;
 
-	let studio = a_directory("studio");
-	let mut second = started(None, Some(ORANGE), studio.clone()).await;
+	let studio = folder.directory("studio");
+	let mut second = started(&folder, None, Some(ORANGE), studio.clone()).await;
 	let after = second.run_turn(WHERE_AND_WHO).await;
 
 	assert_ne!(second.sidecar.pid(), retired, "the new identity landed in the same process");
@@ -352,8 +445,6 @@ async fn a_rotation_starts_a_second_process_under_the_identity_the_bot_holds_now
 	);
 
 	second.sidecar.shutdown().await;
-	let _ = std::fs::remove_dir_all(&workshop);
-	let _ = std::fs::remove_dir_all(&studio);
 }
 
 const CLAUDE_MD_WORD: &str = "ZEPPELIN";
@@ -362,18 +453,26 @@ const THE_CODE_WORDS: &str = "Without reading any file, name the project code wo
 	the memory code word you were given. Reply with the two words, or NONE for either \
 	one you do not have.";
 
-fn memory_dir(cwd: &Path) -> PathBuf {
-	let slug: String = seen_as(cwd)
+fn project_slug(cwd: &Path) -> String {
+	seen_as(cwd)
 		.chars()
 		.map(|character| if character.is_ascii_alphanumeric() { character } else { '-' })
-		.collect();
-	redact::home_dir().expect("a home directory").join(".claude/projects").join(slug).join("memory")
+		.collect()
+}
+
+fn projects_dir() -> PathBuf {
+	redact::home_dir().expect("a home directory").join(".claude/projects")
+}
+
+fn memory_dir(cwd: &Path) -> PathBuf {
+	projects_dir().join(project_slug(cwd)).join("memory")
 }
 
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_reads_neither_the_claude_md_of_its_directory_nor_the_memory_derived_from_it() {
-	let sealed = a_directory("sealed");
+	let folder = LiveFolder::of("sealed");
+	let sealed = folder.cwd();
 	std::fs::write(sealed.join("CLAUDE.md"), format!("The project code word is {CLAUDE_MD_WORD}."))
 		.expect("the working directory carries a CLAUDE.md");
 	let memory = memory_dir(&sealed);
@@ -381,12 +480,9 @@ async fn a_bot_reads_neither_the_claude_md_of_its_directory_nor_the_memory_deriv
 	std::fs::write(memory.join("MEMORY.md"), format!("The memory code word is {MEMORY_WORD}."))
 		.expect("the memory carries a word");
 
-	let mut bot = started(None, Some(BANANA), sealed.clone()).await;
+	let mut bot = started(&folder, None, Some(BANANA), sealed).await;
 	let answer = text(&bot.run_turn(THE_CODE_WORDS).await);
 	bot.sidecar.shutdown().await;
-
-	let _ = std::fs::remove_dir_all(&sealed);
-	let _ = std::fs::remove_dir_all(&memory);
 
 	assert!(
 		answer.contains("BANANA"),
@@ -440,12 +536,13 @@ const CALL_THE_SERVER: &str =
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_reaches_the_mcp_servers_its_bundle_declares() {
+	let folder = LiveFolder::of("mcp");
 	let bot = probe_bot("live-bot-mcp", BANANA, SONNET);
-	let bundle = written(&bot);
+	let bundle = written(&folder, &bot);
 	let script = PathBuf::from(&bundle.path).join("probe_server.py");
 	std::fs::write(&script, PROBE_SERVER).expect("the server ships inside the bundle");
 	bundles::set_mcp_server(
-		&bundles_root(),
+		&folder.bundles(),
 		&bot,
 		"probe",
 		&serde_json::json!({ "command": "python3", "args": [script.display().to_string()] }),
@@ -453,7 +550,7 @@ async fn a_bot_reaches_the_mcp_servers_its_bundle_declares() {
 	)
 	.expect("the bundle declares its server");
 
-	let mut served = started_with(None, Some(bundle), std::env::temp_dir()).await;
+	let mut served = started_with(None, Some(bundle), folder.cwd()).await;
 	let answer = text(&served.run_turn(CALL_THE_SERVER).await);
 	served.sidecar.shutdown().await;
 
@@ -466,11 +563,12 @@ async fn a_bot_reaches_the_mcp_servers_its_bundle_declares() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_is_handed_its_own_directory_before_its_first_turn() {
-	let mut live = started(None, Some(BANANA), std::env::temp_dir()).await;
+	let folder = LiveFolder::of("handed-directory");
+	let mut live = started(&folder, None, Some(BANANA), folder.cwd()).await;
 	let told = text(&live.run_turn(WHICH_ROOT).await);
 	live.sidecar.shutdown().await;
 
-	let bundle = bundles::dir(&bundles_root(), "live-bot");
+	let bundle = bundles::dir(&folder.bundles(), "live-bot");
 	let resolved = bundle.canonicalize().unwrap_or_else(|_| bundle.clone());
 	assert!(
 		told.contains(&seen_as(&bundle)) || told.contains(&seen_as(&resolved)),
@@ -482,7 +580,8 @@ async fn a_bot_is_handed_its_own_directory_before_its_first_turn() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_answers_under_the_model_its_bundle_names() {
-	let mut picked = started_on(None, Some(BANANA), HAIKU, std::env::temp_dir()).await;
+	let folder = LiveFolder::of("model");
+	let mut picked = started_on(&folder, None, Some(BANANA), HAIKU, folder.cwd()).await;
 	let named = text(&picked.run_turn(WHICH_MODEL).await).to_lowercase();
 	picked.sidecar.shutdown().await;
 
@@ -493,7 +592,8 @@ async fn a_bot_answers_under_the_model_its_bundle_names() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_session_carries_the_bundle_brief_and_the_kiroshi_layer_at_once() {
-	let mut live = started(None, Some(BANANA), std::env::temp_dir()).await;
+	let folder = LiveFolder::of("kiroshi-layer");
+	let mut live = started(&folder, None, Some(BANANA), folder.cwd()).await;
 	let answer = text(&live.run_turn(QUOTE_THE_LAYER).await);
 	live.sidecar.shutdown().await;
 
@@ -504,7 +604,8 @@ async fn a_session_carries_the_bundle_brief_and_the_kiroshi_layer_at_once() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_answers_the_app_plugins_learn_rules_without_invoking_the_skill() {
-	let mut live = started(None, Some(BANANA), std::env::temp_dir()).await;
+	let folder = LiveFolder::of("learn-rules");
+	let mut live = started(&folder, None, Some(BANANA), folder.cwd()).await;
 	let turn = live.run_turn(AFTER_A_WRITE).await;
 	live.sidecar.shutdown().await;
 
@@ -521,7 +622,8 @@ async fn a_bot_answers_the_app_plugins_learn_rules_without_invoking_the_skill() 
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_says_its_name_the_app_it_runs_in_and_that_it_learns() {
-	let mut live = started(None, Some(BANANA), std::env::temp_dir()).await;
+	let folder = LiveFolder::of("name-and-app");
+	let mut live = started(&folder, None, Some(BANANA), folder.cwd()).await;
 	let answer = text(&live.run_turn(WHO_AND_WHAT).await).to_lowercase();
 	live.sidecar.shutdown().await;
 
@@ -540,16 +642,17 @@ async fn a_bot_says_its_name_the_app_it_runs_in_and_that_it_learns() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_answers_in_the_style_its_bundle_carries() {
+	let folder = LiveFolder::of("style");
 	let concise = probe_bot("live-bot-concise", BANANA, SONNET);
 	let mut styled =
-		started_with(None, Some(styled_bundle(&concise, CONCISE_STYLE)), std::env::temp_dir())
+		started_with(None, Some(styled_bundle(&folder, &concise, CONCISE_STYLE)), folder.cwd())
 			.await;
 	let under_concise = text(&styled.run_turn(QUOTE_THE_STYLE).await).to_lowercase();
 	styled.sidecar.shutdown().await;
 
 	let plain = probe_bot("live-bot-plain", BANANA, SONNET);
 	let mut unstyled =
-		started_with(None, Some(styled_bundle(&plain, NO_STYLE)), std::env::temp_dir()).await;
+		started_with(None, Some(styled_bundle(&folder, &plain, NO_STYLE)), folder.cwd()).await;
 	let under_default = text(&unstyled.run_turn(QUOTE_THE_STYLE).await).to_lowercase();
 	unstyled.sidecar.shutdown().await;
 
@@ -566,10 +669,11 @@ async fn a_bot_answers_in_the_style_its_bundle_carries() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_writes_inside_its_own_directory_without_asking_the_reader() {
-	let workshop = a_directory("auto-write");
+	let folder = LiveFolder::of("auto-write");
+	let workshop = folder.cwd();
 	let file = a_clean_file(&workshop);
 
-	let mut live = started(None, Some(BANANA), workshop).await;
+	let mut live = started(&folder, None, Some(BANANA), workshop).await;
 	let events = live.run_turn(WRITE_A_FILE).await;
 	live.sidecar.shutdown().await;
 
@@ -581,12 +685,13 @@ async fn a_bot_writes_inside_its_own_directory_without_asking_the_reader() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_denied_the_changing_tools_still_changes_nothing_under_auto() {
-	let workshop = a_directory("auto-denied");
+	let folder = LiveFolder::of("auto-denied");
+	let workshop = folder.cwd();
 	let file = a_clean_file(&workshop);
 
 	let mut held_back = probe_bot("live-bot-denied", BANANA, SONNET);
 	held_back.denied_tools = bundles::CHANGING_TOOLS.map(str::to_owned).to_vec();
-	let mut live = started_with(None, Some(written(&held_back)), workshop).await;
+	let mut live = started_with(None, Some(written(&folder, &held_back)), workshop).await;
 	let events = live.run_turn(WRITE_A_FILE).await;
 	live.sidecar.shutdown().await;
 
@@ -597,11 +702,12 @@ async fn a_bot_denied_the_changing_tools_still_changes_nothing_under_auto() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_allowed_the_write_by_its_settings_asks_the_reader_nothing() {
-	let workshop = a_directory("settings-allowed");
+	let folder = LiveFolder::of("settings-allowed");
+	let workshop = folder.cwd();
 	let file = a_clean_file(&workshop);
 
 	let bot = probe_bot("live-bot-allowed", BANANA, SONNET);
-	let allowed = ruled(&bot, &under_default(&changing_rules()));
+	let allowed = ruled(&folder, &bot, &under_default(&changing_rules()));
 	let mut live = started_with(None, Some(allowed), workshop).await;
 	let events = live.run_turn(WRITE_A_FILE).await;
 	live.sidecar.shutdown().await;
@@ -619,11 +725,12 @@ async fn a_bot_allowed_the_write_by_its_settings_asks_the_reader_nothing() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_bot_denied_the_write_by_its_settings_writes_nothing_and_asks_nothing() {
-	let workshop = a_directory("settings-denied");
+	let folder = LiveFolder::of("settings-denied");
+	let workshop = folder.cwd();
 	let file = a_clean_file(&workshop);
 
 	let bot = probe_bot("live-bot-refused", BANANA, SONNET);
-	let refused = ruled(&bot, &denying(&changing_rules()));
+	let refused = ruled(&folder, &bot, &denying(&changing_rules()));
 	let mut live = started_with(None, Some(refused), workshop).await;
 	let events = live.run_turn(WRITE_A_FILE).await;
 	live.sidecar.shutdown().await;
@@ -656,7 +763,8 @@ async fn the_check_report_carries_no_identity() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn two_turns_stream_and_the_second_resumes_the_first() {
-	let mut first = live(None).await;
+	let folder = LiveFolder::of("two-turns");
+	let mut first = live(&folder, None).await;
 	let opening = first.run_turn("Remember the number 4271. Reply with exactly: OK").await;
 
 	assert!(!streamed(&opening).is_empty(), "partial text must reach the contract");
@@ -664,7 +772,7 @@ async fn two_turns_stream_and_the_second_resumes_the_first() {
 	let id = session_id(&opening).expect("session id captured from the live stream");
 	first.sidecar.shutdown().await;
 
-	let mut second = live(Some(id.clone())).await;
+	let mut second = live(&folder, Some(id.clone())).await;
 	let recall =
 		second.run_turn("What number did I ask you to remember? Reply with only the digits.").await;
 	assert!(text(&recall).contains("4271"), "resumed turn lost the context: {:?}", text(&recall));
@@ -689,7 +797,8 @@ async fn two_turns_stream_and_the_second_resumes_the_first() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn stop_interrupts_a_live_turn_and_leaves_no_orphan() {
-	let mut live = live(None).await;
+	let folder = LiveFolder::of("stop");
+	let mut live = live(&folder, None).await;
 	let pid = live.sidecar.pid();
 
 	live.session
@@ -723,12 +832,13 @@ async fn stop_interrupts_a_live_turn_and_leaves_no_orphan() {
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn a_captured_id_resumes_the_conversation() {
-	let mut first = live(None).await;
+	let folder = LiveFolder::of("captured-id");
+	let mut first = live(&folder, None).await;
 	let opening = first.run_turn("Remember the number 4271. Reply with exactly: OK").await;
 	let id = session_id(&opening).expect("session id captured from the live stream");
 	first.sidecar.shutdown().await;
 
-	let mut second = live(Some(id)).await;
+	let mut second = live(&folder, Some(id)).await;
 	let recall =
 		second.run_turn("What number did I ask you to remember? Reply with only the digits.").await;
 	assert!(text(&recall).contains("4271"), "the captured id did not resume: {:?}", text(&recall));
@@ -759,20 +869,19 @@ fn surfaced(events: &[AgentEvent]) -> String {
 #[tokio::test]
 #[ignore = "needs the network and a throwaway CLAUDE_CONFIG_DIR"]
 async fn a_refused_api_key_surfaces_the_failure_text_of_the_binary() {
-	let config = a_directory("refused-key-config");
-	std::env::set_var("CLAUDE_CONFIG_DIR", &config);
-	let root = a_directory("refused-key-store");
+	let folder = LiveFolder::of("refused-key");
+	let _config = EnvForThisTest::set("CLAUDE_CONFIG_DIR", &folder.directory("config"));
+	let root = folder.directory("store");
 	connection::clear(&root).expect("the store starts empty");
 	connection::hold(&root, ConnectionKind::ApiKey, REFUSED_KEY).expect("the key is stored");
 	let owner = EnvOwner::Bot { id: "live-bot".to_owned(), space_id: "live-space".to_owned() };
 	let resolved = store::resolve(&root, &owner).expect("the store reads");
 	assert_eq!(resolved.base.get(API_KEY).map(String::as_str), Some(REFUSED_KEY));
 
-	let mut live = opened(None, None, std::env::temp_dir(), resolved).await;
+	let mut live = opened(None, None, folder.cwd(), resolved).await;
 	live.session.submit_prompt("Reply with exactly: OK").await.expect("prompt accepted");
 	let events = live.collect_until_settled().await;
 	live.sidecar.shutdown().await;
-	std::env::remove_var("CLAUDE_CONFIG_DIR");
 
 	let read = surfaced(&events);
 	println!("the binary surfaced: {read}");
