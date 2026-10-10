@@ -10,6 +10,11 @@ import {
 	MARKDOWN_TYPESET_CLASS,
 	MARKDOWN_WHITESPACE_CLASS,
 } from "@workspace/ui/components/markdown/prose"
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarProvider,
+} from "@workspace/ui/components/ui/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 
 export const withStoryProps = <Props,>(component: ComponentType<never>) =>
@@ -78,6 +83,14 @@ export const settled = async (element: HTMLElement) => {
 
 export const Row = ({ children }: { children: React.ReactNode }) => (
 	<div className="flex flex-wrap items-center gap-3">{children}</div>
+)
+
+export const SidebarFrame = ({ children }: { children: ReactNode }) => (
+	<SidebarProvider>
+		<Sidebar aria-label="Roster" collapsible="none" role="complementary">
+			<SidebarContent>{children}</SidebarContent>
+		</Sidebar>
+	</SidebarProvider>
 )
 
 export const slotsIn = (root: Element, slot: string) =>
