@@ -10,6 +10,7 @@ import {
 } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
 
+import { useHostReconnections } from "@/lib/host/use-host-reconnections"
 import { useReachableHost } from "@/lib/host/use-reachable-host"
 
 type HeldSpaceMissions = {
@@ -79,6 +80,8 @@ export const useSpaceMissions = (spaceId: string | null): SpaceMissionsView => {
 	}, [spaceId, host])
 
 	useEffect(reload, [reload])
+
+	useHostReconnections(reload)
 
 	useEffect(() => {
 		const rereading = coalescedRead(reload)

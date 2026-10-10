@@ -17,9 +17,11 @@ import { joinRefusalNoticeOf } from "./join-refusal"
 import {
 	type commands,
 	INVITATION_CHANGED_EVENT,
+	JOINED_SPACE_RECONNECTED_EVENT,
 	JOINED_SPACE_REMOVED_EVENT,
 	type JoinedSpaceConnection,
 	type JoinedSpaceError,
+	type JoinedSpaceReconnected,
 } from "../bindings"
 import { createStore } from "../store"
 
@@ -126,6 +128,8 @@ export type JoinedHostsOptions = {
 
 type Route = (event: string) => Listen
 
+type ReopenSignal = "relay" | "socket"
+
 type Subscription = {
 	event: string
 	handler: EventCallback<unknown>
@@ -180,6 +184,8 @@ export const createJoinedHosts = ({
 	const subscriptions = new Set<Subscription>()
 	const downNotices = new Map<string, string>()
 	const reconnectionListeners = new Set<() => void>()
+	const unpairedReopens = new Map<string, ReopenSignal>()
+	let isHearingRelayReopens = false
 	const provenance = createConversationProvenance()
 	let requested: string | null = null
 	let localIdsRecall: Promise<void> | null = null
@@ -234,17 +240,70 @@ export const createJoinedHosts = ({
 		}
 	}
 
-	const markUp = (id: string) => {
-		const isReconnection = isDown(id) && store.getState().active === id
-		record(id, { status: "up" })
-		endDownNotice(id)
-		if (isReconnection) {
+	const announceReconnectionOf = (id: string) => {
+		if (store.getState().active === id) {
 			announceReconnection()
 		}
 	}
 
+	const catchUpOnSocketReopen = (id: string) => {
+		if (unpairedReopens.get(id) === "relay") {
+			unpairedReopens.delete(id)
+		} else {
+			unpairedReopens.set(id, "socket")
+		}
+		announceReconnectionOf(id)
+	}
+
+	const catchUpOnRelayReopen: EventCallback<JoinedSpaceReconnected> = ({
+		payload: { id },
+	}) => {
+		const status = store.getState().connections[id]?.status
+		if (status === "down") {
+			unpairedReopens.set(id, "relay")
+			return
+		}
+		if (status !== "up") {
+			return
+		}
+		if (unpairedReopens.get(id) === "socket") {
+			unpairedReopens.delete(id)
+			return
+		}
+		announceReconnectionOf(id)
+	}
+
+	const markUp = (id: string) => {
+		const wasDown = isDown(id)
+		record(id, { status: "up" })
+		endDownNotice(id)
+		if (wasDown) {
+			catchUpOnSocketReopen(id)
+		}
+	}
+
+	const reportListenFailure = (reason: unknown): UnlistenFn => {
+		reportFailure(describeRejection(reason))
+		return () => undefined
+	}
+
+	const hearRelayReopens = () => {
+		if (
+			isHearingRelayReopens ||
+			hosts.size === 0 ||
+			reconnectionListeners.size === 0
+		) {
+			return
+		}
+		isHearingRelayReopens = true
+		void local
+			.listen(JOINED_SPACE_RECONNECTED_EVENT, catchUpOnRelayReopen)
+			.catch(reportListenFailure)
+	}
+
 	const onReconnected = (listener: () => void) => {
 		reconnectionListeners.add(listener)
+		hearRelayReopens()
 		return () => {
 			reconnectionListeners.delete(listener)
 		}
@@ -269,6 +328,7 @@ export const createJoinedHosts = ({
 		hosts.set(id, host)
 		sharedSpaceIds.set(id, remoteSpaceId ?? id)
 		host.openEvents()
+		hearRelayReopens()
 		return host
 	}
 
@@ -311,11 +371,6 @@ export const createJoinedHosts = ({
 	const listenerFor = (event: string): Listen => {
 		const joined = LOCAL_EVENTS.has(event) ? undefined : activeHost()
 		return joined ? joined.listen : local.listen
-	}
-
-	const reportListenFailure = (reason: unknown): UnlistenFn => {
-		reportFailure(describeRejection(reason))
-		return () => undefined
 	}
 
 	const relocate = (subscription: Subscription) => {
@@ -385,6 +440,7 @@ export const createJoinedHosts = ({
 		hosts.get(id)?.close()
 		hosts.delete(id)
 		sharedSpaceIds.delete(id)
+		unpairedReopens.delete(id)
 		endDownNotice(id)
 		const { [id]: _forgotten, ...connections } = store.getState().connections
 		store.setState({ ...store.getState(), connections })

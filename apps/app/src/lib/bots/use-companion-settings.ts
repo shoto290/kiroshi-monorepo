@@ -2,6 +2,7 @@ import { useEffect } from "react"
 
 import type { McpServersController } from "./mcp-servers-controller"
 
+import { onHostReconnected } from "../host"
 import type { ApplicationsController } from "../applications/applications-controller"
 import type { ConnectionsController } from "../applications/connections-controller"
 import { botPlugin } from "../conversations/plugin-scope"
@@ -34,11 +35,15 @@ export const useCompanionSettings = ({
 			return
 		}
 		const owner = { kind: "bot", id: companionId, spaceId } as const
-		void applications.open()
-		void plugin.open(botPlugin(companionId))
-		void servers.open(owner)
-		void environment.open(owner)
-		void connections.open(owner)
+		const readPanels = () => {
+			void applications.open()
+			void plugin.open(botPlugin(companionId))
+			void servers.open(owner)
+			void environment.open(owner)
+			void connections.open(owner)
+		}
+		readPanels()
+		return onHostReconnected(readPanels)
 	}, [
 		applications,
 		plugin,

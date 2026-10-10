@@ -8,7 +8,23 @@ import {
 	useCompanionSettings,
 } from "./use-companion-settings"
 
-afterEach(cleanup)
+import {
+	joinFakeHost,
+	leaveFakeHost,
+	reopenFakeRelay,
+} from "../host/fake-joined-hosts"
+
+vi.mock("../host", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../host")>()),
+	...(await import("../host/fake-joined-hosts")).fakeHostModule,
+}))
+
+const JOINED = "garage"
+
+afterEach(async () => {
+	cleanup()
+	await leaveFakeHost(JOINED)
+})
 
 const opener = () => vi.fn(() => Promise.resolve())
 
@@ -67,5 +83,36 @@ describe("useCompanionSettings", () => {
 		rendered.rerender({ isOpen: true })
 
 		expect(readCounts(panels)).toEqual([2, 2, 2, 2, 2])
+	})
+
+	it("reads them again when the relay of the joined Space reopens", async () => {
+		const panels = panelsOf()
+		await joinFakeHost(JOINED)
+		mounted(panels, true)
+
+		reopenFakeRelay(JOINED)
+
+		expect(readCounts(panels)).toEqual([2, 2, 2, 2, 2])
+	})
+
+	it("reads nothing more when the relay of another Space reopens", async () => {
+		const panels = panelsOf()
+		await joinFakeHost(JOINED)
+		mounted(panels, true)
+
+		reopenFakeRelay("attic")
+
+		expect(readCounts(panels)).toEqual([1, 1, 1, 1, 1])
+	})
+
+	it("reads nothing more once the settings dialog has closed", async () => {
+		const panels = panelsOf()
+		await joinFakeHost(JOINED)
+		const rendered = mounted(panels, true)
+		rendered.rerender({ isOpen: false })
+
+		reopenFakeRelay(JOINED)
+
+		expect(readCounts(panels)).toEqual([1, 1, 1, 1, 1])
 	})
 })

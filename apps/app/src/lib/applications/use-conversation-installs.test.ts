@@ -6,18 +6,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 
-import type { ApplicationPort } from "./application-port"
+import type { ApplicationInstall, ApplicationPort } from "./application-port"
 import {
 	type ConversationApplications,
 	ConversationApplicationsContext,
 	useConversationInstalls,
 } from "./use-conversation-installs"
 
+import {
+	joinFakeHost,
+	leaveFakeHost,
+	reopenFakeRelay,
+} from "../host/fake-joined-hosts"
 import { hostOfflineOf } from "../host/host-offline"
 import { createJoinedHosts } from "../host/joined-hosts"
 
 vi.mock("@workspace/ui/components/notice-surface", () => ({
 	raiseFailureNotice: vi.fn(),
+}))
+
+vi.mock("../host", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../host")>()),
+	...(await import("../host/fake-joined-hosts")).fakeHostModule,
 }))
 
 type Provided = {
@@ -75,6 +85,81 @@ describe("reading the installs of a conversation", () => {
 		await waitFor(() => expect(installs).toHaveBeenCalled())
 		await Promise.resolve()
 		expect(raiseFailureNotice).not.toHaveBeenCalled()
+	})
+})
+
+describe("reading the installs again when the relay of a joined Space reopens", () => {
+	const JOINED = "garage"
+
+	const installOf = (title: string) =>
+		({
+			id: title,
+			conversationId: "conversation-1",
+			application: title,
+			title,
+		}) as ApplicationInstall
+
+	const installsShownOnHost = async () => {
+		const held = { installs: [installOf("Linear")] }
+		const installs = vi.fn(async () => held.installs)
+		const applications = {
+			port: {
+				installs,
+				onInstalled: () => Promise.resolve(() => undefined),
+			} as unknown as ApplicationPort,
+			curated: [],
+			spaces: [],
+			onOpen: vi.fn(),
+		} satisfies ConversationApplications
+		await joinFakeHost(JOINED)
+		const rendered = renderHook(
+			() => useConversationInstalls("conversation-1"),
+			{ wrapper: providing(applications) },
+		)
+		await waitFor(() =>
+			expect(rendered.result.current.map(({ title }) => title)).toEqual([
+				"Linear",
+			]),
+		)
+		held.installs = [installOf("Linear"), installOf("Notion")]
+		return { installs, rendered }
+	}
+
+	const titlesOf = (installs: ApplicationInstall[]) =>
+		installs.map(({ title }) => title)
+
+	afterEach(async () => {
+		cleanup()
+		await leaveFakeHost(JOINED)
+	})
+
+	it("shows the installs written during the cut", async () => {
+		const { rendered } = await installsShownOnHost()
+
+		reopenFakeRelay(JOINED)
+
+		await waitFor(() =>
+			expect(titlesOf(rendered.result.current)).toEqual(["Linear", "Notion"]),
+		)
+	})
+
+	it("reads nothing when the relay of another Space reopens", async () => {
+		const { installs, rendered } = await installsShownOnHost()
+
+		reopenFakeRelay("attic")
+		await Promise.resolve()
+
+		expect(installs).toHaveBeenCalledOnce()
+		expect(titlesOf(rendered.result.current)).toEqual(["Linear"])
+	})
+
+	it("reads nothing once the conversation is gone", async () => {
+		const { installs, rendered } = await installsShownOnHost()
+		rendered.unmount()
+
+		reopenFakeRelay(JOINED)
+
+		expect(installs).toHaveBeenCalledOnce()
 	})
 })
 

@@ -1,3 +1,4 @@
+import type { EventCallback } from "@tauri-apps/api/event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { NoticeMessage } from "@workspace/ui/components/notice-surface"
@@ -12,7 +13,11 @@ import {
 	LOCAL_COMMANDS,
 } from "./joined-hosts"
 
-import type { JoinedSpaceError } from "../bindings"
+import {
+	JOINED_SPACE_RECONNECTED_EVENT,
+	type JoinedSpaceError,
+	type JoinedSpaceReconnected,
+} from "../bindings"
 
 const HOST = "http://192.168.1.20:45367"
 
@@ -58,7 +63,9 @@ const joinedHostsOf = ({ join, answer = answerJoined }: Seed = {}) => {
 	const localUnlisten = vi.fn()
 	const local = {
 		invoke: vi.fn(async (_command: string) => "local" as never),
-		listen: vi.fn(async () => localUnlisten),
+		listen: vi.fn(
+			async (_event: string, _handler: EventCallback<never>) => localUnlisten,
+		),
 		fileSrc: vi.fn((path: string) => `asset://${path}`),
 	}
 	const fetch = vi.fn(async () => answer())
@@ -799,6 +806,111 @@ describe("an offline joined host", () => {
 		await requestsOf(hosts, 3)
 
 		expect(reportHostDown).not.toHaveBeenCalled()
+	})
+})
+
+describe("a reopened member relay", () => {
+	const relayOf =
+		(local: ReturnType<typeof joinedHostsOf>["local"]) => (id: string) => {
+			for (const [event, handler] of local.listen.mock.calls) {
+				if (event === JOINED_SPACE_RECONNECTED_EVENT) {
+					const heard = handler as EventCallback<JoinedSpaceReconnected>
+					heard({ event, id: 0, payload: { id } })
+				}
+			}
+		}
+
+	const followingGarage = async () => {
+		const joined = joinedHostsOf()
+		await joined.hosts.activate("garage")
+		joined.sockets[0]?.open()
+		const reread = vi.fn()
+		const stopFollowing = joined.hosts.onReconnected(reread)
+		return { ...joined, reread, stopFollowing, reopen: relayOf(joined.local) }
+	}
+
+	it("re-reads once the relay of the active joined Space reopens", async () => {
+		const { reread, reopen } = await followingGarage()
+
+		reopen("garage")
+
+		expect(reread).toHaveBeenCalledOnce()
+	})
+
+	it("re-reads nothing when the relay of another Space reopens", async () => {
+		const { reread, reopen } = await followingGarage()
+
+		reopen("attic")
+
+		expect(reread).not.toHaveBeenCalled()
+	})
+
+	it("re-reads nothing while a local Space is shown", async () => {
+		const { hosts, reread, reopen } = await followingGarage()
+		await hosts.activate(null)
+
+		reopen("garage")
+
+		expect(reread).not.toHaveBeenCalled()
+	})
+
+	it("re-reads once when the relay reopens before the socket", async () => {
+		const { sockets, reread, reopen } = await followingGarage()
+		sockets[0]?.drop()
+
+		reopen("garage")
+		sockets[0]?.open()
+
+		expect(reread).toHaveBeenCalledOnce()
+	})
+
+	it("re-reads once when the socket reopens before the relay", async () => {
+		const { sockets, reread, reopen } = await followingGarage()
+		sockets[0]?.drop()
+
+		sockets[0]?.open()
+		reopen("garage")
+
+		expect(reread).toHaveBeenCalledOnce()
+	})
+
+	it("re-reads again on the next reopen of the relay", async () => {
+		const { sockets, reread, reopen } = await followingGarage()
+		sockets[0]?.drop()
+		sockets[0]?.open()
+		reopen("garage")
+
+		reopen("garage")
+
+		expect(reread).toHaveBeenCalledTimes(2)
+	})
+
+	it("listens to the relay once however many views follow it", async () => {
+		const { hosts, local } = await followingGarage()
+
+		hosts.onReconnected(vi.fn())
+
+		const relayListens = local.listen.mock.calls.filter(
+			([event]) => event === JOINED_SPACE_RECONNECTED_EVENT,
+		)
+		expect(relayListens).toHaveLength(1)
+	})
+
+	it("listens to no relay before a joined Space is opened", () => {
+		const { hosts, local } = joinedHostsOf()
+
+		hosts.onReconnected(vi.fn())
+
+		expect(local.listen).not.toHaveBeenCalled()
+	})
+
+	it("stops re-reading a view once it stops following", async () => {
+		const { reread, stopFollowing, reopen } = await followingGarage()
+
+		stopFollowing()
+		reopen("garage")
+
+		expect(reread).not.toHaveBeenCalled()
 	})
 })
 
