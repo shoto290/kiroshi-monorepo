@@ -350,13 +350,14 @@ describe("missions read on a joined host", () => {
 		)
 	})
 
+	const markIdsOf = (marks: { mission: Mission }[]) =>
+		marks.map(({ mission }) => mission.id)
+
 	const marksOnGarage = async () => {
 		await joinGarage()
 		const rendered = renderHook(() => useMissionMarks("space-on-host"))
 		await waitFor(() =>
-			expect(rendered.result.current.map(({ mission }) => mission.id)).toEqual([
-				HOST_MISSION.id,
-			]),
+			expect(markIdsOf(rendered.result.current)).toEqual([HOST_MISSION.id]),
 		)
 		const reopened = missionOf("m-reopened", "Ship the parser")
 		wire.hostAnswer = answering({
@@ -370,9 +371,6 @@ describe("missions read on a joined host", () => {
 		})
 		return { ...rendered, reopened }
 	}
-
-	const markIdsOf = (marks: { mission: Mission }[]) =>
-		marks.map(({ mission }) => mission.id)
 
 	it("reads the conversation-row marks again when the relay of the joined Space reopens", async () => {
 		const { result, reopened } = await marksOnGarage()
