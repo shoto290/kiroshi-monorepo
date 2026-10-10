@@ -74,6 +74,7 @@ const pickSimulator = () => {
 }
 
 run("generate", ["bun", "run", "ios:generate"])
+const { udid } = pickSimulator()
 run("build", [
 	"xcodebuild",
 	"-quiet",
@@ -87,7 +88,6 @@ run("build", [
 	DERIVED_DATA,
 	"build",
 ])
-const { udid } = pickSimulator()
 run("boot", ["xcrun", "simctl", "bootstatus", udid, "-b"])
 run("install", ["xcrun", "simctl", "install", udid, APP_PATH])
 run("launch", [
