@@ -71,6 +71,14 @@
         case space = "2.1"
         case spaceMenu = "2.2"
         case hostOffline = "2.3"
+        case conversations = "3.1"
+        case thread = "3.2"
+        case noCompanion = "3.3"
+        case loadingCompanions = "3.4"
+        case emptyThread = "3.5"
+        case conversationsHostOffline = "3.6"
+        case workingList = "3.7"
+        case workingThread = "3.8"
 
         static var launchArgument: SignInFixture? {
             UserDefaults.standard.string(forKey: "fixture").flatMap(SignInFixture.init(rawValue:))
@@ -103,6 +111,9 @@
                 ]
             case .space, .spaceMenu, .hostOffline:
                 [CloudFixture.spacesPath: CloudFixture.threeSpaces]
+            case .conversations, .thread, .noCompanion, .loadingCompanions, .emptyThread,
+                .conversationsHostOffline, .workingList, .workingThread:
+                [CloudFixture.spacesPath: CloudFixture.threeSpaces]
             case .opening, .email, .code: [:]
             }
         }
@@ -111,6 +122,9 @@
             switch self {
             case .loadingSpaces, .noSpace, .spaces, .spacesUnreachable, .space, .spaceMenu,
                 .hostOffline:
+                true
+            case .conversations, .thread, .noCompanion, .loadingCompanions, .emptyThread,
+                .conversationsHostOffline, .workingList, .workingThread:
                 true
             default: false
             }
@@ -131,8 +145,18 @@
 
         fileprivate var lastSpaceId: Space.ID? {
             switch self {
-            case .hostOffline: CloudFixture.sideProjectId
+            case .hostOffline, .conversationsHostOffline: CloudFixture.sideProjectId
             default: nil
+            }
+        }
+
+        @MainActor fileprivate var relay: RelayEnvironment {
+            switch self {
+            case .conversations, .thread, .noCompanion, .loadingCompanions, .emptyThread,
+                .conversationsHostOffline, .workingList, .workingThread:
+                ConversationsFixture.relay(ConversationsFixture.script(self))
+            default:
+                CloudFixture.relay
             }
         }
 
@@ -155,7 +179,8 @@
                     transport: ScriptedTransport(fixture.answers)),
                 sessions: fixture.sessions,
                 lastSpace: InMemoryLastSpaceStore(fixture.lastSpaceId),
-                relay: CloudFixture.relay)
+                relay: fixture.relay)
+            ConversationsFixture.opening = ConversationsFixture.opening(fixture)
             if ![.opening, .keychain, .seededKeychain].contains(fixture) {
                 model.email = CloudFixture.email
             }
@@ -175,7 +200,9 @@
                 model.path = [.email, .code]
                 model.sendNewCodeTapped()
             case .opening, .loadingSpaces, .noSpace, .spaces, .spacesUnreachable, .keychain,
-                .seededKeychain, .space, .spaceMenu, .hostOffline:
+                .seededKeychain, .space, .spaceMenu, .hostOffline, .conversations, .thread,
+                .noCompanion, .loadingCompanions, .emptyThread, .conversationsHostOffline,
+                .workingList, .workingThread:
                 break
             }
             return model
