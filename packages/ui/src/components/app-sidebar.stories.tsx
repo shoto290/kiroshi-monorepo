@@ -1909,6 +1909,9 @@ export const RowContextMenu = meta.story({
 		const menu = await shown(
 			await overlay.findByRole("menu", { name: "Actions for Cinder" }),
 		)
+		await waitFor(async () => {
+			await expect(menu).toHaveFocus()
+		}, FRAME_POLL)
 		const items = within(menu).getAllByRole("menuitem")
 		await expect(items.map((item) => item.textContent)).toEqual([
 			"Pin",
@@ -2580,11 +2583,13 @@ const crossSafePolygon = async (panel: HTMLElement) => {
 
 const openRowMenu = async (canvasElement: HTMLElement, name: string) => {
 	fireEvent.contextMenu(rowButton(rowFor(canvasElement, name)))
-	return within(
-		await shown(
-			await screen.findByRole("menu", { name: `Actions for ${name}` }),
-		),
+	const menu = await shown(
+		await screen.findByRole("menu", { name: `Actions for ${name}` }),
 	)
+	await waitFor(async () => {
+		await expect(menu.contains(document.activeElement)).toBe(true)
+	}, FRAME_POLL)
+	return within(menu)
 }
 
 const LAST_SPACE_NOTE =
