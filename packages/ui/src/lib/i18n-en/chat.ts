@@ -254,6 +254,33 @@ const chat = {
 				title: "Couldn’t reach the host of this space",
 				description: "Its Mac is offline. Try again once it’s back online.",
 			},
+			joinRefused: {
+				unavailable: {
+					title: "Couldn’t open the spaces you joined",
+					description:
+						"Kiroshi can’t read its saved data on this Mac. Restart Kiroshi, then try again.",
+				},
+				storage: {
+					title: "Couldn’t read this space’s connection",
+					description:
+						"Kiroshi couldn’t load what it saved about this space. Try again in a moment.",
+				},
+				unknownJoinedSpace: {
+					title: "This space is no longer in your list",
+					description:
+						"You may have left it. Ask its host for a new invitation.",
+				},
+				undeliverable: {
+					title: "Couldn’t open this space",
+					description:
+						"Kiroshi couldn’t pass the request on. Restart Kiroshi, then try again.",
+				},
+				proxyUnavailable: {
+					title: "Couldn’t connect to this space",
+					description:
+						"The connection to its host couldn’t be opened. Check your network, then try again.",
+				},
+			},
 			readFailed: "Couldn’t load earlier messages",
 		},
 		transport: {

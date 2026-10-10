@@ -271,6 +271,33 @@ const chat = {
 				description:
 					"Son Mac est hors ligne. Réessayez une fois qu’il est de nouveau en ligne.",
 			},
+			joinRefused: {
+				unavailable: {
+					title: "Impossible d’ouvrir les espaces rejoints",
+					description:
+						"Kiroshi ne peut pas lire son stockage sur ce Mac. Redémarrez Kiroshi, puis réessayez.",
+				},
+				storage: {
+					title: "Impossible de lire la connexion à cet espace",
+					description:
+						"Kiroshi n’a pas pu charger ce qu’il a enregistré sur cet espace. Réessayez dans un instant.",
+				},
+				unknownJoinedSpace: {
+					title: "Cet espace n’est plus dans votre liste",
+					description:
+						"Vous l’avez peut-être quitté. Demandez une nouvelle invitation à son hôte.",
+				},
+				undeliverable: {
+					title: "Impossible d’ouvrir cet espace",
+					description:
+						"Kiroshi n’a pas pu transmettre la demande. Redémarrez Kiroshi, puis réessayez.",
+				},
+				proxyUnavailable: {
+					title: "Impossible de se connecter à cet espace",
+					description:
+						"La connexion à son hôte n’a pas pu s’ouvrir. Vérifiez votre réseau, puis réessayez.",
+				},
+			},
 			readFailed: "Impossible de charger les messages précédents",
 		},
 		transport: {

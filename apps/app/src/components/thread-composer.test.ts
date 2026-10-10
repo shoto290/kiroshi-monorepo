@@ -208,6 +208,7 @@ describe("ThreadComposer", () => {
 			spaceName: "Studio Nord",
 			hostEmail: "lea@example.com",
 			isOnline,
+			isDown: !isOnline,
 		})
 
 		const composerIn = (host: OpenJoinedHost) =>
@@ -222,6 +223,13 @@ describe("ThreadComposer", () => {
 
 			expect(screen.getByText(OFFLINE_NOTICE)).toBeTruthy()
 			expect(screen.queryByRole("textbox")).toBeNull()
+		})
+
+		it("keeps the field while the host is still connecting", () => {
+			render(composerIn({ ...hostOf(false), isDown: false }))
+
+			expect(screen.queryByText(OFFLINE_NOTICE)).toBeNull()
+			expect(screen.queryByRole("textbox")).toBeTruthy()
 		})
 
 		it("gives the field back once the host is online again", () => {

@@ -236,6 +236,23 @@ describe("watching the joined spaces", () => {
 			expect.objectContaining({ description: "database locked" }),
 		)
 	})
+
+	it("raises a refused list in a sentence, never the refusal kind", async () => {
+		const { joined, wire, reportFailure } = await gearFor()
+		wire.transport.list.mockRejectedValueOnce({
+			kind: "unavailable",
+			failure: { kind: "sqlite", detail: "database is locked" },
+		})
+
+		joined.watch()
+		await settle()
+
+		expect(reportFailure).toHaveBeenCalledExactlyOnceWith({
+			title: "Couldn’t open the spaces you joined",
+			description:
+				"Kiroshi can’t read its saved data on this Mac. Restart Kiroshi, then try again.",
+		})
+	})
 })
 
 describe("selecting a space", () => {

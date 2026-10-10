@@ -148,8 +148,51 @@ it("reads the inviter email and the host presence of the open joined space", asy
 		spaceName: "Studio Nord",
 		hostEmail: "lea@example.com",
 		isOnline: true,
+		isDown: false,
 	})
 })
+
+it.each<[string, JoinedHostState]>([
+	["connecting", { status: "connecting" }],
+	["refused", { status: "refused", failure: "Couldn’t open this space" }],
+	["down", { status: "down" }],
+])("reads the host offline while it is %s", async (_, connection) => {
+	const { result } = await renderOpenHost(connection)
+
+	expect(result.current?.isOnline).toBe(false)
+})
+
+it("reads the host offline while it has no connection entry yet", async () => {
+	const { spaces, joined } = await openStudio()
+
+	const { result } = renderHook(() =>
+		useOpenJoinedHost(spaces.getState().selectedSpaceId, {
+			state: joined.getState(),
+			controller: joined,
+			hosts: { active: STUDIO_SPACE.id, connections: {} },
+		}),
+	)
+
+	expect(result.current?.isOnline).toBe(false)
+})
+
+it.each<[string, JoinedHostState, boolean]>([
+	["connecting", { status: "connecting" }, false],
+	[
+		"refused",
+		{ status: "refused", failure: "Couldn’t open this space" },
+		false,
+	],
+	["down", { status: "down" }, true],
+	["up", { status: "up" }, false],
+])(
+	"reads the host down only on a down link, here %s",
+	async (_, connection, isDown) => {
+		const { result } = await renderOpenHost(connection)
+
+		expect(result.current?.isDown).toBe(isDown)
+	},
+)
 
 it("follows the host going offline and coming back without a reload", async () => {
 	const { result, rerender } = await renderOpenHost({ status: "up" })
